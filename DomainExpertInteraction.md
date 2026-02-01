@@ -7,7 +7,7 @@
     Duration (in-minutes):23.09
     Publicly accessible Video link: https://drive.google.com/file/d/1d41z9DdnTHcj7mDsQyGyFEHemOvYQxYb/view?usp=drivesdk
 ## Domain Expert Details
-  Manoj Kumar Andhavarapu,Backend Developer and ML(Recomendation Systems ) related experty in gaming platform and
+  Manoj Kumar Andhavarapu,Backend Developer,Assistant Software Engineer and ML(Recomendation Systems ) related experty in gaming platform and
   has 3 years of work experience in gaming platform and currently working at Pragmatic Play(Software Solutions) gaming company,
   Nature of work: Developer
   LinkedIn account:https://www.linkedin.com/in/andhavarapu-manoj-sai-7196b027b?utm_source=share_via&utm_content=profile&utm_medium=member_android
@@ -87,4 +87,5 @@ Assumptions That Were Confirmed:
 Assumptions That Were Corrected:
   Automation alone is insufficient; human judgment and coordination are essential during incidents
 Open Questions That Need Follow-Up:
+
   How to better predict incidents before player impact, unify operational data, and design tools that support faster decision-making
