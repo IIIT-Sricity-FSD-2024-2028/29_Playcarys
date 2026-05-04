@@ -1,0 +1,48 @@
+# Domain: Gaming Platform and Interactive Entertainment
+# Problem Statement: Online Multiplayer Game Management Platform
+# Last Updated: 2026-01-30
+DomainTerm1: Live Operations
+definition:
+  Continuous post-launch management of an online multiplayer game, focused on
+  monitoring system health, handling incidents, deploying updates, running live
+  events, and coordinating support and moderation to ensure stability and
+  consistent player experience.
+examples:
+  - Monitoring server health and player concurrency during peak hours
+  - Coordinating teams to resolve a matchmaking outage in real time
+aliases:
+  - Live Ops
+  - Game Operations
+DomainTerm2: Matchmaking System
+definition:
+  The process of grouping players into multiplayer game sessions using rules
+  such as skill rating, latency, region, and party size, with the goal of
+  balancing fairness and acceptable queue times.
+examples:
+  - Creating balanced teams based on player skill levels
+  - Adjusting matchmaking thresholds when regional player counts drop
+aliases:
+  - Player Matching
+  - Skill-Based Matching
+DomainTerm3: Game Session
+definition:
+  A single instance of gameplay created for a specific group of players, starting
+  when the match begins and ending when the match concludes, while being monitored
+  for performance, stability, and player behavior.
+examples:
+  - A ranked competitive match hosted on a dedicated server
+  - A casual multiplayer lobby created for a group of friends
+aliases:
+  - Match Instance
+  - Session
+DomainTerm4: Telemetry
+definition:
+  Operational and gameplay data collected from game clients and backend systems,
+  including performance metrics, errors, latency, and player actions, used to
+  monitor system health and player experience.
+examples:
+  - Tracking latency spikes during high player traffic
+  - Collecting error logs after a failed server deployment
+aliases:
+  - Game Metrics
+  - Operational Data
