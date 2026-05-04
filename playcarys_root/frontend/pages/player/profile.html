@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Player Profile</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    .achievement {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.6rem;
+      transition: all var(--trans-fast);
+    }
+
+    .achievement.unlocked {
+      border-color: rgba(124, 58, 237, 0.4);
+      background: rgba(124, 58, 237, 0.08);
+    }
+
+    .achievement-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .achievement.unlocked .achievement-icon {
+      background: rgba(124, 58, 237, 0.2);
+    }
+
+    .achievement-info {
+      flex: 1;
+    }
+
+    .achievement-info h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .achievement-info p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-row .label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .stat-row .val {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .report-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    /* ── Two-column report / contact grid ── */
+    .report-contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    @media (max-width: 700px) {
+      .report-contact-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Contact Moderator card extras */
+    .contact-mod-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(124, 58, 237, 0.25) !important;
+      background: linear-gradient(145deg, rgba(124,58,237,0.06), var(--bg-card)) !important;
+    }
+    .mod-glow-blob {
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(124,58,237,0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .mod-icon-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(0,212,255,0.15));
+      border: 1px solid rgba(124,58,237,0.35);
+      font-size: 1.6rem;
+      margin-bottom: 0.85rem;
+    }
+    .mod-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .mod-sub {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 1rem;
+    }
+    .mod-assigned {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      background: rgba(124,58,237,0.1);
+      border: 1px solid rgba(124,58,237,0.25);
+      border-radius: var(--radius-md);
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 0.9rem;
+      animation: fadeIn 0.4s ease;
+    }
+    .mod-assigned.hidden { display: none; }
+    .mod-assigned-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+    .mod-assigned-name  { font-size: 0.92rem; font-weight: 700; color: #a78bfa; }
+    .mod-send-btn { transition: background 0.4s ease, transform 0.15s ease; }
+    .mod-send-btn:active { transform: scale(0.97); }
+    .mod-btn-icon { margin-right: 0.3rem; }
+    .mod-note {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.85rem;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <div class="page-header">
+        <h1>Player Profile</h1>
+        <p class="text-muted">View your stats and achievements</p>
+      </div>
+
+      <!-- Profile Card -->
+      <div class="card mb-3" id="profile-card">
+        <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+          <div class="avatar avatar-xl" id="p-avatar"></div>
+          <div style="flex:1;min-width:200px">
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+              <h2 id="p-username" style="font-size:1.6rem"></h2>
+              <span class="badge badge-active" id="p-level"></span>
+              <span class="badge badge-active" id="p-status"></span>
+            </div>
+            <div style="color:var(--text-secondary);font-size:0.875rem;margin-top:0.3rem" id="p-email"></div>
+            <div style="margin-top:1rem">
+              <div
+                style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.35rem">
+                <span>Level Progress</span><span id="p-pct"></span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar" id="p-bar"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:2.5rem;margin-top:1.25rem;flex-wrap:wrap">
+              <div style="text-align:center">
+                <div style="font-family:'Orbitron',monospace;font-size:1.5rem;font-weight:700" id="p-matches"></div>
+                <div style="font-size:0.75rem;color:var(--text-secondary)">Matches</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:'Orbitron',monospace;font-size:1.5rem;font-weight:700;color:var(--accent-green)"
+                  id="p-wins"></div>
+                <div style="font-size:0.75rem;color:var(--text-secondary)">Wins</div>
+              </div>
+              <div style="text-align:center">
+                <div style="font-family:'Orbitron',monospace;font-size:1.5rem;font-weight:700;color:var(--accent-red)"
+                  id="p-losses"></div>
+                <div style="font-size:0.75rem;color:var(--text-secondary)">Losses</div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-ghost" onclick="Modal.open('edit-modal');prefillEditForm()">✏️ Edit Profile</button>
+        </div>
+      </div>
+
+      <!-- PlayCarys Points Card -->
+      <div class="card mb-3" id="pcp-card">
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+          <div
+            style="font-size:2.8rem;background:linear-gradient(135deg,rgba(124,58,237,0.2),rgba(0,212,255,0.1));border:1px solid rgba(124,58,237,0.3);border-radius:var(--radius-lg);width:72px;height:72px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            🏅</div>
+          <div style="flex:1;min-width:200px">
+            <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.3rem">
+              <h3 style="font-family:'Orbitron',monospace;font-size:1.1rem">PlayCarys Points</h3>
+              <span
+                style="font-size:0.72rem;background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);border-radius:99px;padding:0.15rem 0.55rem;font-weight:700">PCP</span>
+            </div>
+            <div style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:0.75rem">Your performance score
+              based on wins and tournaments — the true measure of a PlayCarys champion.</div>
+            <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+              <div>
+                <div
+                  style="font-family:'Orbitron',monospace;font-size:2rem;font-weight:800;background:linear-gradient(135deg,#a78bfa,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text"
+                  id="pcp-score">—</div>
+                <div style="font-size:0.72rem;color:var(--text-secondary)">PCP Score (0–100)</div>
+              </div>
+              <div>
+                <div style="font-size:1.1rem;font-weight:700;color:var(--accent-yellow)" id="pcp-rank">—</div>
+                <div style="font-size:0.72rem;color:var(--text-secondary)">Rank Tier</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats + Achievements -->
+      <div class="cards-grid-2">
+        <div class="card">
+          <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">🎯 Statistics</h3>
+          <div id="stats-list"></div>
+        </div>
+        <div class="card">
+          <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">🏅 Achievements</h3>
+          <div id="achievements-list"></div>
+        </div>
+      </div>
+
+      <!-- Match History -->
+      <div class="card p-0 overflow-hidden">
+        <div class="card-header-row" style="padding:1.25rem">
+          <h2 style="font-size:1.1rem">🛡️ Match Forensics</h2>
+          <button class="btn btn-ghost btn-sm" onclick="window.location.href='match-history.html'">View All</button>
+        </div>
+        <div id="match-history-list"></div>
+      </div>
+
+      <!-- ── Report a Player  |  Contact Moderator (side-by-side halves) ── -->
+      <div class="report-contact-grid mt-3">
+
+        <!-- LEFT HALF: Report a Player -->
+        <div class="card report-half">
+          <h3 class="mb-1" style="display:flex;align-items:center;gap:0.5rem">⚠️ Report a Player</h3>
+          <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.9rem">See someone cheating or
+            behaving badly? Flag them here and our team will investigate.</p>
+          <div class="report-form">
+            <div class="form-group">
+              <label class="form-label">Player Username <span class="required">*</span></label>
+              <input class="form-input" id="r-player" placeholder="Their username" />
+              <span class="form-error"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Report Type <span class="required">*</span></label>
+              <select class="form-select" id="r-type">
+                <option value="">Select type...</option>
+                <option>Toxic Behavior</option>
+                <option>Cheating</option>
+                <option>Griefing</option>
+                <option>Spam</option>
+                <option>Hate Speech</option>
+                <option>Other</option>
+              </select>
+              <span class="form-error"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Session / Game</label>
+              <input class="form-input" id="r-session" placeholder="Which game or session?" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description <span class="required">*</span></label>
+              <textarea class="form-textarea" id="r-desc"
+                placeholder="Describe what happened in detail..." style="min-height:80px"></textarea>
+              <span class="form-error"></span>
+            </div>
+            <button class="btn btn-yellow w-full" onclick="submitReport()">⚠️ Submit Report</button>
+          </div>
+        </div>
+
+        <!-- RIGHT HALF: Contact Moderator -->
+        <div class="card contact-mod-card">
+          <div class="mod-glow-blob"></div>
+
+          <div class="mod-icon-wrap">🛡️</div>
+
+          <h3 class="mod-title">Contact a Moderator</h3>
+          <p class="mod-sub">Need urgent help? Send your concern directly to an on-duty moderator. A random available
+            moderator will be assigned and notified immediately on their dashboard.</p>
+
+          <!-- Shows after first send -->
+          <div id="mod-assigned-preview" class="mod-assigned hidden">
+            <div class="mod-assigned-label">Assigned to</div>
+            <div class="mod-assigned-name" id="mod-assigned-name">—</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Your Message <span class="required">*</span></label>
+            <textarea class="form-textarea" id="mod-msg"
+              placeholder="Describe your concern clearly. The moderator will review it from their dashboard."
+              style="min-height:95px"></textarea>
+            <span class="form-error" id="mod-msg-err" style="color:var(--accent-red);font-size:0.78rem"></span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Urgency</label>
+            <select class="form-select" id="mod-urgency">
+              <option value="Low">🟢 Low — General inquiry</option>
+              <option value="Medium" selected>🟡 Medium — Needs attention</option>
+              <option value="High">🔴 High — Urgent issue</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary w-full mod-send-btn" onclick="contactModerator()" id="mod-send-btn">
+            <span class="mod-btn-icon">📡</span> Send to Moderator
+          </button>
+
+          <div class="mod-note">
+            <span>🔒</span> Your message is confidential and reviewed within 24 hours.
+          </div>
+        </div>
+
+      </div><!-- /report-contact-grid -->
+
+    </div>
+  </div>
+
+  <!-- EDIT PROFILE MODAL -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Edit Profile</h3>
+        <span class="modal-close" onclick="Modal.close('edit-modal')">✕</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">Username <span class="required">*</span></label>
+          <input class="form-input" id="e-username" />
+          <span class="form-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" id="e-email" type="email" />
+          <span class="form-error"></span>
+        </div>
+        <div style="padding:0.75rem;background:var(--bg-secondary);border-radius:var(--radius-md)">
+          <h4 style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.75rem">CHANGE PASSWORD (OPTIONAL)
+          </h4>
+          <div class="form-group mb-2">
+            <label class="form-label">New Password</label>
+            <input class="form-input" id="e-password" type="password" placeholder="Leave blank to keep current" />
+            <span class="form-error"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <input class="form-input" id="e-confirm" type="password" placeholder="Repeat new password" />
+            <span class="form-error"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="Modal.close('edit-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script>
+    // navigate() provided globally by utils.js
+
+    let currentUser = null;
+
+    function loadProfile() {
+      const session = Auth.getSession();
+      // Find user by ID (stable even if username changes)
+      currentUser = DB.users.find(u => String(u.id) === String(session.userId)) ||
+        DB.users.find(u => u.username === session.username);
+      if (!currentUser) return;
+
+      const u = currentUser;
+      const uid = u.id;
+      const pct = ((u.level || 1) % 10) * 10 || 10;
+      const winRate = u.matches > 0 ? Math.round(u.wins / u.matches * 100) : 0;
+
+      document.getElementById('p-avatar').textContent = u.avatar;
+      document.getElementById('p-username').textContent = u.username;
+      document.getElementById('p-level').textContent = `Level ${u.level || 1}`;
+      document.getElementById('p-status').textContent = u.status === 'active' ? '🟢 Online' : '⭕ Offline';
+      document.getElementById('p-email').textContent = u.email;
+      document.getElementById('p-pct').textContent = `${pct}%`;
+      document.getElementById('p-bar').style.width = `${pct}%`;
+      document.getElementById('p-matches').textContent = u.matches || 0;
+      document.getElementById('p-wins').textContent = u.wins || 0;
+      document.getElementById('p-losses').textContent = u.losses || 0;
+
+      // PlayCarys Points (PCP)
+      const gamesWon = u.wins || 0;
+      const tournsWon = 0;
+      const totalGames = u.matches || 0;
+      const totalTourns = DB.tournaments.filter(t => t.registeredPlayers.includes(u.id)).length;
+      const denom = totalGames + totalTourns;
+      const pcpRaw = denom > 0 ? (gamesWon + tournsWon) / denom : 0;
+      const pcpScore = Math.min(100, Math.round(pcpRaw * 100));
+      const pcpRank = pcpScore >= 80 ? '🔥 Legendary' : pcpScore >= 60 ? '💎 Diamond' : pcpScore >= 40 ? '🥇 Gold' : pcpScore >= 20 ? '🥈 Silver' : '🥉 Bronze';
+      document.getElementById('pcp-score').textContent = pcpScore;
+      document.getElementById('pcp-rank').textContent = pcpRank;
+
+      // Stats
+      document.getElementById('stats-list').innerHTML = [
+        ['Win Rate', `${winRate}%`, 'var(--accent-purple)'],
+        ['Total Matches', u.matches || 0, 'var(--text-primary)'],
+        ['Current Level', u.level || 1, 'var(--text-primary)'],
+        ['Tournaments', totalTourns, 'var(--accent-yellow)'],
+        ['Account Status', capitalize(u.status), u.status === 'active' ? 'var(--accent-green)' : 'var(--accent-red)']
+      ].map(([label, val, color]) =>
+        `<div class="stat-row"><span class="label">${label}</span><span class="val" style="color:${color}">${val}</span></div>`
+      ).join('');
+
+      // Achievements
+      const achievements = [
+        { icon: '🏆', name: 'First Victory', desc: 'Win your first match', condition: u.wins >= 1 },
+        { icon: '💎', name: '100 Wins', desc: 'Achieve 100 victories', condition: u.wins >= 100 },
+        { icon: '⭐', name: 'Level 50', desc: 'Reach level 50', condition: u.level >= 50 },
+        { icon: '🎖️', name: 'Tournament Champion', desc: 'Win a tournament', condition: false },
+        { icon: '🛡️', name: 'Veteran', desc: 'Play 200+ matches', condition: u.matches >= 200 },
+        { icon: '🎯', name: 'Win Streak', desc: 'Win 5 matches in a row', condition: u.wins >= 5 }
+      ];
+      document.getElementById('achievements-list').innerHTML = achievements.map(a => `
+    <div class="achievement ${a.condition ? 'unlocked' : ''}">
+      <div class="achievement-icon">${a.icon}</div>
+      <div class="achievement-info">
+        <h4>${a.name}</h4>
+        <p>${a.desc}</p>
+      </div>
+      ${a.condition ? '<span class="badge badge-approved">Unlocked</span>' : '<span style="color:var(--text-muted);font-size:0.75rem">Locked</span>'}
+    </div>`).join('');
+
+      // Load 3 recent forensic history entries
+      const myResults = DB.match_results.filter(r => r.player_id === uid).sort((a,b) => new Date(b.joined_at) - new Date(a.joined_at)).slice(0, 3);
+      const hList = document.getElementById('match-history-list');
+      
+      if(!myResults.length) {
+        hList.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-secondary);font-size:0.85rem">No competitive matches recorded yet.</div>';
+      } else {
+        hList.innerHTML = myResults.map(r => {
+          const session = DB.sessions.find(s => String(s.session_id) === String(r.session_id));
+          const gameId = r.game_id || session?.game_id || 0;
+          const game = DB.games.find(g => String(g.game_id || g.id) === String(gameId));
+          const result = r.player_rank === 1 ? 'Win' : 'Loss';
+          return `
+            <div class="history-row" onclick="window.location.href='match-details.html?sid=${r.session_id}'" style="cursor:pointer; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border-primary); display:flex; align-items:center; gap:1rem">
+              <div style="font-weight:700">${game ? (game.game_name || game.title) : 'Match'}</div>
+              <div style="font-size:0.8rem; color:var(--text-secondary)">${formatDate(r.joined_at)}</div>
+              <div class="text-${result==='Win'?'green':'red'}" style="margin-left:auto; font-weight:800; font-family:'Orbitron',monospace">${result}</div>
+            </div>`;
+        }).join('');
+      }
+    }
+
+    // Prefill edit form from current loaded data (not from DB, to avoid stale reset)
+    function prefillEditForm() {
+      if (!currentUser) return;
+      document.getElementById('e-username').value = currentUser.username;
+      document.getElementById('e-email').value = currentUser.email;
+      document.getElementById('e-password').value = '';
+      document.getElementById('e-confirm').value = '';
+    }
+
+    function saveProfile() {
+      const uEl = document.getElementById('e-username');
+      const eEl = document.getElementById('e-email');
+      const pEl = document.getElementById('e-password');
+      const cEl = document.getElementById('e-confirm');
+
+      const rules = [
+        { el: uEl, rules: [{ type: 'required' }, { type: 'minLen', n: 3 }, { type: 'maxLen', n: 20 }] },
+        { el: eEl, rules: [{ type: 'required' }, { type: 'email' }] }
+      ];
+      if (pEl.value) {
+        rules.push({ el: pEl, rules: [{ type: 'password' }] });
+        rules.push({ el: cEl, rules: [{ type: 'required', msg: 'Please confirm new password' }, { type: 'match', target: pEl, msg: 'Passwords do not match' }] });
+      }
+      if (!Validate.form(rules)) return;
+
+      const newUsername = uEl.value.trim();
+      const newEmail = eEl.value.trim();
+
+      if (DB.users.find(u => u.username.toLowerCase() === newUsername.toLowerCase() && u.id !== currentUser.id)) {
+        Validate.field(uEl, [{ type: 'custom', fn: () => false, msg: 'Username already taken' }]); return;
+      }
+      if (DB.users.find(u => u.email.toLowerCase() === newEmail.toLowerCase() && u.id !== currentUser.id)) {
+        Validate.field(eEl, [{ type: 'custom', fn: () => false, msg: 'Email already registered' }]); return;
+      }
+
+      // Update the real underlying DB fields (username/email are read-only getters)
+      currentUser.user_name = newUsername;
+      currentUser.email     = newEmail;
+      currentUser.avatar    = newUsername.slice(0, 2).toUpperCase();
+      if (pEl.value) {
+        currentUser.password = pEl.value;
+      }
+
+      // Update session token
+      const session = Auth.getSession();
+      session.username = newUsername;
+      session.avatar = currentUser.avatar;
+      sessionStorage.setItem('playcarys_session', JSON.stringify(session));
+
+      DB.save(); // Actually persist changes to the mock database!
+
+      Modal.close('edit-modal');
+      Toast.success('Profile updated successfully!');
+      loadProfile();
+      buildNavbar('player', 'profile');
+    }
+
+    // ── Report a Player ────────────────────────────────────────────
+    function submitReport() {
+      const pEl = document.getElementById('r-player');
+      const tEl = document.getElementById('r-type');
+      const dEl = document.getElementById('r-desc');
+
+      if (!Validate.form([
+        { el: pEl, rules: [{ type: 'required', msg: 'Player username is required' }] },
+        { el: tEl, rules: [{ type: 'required', msg: 'Please select a report type' }] },
+        { el: dEl, rules: [{ type: 'required', msg: 'Description is required' }, { type: 'minLen', n: 20, msg: 'Please provide more detail (min 20 characters)' }] }
+      ])) return;
+
+      const targetName = pEl.value.trim();
+      const targetUser = DB.users.find(u => u.username.toLowerCase() === targetName.toLowerCase());
+      if (!targetUser) { Validate.field(pEl, [{ type: 'custom', fn: () => false, msg: 'User not found on this platform' }]); return; }
+      if (targetUser.id === currentUser.id) { Validate.field(pEl, [{ type: 'custom', fn: () => false, msg: 'You cannot report yourself' }]); return; }
+
+      // Randomly assign to a moderator for faster triage
+      const mods = DB.users.filter(u => u.role === 'moderator');
+      const assignedMod = mods.length ? mods[Math.floor(Math.random() * mods.length)] : null;
+
+      const newReport = {
+        report_id: Math.floor(Math.random() * 1000000),
+        reported_by: parseInt(currentUser.id || currentUser.user_id, 10),
+        reported_user: parseInt(targetUser.id || targetUser.user_id, 10),
+        type: tEl.value,
+        reason: dEl.value,
+        session: document.getElementById('r-session').value || 'Unknown',
+        sessionId: '',
+        status: 'pending',
+        report_date: new Date().toISOString().slice(0, 10),
+        time: 'just now',
+        actionNote: '',
+        assignedModerator: assignedMod ? assignedMod.username : null
+      };
+      DB.reports.push(newReport);
+      if (DB.attachReportGetters) DB.attachReportGetters(newReport);
+      DB.save();
+
+      pEl.value = ''; tEl.value = ''; document.getElementById('r-session').value = ''; dEl.value = '';
+      Toast.success('Report submitted. Our moderators will review it shortly.');
+    }
+
+    // ── Contact Moderator ──────────────────────────────────────────
+    function contactModerator() {
+      const msgEl  = document.getElementById('mod-msg');
+      const errEl  = document.getElementById('mod-msg-err');
+      const urgEl  = document.getElementById('mod-urgency');
+      const btnEl  = document.getElementById('mod-send-btn');
+
+      errEl.textContent = '';
+      const msg = msgEl.value.trim();
+      if (msg.length < 15) {
+        errEl.textContent = 'Please provide at least 15 characters describing your concern.';
+        msgEl.focus();
+        return;
+      }
+
+      // Pick a random on-duty moderator
+      const mods = DB.users.filter(u => u.role === 'moderator');
+      if (!mods.length) {
+        Toast.error('No moderators are currently available. Please try again later.');
+        return;
+      }
+      const mod = mods[Math.floor(Math.random() * mods.length)];
+      const urgency = urgEl.value;
+
+      // Inject a direct-contact report into DB so moderator sees it
+      const contactReport = {
+        report_id: Math.floor(Math.random() * 1000000),
+        reported_by: parseInt(currentUser.id || currentUser.user_id, 10),
+        reported_user: null,
+        type: `Direct Contact [${urgency}]`,
+        reason: msg,
+        session: 'Player → Moderator',
+        sessionId: '',
+        status: 'pending',
+        report_date: new Date().toISOString().slice(0, 10),
+        time: 'just now',
+        actionNote: '',
+        assignedModerator: mod.username,
+        isDirectContact: true
+      };
+      DB.reports.push(contactReport);
+      if (DB.attachReportGetters) DB.attachReportGetters(contactReport);
+      DB.save();
+
+      // Reveal assigned moderator pill
+      const initials = (mod.avatar || mod.username.slice(0, 2).toUpperCase());
+      document.getElementById('mod-assigned-name').textContent = `${initials}  ${mod.username}`;
+      document.getElementById('mod-assigned-preview').classList.remove('hidden');
+
+      // Button feedback
+      btnEl.disabled = true;
+      btnEl.innerHTML = '✅ Message Sent!';
+      btnEl.style.background = 'var(--accent-green)';
+      setTimeout(() => {
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<span class="mod-btn-icon">📡</span> Send to Moderator';
+        btnEl.style.background = '';
+        msgEl.value = '';
+        urgEl.value = 'Medium';
+      }, 3000);
+
+      Toast.success(`Message sent! Moderator ${mod.username} will review it shortly.`);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['player', 'guest']);
+      if (!session) return;
+      buildNavbar(session.role, 'profile');
+      loadProfile();
+    });
+  </script>
+</body>
+
+</html>
+

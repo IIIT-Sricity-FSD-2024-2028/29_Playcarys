@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Publisher Dashboard</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ── Dashboard Premium Overhaul ─────────────────────── */
+
+/* Hero Section */
+.dash-hero {
+  background: linear-gradient(135deg, rgba(0,212,255,0.06) 0%, rgba(124,58,237,0.06) 100%);
+  border: 1px solid rgba(0,212,255,0.1);
+  border-radius: var(--radius-xl);
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+.dash-hero::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(0,212,255,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.dash-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -30px; left: 40%;
+  width: 160px; height: 160px;
+  background: radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-content { position: relative; z-index: 1; }
+.hero-greeting {
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.hero-greeting::before {
+  content: '';
+  width: 20px; height: 2px;
+  background: var(--accent-cyan);
+  border-radius: 99px;
+}
+.hero-name {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+  font-weight: 800;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.35rem;
+}
+.hero-sub { font-size: 0.875rem; color: var(--text-secondary); }
+.hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+/* Stat Cards */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+@media(max-width:1100px){ .stats-row { grid-template-columns: repeat(3,1fr); } }
+@media(max-width:700px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:420px){ .stats-row { grid-template-columns: 1fr; } }
+
+.stat-premium {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--trans-med);
+}
+.stat-premium::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--gradient-brand);
+  opacity: 0;
+  transition: opacity var(--trans-med);
+}
+.stat-premium:hover { border-color: rgba(0,212,255,0.25); transform: translateY(-3px); box-shadow: var(--shadow-glow); }
+.stat-premium:hover::before { opacity: 1; }
+.stat-premium .sp-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  display: flex; align-items: center; gap: 0.35rem;
+}
+.stat-premium .sp-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+.stat-premium .sp-trend {
+  font-size: 0.72rem;
+  color: var(--accent-green);
+  font-weight: 600;
+}
+.sp-icon {
+  position: absolute;
+  right: 1rem; top: 1rem;
+  font-size: 2rem;
+  opacity: 0.1;
+  transition: opacity var(--trans-med);
+}
+.stat-premium:hover .sp-icon { opacity: 0.2; }
+
+/* Section Header */
+.section-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.section-hdr h2 { font-size: 1.1rem; }
+
+/* Games Grid */
+.dash-games-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+@media(max-width:900px){ .dash-games-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:520px){ .dash-games-grid { grid-template-columns: 1fr; } }
+
+/* Analytics & Tournaments Row */
+.bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+@media(max-width:768px){ .bottom-row { grid-template-columns: 1fr; } }
+
+/* Analytics Bar */
+.analytic-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.analytic-bar-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.analytic-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.analytic-bar-fill {
+  height: 100%;
+  background: var(--gradient-brand);
+  border-radius: 99px;
+  transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+  position: relative;
+}
+.analytic-bar-fill::after {
+  content: '';
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 6px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 99px;
+  filter: blur(2px);
+}
+.analytic-val {
+  font-size: 0.75rem;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  font-family: 'Orbitron', monospace;
+  width: 45px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Live Telemetry */
+.live-panel {
+  border: 1px solid rgba(139,92,246,0.25);
+  background: rgba(124,58,237,0.04);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+.live-panel::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #7c3aed, #00d4ff, #7c3aed);
+  background-size: 200% 100%;
+  animation: slide-gradient 3s linear infinite;
+}
+@keyframes slide-gradient { 0%{background-position:0% 0} 100%{background-position:200% 0} }
+
+.live-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--accent-green);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(16,185,129,0.1);
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 99px;
+  padding: 0.2rem 0.6rem;
+}
+.live-dot {
+  width: 6px; height: 6px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100%{ opacity:1; transform:scale(1); }
+  50%{ opacity:0.5; transform:scale(0.7); }
+}
+.live-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media(max-width:600px){ .live-grid { grid-template-columns: 1fr; } }
+
+.live-btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+
+.telemetry-log {
+  height: 130px;
+  overflow-y: auto;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.72rem;
+  background: rgba(0,0,0,0.4);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(124,58,237,0.2);
+  color: var(--accent-cyan);
+}
+.telemetry-entry {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.telemetry-entry:last-child { border-bottom: none; }
+
+/* Tournament list item */
+.tourn-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border-primary);
+}
+.tourn-item:last-child { border-bottom: none; }
+.tourn-name { font-size: 0.88rem; font-weight: 600; }
+.tourn-sub { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem; }
+
+/* Hosting badge in game card */
+.host-badge-hosted {
+  font-size: 0.65rem;
+  background: rgba(0,212,255,0.1);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0,212,255,0.25);
+  border-radius: 99px;
+  padding: 0.12rem 0.45rem;
+  font-weight: 700;
+}
+.host-badge-selfhosted {
+  font-size: 0.65rem;
+  background: rgba(245,158,11,0.1);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 99px;
+  padding: 0.12rem 0.45rem;
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <!-- ── Hero ──────────────────────────────── -->
+  <div class="dash-hero">
+    <div class="hero-content">
+      <div class="hero-greeting">Publisher Studio</div>
+      <div class="hero-name" id="hero-name">Welcome back</div>
+      <div class="hero-sub" id="hero-sub">Manage your games, tournaments and revenue from one place</div>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" onclick="navigate('publish')">🎮 Publish New Game</button>
+        <button class="btn btn-purple btn-lg" onclick="navigate('publish-tournament')">🏆 Create Tournament</button>
+        <button class="btn btn-ghost" onclick="navigate('manage-genres')">🏷️ Manage Genres</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Stats Row ──────────────────────────── -->
+  <div class="stats-row" id="stats-row"></div>
+
+  <!-- ── My Games ───────────────────────────── -->
+  <div class="section-hdr">
+    <h2>🎮 Your Published Games</h2>
+    <button class="btn btn-ghost btn-sm" onclick="navigate('mygames')">Manage All →</button>
+  </div>
+  <div class="dash-games-grid" id="games-grid"></div>
+
+  <div class="card mb-3" style="height: 360px; position: relative;">
+    <h3 class="mb-1">📈 Your Studio's Session Trends</h3>
+    <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.75rem">Daily sessions played across all your games</p>
+    <canvas id="pubSessionsChart" style="width:100%;height:270px"></canvas>
+  </div>
+
+  <!-- ── Analytics + Tournaments ─────────────── -->
+  <div class="bottom-row">
+    <div class="card">
+      <h3 class="mb-1">📊 Views Analytics</h3>
+      <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.75rem">Views breakdown per game</p>
+      <div id="analytics-bars" style="height:280px; position:relative;"><canvas id="viewsChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 class="mb-2">🏆 Live Tournaments</h3>
+      <div id="tournaments-list"></div>
+    </div>
+  </div>
+
+  <!-- ── Live Telemetry Panel ─────────────────── -->
+  <div class="live-panel">
+    <div class="live-header">
+      <div>
+        <h3 style="color:var(--accent-purple);margin-bottom:0.2rem">📡 Live Interventions & Telemetry</h3>
+        <p style="font-size:0.8rem;color:var(--text-secondary)">Hill Climbing — Real-Time Engine Control</p>
+      </div>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        Live Active
+      </div>
+    </div>
+    <div class="live-grid">
+      <div>
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1rem">Inject real-time physics variables into active sessions to challenge players or create viral moments.</p>
+        <div class="live-btn-row">
+          <button class="btn btn-purple btn-sm" onclick="dispatchLiveEvent('low_gravity')">✨ Low Gravity (8s)</button>
+          <button class="btn btn-sm" style="background:#ef4444;color:#fff" onclick="dispatchLiveEvent('heavy_gravity')">🧱 Heavy Gravity (8s)</button>
+        </div>
+        <p style="font-size:0.8rem;margin-top:0.75rem" id="event-dispatch-status"></p>
+      </div>
+      <div>
+        <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.75rem">Player Death Heatmap — X-Coordinate Telemetry</p>
+        <div class="telemetry-log" id="telemetry-log">
+          <span style="color:var(--text-secondary)">Listening for telemetry streams…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script>
+// navigate() provided globally by utils.js
+
+function hostBadge(g) {
+  if (!g.hostingType || g.hostingType === 'hosted') return '<span class="host-badge-hosted">🏠 Hosted</span>';
+  return '<span class="host-badge-selfhosted">🔧 Self-Hosted</span>';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['publisher']);
+  if (!session) return;
+  buildNavbar('publisher', 'dashboard');
+
+  const pubUser = DB.users.find(u => String(u.id || u.user_id) === String(session.userId));
+  const pubProf = DB.publisher_profiles.find(p => String(p.user_id) === String(session.userId));
+  document.getElementById('hero-name').textContent = `Welcome back, ${session.username}`;
+
+  const myGames  = DB.games.filter(g => String(g.game_publisher || g.publisherId) === String(session.userId));
+  const approved = myGames.filter(g => g.game_approval_status === 'approved' || g.status === 'approved');
+  const pending  = myGames.filter(g => g.game_approval_status === 'pending'  || g.status === 'pending');
+  const totalViews = myGames.reduce((s, g) => s + (g.views || 0), 0);
+  const totalSessions = myGames.reduce((s, g) => s + (g.sessions || 0), 0);
+  const revenuePcp = pubProf?.revenue_pcp || 0;
+
+
+  // Stats
+  const stats = [
+    { label:'Total Games',     value: myGames.length,                   color:'var(--accent-cyan)',   icon:'🎮' },
+    { label:'Approved Games',  value: approved.length,                  color:'var(--accent-green)',  icon:'✅' },
+    { label:'Total Views',     value: (totalViews/1000).toFixed(1)+'K', color:'var(--accent-purple)', icon:'👁️' },
+    { label:'Sessions Played', value: totalSessions,                    color:'var(--accent-cyan)',   icon:'🕹️' },
+    { label:'💎 Revenue (PCP)', value: revenuePcp.toLocaleString(),     color:'var(--accent-yellow)', icon:'💰' },
+  ];
+  document.getElementById('stats-row').innerHTML = stats.map(s => `
+    <div class="stat-premium">
+      <div class="sp-icon">${s.icon}</div>
+      <div class="sp-label">${s.label}</div>
+      <div class="sp-value" style="color:${s.color}">${s.value}</div>
+      <div class="sp-trend">↑ Publisher Studio</div>
+    </div>`).join('');
+
+  // Games Grid
+  document.getElementById('games-grid').innerHTML = myGames.length
+    ? myGames.map((g, i) => {
+        const statusKey = g.game_approval_status || g.status || 'pending';
+        const enabledKey = g.game_status || (g.enabled ? 'enabled' : 'disabled');
+        return `
+      <div class="game-card" onclick="navigate('mygames')" style="cursor:pointer">
+        ${getGameIconHTML(g, i, '100%', 'height:130px;display:block;border-bottom:1px solid var(--border-primary);border-radius:0')}
+        <div class="game-card-body" style="position:relative;bottom:auto;left:auto;right:auto;backdrop-filter:none;padding:1rem">
+          <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem">
+            ${badgeHTML(statusKey)} ${hostBadge(g)}
+            <span class="badge" style="background:rgba(16,185,129,0.1);color:var(--accent-green);border-color:rgba(16,185,129,0.25);font-size:0.65rem">${enabledKey === 'enabled' ? '🟢 Live' : '⭕ Offline'}</span>
+          </div>
+          <div class="game-card-title" style="font-size:0.92rem">${g.title || g.game_name}</div>
+          <div class="game-card-desc">${g.desc}</div>
+          <div class="game-card-meta">
+            <span class="tag">${g.genre || g.game_type}</span>
+            <span style="font-size:0.75rem;color:var(--text-secondary)">🕹️ ${g.sessions || 0} sessions</span>
+          </div>
+          <button class="btn btn-ghost btn-sm w-full mt-2" onclick="event.stopPropagation();navigate('mygames')">View Analytics →</button>
+        </div>
+      </div>`;
+      }).join('')
+    : `<div class="empty-state" style="grid-column:1/-1">
+        <div class="icon">🎮</div>
+        <h3>No games yet</h3>
+        <p>Publish your first game to get started</p>
+        <button class="btn btn-primary mt-2" onclick="navigate('publish')">Publish Game</button>
+      </div>`;
+
+  // Views Analytics Interactive Donut Chart
+  const viewsCtx = document.getElementById('viewsChart');
+  if (myGames.length && viewsCtx) {
+    const sortedGames = [...myGames].sort((a,b) => (b.views||0) - (a.views||0));
+    const totalViews = sortedGames.reduce((acc, g) => acc + (g.views || 0), 0);
+
+    // Center-text plugin (shows total views in the doughnut hole)
+    const centerTextPlugin = {
+      id: 'centerText',
+      afterDraw(chart) {
+        const { ctx, chartArea: { top, bottom, left, right } } = chart;
+        const cx = (left + right) / 2, cy = (top + bottom) / 2;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = totalViews > 0 ? (totalViews >= 1000 ? (totalViews/1000).toFixed(1)+'K' : totalViews) : '—';
+        ctx.font = 'bold 20px Orbitron, monospace';
+        ctx.fillStyle = '#00d4ff';
+        ctx.fillText(label, cx, cy - 8);
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillStyle = '#6b7a99';
+        ctx.fillText('Total Views', cx, cy + 12);
+        ctx.restore();
+      }
+    };
+
+    if (totalViews === 0) {
+      // Show placeholder with message
+      document.getElementById('analytics-bars').innerHTML = `
+        <div style="height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem">
+          <div style="font-size:2.5rem;opacity:0.3">👁️</div>
+          <div style="color:var(--text-secondary);font-size:0.85rem;text-align:center">No views recorded yet.<br>Views accumulate when players browse your games.</div>
+        </div>`;
+    } else {
+      new Chart(viewsCtx, {
+        type: 'doughnut',
+        data: {
+          labels: sortedGames.map(g => g.title || g.game_name),
+          datasets: [{
+            data: sortedGames.map(g => g.views || 0),
+            backgroundColor: ['#7c3aed', '#00d4ff', '#10b981', '#f59e0b', '#ec4899', '#6366f1'],
+            borderWidth: 2,
+            borderColor: '#111520',
+            hoverOffset: 10
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '68%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                color: '#c8d0e7',
+                font: { size: 11, family: 'Inter' },
+                padding: 12,
+                usePointStyle: true,
+                pointStyleWidth: 8,
+                generateLabels(chart) {
+                  const ds = chart.data.datasets[0];
+                  return chart.data.labels.map((label, i) => ({
+                    text: `${label}  (${((ds.data[i]/totalViews)*100).toFixed(0)}%)`,
+                    fillStyle: ds.backgroundColor[i],
+                    strokeStyle: ds.backgroundColor[i],
+                    pointStyle: 'circle',
+                    index: i
+                  }));
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(8,10,15,0.95)',
+              borderColor: '#7c3aed',
+              borderWidth: 1,
+              titleColor: '#f0f4ff',
+              bodyColor: '#c8d0e7',
+              padding: 10,
+              callbacks: {
+                label: ctx => ` ${parseInt(ctx.raw).toLocaleString()} views  (${((ctx.raw/totalViews)*100).toFixed(1)}%)`
+              }
+            }
+          }
+        },
+        plugins: [centerTextPlugin]
+      });
+    }
+  } else if (!myGames.length && viewsCtx) {
+    document.getElementById('analytics-bars').innerHTML = `<p style="color:var(--text-secondary);text-align:center;padding:1rem;font-size:0.875rem;margin-top:2rem">Publish a game to see its views here</p>`;
+  }
+
+  // Tournaments
+  const myTourns = DB.tournaments.filter(t => String(t.organizer || t.publisher_id) === String(session.userId));
+  document.getElementById('tournaments-list').innerHTML = myTourns.length
+    ? myTourns.map(t => `
+      <div class="tourn-item">
+        <div>
+          <div class="tourn-name">${t.tournament_name || t.name}</div>
+          <div class="tourn-sub">Participants: ${(t.participants||t.currentParticipants||0)}/${t.maxParticipants || t.max_participants || '?'}</div>
+        </div>
+        ${badgeHTML(t.status)}
+      </div>`).join('')
+    : `<p style="color:var(--text-secondary);text-align:center;padding:1rem;font-size:0.875rem">No tournaments hosted yet</p>`;
+
+  // Publisher Sessions Chart Data
+  const pubSessionsByDay = {};
+  DB.sessions.forEach(s => {
+    const g = DB.games.find(gx => String(gx.game_id || gx.id) === String(s.game_id || s.gameId));
+    if (g && String(g.game_publisher || g.publisherId) === String(session.userId)) {
+      const rawDate = s.createdAt || s.start_time;
+      if (rawDate) {
+        const d = new Date(rawDate).toISOString().split('T')[0];
+        pubSessionsByDay[d] = (pubSessionsByDay[d] || 0) + 1;
+      }
+    }
+  });
+
+  const ctxPub = document.getElementById('pubSessionsChart');
+  if (ctxPub) {
+    const sortedDays = Object.keys(pubSessionsByDay).sort();
+    
+    // Empty state handling
+    if (sortedDays.length === 0) {
+       const today = new Date().toISOString().split('T')[0];
+       pubSessionsByDay[today] = 0;
+       sortedDays.push(today);
+    }
+    
+    new Chart(ctxPub, {
+      type: 'bar',
+      data: {
+        labels: sortedDays.map(d => formatDate(d)),
+        datasets: [{
+          label: 'Sessions Played',
+          data: sortedDays.map(d => pubSessionsByDay[d]),
+          backgroundColor: 'rgba(0,212,255,0.7)',
+          borderColor: '#00d4ff',
+          borderWidth: 1,
+          borderRadius: 6,
+          hoverBackgroundColor: '#00d4ff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#f0f4ff', font: { size: 12, family: 'Inter' }, padding: 16 } },
+          tooltip: {
+            backgroundColor: 'rgba(8,10,15,0.95)',
+            borderColor: '#00d4ff',
+            borderWidth: 1,
+            titleColor: '#00d4ff',
+            bodyColor: '#f0f4ff',
+            padding: 10,
+            callbacks: { label: ctx => ` ${ctx.raw} sessions played` }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#6b7a99', font: { size: 11 }, maxRotation: 30 },
+            grid: { color: 'rgba(255,255,255,0.04)' }
+          },
+          y: {
+            ticks: { color: '#6b7a99', font: { size: 11 }, stepSize: 1, precision: 0 },
+            grid: { color: 'rgba(0,212,255,0.08)' },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  // Live Event dispatchers
+  window.dispatchLiveEvent = function(code) {
+    if (!hasHillClimbing) return;
+    DB.fireLiveEvent(8, code);
+    document.getElementById('event-dispatch-status').innerHTML =
+      `<span style="color:var(--accent-green)">✓ Event '${code}' dispatched to live engines!</span>`;
+    setTimeout(() => document.getElementById('event-dispatch-status').innerHTML = '', 4000);
+  };
+
+  // Telemetry
+  if (hasHillClimbing) {
+    setInterval(() => {
+    const logEl = document.getElementById('telemetry-log');
+    if (!logEl) return;
+    const tel = DB.telemetry || [];
+    const hcTel = tel.filter(t => t.gameId === 8).slice(-8);
+    logEl.innerHTML = hcTel.length
+      ? hcTel.reverse().map(t => `
+        <div class="telemetry-entry">
+          <span>💥 Crash at ${t.data?.x || '??'}m</span>
+          <span style="color:var(--text-muted)">${new Date(t.time).toLocaleTimeString()}</span>
+        </div>`).join('')
+      : '<span style="color:var(--text-secondary)">Listening for player telemetry…</span>';
+    }, 2000);
+  }
+});
+</script>
+</body>
+</html>
+
+
+
+

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Game Approvals</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <div class="page-header">
+        <h1>Game Approvals</h1>
+        <p class="text-muted">Review and approve games for publication</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid stats-grid-3 mb-2">
+        <div class="stat-card">
+          <div class="label">Total Games</div>
+          <div class="value" id="s-total">0</div>
+          <div class="icon">🎮</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Pending</div>
+          <div class="value text-yellow" id="s-pending">0</div>
+          <div class="icon">⏳</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Approved</div>
+          <div class="value text-green" id="s-approved">0</div>
+          <div class="icon">✅</div>
+        </div>
+      </div>
+
+      <!-- Pending Approvals -->
+      <div class="card mb-2">
+        <h3 class="mb-2">⏳ Pending Approvals</h3>
+        <div id="pending-list"></div>
+      </div>
+
+      <!-- Recently Approved -->
+      <div>
+        <h2 class="mb-2">Recently Approved</h2>
+        <div class="cards-grid-3" id="approved-grid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- REVIEW MODAL -->
+  <div class="modal-overlay" id="review-modal">
+    <div class="modal" style="max-width:600px">
+      <div class="modal-header">
+        <h3 class="modal-title">Review Game</h3>
+        <span class="modal-close" onclick="Modal.close('review-modal')">✕</span>
+      </div>
+      <div id="review-content"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="Modal.close('review-modal')">Cancel</button>
+        <button class="btn btn-red" id="reject-btn">✕ Reject Game</button>
+        <button class="btn btn-green" id="approve-btn">✓ Approve Game</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script>
+    // navigate() provided globally by utils.js
+
+    function updateStats() {
+      document.getElementById('s-total').textContent = DB.games.length;
+      document.getElementById('s-pending').textContent = DB.games.filter(g => g.status === 'pending').length;
+      document.getElementById('s-approved').textContent = DB.games.filter(g => g.status === 'approved').length;
+    }
+
+    function renderPending() {
+      const list = document.getElementById('pending-list');
+      const pending = DB.games.filter(g => g.status === 'pending');
+      if (!pending.length) {
+        list.innerHTML = `<div style="text-align:center;padding:2rem">
+      <div style="font-size:3rem;opacity:0.4">✅</div>
+      <p style="color:var(--text-secondary);margin-top:0.5rem">All caught up! No pending game approvals.</p>
+    </div>`;
+        return;
+      }
+      list.innerHTML = pending.map(g => `
+    <div class="list-item">
+      ${getGameIconHTML(g, 0, '60px')}
+      <div class="list-item-info">
+        <div class="list-item-title">${g.title} ${badgeHTML('pending')}</div>
+        <div class="list-item-sub">${g.desc}</div>
+        <div class="list-item-sub">
+          <span class="tag">${g.genre}</span>
+          <span>👥 ${g.players}</span>
+          <span>By ${g.publisher}</span>
+          <span>📅 ${formatDate(g.submittedDate)}</span>
+        </div>
+      </div>
+      <div class="list-item-actions">
+        <button class="btn btn-outline btn-sm" onclick="reviewGame('${g.id}')">👁 Review</button>
+        <button class="btn btn-green btn-sm" onclick="approveGame('${g.id}')">✓ Approve</button>
+        <button class="btn btn-red btn-sm" onclick="rejectGame('${g.id}')">✕ Reject</button>
+      </div>
+    </div>`).join('');
+    }
+
+    function renderApproved() {
+      const approved = DB.games.filter(g => g.status === 'approved');
+      const colors = ['linear-gradient(135deg,#1a3a2a,#0d2a1a)', 'linear-gradient(135deg,#1a1a3a,#0d0d2a)', 'linear-gradient(135deg,#3a1a1a,#2a0d0d)', 'linear-gradient(135deg,#2a1a3a,#1a0d2a)', 'linear-gradient(135deg,#1a2a3a,#0d1a2a)', 'linear-gradient(135deg,#3a2a1a,#2a1a0d)'];
+      document.getElementById('approved-grid').innerHTML = approved.map((g, i) => `
+    <div class="game-card">
+      ${getGameIconHTML(g, i, '100%', 'height:140px;display:block;border-bottom:1px solid var(--border-primary);border-radius:0')}
+      <div class="game-card-body">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">${badgeHTML('approved')} ${g.enabled ? badgeHTML('enabled') : badgeHTML('disabled')}</div>
+        <div class="game-card-title mt-1">${g.title}</div>
+        <div class="game-card-meta"><span>By ${g.publisher}</span></div>
+      </div>
+    </div>`).join('');
+    }
+
+    function reviewGame(id) {
+      const g = DB.games.find(g => g.id === id);
+      if (!g) return;
+      document.getElementById('review-content').innerHTML = `
+    <div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:1.25rem;margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+        <span style="font-family:'Orbitron',monospace;font-weight:700">${g.title}</span>
+        ${badgeHTML('pending')}
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-secondary)">Submitted by ${g.publisher} on ${formatDate(g.submittedDate)}</p>
+    </div>
+    <div class="detail-grid" style="margin-bottom:1rem">
+      <div class="detail-field"><label>Genre</label><span>${g.genre}</span></div>
+      <div class="detail-field"><label>Player Count</label><span>${g.players}</span></div>
+      <div class="detail-field"><label>Publisher</label><span>${g.publisher}</span></div>
+      <div class="detail-field"><label>Submission Date</label><span>${formatDate(g.submittedDate)}</span></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <div style="background:var(--bg-input);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:0.75rem;font-size:0.875rem;color:var(--text-secondary)">${g.desc}</div>
+    </div>`;
+      document.getElementById('approve-btn').onclick = () => { approveGame(id); Modal.close('review-modal'); };
+      document.getElementById('reject-btn').onclick = () => { rejectGame(id); Modal.close('review-modal'); };
+      Modal.open('review-modal');
+    }
+
+    function approveGame(id) {
+      const g = DB.games.find(g => g.id === id);
+      const session = Auth.getSession();
+      if (!g) return;
+      g.status = 'approved'; g.enabled = true;
+      DB.activityLog.unshift({ type: 'approval', msg: `${g.title} approved for publication`, time: 'just now' });
+      if (typeof dispatchUserNotification !== 'undefined') {
+         dispatchUserNotification(g.publisher, session.role, session.username, `has <b>approved</b> your submitted game: ${g.title}.`);
+      }
+      if (typeof dispatchRoleNotification !== 'undefined' && session.role !== 'superuser') {
+         dispatchRoleNotification('superuser', session.role, session.username, `approved game ${g.title} by ${g.publisher}`);
+      }
+      Toast.success(`${g.title} approved!`);
+      updateStats(); renderPending(); renderApproved();
+    }
+
+    function rejectGame(id) {
+      const g = DB.games.find(g => g.id === id);
+      const session = Auth.getSession();
+      if (!g) return;
+      confirmAction('Reject Game', `Reject "${g.title}"? The publisher will be notified.`, () => {
+        g.status = 'rejected';
+        if (typeof dispatchUserNotification !== 'undefined') {
+           dispatchUserNotification(g.publisher, session.role, session.username, `has <b>rejected</b> your submitted game: ${g.title}.`);
+        }
+        if (typeof dispatchRoleNotification !== 'undefined' && session.role !== 'superuser') {
+           dispatchRoleNotification('superuser', session.role, session.username, `rejected game ${g.title} by ${g.publisher}`);
+        }
+        Toast.info(`${g.title} rejected`);
+        updateStats(); renderPending(); renderApproved();
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['admin', 'superuser']);
+      if (!session) return;
+      buildNavbar('admin', 'approvals');
+      updateStats(); renderPending(); renderApproved();
+    });
+  </script>
+</body>
+
+</html>
+

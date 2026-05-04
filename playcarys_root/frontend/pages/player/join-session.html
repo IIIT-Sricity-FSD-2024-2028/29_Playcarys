@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Sessions</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* ─── layout ─── */
+.lobby{max-width:960px;margin:0 auto;padding:2rem 1.5rem 4rem}
+
+/* ─── hero ─── */
+.hero{position:relative;border-radius:var(--radius-xl);overflow:hidden;padding:2rem;margin-bottom:2rem;border:1px solid var(--border-primary);background:linear-gradient(135deg,#0d1a2a,#0a0d18 60%,#120a20)}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 80% at 80% 50%,rgba(0,212,255,.07),transparent 70%),radial-gradient(ellipse 40% 60% at 10% 80%,rgba(124,58,237,.08),transparent 60%);pointer-events:none}
+.hero-icon{font-size:4rem;background:linear-gradient(135deg,#0d2a1a,#0d0d2a);border:1px solid var(--border-primary);border-radius:var(--radius-lg);width:88px;height:88px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hero-title{font-family:'Orbitron',monospace;font-size:clamp(1.3rem,3vw,1.9rem);font-weight:800;background:var(--gradient-brand);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.3rem}
+.hero-stat{display:inline-flex;align-items:center;gap:.35rem;background:rgba(255,255,255,.04);border:1px solid var(--border-primary);border-radius:99px;padding:.2rem .7rem;font-size:.78rem;color:var(--text-secondary)}
+
+/* ─── current-session banner ─── */
+.live-banner{display:flex;align-items:center;gap:1rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.5rem;flex-wrap:wrap}
+
+/* ─── tabs ─── */
+.s-tabs{display:flex;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);overflow:hidden;margin-bottom:1.5rem}
+.s-tab{flex:1;padding:.75rem 1rem;font-size:.85rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:.5rem;cursor:pointer;border:none;background:transparent;color:var(--text-secondary);transition:all var(--trans-fast)}
+.s-tab:hover{color:var(--text-primary);background:rgba(255,255,255,.03)}
+.t-wait{background:rgba(16,185,129,.08);color:var(--accent-green);border-bottom:2px solid var(--accent-green)}
+.t-prog{background:rgba(245,158,11,.08);color:var(--accent-yellow);border-bottom:2px solid var(--accent-yellow)}
+.t-create{background:rgba(0,212,255,.08);color:var(--accent-cyan);border-bottom:2px solid var(--accent-cyan)}
+.cnt{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:99px;font-size:.72rem;font-weight:700}
+.cnt-g{background:rgba(16,185,129,.2);color:var(--accent-green)}
+.cnt-y{background:rgba(245,158,11,.2);color:var(--accent-yellow)}
+.tab-panel{display:none}
+.tab-panel.show{display:block}
+
+/* ─── waiting card ─── */
+.w-card{background:var(--bg-card);border:1px solid rgba(16,185,129,.25);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1rem;position:relative;overflow:hidden;transition:all var(--trans-med)}
+.w-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent-green),rgba(16,185,129,.2))}
+.w-card::after{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--accent-green);opacity:.5}
+.w-card:hover{border-color:rgba(16,185,129,.5);box-shadow:0 0 24px rgba(16,185,129,.1);transform:translateY(-1px)}
+.w-card.mine{border-color:rgba(0,212,255,.4);box-shadow:0 0 20px rgba(0,212,255,.08)}
+.w-card.mine::before{background:linear-gradient(90deg,var(--accent-cyan),rgba(0,212,255,.2))}
+.w-card.mine::after{background:var(--accent-cyan)}
+
+/* ─── in-progress card ─── */
+.p-card{background:var(--bg-card);border:1px solid rgba(245,158,11,.2);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;margin-bottom:1rem;position:relative;overflow:hidden;opacity:.9}
+.p-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent-yellow),rgba(245,158,11,.2))}
+.p-card::after{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--accent-yellow);opacity:.5}
+
+/* ─── card internals ─── */
+.sc-row{display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap}
+.sc-icon{width:44px;height:44px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+.sc-icon-g{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2)}
+.sc-icon-y{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2)}
+.sc-icon-c{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2)}
+.sc-info{flex:1;min-width:160px}
+.sc-name{font-weight:700;font-size:1rem;margin-bottom:.2rem}
+.sc-sub{font-size:.8rem;color:var(--text-secondary)}
+.sc-act{display:flex;align-items:center;gap:.4rem;flex-shrink:0}
+.sc-meta{display:flex;gap:.85rem;margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border-primary);flex-wrap:wrap}
+.sc-meta-item{display:flex;align-items:center;gap:.35rem;font-size:.8rem;color:var(--text-secondary)}
+.sc-meta-item strong{color:var(--text-primary)}
+
+/* ─── slot bar ─── */
+.slot-bar{display:flex;gap:4px;margin-top:.55rem}
+.slot{height:6px;flex:1;border-radius:99px;background:rgba(255,255,255,.07)}
+.slot.fg{background:var(--accent-green);box-shadow:0 0 6px rgba(16,185,129,.4)}
+.slot.fy{background:var(--accent-yellow);box-shadow:0 0 6px rgba(245,158,11,.4)}
+.slot.fc{background:var(--accent-cyan);box-shadow:0 0 5px rgba(0,212,255,.35)}
+
+/* ─── pills ─── */
+.pill-w{display:inline-flex;align-items:center;gap:.4rem;background:rgba(16,185,129,.12);color:var(--accent-green);border:1px solid rgba(16,185,129,.3);border-radius:99px;padding:.25rem .75rem;font-size:.75rem;font-weight:700}
+.pill-w .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-green);animation:pg 1.8s ease-in-out infinite}
+@keyframes pg{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+.pill-p{display:inline-flex;align-items:center;gap:.4rem;background:rgba(245,158,11,.12);color:var(--accent-yellow);border:1px solid rgba(245,158,11,.3);border-radius:99px;padding:.25rem .75rem;font-size:.75rem;font-weight:700}
+.spin{animation:sp 3s linear infinite;display:inline-block}
+@keyframes sp{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.mode-badge{display:inline-flex;align-items:center;gap:.3rem;border-radius:99px;padding:.15rem .55rem;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.mc{background:rgba(99,102,241,.12);color:#818cf8;border:1px solid rgba(99,102,241,.25)}
+.mr{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.mt{background:rgba(124,58,237,.12);color:#a78bfa;border:1px solid rgba(124,58,237,.25)}
+
+/* ─── action buttons ─── */
+.btn-join{background:linear-gradient(135deg,rgba(16,185,129,.9),rgba(5,150,105,.9));color:#fff;border:1px solid rgba(16,185,129,.5);border-radius:var(--radius-md);padding:.55rem 1.1rem;font-size:.85rem;font-weight:700;cursor:pointer;transition:all var(--trans-fast);display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap}
+.btn-join:hover{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 0 20px rgba(16,185,129,.35);transform:translateY(-1px)}
+.btn-leave{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-md);padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:all var(--trans-fast);display:inline-flex;align-items:center;gap:.35rem}
+.btn-leave:hover{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.5)}
+.btn-spec{background:rgba(245,158,11,.1);color:var(--accent-yellow);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-md);padding:.55rem 1.1rem;font-size:.85rem;font-weight:600;cursor:pointer;transition:all var(--trans-fast);display:inline-flex;align-items:center;gap:.4rem}
+.btn-spec:hover{background:rgba(245,158,11,.18);border-color:rgba(245,158,11,.5)}
+.btn-locked{background:rgba(255,255,255,.04);color:var(--text-muted);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:.55rem 1.1rem;font-size:.82rem;cursor:not-allowed;display:inline-flex;align-items:center;gap:.35rem}
+.btn-manage{background:rgba(0,212,255,.1);color:var(--accent-cyan);border:1px solid rgba(0,212,255,.3);border-radius:var(--radius-md);padding:.55rem 1.1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:all var(--trans-fast);display:inline-flex;align-items:center;gap:.35rem}
+.btn-manage:hover{background:rgba(0,212,255,.18);border-color:rgba(0,212,255,.5)}
+
+/* ─── create form ─── */
+.create-card{background:var(--bg-card);border:1px solid rgba(0,212,255,.2);border-radius:var(--radius-lg);padding:1.75rem;position:relative;overflow:hidden}
+.create-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gradient-brand)}
+.form-row{display:flex;gap:1rem;flex-wrap:wrap}
+.form-row .form-group{flex:1;min-width:180px}
+.sec-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-secondary);font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--border-primary)}
+.code-row{display:flex;gap:.5rem;margin-bottom:1.5rem}
+.code-row input{flex:1;font-family:'Courier New',monospace;letter-spacing:.15em;text-transform:uppercase}
+.blocked-notice{display:flex;align-items:flex-start;gap:.75rem;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25);border-radius:var(--radius-md);padding:.9rem 1.1rem;margin-bottom:1.25rem;font-size:.82rem;color:#f87171}
+.notice-warn{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.25);color:#fbbf24}
+
+/* ─── host modal ─── */
+.p-slot{display:flex;align-items:center;gap:.75rem;padding:.6rem .9rem;border-radius:var(--radius-md);background:var(--bg-secondary);border:1px solid var(--border-primary);margin-bottom:.45rem}
+.p-slot .av{width:32px;height:32px;border-radius:50%;background:var(--bg-card);border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--text-secondary);flex-shrink:0}
+
+/* ─── tooltip ─── */
+[data-tip]{position:relative;cursor:help;overflow:visible !important}
+[data-tip]::before{content:attr(data-tip);position:absolute;bottom:calc(100% + 15px);left:50%;transform:translateX(-50%);background:#000;border:2px solid #00d4ff;color:#fff;font-size:0.8rem;font-weight:700;line-height:1.4;padding:0.7rem 1.2rem;border-radius:10px;max-width:300px;width:max-content;text-align:center;white-space:normal;pointer-events:none;display:none;z-index:2147483647;box-shadow:0 0 30px rgba(0,212,255,0.4);-webkit-font-smoothing:antialiased;}
+[data-tip]:hover::before{display:block !important;}
+
+.empty-s{text-align:center;padding:3rem 1rem;color:var(--text-secondary)}
+.empty-s .ei{font-size:3rem;margin-bottom:1rem;opacity:.45}
+
+@media(max-width:600px){.sc-row{flex-direction:column}.sc-act{width:100%;flex-direction:column}.sc-act button{width:100%;justify-content:center}}
+@keyframes pulse-green{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
+
+
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="lobby">
+
+  <div class="back-btn" onclick="window.location.href='games.html'" style="margin-bottom:1.25rem">← Back to Game Catalog</div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div style="display:flex;align-items:flex-start;gap:1.25rem;flex-wrap:wrap">
+      <div class="hero-icon" id="h-icon">🎮</div>
+      <div style="flex:1;min-width:200px">
+        <div class="hero-title" id="h-title">Live Sessions</div>
+        <div style="color:var(--text-secondary);font-size:.9rem;margin-bottom:.75rem" id="h-desc">Browse sessions, create your own room, or join with a code</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap" id="h-stats"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;margin-top:1.25rem;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="switchTab('create')">＋ Create Session</button>
+      <button class="btn btn-ghost btn-sm" onclick="switchTab('inprogress')">👁 Spectate</button>
+      <button class="btn btn-ghost btn-sm" onclick="refreshAll()">🔄 Refresh</button>
+    </div>
+  </div>
+  <!-- Current-session banner (shown when player is already in a room) -->
+  <div id="live-banner" class="live-banner" style="display:none">
+    <span style="font-size:1.5rem" id="lb-icon">🎮</span>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:.95rem" id="lb-name"></div>
+      <div style="font-size:.8rem;color:var(--text-secondary)" id="lb-sub"></div>
+    </div>
+    <button class="btn btn-primary" id="lb-goto" onclick="goToMySession()"
+      data-tip="Enter your room">⚔ Enter Room</button>
+    <button class="btn-leave" id="lb-leave" onclick="leaveMySession()"
+      data-tip="Leave your current room so you can join or create a different session">🚪 Leave Session</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="s-tabs">
+    <button class="s-tab t-wait" id="tab-waiting" onclick="switchTab('waiting')">
+      <span class="pill-w" style="padding:.1rem .5rem;font-size:.7rem"><span class="dot"></span>Waiting</span>
+      <span class="cnt cnt-g" id="cnt-w">0</span>
+    </button>
+    <button class="s-tab" id="tab-inprogress" onclick="switchTab('inprogress')">
+      ⚡ In Progress <span class="cnt cnt-y" id="cnt-p">0</span>
+    </button>
+    <button class="s-tab" id="tab-create" onclick="switchTab('create')">＋ Create / Join by Code</button>
+  </div>
+
+  <!-- WAITING PANEL -->
+  <div class="tab-panel show" id="panel-waiting">
+    <div id="waiting-list"></div>
+  </div>
+
+  <!-- IN-PROGRESS PANEL -->
+  <div class="tab-panel" id="panel-inprogress">
+    <div class="notice-warn" style="display:flex;align-items:flex-start;gap:.75rem;border:1px solid rgba(245,158,11,.25);border-radius:var(--radius-md);padding:.9rem 1.1rem;margin-bottom:1.25rem;font-size:.82rem;color:#fbbf24">
+      <span>⚠️</span>
+      <span>These sessions have already started. You <strong>cannot join mid-game</strong> — spectate only, or hop into a waiting session instead.</span>
+    </div>
+    <div id="inprogress-list"></div>
+  </div>
+
+  <!-- CREATE / JOIN-BY-CODE PANEL -->
+  <div class="tab-panel" id="panel-create">
+    <div id="create-block" class="blocked-notice" style="display:none">
+      <span>🚫</span>
+      <span id="create-block-msg">You are already in a session. Leave it first before creating or joining another one.</span>
+    </div>
+    <div class="create-card" id="create-form">
+
+      <div class="sec-label">Join with Session Code</div>
+      <div class="code-row">
+        <input class="form-input" id="code-input" placeholder="ENTER SESSION CODE e.g. S1ABC123" maxlength="14"/>
+        <button class="btn btn-primary" onclick="joinByCode()"
+          data-tip="If a friend shared their session code or ID with you, paste it here to jump directly into their room">Join by Code</button>
+        <button class="btn-spec" onclick="spectateByCode()"
+          data-tip="Enter a session code to watch the game live as a spectator without joining">👁 Spectate</button>
+      </div>
+
+      <div class="sec-label">Create a New Session</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Session Name <span class="required">*</span></label>
+          <input class="form-input" id="new-name" placeholder="e.g. Pro Players Only" maxlength="40"/>
+          <span class="form-error" id="name-err"></span>
+        </div>
+        <div class="form-group" style="max-width:160px">
+          <label class="form-label">Max Players</label>
+          <select class="form-select" id="new-max">
+            <option value="2">2 Players</option>
+            <option value="4" selected>4 Players</option>
+            <option value="6">6 Players</option>
+            <option value="8">8 Players</option>
+            <option value="16">16 Players</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:1rem">
+        <div class="form-group">
+          <label class="form-label">Game Mode</label>
+          <select class="form-select" id="new-mode">
+            <option value="casual">🎲 Casual — Just for fun</option>
+            <option value="ranked">🏆 Ranked — Competitive</option>
+            <option value="tournament">🎖️ Tournament — Official match</option>
+          </select>
+        </div>
+        <div class="form-group" style="max-width:180px">
+          <label class="form-label">Privacy</label>
+          <select class="form-select" id="new-priv">
+            <option value="public">🌐 Public</option>
+            <option value="private">🔒 Private (Code only)</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-primary);display:flex;gap:.75rem;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="createSession()" style="flex:1;min-width:160px"
+          data-tip="Creates a waiting room. Others can join by browsing sessions or using your session code. You control when the game starts.">
+          🚀 Create &amp; Join Session
+        </button>
+        <button class="btn btn-ghost" onclick="switchTab('waiting')">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- HOST PANEL MODAL -->
+<div class="modal-overlay" id="host-modal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <h3 class="modal-title" id="hm-title">Manage Session</h3>
+      <span class="modal-close" onclick="Modal.close('host-modal')">✕</span>
+    </div>
+    <div id="hm-body"></div>
+    <div class="modal-footer" style="gap:.5rem;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="Modal.close('host-modal')">Close</button>
+      <button class="btn btn-primary" onclick="startGame()" id="hm-start"
+        data-tip="Lock the room and start the game. No new players can join once started.">🚀 Start Game</button>
+      <button class="btn btn-red" onclick="deleteSession()"
+        data-tip="Permanently close this room. All players will be removed and the room cannot be rejoined.">🗑 Delete Room</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script>
+/* ───────── state ───────── */
+let gameId=null,gameObj=null,activeTab='waiting',managingSid=null;
+
+/* ───────── helpers ───────── */
+// navigate() provided globally by utils.js
+function getUID(){const s=Auth.getSession();return s ? String(s.userId) : 'u7';}
+function getMyLive(){
+  const uid=getUID();
+  const now=Date.now();
+  return DB.sessions.find(s=>{
+    if(s.status==='completed') return false;
+    if(s.chess?.gameEnded) return false;
+    // Auto-expire stale in-progress QP sessions (>3 hours old)
+    if(s.isQuickPlay && s.status==='in-progress'){
+      const created=new Date(s.createdAt||s.start_time).getTime();
+      if(now-created > 3*60*60*1000){ s.status='completed'; DB.save(); return false; }
+    }
+    const players=(s.players||[]).map(String);
+    return players.includes(String(uid)) && (s.status==='waiting'||s.status==='in-progress') && (s.maxPlayers > 1) && (!s.isQuickPlay);
+  })||null;
+}
+function isHost(s){return String(s.hostId)===String(getUID());}
+function modeClass(m){return m==='ranked'?'mr':m==='tournament'?'mt':'mc';}
+function modeIcon(m){return m==='ranked'?'🏆':m==='tournament'?'🎖️':'🎲';}
+function slotBar(filled,max,cls){
+  let h='<div class="slot-bar">';
+  for(let i=0;i<max;i++)h+=`<div class="slot${i<filled?' '+cls:''}"></div>`;
+  return h+'</div>';
+}
+function ago(iso){
+  if(!iso)return'recently';
+  const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);
+  if(m<1)return'just now';if(m<60)return`${m}m ago`;
+  const h=Math.floor(m/60);if(h<24)return`${h}h ago`;return`${Math.floor(h/24)}d ago`;
+}
+function dur(m){if(!m)return'—';return m<60?`${m}m`:`${Math.floor(m/60)}h ${m%60}m`;}
+function getParams(){const p=new URLSearchParams(window.location.search);return{gameId:p.get('gameId'),sid:p.get('sid'),qp:p.get('qp')};}
+function hasEngine(targetGameId){
+  const implemented = ['7', '8'];
+  const gid = String(targetGameId || '').replace('g','');
+  return implemented.includes(gid);
+}
+
+/* ───────── hero ───────── */
+function buildHero(g){
+  const heroIcon=document.getElementById('h-icon');
+  const idx=parseInt(g.id.replace('g',''),10)||0;
+  heroIcon.innerHTML = getGameIconHTML(g, idx, '88px');
+  heroIcon.style.background = 'none';
+  heroIcon.style.padding = '0';
+  heroIcon.style.overflow = 'hidden';
+  document.getElementById('h-title').textContent=g.title;
+  document.getElementById('h-desc').textContent=g.desc;
+  const wc=DB.sessions.filter(s=>s.gameId===g.id&&s.status==='waiting').length;
+  const pc=DB.sessions.filter(s=>s.gameId===g.id&&s.status==='in-progress').length;
+  document.getElementById('h-stats').innerHTML=`
+    <span class="hero-stat">🎭 ${g.genre}</span>
+    <span class="hero-stat">👥 ${g.players}</span>
+    <span class="hero-stat">⭐ ${g.rating}</span>
+    <span class="hero-stat" style="color:var(--accent-green)">🟢 ${wc} waiting</span>
+    <span class="hero-stat" style="color:var(--accent-yellow)">⚡ ${pc} in progress</span>`;
+  document.title=`PlayCarys — ${g.title} Sessions`;
+}
+
+/* ───────── banner ───────── */
+function updateBanner(){
+  const s=getMyLive();
+  const banner=document.getElementById('live-banner');
+  const block=document.getElementById('create-block');
+  const form=document.getElementById('create-form');
+  if(s){
+    banner.style.display='flex';
+    const isH = isHost(s);
+    const isChess = s.isQuickPlay || s.status==='in-progress';
+    document.getElementById('lb-icon').textContent = s.isQuickPlay ? '⚡' : (isH?'🛡':'🎮');
+    document.getElementById('lb-name').textContent=`${isH?'Your Room: ':'Currently In: '}${s.name}`;
+    document.getElementById('lb-sub').textContent=`${s.game||'Chess'} · ${(s.players||[]).length}/${s.maxPlayers} players · ${s.status==='waiting'?'Waiting to start':'Game in progress'}${isH&&!s.isQuickPlay?' · You are the host':''}`;
+    document.getElementById('lb-leave').textContent = isH&&!s.isQuickPlay ? '✕ Disband Room' : '🚪 Leave Session';
+    // Enter Room button: QP/chess in-progress go to chess game; waiting rooms go to lobby
+    const gotoBtn = document.getElementById('lb-goto');
+    if(s.isQuickPlay || s.status==='in-progress'){
+      const gid = s.game_id || s.gameId || 7;
+      gotoBtn.textContent = '⚡ Enter Game';
+      gotoBtn.onclick = ()=>{ window.location.href = `../../games/chess/index.html?sid=${s.id||s.session_id}`; };
+    } else {
+      gotoBtn.textContent = '⚔ Enter Room';
+      gotoBtn.onclick = ()=>{ window.location.href = `room-lobby.html?sid=${s.id}`; };
+    }
+    block.style.display='flex';
+    document.getElementById('create-block-msg').textContent=`You are already in "${s.name}". Leave that session first before creating or joining a new one.`;
+    form.style.opacity='.4';form.style.pointerEvents='none';
+  }else{
+    banner.style.display='none';
+    block.style.display='none';
+    form.style.opacity='';form.style.pointerEvents='';
+  }
+}
+
+/* ───────── render waiting ───────── */
+function renderWaiting(){
+  const uid=getUID(),list=document.getElementById('waiting-list');
+  const myS=getMyLive();
+  let sessions=DB.sessions.filter(s=>s.status==='waiting');
+  if(gameId)sessions=sessions.filter(s=>s.gameId===gameId);
+  // Hide private sessions from public listing (unless you're already in it)
+  sessions=sessions.filter(s=>{
+    if(s.privacy==='private'){
+      return s.players.includes(uid) || isHost(s);
+    }
+    return true;
+  });
+  document.getElementById('cnt-w').textContent=sessions.length;
+
+  /** Check if a game has a working engine in /games/ folder */
+  function hasEngine(gameId) {
+    // Only Chess (7) and Hill Climbing (8) are currently integrated
+    const implemented = ['7', '8'];
+    const gid = String(gameId).replace('g', '');
+    return implemented.includes(gid);
+  }
+
+  if(!sessions.length){
+    list.innerHTML=`<div class="empty-s"><div class="ei">🎮</div><h4>No open sessions yet</h4><p>Be the first! Create a room and invite your friends.</p><button class="btn btn-primary" style="margin-top:1rem" onclick="switchTab('create')">＋ Create Session</button></div>`;
+    return;
+  }
+
+  list.innerHTML=sessions.map(s=>{
+    const filled=s.players.length,isMine=isHost(s),inIt=s.players.includes(uid);
+    const locked=myS&&myS.id!==s.id,full=filled>=s.maxPlayers;
+    const isPrivate=s.privacy==='private';
+
+    let btn;
+    if(isMine){
+      btn=`<button class="btn-manage" onclick="window.location.href='room-lobby.html?sid=${s.id}'"
+        data-tip="Open your custom room lobby — manage players, start the game, or see your session code">🛡 Manage Room</button>`;
+    }else if(inIt){
+      btn=`<button class="btn-leave" onclick="leaveSession('${s.id}')"
+        data-tip="Leave this waiting room. You can rejoin or find another session at any time before the game starts.">🚪 Leave</button>`;
+    }else if(locked){
+      btn=`<button class="btn-locked" data-tip="You are waiting in another session. Leave that one first before joining here.">🔒 In Another Room</button>`;
+    }else if(full){
+      btn=`<button class="btn-locked">🔒 Full</button>`;
+    }else if(isPrivate){
+      btn=`<button class="btn-locked" data-tip="This is a private session. Use 'Join by Code' tab to enter.">🔒 Private</button>`;
+    }else{
+      btn=`<button class="btn-join" onclick="joinSession('${s.id}')"
+        data-tip="Clicking Join places you in this waiting room. You can leave freely at any time before the host starts the game.">▶ Join Now</button>`;
+    }
+
+    return `
+    <div class="w-card${isMine?' mine':''}">
+      <div class="sc-row">
+        <div class="sc-icon${isMine?' sc-icon-c':' sc-icon-g'}">${isMine?'🛡':'🟢'}</div>
+        <div class="sc-info">
+          <div class="sc-name">
+            ${s.name}
+            ${isMine?`<span style="font-size:.72rem;color:var(--accent-cyan);background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);border-radius:99px;padding:.1rem .5rem;margin-left:.35rem">Your Room</span>`:''}
+            ${isPrivate?`<span style="font-size:.72rem;color:#f59e0b;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:99px;padding:.1rem .5rem;margin-left:.35rem">🔒 Private</span>`:''}
+          </div>
+          <div class="sc-sub">Hosted by <strong>${s.host}</strong> &nbsp;·&nbsp; <span class="mode-badge ${modeClass(s.mode)}">${modeIcon(s.mode)} ${capitalize(s.mode)}</span></div>
+          <div style="margin-top:.55rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+            <span class="pill-w"><span class="dot"></span>Waiting for Players</span>
+            ${inIt?`<span style="font-size:.78rem;color:var(--accent-green)">✓ You're in this room</span>`:''}
+          </div>
+          ${slotBar(filled,s.maxPlayers,'fg')}
+          <div style="font-size:.75rem;color:var(--text-secondary);margin-top:.3rem">${filled} / ${s.maxPlayers} players joined · ${s.maxPlayers-filled} spot${s.maxPlayers-filled!==1?'s':''} open</div>
+        </div>
+        <div class="sc-act">${btn}
+          <button class="btn-spec" onclick="Toast.info('Spectator mode — coming soon! 👁')" data-tip="Watch this session live as a spectator without joining the game">👁 Spectate</button>
+        </div>
+      </div>
+      <div class="sc-meta">
+        <span class="sc-meta-item">🎮 <strong>${s.game}</strong></span>
+        <span class="sc-meta-item">🕒 Created <strong>${ago(s.createdAt)||dur(s.duration)+' ago'}</strong></span>
+        <span class="sc-meta-item">👥 Max <strong>${s.maxPlayers} players</strong></span>
+        <span class="sc-meta-item">🔑 Code: <strong style="font-family:'Courier New',monospace;color:var(--accent-cyan);letter-spacing:.12em">${s.id.toUpperCase()}</strong></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ───────── render in-progress ───────── */
+function renderInProgress(){
+  const uid=getUID(),list=document.getElementById('inprogress-list');
+  // Exclude sessions that have already ended (chess.gameEnded or status=completed)
+  let sessions=DB.sessions.filter(s=>s.status==='in-progress' && !s.chess?.gameEnded);
+  if(gameId)sessions=sessions.filter(s=>s.gameId===gameId);
+  document.getElementById('cnt-p').textContent=sessions.length;
+
+  if(!sessions.length){
+    list.innerHTML=`<div class="empty-s"><div class="ei">⚡</div><h4>No sessions in progress</h4><p>All sessions are either waiting or finished.</p></div>`;
+    return;
+  }
+  list.innerHTML=sessions.map(s=>{
+    const filled=s.players.length,inIt=s.players.includes(uid);
+    return `
+    <div class="p-card">
+      <div class="sc-row">
+        <div class="sc-icon sc-icon-y">⚡</div>
+        <div class="sc-info">
+          <div class="sc-name">${s.name}</div>
+          <div class="sc-sub">Hosted by <strong>${s.host}</strong> &nbsp;·&nbsp; <span class="mode-badge ${modeClass(s.mode)}">${modeIcon(s.mode)} ${capitalize(s.mode)}</span></div>
+          <div style="margin-top:.55rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+            <span class="pill-p"><span class="spin">⚙️</span>&nbsp;In Progress</span>
+            ${inIt?`<span style="font-size:.78rem;color:var(--accent-yellow)">✓ You were in this game</span>`:''}
+          </div>
+          ${slotBar(filled,s.maxPlayers,'fy')}
+          <div style="font-size:.75rem;color:var(--text-secondary);margin-top:.3rem">${filled} / ${s.maxPlayers} players · running for ${dur(s.duration)}</div>
+        </div>
+        <div class="sc-act">
+          <button class="btn-spec" onclick="Toast.info('Spectator mode — coming soon! 👁')"
+            data-tip="Watch this session live as a spectator. You cannot participate mid-game.">👁 Spectate</button>
+        </div>
+      </div>
+      <div class="sc-meta">
+        <span class="sc-meta-item">🎮 <strong>${s.game}</strong></span>
+        <span class="sc-meta-item">⏱ Running <strong>${dur(s.duration)}</strong></span>
+        <span class="sc-meta-item">🔒 <strong>Locked</strong> — game in progress</span>
+        <span class="sc-meta-item">🔑 Code: <strong style="font-family:'Courier New',monospace;color:var(--accent-yellow);letter-spacing:.12em">${s.id.toUpperCase()}</strong></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ───────── tab switch ───────── */
+function switchTab(tab){
+  activeTab=tab;
+  ['waiting','inprogress','create'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.remove('t-wait','t-prog','t-create');
+    document.getElementById('panel-'+t).classList.remove('show');
+  });
+  const map={waiting:'t-wait',inprogress:'t-prog',create:'t-create'};
+  document.getElementById('tab-'+tab).classList.add(map[tab]);
+  document.getElementById('panel-'+tab).classList.add('show');
+  updateBanner();
+  if(tab==='waiting')renderWaiting();
+  if(tab==='inprogress')renderInProgress();
+}
+
+/* ───────── join / leave / create ───────── */
+function joinSession(sid){
+  const s=DB.sessions.find(s=>s.id===sid),uid=getUID();
+  if(!s)return;
+  // Block joining private sessions via the Join button — must use code
+  if(s.privacy==='private' && !s.players.includes(uid)){
+    Toast.warning('This is a private session. Use "Join by Code" to enter.');
+    return;
+  }
+  const myS=getMyLive();
+  if(myS&&myS.id!==sid){Toast.warning(`You're already in "${myS.name}". Leave that session first.`);return;}
+  if(s.players.includes(uid)){Toast.info('You are already in this session'); window.location.href = `room-lobby.html?sid=${sid}`; return;}
+  if(s.players.length>=s.maxPlayers){Toast.error('This session is full');return;}
+  s.players = [...s.players, uid];
+  DB.save();
+  window.location.href = `room-lobby.html?sid=${sid}`;
+}
+
+function leaveSession(sid){
+  const s=DB.sessions.find(s=>s.id===sid),uid=getUID();
+  if(!s)return;
+  if(isHost(s)){Toast.warning('You are the host — use Manage Room to delete the session instead.');return;}
+  s.players=s.players.filter(p=>p!==uid);
+  Toast.info(`Left "${s.name}". You're free to join any other session.`);
+  updateBanner();renderWaiting();
+}
+
+function leaveMySession(){
+  const s=getMyLive();if(!s)return;
+  if(isHost(s)){
+    confirmAction('Delete Your Room',`You host "${s.name}". Deleting it removes all players. Continue?`,()=>{
+      DB.sessions=DB.sessions.filter(ss=>ss.id!==s.id);
+      Toast.success('Session deleted');updateBanner();renderWaiting();renderInProgress();
+    });
+    return;
+  }
+  const uid=getUID();
+  s.players=s.players.filter(p=>p!==uid);
+  Toast.info('Left the session. You can now join or create another.');
+  updateBanner();renderWaiting();
+}
+
+function joinByCode(){
+  const raw=document.getElementById('code-input').value.trim().toLowerCase();
+  if(!raw){Toast.warning('Please enter a session code first');return;}
+  const uid=getUID();
+  const s=DB.sessions.find(s=>s.id.toLowerCase()===raw||s.id.toLowerCase().includes(raw));
+  if(!s){Toast.error('Session not found. Double-check the code and try again.');return;}
+  if(s.status!=='waiting'){Toast.error('That session is not open for joining right now.');return;}
+  const myS=getMyLive();
+  if(myS&&myS.id!==s.id){Toast.warning(`Leave "${myS.name}" first before joining via code.`);return;}
+  if(s.players.includes(uid)){Toast.info(`You're already in "${s.name}"`);gameId=s.gameId;gameObj=DB.games.find(g=>g.id===s.gameId);if(gameObj)buildHero(gameObj);switchTab('waiting');return;}
+  if(s.players.length>=s.maxPlayers){Toast.error('This session is full');return;}
+  s.players = [...s.players, uid];
+  document.getElementById('code-input').value='';
+  DB.save();
+  window.location.href = `room-lobby.html?sid=${s.id}`;
+}
+
+function createSession(){
+  if (typeof hasEngine === 'function' && !hasEngine(gameId)) {
+    Toast.info("Lobby creation coming soon! 🚀 Engine integration in progress.");
+    return;
+  }
+  const uid=getUID(),myS=getMyLive();
+  if(myS){Toast.error(`You're in "${myS.name}" already. Leave it first before creating a new session.`);return;}
+  const nameEl=document.getElementById('new-name'),errEl=document.getElementById('name-err');
+  errEl.textContent='';
+  const val=nameEl.value.trim();
+  if(!val){errEl.textContent='Session name is required';nameEl.focus();return;}
+  if(val.length<3){errEl.textContent='Minimum 3 characters';nameEl.focus();return;}
+  if(val.length>40){errEl.textContent='Maximum 40 characters';nameEl.focus();return;}
+  const u=DB.users.find(u=>u.id===uid);
+  const maxP=parseInt(document.getElementById('new-max').value,10);
+  const mode=document.getElementById('new-mode').value;
+  const privacy=document.getElementById('new-priv').value;
+  // Use numeric session_id matching the GAME_SESSION schema (PK INT)
+  const newSid = Date.now() % 999999;
+  const now = new Date().toISOString();
+  const ns = {
+    session_id: newSid,
+    game_id:    gameId ? parseInt(gameId,10) : null,
+    created_by: uid,
+    name: val, game: gameObj?.title||'Unknown',
+    host: u?.username||'You', hostId: uid,
+    maxPlayers: maxP, status: 'waiting', mode,
+    privacy: privacy,
+    start_time: now, end_time: new Date(Date.now()+7200000).toISOString(),
+    duration: 0, createdAt: now
+  };
+  DB.sessions.push(ns);
+  // Add creator to player_session junction (TABLE 12)
+  DB.player_session.push({ player_id: uid, session_id: newSid });
+  DB.save();
+  nameEl.value='';
+  window.location.href = `room-lobby.html?sid=${newSid}`;
+}
+
+/* ───────── host panel ───────── */
+function openHostPanel(sid){
+  managingSid=sid;
+  const s=DB.sessions.find(s=>s.id===sid);if(!s)return;
+  document.getElementById('hm-title').textContent=`🛡 Manage: ${s.name}`;
+  paintHostModal(s);
+  Modal.open('host-modal');
+}
+
+function paintHostModal(s){
+  const uid=getUID();
+  const rows=s.players.map(pid=>{
+    const u=DB.users.find(u=>u.id===pid),me=pid===uid;
+    return `
+    <div class="p-slot">
+      <div class="av">${u?.avatar||'??'}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:.875rem">${u?.username||pid}${me?' <span style="font-size:.72rem;color:var(--accent-cyan)">(You)</span>':''}</div>
+        <div style="font-size:.75rem;color:var(--text-secondary)">Level ${u?.level||1} · ${u?.wins||0} wins</div>
+      </div>
+      ${!me?`
+        <button class="btn btn-ghost btn-sm" onclick="kickPlayer('${pid}')"
+          data-tip="Remove this player from your room. They can try to rejoin.">Kick</button>
+        <button class="btn btn-red btn-sm" onclick="banFromRoom('${pid}')"
+          data-tip="Permanently ban this player from this specific session. They cannot rejoin this room.">Ban</button>`:''}
+    </div>`;
+  }).join('');
+
+  const empty=s.maxPlayers-s.players.length;
+  document.getElementById('hm-body').innerHTML=`
+    <div style="display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+      <div style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:.9rem;text-align:center">
+        <div style="font-size:1.6rem;font-weight:700;font-family:'Orbitron',monospace">${s.players.length}/${s.maxPlayers}</div>
+        <div style="font-size:.75rem;color:var(--text-secondary)">Players Joined</div>
+      </div>
+      <div style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:.9rem;text-align:center">
+        <div style="font-family:'Courier New',monospace;font-size:1rem;font-weight:700;color:var(--accent-cyan);letter-spacing:.15em">${s.id.toUpperCase()}</div>
+        <div style="font-size:.75rem;color:var(--text-secondary)">Session Code — share this</div>
+      </div>
+      <div style="flex:1;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:.9rem;text-align:center">
+        <div style="font-size:1rem;font-weight:600;color:var(--accent-green)">${capitalize(s.mode)}</div>
+        <div style="font-size:.75rem;color:var(--text-secondary)">Game Mode</div>
+      </div>
+    </div>
+    <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-secondary);margin-bottom:.75rem;font-weight:700">Players in Room</div>
+    ${rows}
+    ${empty>0?`<div style="text-align:center;padding:.75rem;color:var(--text-muted);font-size:.82rem;border:1px dashed var(--border-primary);border-radius:var(--radius-md);margin-top:.5rem">${empty} empty slot${empty!==1?'s':''} · share code <strong style="color:var(--accent-cyan)">${s.id.toUpperCase()}</strong></div>`:''}`;
+}
+
+function kickPlayer(pid){
+  const s=DB.sessions.find(s=>s.id===managingSid);if(!s)return;
+  const u=DB.users.find(u=>u.id===pid);
+  confirmAction('Kick Player',`Remove ${u?.username||pid} from your session?`,()=>{
+    s.players=s.players.filter(p=>p!==pid);
+    Toast.success(`${u?.username||pid} has been removed.`);
+    paintHostModal(s);renderWaiting();
+  });
+}
+
+function banFromRoom(pid){
+  const s=DB.sessions.find(s=>s.id===managingSid);if(!s)return;
+  const u=DB.users.find(u=>u.id===pid);
+  confirmAction('Ban from Room',`Permanently ban ${u?.username||pid} from rejoining this session?`,()=>{
+    if(!s.bannedPlayers)s.bannedPlayers=[];
+    s.bannedPlayers.push(pid);
+    s.players=s.players.filter(p=>p!==pid);
+    Toast.success(`${u?.username||pid} is permanently banned from this room.`);
+    paintHostModal(s);renderWaiting();
+  },'danger');
+}
+
+function startGame(){
+  const s=DB.sessions.find(s=>s.id===managingSid);if(!s)return;
+  if(s.players.length<2){Toast.warning('You need at least 2 players to start.');return;}
+  s.status='in-progress';
+  Modal.close('host-modal');
+  Toast.success(`"${s.name}" has started! 🚀 Good luck!`);
+  updateBanner();renderWaiting();renderInProgress();switchTab('inprogress');
+}
+
+function deleteSession(){
+  const s=DB.sessions.find(s=>s.id===managingSid);if(!s)return;
+  confirmAction('Delete Room',`Permanently close "${s.name}"? All players will be removed.`,()=>{
+    DB.sessions=DB.sessions.filter(ss=>ss.id!==s.id);
+    Modal.close('host-modal');managingSid=null;
+    Toast.success('Session deleted.');
+    updateBanner();renderWaiting();
+  });
+}
+
+function spectateByCode(){
+  const raw=document.getElementById('code-input').value.trim().toLowerCase();
+  if(!raw){Toast.warning('Please enter a session code first');return;}
+  const s=DB.sessions.find(s=>s.id.toLowerCase()===raw||s.id.toLowerCase().includes(raw));
+  if(!s){Toast.error('Session not found. Double-check the code and try again.');return;}
+  Toast.info(`Spectating "${s.name}" — coming soon! 👁`);
+}
+
+function silentRefresh(){renderWaiting();renderInProgress();updateBanner();}
+function refreshAll(){silentRefresh();Toast.info('Sessions refreshed');}
+
+/* ───────── init ───────── */
+document.addEventListener('DOMContentLoaded',()=>{
+  const session=Auth.requireAuth(['player', 'guest']);if(!session)return;
+  buildNavbar(session.role,'games');
+
+  const params=getParams();
+  gameId=params.gameId;
+  if(gameId){
+    gameObj=DB.games.find(g=>g.id===gameId);
+    if(gameObj)buildHero(gameObj);
+  }
+
+
+  silentRefresh();
+
+  // Real-time Database Sync across tabs
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'playcarys_db_store_v2') {
+      if (window._hydrateDB && window._hydrateDB()) {
+        silentRefresh();
+      }
+    }
+  });
+
+});
+</script>
+</body>
+</html>
+
+
+
+

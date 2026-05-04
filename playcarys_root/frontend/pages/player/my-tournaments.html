@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — My Competitive Center</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+  /* Tabs */
+  .comp-tabs { display:flex; gap:0; background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-xl); padding:0.3rem; margin-bottom:2rem; max-width:420px; }
+  .comp-tab { flex:1; text-align:center; padding:0.65rem 1rem; border-radius:var(--radius-lg); font-weight:700; font-size:0.82rem; cursor:pointer; color:var(--text-secondary); transition:all .2s; border:none; background:transparent; letter-spacing:0.03em; }
+  .comp-tab.active { background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan)); color:#fff; box-shadow:0 4px 14px rgba(139,92,246,0.3); }
+  .comp-tab:hover:not(.active) { color:var(--text-primary); background:rgba(255,255,255,0.05); }
+
+  /* Stats Strip */
+  .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+  .stat-strip-card { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-lg); padding:1rem 1.25rem; text-align:center; }
+  .stat-strip-val { font-family:'Orbitron',monospace; font-size:1.6rem; font-weight:800; }
+  .stat-strip-lbl { font-size:0.7rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.05em; margin-top:0.2rem; }
+
+  /* Tournament Card */
+  .my-tourn-card { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-xl); overflow:hidden; margin-bottom:1.5rem; transition:all .2s; }
+  .my-tourn-card:hover { border-color:var(--accent-cyan); box-shadow:0 8px 28px rgba(0,0,0,0.35); }
+  .my-tourn-header { padding:1.5rem; display:flex; gap:1.25rem; align-items:center; border-bottom:1px solid var(--border-primary); }
+  .my-tourn-body { padding:1.25rem 1.5rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; }
+  .tourn-meta-item { display:flex; flex-direction:column; gap:0.15rem; }
+  .tourn-meta-lbl { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-secondary); font-weight:700; }
+  .tourn-meta-val { font-size:0.9rem; font-weight:700; }
+  .my-tourn-footer { padding:0.85rem 1.5rem; background:rgba(255,255,255,0.02); border-top:1px solid var(--border-primary); display:flex; justify-content:space-between; align-items:center; }
+
+  /* Status chips */
+  .status-live { background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.35); border-radius:99px; padding:0.2rem 0.75rem; font-size:0.7rem; font-weight:800; letter-spacing:0.04em; display:inline-flex; align-items:center; gap:5px; }
+  .status-live::before { content:''; width:7px; height:7px; border-radius:50%; background:#ef4444; animation:pulsedot 1s ease-in-out infinite; }
+  @keyframes pulsedot { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Placement badge for archive */
+  .placement-badge { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Orbitron',monospace; font-weight:900; font-size:1.1rem; flex-shrink:0; }
+  .place-1 { background:rgba(245,158,11,0.2); color:var(--accent-yellow); border:2px solid var(--accent-yellow); }
+  .place-2 { background:rgba(192,192,192,0.15); color:#c0c0c0; border:2px solid #c0c0c0; }
+  .place-other { background:rgba(255,255,255,0.05); color:var(--text-secondary); border:2px solid var(--border-primary); }
+
+  /* Rank progress in header */
+  .rank-badge { font-family:'Orbitron',monospace; font-size:0.65rem; font-weight:800; background:linear-gradient(135deg,rgba(0,212,255,0.15),rgba(139,92,246,0.15)); border:1px solid rgba(0,212,255,0.3); padding:0.2rem 0.6rem; border-radius:99px; color:var(--accent-cyan); }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="back-btn" onclick="window.location.href='dashboard.html'">← Back to Dashboard</div>
+
+  <div class="page-header-row mb-3">
+    <div>
+      <h1>Competitive Center</h1>
+      <p class="text-muted">Your personal competitive record, rankings, and tournament history</p>
+    </div>
+    <div style="display:flex;gap:0.75rem">
+      <button class="btn btn-ghost" onclick="window.location.href='leaderboard.html'">👑 Leaderboard</button>
+      <button class="btn btn-purple" onclick="window.location.href='tournaments.html'">+ Join Tournament</button>
+    </div>
+  </div>
+
+  <!-- Stats Strip -->
+  <div class="stats-strip" id="stats-strip">
+    <div class="stat-strip-card">
+      <div class="stat-strip-val text-cyan" id="st-pcp">—</div>
+      <div class="stat-strip-lbl">Carys Points</div>
+    </div>
+    <div class="stat-strip-card">
+      <div class="stat-strip-val" id="st-rank">—</div>
+      <div class="stat-strip-lbl">Global Seed</div>
+    </div>
+    <div class="stat-strip-card">
+      <div class="stat-strip-val text-green" id="st-joined">—</div>
+      <div class="stat-strip-lbl">Tournaments Joined</div>
+    </div>
+    <div class="stat-strip-card">
+      <div class="stat-strip-val text-yellow" id="st-wins">—</div>
+      <div class="stat-strip-lbl">Match Wins</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="comp-tabs">
+    <button class="comp-tab active" id="tab-live" onclick="switchTab('live')">🔴 Live</button>
+    <button class="comp-tab" id="tab-upcoming" onclick="switchTab('upcoming')">📅 Upcoming</button>
+    <button class="comp-tab" id="tab-archive" onclick="switchTab('archive')">📁 Archive</button>
+  </div>
+
+  <div id="tab-content"></div>
+
+</div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script>
+let myUid, myProfile, myTourns;
+let currentTab = 'live';
+
+// navigate() provided globally by utils.js
+
+function calcSeed(uid) {
+  const sorted = [...DB.player_profiles].sort((a,b) => (b.carys_points||0) - (a.carys_points||0));
+  const idx = sorted.findIndex(p => p.user_id === uid);
+  return idx >= 0 ? idx + 1 : '—';
+}
+
+function init() {
+  const session = Auth.requireAuth(['player']);
+  if (!session) return;
+  buildNavbar('player', 'my-tournaments');
+
+  myUid = parseInt(session.userId, 10);
+  myProfile = DB.player_profiles.find(p => p.user_id === myUid);
+  const joinedIds = DB.player_tournament.filter(pt => pt.player_id === myUid).map(pt => pt.tournament_id);
+  myTourns = DB.tournaments.filter(t => joinedIds.includes(t.tournament_id));
+
+  // Stats
+  const seed = calcSeed(myUid);
+  document.getElementById('st-pcp').textContent = myProfile?.carys_points || 0;
+  document.getElementById('st-rank').textContent = '#' + seed;
+  document.getElementById('st-joined').textContent = myTourns.length;
+  document.getElementById('st-wins').textContent = myProfile?.matches_won || 0;
+
+  renderTab('live');
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.comp-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  renderTab(tab);
+}
+
+function renderTab(tab) {
+  const container = document.getElementById('tab-content');
+  const live     = myTourns.filter(t => t.status === 'in-progress');
+  const upcoming = myTourns.filter(t => t.status === 'upcoming');
+  const archive  = myTourns.filter(t => t.status === 'completed');
+
+  let data = tab === 'live' ? live : tab === 'upcoming' ? upcoming : archive;
+
+  if (!data.length) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:3rem;background:var(--bg-card);border:1px dashed var(--border-primary);border-radius:var(--radius-xl)">
+        <div style="font-size:2.5rem;margin-bottom:1rem">${tab==='live'?'🎮':tab==='upcoming'?'📅':'📁'}</div>
+        <h3 style="margin-bottom:0.5rem">No ${tab === 'live' ? 'active' : tab} tournaments</h3>
+        <p class="text-muted" style="margin-bottom:1.5rem">${tab === 'archive' ? 'Your completed tournaments will appear here' : 'Register for an upcoming tournament to compete'}</p>
+        ${tab !== 'archive' ? '<button class="btn btn-purple" onclick="navigate(\'tournaments\')">Find Tournaments</button>' : ''}
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = data.map((t, i) => renderTourneyCard(t, i, tab)).join('');
+}
+
+function renderTourneyCard(t, i, tab) {
+  const game = DB.games.find(g => String(g.game_id) === String(t.game_id));
+  const gameIcon = getGameIconHTML(game || {}, i, '70px');
+  const seed = calcSeed(myUid);
+  const myReg = DB.player_tournament.find(pt => pt.player_id === myUid && pt.tournament_id === t.tournament_id);
+
+  const statusChip = tab === 'live'
+    ? `<span class="status-live">LIVE</span>`
+    : badgeHTML(t.status);
+
+  const footer = tab === 'live'
+    ? `<span style="font-size:0.81rem;color:var(--text-secondary)">You are a registered competitor</span>
+       <button class="btn btn-cyan btn-sm" onclick="navigate('tournaments')">Enter Lobby</button>`
+    : tab === 'upcoming'
+    ? `<span style="font-size:0.81rem;color:var(--text-secondary)">Registration confirmed ✓ · Seed <strong>#${seed}</strong></span>
+       <button class="btn btn-ghost btn-sm" onclick="viewTournamentDetail('${t.id}')">Full Details</button>`
+    : `<span style="font-size:0.81rem;color:var(--text-secondary)">Tournament completed</span>
+       <button class="btn btn-ghost btn-sm" onclick="viewTournamentDetail('${t.id}')">View Results</button>`;
+
+  return `
+  <div class="my-tourn-card">
+    <div class="my-tourn-header">
+      ${gameIcon}
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.35rem;flex-wrap:wrap">
+          <h3 style="margin:0;font-size:1.2rem;font-family:'Orbitron',monospace">${t.name}</h3>
+          ${statusChip}
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.84rem;margin:0">${t.desc || 'Official PlayCarys Tournament'}</p>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:800;color:var(--accent-yellow)">${t.prize}</div>
+        <div style="font-size:0.7rem;color:var(--text-secondary)">Prize Pool</div>
+      </div>
+    </div>
+    <div class="my-tourn-body">
+      <div class="tourn-meta-item"><span class="tourn-meta-lbl">Game</span><span class="tourn-meta-val">${game ? game.game_name : 'Unknown'}</span></div>
+      <div class="tourn-meta-item"><span class="tourn-meta-lbl">Start Date</span><span class="tourn-meta-val">${formatDate(t.startDate || t.start_date)}</span></div>
+      <div class="tourn-meta-item"><span class="tourn-meta-lbl">Format</span><span class="tourn-meta-val">${t.format || 'Single Elimination'}</span></div>
+      <div class="tourn-meta-item"><span class="tourn-meta-lbl">Entrants</span><span class="tourn-meta-val">${t.participants}/${t.maxParticipants}</span></div>
+      <div class="tourn-meta-item"><span class="tourn-meta-lbl">Your Seed</span><span class="tourn-meta-val rank-badge">#${seed}</span></div>
+      <div class="tourn-meta-item"><span class="tourn-meta-lbl">Reg. Closes</span><span class="tourn-meta-val">${formatDate(t.regClose)}</span></div>
+    </div>
+    <div class="my-tourn-footer">${footer}</div>
+  </div>`;
+}
+
+function viewTournamentDetail(id) {
+  window.location.href = `tournaments.html?highlight=${id}`;
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
+

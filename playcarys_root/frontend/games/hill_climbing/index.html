@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PlayCarys - Hill Climbing</title>
+
+  <script language="javascript" src="libraries/p5.js"></script>
+  <script language="javascript" src="libraries/p5.dom.js"></script>
+  <script language="javascript" src="libraries/Box2d.js"></script>
+
+  <script language="javascript" src="sketch.js"></script>
+  <script language="javascript" src="Wheel.js"></script>
+  <script language="javascript" src="Car.js"></script>
+  <script language="javascript" src="Ground.js"></script>
+  <script language="javascript" src="Pickup.js"></script>
+  <script language="javascript" src="Person.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+    }
+    #top-bar {
+      width: 1000px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0.8rem;
+      background: rgba(0,0,0,0.7);
+      border-radius: 8px 8px 0 0;
+    }
+    .btn {
+      background: #333; color: #fff;
+      padding: 0.35rem 0.85rem;
+      border-radius: 4px; font-weight: bold;
+      cursor: pointer; border: 1px solid #555;
+      font-size: 0.8rem;
+    }
+    .btn:hover { background: #444; }
+    .hint { color: rgba(255,255,255,0.55); font-size: 0.78rem; }
+    #canvas canvas { display: block; border-radius: 0 0 8px 8px; }
+  </style>
+</head>
+<body>
+  <div id="top-bar">
+    <button class="btn" onclick="history.back()">← Leave</button>
+    <span style="color:#fff; font-weight:bold">Hill Climbing</span>
+    <span class="hint">← / → keys &nbsp;|&nbsp; tap left / right half</span>
+  </div>
+  <div id="canvas"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script>
+    (function(){
+      var params = new URLSearchParams(window.location.search);
+      var tournId = params.get('tournamentId');
+      if (tournId && typeof DB !== 'undefined') {
+        var t = DB.tournaments.find(function(x){ return String(x.id) === String(tournId); });
+        if (t) {
+          document.querySelector('#top-bar span[style]').textContent = '\ud83c\udfd4\ufe0f ' + t.name;
+          var leaveBtn = document.querySelector('#top-bar button');
+          leaveBtn.textContent = '\u2190 Tournament';
+          leaveBtn.onclick = function(){ window.location.href = '../../pages/player/tournaments.html?highlight=' + tournId; };
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
+

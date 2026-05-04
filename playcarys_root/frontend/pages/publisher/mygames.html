@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — My Games</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* ── My Games Premium ──────────────────────────────── */
+
+/* Game Row Cards */
+.game-row {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 0.85rem;
+  transition: all var(--trans-med);
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+}
+.game-row::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--gradient-brand);
+  transform: scaleY(0);
+  transition: transform var(--trans-med);
+}
+.game-row:hover { border-color: rgba(0,212,255,0.22); box-shadow: var(--shadow-glow); }
+.game-row:hover::before { transform: scaleY(1); }
+
+.game-row-thumb {
+  width: 68px; height: 68px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+}
+
+.game-row-info { flex: 1; min-width: 0; }
+.game-row-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-row-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+.game-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.game-row-meta span { display: flex; align-items: center; gap: 0.2rem; }
+.game-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Hosting badges */
+.hbadge-hosted {
+  font-size: 0.65rem; font-weight: 700;
+  background: rgba(0,212,255,0.1); color: var(--accent-cyan);
+  border: 1px solid rgba(0,212,255,0.25); border-radius: 99px;
+  padding: 0.12rem 0.45rem;
+}
+.hbadge-selfhosted {
+  font-size: 0.65rem; font-weight: 700;
+  background: rgba(245,158,11,0.1); color: var(--accent-yellow);
+  border: 1px solid rgba(245,158,11,0.25); border-radius: 99px;
+  padding: 0.12rem 0.45rem;
+}
+
+/* ── Edit View ──────────────────────────────────────── */
+.edit-shell { max-width: 780px; margin: 0 auto; }
+
+.edit-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.edit-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: var(--gradient-brand);
+}
+.edit-panel-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 0.2rem;
+}
+.edit-panel-sub {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+.edit-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+@media(max-width:560px){ .edit-grid-2 { grid-template-columns: 1fr; } }
+
+/* iOS Toggle */
+.tog { position: relative; display: inline-block; width: 50px; height: 28px; flex-shrink: 0; margin-top: 2px; }
+.tog input { opacity: 0; width: 0; height: 0; }
+.tog-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 99px;
+  transition: .3s;
+}
+.tog-slider::before {
+  position: absolute; content: ''; height: 20px; width: 20px;
+  left: 4px; bottom: 3px; background: #fff; border-radius: 50%;
+  transition: .3s; box-shadow: 0 2px 5px rgba(0,0,0,.4);
+}
+.tog input:checked ~ .tog-slider { background: var(--accent-purple); border-color: var(--accent-purple); box-shadow: 0 0 14px rgba(124,58,237,0.4); }
+.tog input:checked ~ .tog-slider::before { transform: translateX(22px); }
+
+/* Status subcard */
+.status-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+}
+.status-box-title { font-family:'Orbitron',monospace; font-size:.9rem; font-weight:700; margin-bottom:1rem; }
+.toggle-row { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:.85rem 0; border-bottom:1px solid var(--border-primary); }
+.toggle-row:last-child { border-bottom:none; padding-bottom:0; }
+.toggle-lbl { font-size:.88rem; font-weight:600; margin-bottom:.12rem; }
+.toggle-sub { font-size:.78rem; color:var(--text-secondary); }
+
+/* Actions */
+.edit-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+.btn-save {
+  flex:1; min-width:160px;
+  background: linear-gradient(135deg,#7c3aed,#6d28d9);
+  color:#fff; border:none; border-radius:var(--radius-md);
+  padding:.9rem 1.5rem; font-size:.9rem; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  transition:all var(--trans-fast);
+}
+.btn-save:hover { opacity:.88; transform:translateY(-2px); box-shadow:0 0 24px rgba(124,58,237,.4); }
+.btn-cancel {
+  flex:1; min-width:120px;
+  background:rgba(255,255,255,.04); color:var(--text-secondary);
+  border:1px solid var(--border-primary); border-radius:var(--radius-md);
+  padding:.9rem 1.5rem; font-size:.9rem; font-weight:600; cursor:pointer;
+  transition:all var(--trans-fast);
+}
+.btn-cancel:hover { background:rgba(255,255,255,.08); color:var(--text-primary); }
+.btn-del {
+  width:100%; background:transparent; color:var(--accent-red);
+  border:1px solid rgba(239,68,68,.3); border-radius:var(--radius-md);
+  padding:.85rem; font-size:.875rem; font-weight:600; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  transition:all var(--trans-fast); margin-top:.75rem;
+}
+.btn-del:hover { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.5); }
+
+/* ── Analytics View ─────────────────────────────────── */
+.analytics-stat-row {
+  display: grid;
+  grid-template-columns: repeat(5,1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media(max-width:900px){ .analytics-stat-row { grid-template-columns: repeat(3,1fr); } }
+@media(max-width:600px){ .analytics-stat-row { grid-template-columns: repeat(2,1fr); } }
+
+.back-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  width: fit-content;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-md);
+  transition: all var(--trans-fast);
+}
+.back-row:hover { color: var(--accent-cyan); background: rgba(0,212,255,0.06); }
+
+/* Filter Tabs */
+.filter-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.filter-tab {
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all var(--trans-fast);
+}
+.filter-tab:hover { border-color: rgba(0,212,255,0.3); color: var(--text-primary); }
+.filter-tab.active { background: rgba(0,212,255,0.1); border-color: var(--accent-cyan); color: var(--accent-cyan); }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+
+<!-- ══ MAIN VIEW ════════════════════════════════════════ -->
+<div class="page-content" id="main-view">
+  <div class="page-header-row mb-3">
+    <div>
+      <h1>My Games</h1>
+      <p class="text-muted">Manage and monitor your published games</p>
+    </div>
+    <button class="btn btn-green" onclick="navigate('publish')">⬆️ Publish New Game</button>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs" id="filter-tabs">
+    <button class="filter-tab active" onclick="setFilter('')">All Games</button>
+    <button class="filter-tab" onclick="setFilter('approved')">✅ Approved</button>
+    <button class="filter-tab" onclick="setFilter('pending')">⏳ Pending</button>
+    <button class="filter-tab" onclick="setFilter('rejected')">❌ Rejected</button>
+  </div>
+
+  <div id="games-list"></div>
+</div>
+
+<!-- ══ ANALYTICS VIEW ════════════════════════════════ -->
+<div class="page-content hidden" id="analytics-view">
+  <div class="back-row" onclick="showMain()">← Back to My Games</div>
+  <div id="analytics-content"></div>
+</div>
+
+<!-- ══ EDIT VIEW ══════════════════════════════════════ -->
+<div class="page-content hidden" id="edit-view">
+  <div class="back-row" onclick="cancelEdit()">← Cancel & Back</div>
+  <div class="edit-shell">
+
+    <!-- Game Information Panel -->
+    <div class="edit-panel">
+      <div class="edit-panel-title">Game Information</div>
+      <div class="edit-panel-sub">Update your game's details and settings</div>
+      <input type="hidden" id="ev-id"/>
+
+      <div class="form-group">
+        <label class="form-label">Game Title <span class="required">*</span></label>
+        <input class="form-input" id="ev-title" placeholder="Enter your game's title"/>
+        <span class="form-error" id="ev-title-err"></span>
+      </div>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <label class="form-label">Description <span class="required">*</span></label>
+        <textarea class="form-textarea" id="ev-desc" placeholder="Describe what players can expect…" style="min-height:100px"></textarea>
+        <span class="form-error" id="ev-desc-err"></span>
+      </div>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <label class="form-label">Genre <span class="required">*</span></label>
+        <select class="form-select" id="ev-genre">
+          <script>document.write(GAME_ASSETS.GENRES.map(g=>`<option>${g}</option>`).join(''))</script>
+        </select>
+      </div>
+
+      <div class="edit-grid-2">
+        <div class="form-group">
+          <label class="form-label">Min Players <span class="required">*</span></label>
+          <select class="form-select" id="ev-min">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="4">4</option>
+            <option value="8">8</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Players <span class="required">*</span></label>
+          <select class="form-select" id="ev-max">
+            <option value="4">4</option>
+            <option value="8">8</option>
+            <option value="12">12</option>
+            <option value="16">16</option>
+            <option value="32">32</option>
+            <option value="64">64</option>
+            <option value="100" selected>100</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Game Status -->
+      <div class="status-box">
+        <div class="status-box-title">Game Status & Settings</div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-lbl">Enable / Disable Game</div>
+            <div class="toggle-sub">Control whether players can access this game</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="ev-enabled"/><span class="tog-slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-lbl" style="display:flex;align-items:center;gap:.4rem"><span>⚠️</span> Maintenance Mode</div>
+            <div class="toggle-sub">Show a maintenance message to players</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="ev-maint"/><span class="tog-slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hosting Info Panel (read-only) -->
+    <div class="edit-panel" id="hosting-info-panel" style="display:none">
+      <div class="edit-panel-title">Hosting Configuration</div>
+      <div class="edit-panel-sub">Your current hosting mode for this game</div>
+      <div id="hosting-info-content"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="edit-panel" style="padding:1.5rem">
+      <div class="edit-actions">
+        <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
+        <button class="btn-save" onclick="saveEdit()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Changes
+        </button>
+      </div>
+      <button class="btn-del" onclick="deleteFromEdit()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Delete Game
+      </button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /page-wrapper -->
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script>
+// navigate() provided globally by utils.js
+
+let _statusFilter = '';
+
+function setFilter(val) {
+  _statusFilter = val;
+  document.querySelectorAll('.filter-tab').forEach(t => {
+    const tv = t.onclick?.toString().match(/'([^']*)'/)?.[1] ?? '';
+    t.classList.toggle('active', tv === val);
+  });
+  renderGames();
+}
+
+function hostBadgeHTML(g) {
+  if (!g.hostingType || g.hostingType === 'hosted') return '<span class="hbadge-hosted">🏠 Hosted</span>';
+  return '<span class="hbadge-selfhosted">🔧 Self-Hosted</span>';
+}
+
+function getMyGames() {
+  const session = Auth.getSession();
+  let games = DB.games.filter(g => String(g.game_publisher || g.publisherId) === String(session.userId));
+  if (_statusFilter) games = games.filter(g => (g.game_approval_status || g.status) === _statusFilter);
+  return games;
+}
+
+
+function renderGames() {
+  const games = getMyGames();
+  const list = document.getElementById('games-list');
+  if (!games.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="icon">🎮</div>
+      <h3>No games found</h3>
+      <p>${_statusFilter ? `No ${_statusFilter} games` : "You haven't published any games yet"}</p>
+      <button class="btn btn-primary mt-2" onclick="navigate('publish')">Publish Your First Game</button>
+    </div>`;
+    return;
+  }
+  list.innerHTML = games.map((g, i) => {
+    const gid = String(g.game_id || g.id);
+    const statusKey  = g.game_approval_status || g.status || 'pending';
+    const isEnabled  = g.game_status === 'enabled' || g.enabled;
+    return `
+    <div class="game-row">
+      <div class="game-row-thumb" style="background:var(--bg-secondary)">
+        ${getGameIconHTML(g, i, '68px', 'height:68px;border-radius:var(--radius-md)')}
+      </div>
+      <div class="game-row-info">
+        <div class="game-row-title">${g.game_name || g.title}</div>
+        <div class="game-row-badges">
+          ${badgeHTML(statusKey)}
+          ${statusKey === 'approved' ? (isEnabled ? badgeHTML('enabled') : badgeHTML('disabled')) : ''}
+          ${hostBadgeHTML(g)}
+          ${g.maintenance ? '<span style="font-size:.7rem;background:rgba(245,158,11,.12);color:var(--accent-yellow);border:1px solid rgba(245,158,11,.3);border-radius:99px;padding:.1rem .45rem">⚠️ Maintenance</span>' : ''}
+        </div>
+        <div class="game-row-meta">
+          <span class="tag">${g.game_type || g.genre}</span>
+          <span>👥 ${g.players}</span>
+          <span>⭐ ${g.rating || 'N/A'}</span>
+          <span>👁️ ${((g.views/1000)||0).toFixed(1)}K</span>
+          <span>🕹️ ${g.sessions || 0} sessions</span>
+          <span style="color:var(--text-muted)">📅 ${formatDate(g.submittedDate)}</span>
+        </div>
+        ${statusKey === 'rejected' ? `<div style="font-size:.78rem;color:var(--accent-red);margin-top:.3rem">❌ ${g.rejectionReason ? 'Reason: '+g.rejectionReason : 'Rejected — edit to resubmit'}</div>` : ''}
+      </div>
+      <div class="game-row-actions">
+        ${statusKey === 'approved' ? `<button class="btn btn-outline btn-sm" onclick="viewAnalytics('${gid}')">📊 Analytics</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openEditPage('${gid}')">✏️ Edit</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Edit ─────────────────────────── */
+function openEditPage(id) {
+  const g = DB.games.find(x => String(x.game_id || x.id) === String(id)); if (!g) return;
+  const parts = (g.players || '2-8').split('-').map(Number);
+
+  document.getElementById('ev-id').value = id;
+  document.getElementById('ev-title').value = g.game_name || g.title || '';
+  document.getElementById('ev-desc').value = g.desc || '';
+  document.getElementById('ev-genre').value = g.game_type || g.genre || '';
+  document.getElementById('ev-min').value = String(parts[0] || 2);
+  document.getElementById('ev-max').value = String(parts[1] || 8);
+  document.getElementById('ev-enabled').checked = g.game_status === 'enabled' || !!g.enabled;
+  document.getElementById('ev-maint').checked = !!g.maintenance;
+  ['ev-title-err','ev-desc-err'].forEach(eid => { document.getElementById(eid).textContent=''; });
+
+  // Hosting info
+  const hostPanel = document.getElementById('hosting-info-panel');
+  const hostContent = document.getElementById('hosting-info-content');
+  if (g.hostingType === 'selfhosted') {
+    hostPanel.style.display = 'block';
+    hostContent.innerHTML = `
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.85rem;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.2);border-radius:var(--radius-md)">
+        <span style="font-size:1.5rem">🔧</span>
+        <div>
+          <div style="font-weight:600;margin-bottom:.2rem">Self-Hosted Game</div>
+          <div style="font-size:.8rem;color:var(--text-secondary)">${g.gameUrl || 'No URL set'}</div>
+        </div>
+      </div>`;
+  } else {
+    hostPanel.style.display = 'block';
+    hostContent.innerHTML = `
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.85rem;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.2);border-radius:var(--radius-md)">
+        <span style="font-size:1.5rem">🏠</span>
+        <div>
+          <div style="font-weight:600;margin-bottom:.2rem">Hosted on PlayCarys</div>
+          <div style="font-size:.8rem;color:var(--text-secondary)">Your game runs on our servers with automatic scaling</div>
+        </div>
+      </div>`;
+  }
+
+  showView('edit-view');
+  window.scrollTo(0, 0);
+}
+
+function saveEdit() {
+  const tEl = document.getElementById('ev-title');
+  const dEl = document.getElementById('ev-desc');
+  document.getElementById('ev-title-err').textContent = '';
+  document.getElementById('ev-desc-err').textContent = '';
+
+  const title = tEl.value.trim(), desc = dEl.value.trim();
+  if (!title) { document.getElementById('ev-title-err').textContent='Title required'; tEl.focus(); return; }
+  if (title.length < 3) { document.getElementById('ev-title-err').textContent='Min 3 characters'; tEl.focus(); return; }
+  if (!desc)  { document.getElementById('ev-desc-err').textContent='Description required'; dEl.focus(); return; }
+  if (desc.length < 10) { document.getElementById('ev-desc-err').textContent='Min 10 characters'; dEl.focus(); return; }
+
+  const id = document.getElementById('ev-id').value;
+  const g = DB.games.find(x => String(x.game_id || x.id) === String(id));
+  if (!g) return;
+
+  const nextEnabled = document.getElementById('ev-enabled').checked;
+  const statusKey = g.game_approval_status || g.status;
+
+  g.game_name = title;
+  g.desc = desc;
+  g.game_type = document.getElementById('ev-genre').value;
+  g.game_status = nextEnabled ? 'enabled' : 'disabled';
+  g.enabled = nextEnabled;
+  g.maintenance = document.getElementById('ev-maint').checked;
+
+  if (statusKey === 'rejected') {
+    g.game_approval_status = 'pending';
+    g.status = 'pending';
+    Toast.info('Game resubmitted for review 📋');
+  } else {
+    Toast.success('Game updated! ✅');
+  }
+  DB.save();
+  cancelEdit();
+  renderGames();
+}
+
+function cancelEdit() { showView('main-view'); }
+
+function deleteFromEdit() {
+  const id = document.getElementById('ev-id').value;
+  const g = DB.games.find(x => String(x.game_id || x.id) === String(id)); if (!g) return;
+
+
+  confirmAction('Delete Game', `Permanently delete "${g.game_name || g.title}"? This cannot be undone.`, () => {
+    DB.games.splice(DB.games.findIndex(gg => String(gg.game_id || gg.id) === String(id)), 1);
+    DB.save();
+    Toast.success('Game deleted');
+    cancelEdit(); renderGames();
+  });
+}
+
+/* ── Analytics ────────────────────── */
+function viewAnalytics(id) {
+  const g = DB.games.find(x => String(x.game_id || x.id) === String(id)); if (!g) return;
+  const gid = String(g.game_id || g.id);
+  const tourns   = DB.tournaments.filter(t => String(t.gameId || t.game_id) === gid);
+  const sessions = DB.sessions.filter(s => String(s.gameId || s.game_id) === gid);
+  const revPerSession = 15;
+  const estRevenue = (g.sessions || sessions.length) * revPerSession;
+  const statusKey = g.game_approval_status || g.status;
+  const isEnabled = g.game_status === 'enabled' || g.enabled;
+
+  document.getElementById('analytics-content').innerHTML = `
+    <div class="page-header-row mb-3">
+      <div>
+        <h1>${g.game_name || g.title}</h1>
+        <p class="text-muted">Game Performance Analytics</p>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        ${badgeHTML(statusKey)}
+        ${isEnabled ? badgeHTML('enabled') : badgeHTML('disabled')}
+      </div>
+    </div>
+    <div class="analytics-stat-row">
+      <div class="stat-card"><div class="label">Total Views</div><div class="value text-cyan">${((g.views||0)/1000).toFixed(1)}K</div><div class="icon">👁️</div></div>
+      <div class="stat-card"><div class="label">Sessions</div><div class="value text-green">${g.sessions || sessions.length}</div><div class="icon">🎮</div></div>
+      <div class="stat-card"><div class="label">Tournaments</div><div class="value text-yellow">${tourns.length}</div><div class="icon">🏆</div></div>
+      <div class="stat-card"><div class="label">Rating</div><div class="value text-purple">${g.rating || 'N/A'}</div><div class="icon">⭐</div></div>
+      <div class="stat-card"><div class="label">Est. Revenue</div><div class="value" style="color:var(--accent-yellow)">${estRevenue} PCP</div><div class="icon">💰</div></div>
+    </div>
+    <div class="cards-grid-2">
+      <div class="card">
+        <h3 class="mb-2">📋 Game Details</h3>
+        <div class="detail-grid">
+          <div class="detail-field"><label>Genre</label><span>${g.game_type || g.genre}</span></div>
+          <div class="detail-field"><label>Players</label><span>${g.players}</span></div>
+          <div class="detail-field"><label>Hosting</label><span>${(g.hostingType === 'selfhosted') ? '🔧 Self-Hosted' : '🏠 PlayCarys Hosted'}</span></div>
+          <div class="detail-field"><label>Published</label><span>${formatDate(g.submittedDate)}</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="mb-2">🏆 Tournaments</h3>
+        ${tourns.length ? tourns.map(t => `
+          <div style="padding:.6rem 0;border-bottom:1px solid var(--border-primary);font-size:.85rem;display:flex;justify-content:space-between;align-items:center">
+            <span>${t.tournament_name || t.name}</span>${badgeHTML(t.status)}
+          </div>`).join('') : '<p style="color:var(--text-secondary);font-size:.875rem">No tournaments yet</p>'}
+      </div>
+    </div>
+    <div style="margin-top:1.5rem">
+      <button class="btn btn-primary" onclick="openEditPage('${gid}')">✏️ Edit This Game</button>
+    </div>`;
+  showView('analytics-view');
+}
+
+/* ── View Switching ───────────────── */
+function showView(id) {
+  ['main-view','analytics-view','edit-view'].forEach(v => {
+    document.getElementById(v).classList.toggle('hidden', v !== id);
+  });
+}
+function showMain() { showView('main-view'); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['publisher']); if (!session) return;
+  buildNavbar('publisher', 'mygames');
+  renderGames();
+});
+</script>
+</body>
+</html>
+
+
+
+

@@ -1,0 +1,1815 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Admin Control Hub</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    /* ── Hub-specific layout ───────────────────────── */
+    .hub-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1.5rem;
+      min-height: calc(100vh - var(--nav-height) - 4rem);
+    }
+
+    /* ── Left Sidebar ──────────────────────────────── */
+    .hub-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .sidebar-profile {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(124, 58, 237, 0.12));
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .sidebar-profile .su-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--gradient-brand);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0 auto 0.75rem;
+      border: 3px solid var(--accent-cyan);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+    }
+
+    .sidebar-profile h3 {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .sidebar-profile p {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+
+
+    .access-badge {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: var(--accent-yellow);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sidebar-menu {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .menu-section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0.9rem 1.1rem 0.4rem;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.7rem 1.1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all var(--trans-fast);
+    }
+
+    .menu-item:hover {
+      background: rgba(0, 212, 255, 0.06);
+      color: var(--text-primary);
+      border-left-color: rgba(0, 212, 255, 0.3);
+    }
+
+    .menu-item.active {
+      background: rgba(0, 212, 255, 0.10);
+      color: var(--accent-cyan);
+      border-left-color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .menu-item .mi-icon {
+      font-size: 1rem;
+      width: 20px;
+      text-align: center;
+    }
+
+    .menu-item .mi-badge {
+      margin-left: auto;
+      background: var(--accent-red);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 99px;
+    }
+
+    .sidebar-system {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.1rem;
+    }
+
+    .sidebar-system h4 {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    .sys-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      padding: 0.3rem 0;
+    }
+
+    .sys-indicator .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .sys-indicator .dot.warn {
+      background: var(--accent-yellow);
+      box-shadow: 0 0 6px var(--accent-yellow);
+    }
+
+    /* ── Right Main Content ────────────────────────── */
+    .hub-main {
+      min-width: 0;
+    }
+
+    .hub-section {
+      display: none;
+    }
+
+    .hub-section.active {
+      display: block;
+    }
+
+    /* ── Section: Overview ─────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform var(--trans-fast), border-color var(--trans-med);
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--kpi-color, var(--accent-cyan));
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--kpi-color, var(--accent-cyan));
+    }
+
+    .kpi-card .kpi-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .kpi-card .kpi-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--kpi-color, var(--accent-cyan));
+      margin-top: 0.25rem;
+    }
+
+    .kpi-card .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
+
+    .kpi-card .kpi-icon {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 2.2rem;
+      opacity: 0.12;
+    }
+
+    .kpi-card .kpi-trend {
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.3rem;
+    }
+
+    .kpi-card .kpi-trend.up {
+      color: var(--accent-green);
+    }
+
+    .kpi-card .kpi-trend.down {
+      color: var(--accent-red);
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .platform-health {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .health-label {
+      width: 130px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .health-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-input);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .health-fill {
+      height: 100%;
+      border-radius: 99px;
+    }
+
+    .health-val {
+      width: 36px;
+      text-align: right;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    /* ── Section: Users Management ─────────────────── */
+    .user-table-wrap {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .user-table-head {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── Section: Audit Log ────────────────────────── */
+    .audit-entry {
+      display: flex;
+      gap: 1rem;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid rgba(37, 42, 56, 0.5);
+      transition: background var(--trans-fast);
+    }
+
+    .audit-entry:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .audit-entry:last-child {
+      border-bottom: none;
+    }
+
+    .audit-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      width: 80px;
+      flex-shrink: 0;
+      padding-top: 0.15rem;
+    }
+
+    .audit-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .audit-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .audit-body .audit-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .audit-body .audit-detail {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+    }
+
+    .audit-actor {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ── Section: Platform Analytics ──────────────── */
+    .chart-placeholder {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.5rem;
+      height: 140px;
+      padding-top: 1rem;
+    }
+
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .bar-fill {
+      width: 100%;
+      border-radius: 4px 4px 0 0;
+      background: var(--gradient-brand);
+      opacity: 0.8;
+      transition: opacity var(--trans-fast);
+      min-height: 4px;
+    }
+
+    .bar-fill:hover {
+      opacity: 1;
+    }
+
+    .bar-label {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+    }
+
+    .bar-val {
+      font-size: 0.65rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .donut-svg {
+      flex-shrink: 0;
+    }
+
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .donut-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+    }
+
+    .donut-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Section: Tournaments Control ─────────────── */
+    .tournament-control-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: border-color var(--trans-med);
+    }
+
+    .tournament-control-card:hover {
+      border-color: rgba(0, 212, 255, 0.2);
+    }
+
+    /* ── Section: System Control ───────────────────── */
+    .control-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .control-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+    }
+
+    .control-card h3 {
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .danger-zone {
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.04);
+    }
+
+    .danger-zone h3 {
+      color: var(--accent-red);
+    }
+
+    .danger-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: var(--radius-md);
+      margin-bottom: 0.6rem;
+      cursor: pointer;
+      transition: all var(--trans-fast);
+    }
+
+    .danger-btn:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .danger-btn h4 {
+      font-size: 0.875rem;
+      color: var(--accent-red);
+    }
+
+    .danger-btn p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+    }
+
+    .danger-btn span {
+      font-size: 1.2rem;
+    }
+
+    /* ── Responsive ────────────────────────────────── */
+    @media (max-width: 960px) {
+      .hub-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hub-sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .sidebar-menu {
+        flex: 1;
+        min-width: 220px;
+      }
+
+      .kpi-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .overview-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .control-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .kpi-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <!-- Page Title -->
+      <div class="page-header-row mb-3">
+        <div>
+          <h1 style="display:flex;align-items:center;gap:0.6rem">
+            Admin Control Hub
+          </h1>
+          <p class="text-muted">Full system-level access and platform governance</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <span class="badge badge-admin" style="font-size:0.8rem;padding:0.35rem 0.9rem">ADMIN</span>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')">← Dashboard</button>
+        </div>
+      </div>
+
+      <!-- Main Hub Layout -->
+      <div class="hub-grid">
+
+        <!-- ── SIDEBAR ── -->
+        <div class="hub-sidebar">
+
+          <!-- Profile block -->
+          <div class="sidebar-profile">
+            <div class="su-avatar" id="sb-avatar">SA</div>
+            <h3 id="sb-name">SuperAdmin</h3>
+            <p id="sb-email">super@playcarys.com</p>
+            <span class="access-badge">🛡️ Full System Access</span>
+          </div>
+
+          <!-- Navigation menu -->
+          <div class="sidebar-menu">
+            <div class="menu-section-label">Control Panels</div>
+            <div class="menu-item active" onclick="showSection('overview')" id="mi-overview">
+              <span class="mi-icon">🏠</span> Overview
+            </div>
+            <div class="menu-item" onclick="showSection('users')" id="mi-users">
+              <span class="mi-icon">👥</span> User Management
+            </div>
+            <div class="menu-item" onclick="showSection('games')" id="mi-games">
+              <span class="mi-icon">🎮</span> Game Control
+            </div>
+            <div class="menu-item" onclick="showSection('tournaments')" id="mi-tournaments">
+              <span class="mi-icon">🏆</span> Tournaments
+            </div>
+            <div class="menu-section-label">Analytics & Logs</div>
+            <div class="menu-item" onclick="showSection('analytics')" id="mi-analytics">
+              <span class="mi-icon">📊</span> Platform Analytics
+            </div>
+            <div class="menu-item" onclick="showSection('audit')" id="mi-audit">
+              <span class="mi-icon">📋</span> Audit Log
+            </div>
+            <div class="menu-section-label">System</div>
+            <div class="menu-item" onclick="showSection('system')" id="mi-system">
+              <span class="mi-icon">⚙️</span> System Control
+            </div>
+            <div class="menu-item" onclick="navigate('settings')" id="mi-settings">
+              <span class="mi-icon">🔧</span> Settings
+            </div>
+          </div>
+
+          <!-- System health -->
+          <div class="sidebar-system">
+            <h4>System Status</h4>
+            <div class="sys-indicator"><span>API Server</span>
+              <div class="dot"></div>
+            </div>
+            <div class="sys-indicator"><span>Database</span>
+              <div class="dot"></div>
+            </div>
+            <div class="sys-indicator"><span>Auth Service</span>
+              <div class="dot"></div>
+            </div>
+            <div class="sys-indicator"><span>Matchmaking</span>
+              <div class="dot warn"></div>
+            </div>
+            <div class="sys-indicator"><span>CDN</span>
+              <div class="dot"></div>
+            </div>
+            <div
+              style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-primary);font-size:0.75rem;color:var(--text-muted)">
+              Last checked: just now
+            </div>
+          </div>
+
+        </div><!-- /sidebar -->
+
+        <!-- ── MAIN CONTENT ── -->
+        <div class="hub-main">
+
+          <!-- ═══════════════ OVERVIEW ═══════════════ -->
+          <div class="hub-section active" id="sec-overview">
+            <h2 style="margin-bottom:1.25rem;font-size:1.1rem;color:var(--text-secondary)">Platform Overview</h2>
+
+            <div class="kpi-row">
+              <div class="kpi-card" style="--kpi-color:var(--accent-cyan)">
+                <div class="kpi-label">Total Users</div>
+                <div class="kpi-val" id="kpi-users">0</div>
+                <div class="kpi-trend up" id="kpi-users-trend"></div>
+                <div class="kpi-icon">👥</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-green)">
+                <div class="kpi-label">Active Games</div>
+                <div class="kpi-val" id="kpi-games">0</div>
+                <div class="kpi-sub">of <span id="kpi-games-total">0</span> total</div>
+                <div class="kpi-icon">🎮</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-yellow)">
+                <div class="kpi-label">Live Sessions</div>
+                <div class="kpi-val" id="kpi-sessions">0</div>
+                <div class="kpi-sub" id="kpi-sessions-players"></div>
+                <div class="kpi-icon">▶️</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-purple)">
+                <div class="kpi-label">Active Tournaments</div>
+                <div class="kpi-val" id="kpi-tourns">0</div>
+                <div class="kpi-sub" id="kpi-tourns-up"></div>
+                <div class="kpi-icon">🏆</div>
+              </div>
+            </div>
+
+            <div class="overview-grid">
+              <!-- Platform Health -->
+              <div class="card">
+                <h3 class="mb-2">📡 Platform Health</h3>
+                <div class="platform-health" id="health-bars"></div>
+              </div>
+
+              <!-- Alerts -->
+              <div class="card">
+                <h3 class="mb-2">🚨 Attention Required</h3>
+                <div id="alerts-list"></div>
+              </div>
+            </div>
+
+            <!-- Recent activity timeline -->
+            <div class="card mt-2">
+              <div class="flex items-center justify-between mb-2">
+                <h3>⚡ Live Activity Feed</h3>
+                <button class="btn btn-ghost btn-sm" onclick="showSection('audit')">Full Audit Log →</button>
+              </div>
+              <div id="live-feed"></div>
+            </div>
+          </div>
+
+          <!-- ═══════════════ USER MANAGEMENT ═══════════════ -->
+          <div class="hub-section" id="sec-users">
+            <div class="flex items-center justify-between mb-2">
+              <h2 style="font-size:1.1rem;color:var(--text-secondary)">User Management</h2>
+              <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">+ Add User</button>
+            </div>
+
+            <!-- Role KPIs -->
+            <div class="kpi-row mb-2">
+              <div class="kpi-card" style="--kpi-color:var(--accent-cyan)">
+                <div class="kpi-label">Players</div>
+                <div class="kpi-val" id="u-kpi-players">0</div>
+                <div class="kpi-icon">🎮</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-green)">
+                <div class="kpi-label">Publishers</div>
+                <div class="kpi-val" id="u-kpi-pub">0</div>
+                <div class="kpi-icon">⬆️</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-purple)">
+                <div class="kpi-label">Moderators</div>
+                <div class="kpi-val" id="u-kpi-mod">0</div>
+                <div class="kpi-icon">🛡️</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-yellow)">
+                <div class="kpi-label">Admins</div>
+                <div class="kpi-val" id="u-kpi-su">0</div>
+                <div class="kpi-icon">👑</div>
+              </div>
+            </div>
+
+            <div class="user-table-wrap">
+              <div class="user-table-head">
+                <div class="search-wrap" style="max-width:280px">
+                  <span class="search-icon">🔍</span>
+                  <input class="form-input" id="u-search" placeholder="Search users..." oninput="renderUsersTable()" />
+                </div>
+                <div style="display:flex;gap:0.5rem">
+                  <select class="form-select" id="u-role-filter" onchange="renderUsersTable()" style="width:150px">
+                    <option value="">All Roles</option>
+                    <option value="player">Players</option>
+                    <option value="publisher">Publishers</option>
+                    <option value="moderator">Moderators</option>
+                  </select>
+                  <select class="form-select" id="u-status-filter" onchange="renderUsersTable()" style="width:130px">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="banned">Banned</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Joined</th>
+                      <th>Last Seen</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="users-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══════════════ GAME CONTROL ═══════════════ -->
+          <div class="hub-section" id="sec-games">
+            <div class="flex items-center justify-between mb-2">
+              <h2 style="font-size:1.1rem;color:var(--text-secondary)">Game Control Panel</h2>
+              <div style="display:flex;gap:0.5rem">
+                <select class="form-select" id="g-filter" onchange="renderGamesPanel()" style="width:150px">
+                  <option value="">All Status</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="kpi-row mb-2">
+              <div class="kpi-card" style="--kpi-color:var(--accent-cyan)">
+                <div class="kpi-label">Total</div>
+                <div class="kpi-val" id="g-kpi-total">0</div>
+                <div class="kpi-icon">🎮</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-green)">
+                <div class="kpi-label">Approved</div>
+                <div class="kpi-val" id="g-kpi-approved">0</div>
+                <div class="kpi-icon">✅</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-yellow)">
+                <div class="kpi-label">Pending</div>
+                <div class="kpi-val" id="g-kpi-pending">0</div>
+                <div class="kpi-icon">⏳</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-red)">
+                <div class="kpi-label">Blacklisted</div>
+                <div class="kpi-val" id="g-kpi-disabled">0</div>
+                <div class="kpi-icon">⛔</div>
+              </div>
+            </div>
+
+            <div class="user-table-wrap">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Game</th>
+                      <th>Publisher</th>
+                      <th>Genre</th>
+                      <th>Status</th>
+                      <th>Enabled</th>
+                      <th>Views</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="games-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══════════════ TOURNAMENTS ═══════════════ -->
+          <div class="hub-section" id="sec-tournaments">
+            <div class="flex items-center justify-between mb-2">
+              <h2 style="font-size:1.1rem;color:var(--text-secondary)">Tournament Control</h2>
+              <button class="btn btn-primary btn-sm" onclick="openCreateTournamentModal()">+ Create Tournament</button>
+            </div>
+
+            <div class="kpi-row mb-2">
+              <div class="kpi-card" style="--kpi-color:var(--accent-green)">
+                <div class="kpi-label">Active</div>
+                <div class="kpi-val" id="t-kpi-active">0</div>
+                <div class="kpi-icon">🔴</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-purple)">
+                <div class="kpi-label">Upcoming</div>
+                <div class="kpi-val" id="t-kpi-upcoming">0</div>
+                <div class="kpi-icon">📅</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-cyan)">
+                <div class="kpi-label">Completed</div>
+                <div class="kpi-val" id="t-kpi-done">0</div>
+                <div class="kpi-icon">✅</div>
+              </div>
+              <div class="kpi-card" style="--kpi-color:var(--accent-yellow)">
+                <div class="kpi-label">Total Players</div>
+                <div class="kpi-val" id="t-kpi-players">0</div>
+                <div class="kpi-icon">👥</div>
+              </div>
+            </div>
+
+            <div id="tournaments-list"></div>
+          </div>
+
+          <!-- ═══════════════ ANALYTICS ═══════════════ -->
+          <div class="hub-section" id="sec-analytics">
+            <h2 style="margin-bottom:1.25rem;font-size:1.1rem;color:var(--text-secondary)">Platform Analytics</h2>
+
+            <div class="cards-grid-2 mb-2">
+              <!-- Sessions per game bar chart -->
+              <div class="card">
+                <h3 class="mb-2">🎮 Sessions per Game</h3>
+                <div class="bar-chart" id="sessions-chart"></div>
+              </div>
+              <!-- User role distribution donut -->
+              <div class="card">
+                <h3 class="mb-2">👥 User Distribution</h3>
+                <div class="donut-wrap" id="donut-wrap"></div>
+              </div>
+            </div>
+
+            <div class="cards-grid-2 mb-2">
+              <!-- Views leaderboard -->
+              <div class="card">
+                <h3 class="mb-2">👁 Game Views Leaderboard</h3>
+                <div id="views-leaderboard"></div>
+              </div>
+              <!-- Tournament prize pool summary -->
+              <div class="card">
+                <h3 class="mb-2">💰 Tournament Prize Pool</h3>
+                <div id="prize-summary"></div>
+              </div>
+            </div>
+
+            <!-- Win Rate leaderboard -->
+            <div class="card">
+              <h3 class="mb-2">🏅 Player Win Rate Leaderboard</h3>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Player</th>
+                      <th>Matches</th>
+                      <th>Wins</th>
+                      <th>Win Rate</th>
+                      <th>Level</th>
+                    </tr>
+                  </thead>
+                  <tbody id="winrate-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══════════════ AUDIT LOG ═══════════════ -->
+          <div class="hub-section" id="sec-audit">
+            <div class="flex items-center justify-between mb-2">
+              <h2 style="font-size:1.1rem;color:var(--text-secondary)">Audit Log</h2>
+              <button class="btn btn-ghost btn-sm" onclick="clearAuditLog()">🗑 Clear Log</button>
+            </div>
+
+            <div class="filter-bar mb-2">
+              <select class="form-select" id="audit-type-filter" onchange="renderAuditLog()" style="width:180px">
+                <option value="">All Events</option>
+                <option value="user">User Events</option>
+                <option value="game">Game Events</option>
+                <option value="ban">Ban Events</option>
+                <option value="tournament">Tournament Events</option>
+                <option value="system">System Events</option>
+              </select>
+            </div>
+
+            <div class="card" style="padding:0">
+              <div id="audit-log-list"></div>
+            </div>
+          </div>
+
+          <!-- ═══════════════ SYSTEM CONTROL ═══════════════ -->
+          <div class="hub-section" id="sec-system">
+            <h2 style="margin-bottom:1.25rem;font-size:1.1rem;color:var(--text-secondary)">System Control</h2>
+
+            <div class="control-panel">
+
+              <!-- Maintenance & Access -->
+              <div class="control-card">
+                <h3>🔧 Platform Controls</h3>
+                <div style="display:flex;flex-direction:column;gap:0">
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>Maintenance Mode</h4>
+                      <p>Lock platform access for all users</p>
+                    </div>
+                    <div class="toggle" id="sys-maintenance"></div>
+                  </div>
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>New Registrations</h4>
+                      <p>Allow new users to sign up</p>
+                    </div>
+                    <div class="toggle" id="sys-registration"></div>
+                  </div>
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>Tournament Creation</h4>
+                      <p>Allow publishers to create tournaments</p>
+                    </div>
+                    <div class="toggle on" id="sys-tournaments"></div>
+                  </div>
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>Game Publishing</h4>
+                      <p>Allow publishers to submit games</p>
+                    </div>
+                    <div class="toggle on" id="sys-publishing"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Security Controls -->
+              <div class="control-card">
+                <h3>🔐 Security Controls</h3>
+                <div style="display:flex;flex-direction:column;gap:0">
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>Two-Factor Auth</h4>
+                      <p>Require 2FA for admin accounts</p>
+                    </div>
+                    <div class="toggle" id="sys-2fa"></div>
+                  </div>
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>Strong Passwords</h4>
+                      <p>Enforce password complexity rules</p>
+                    </div>
+                    <div class="toggle" id="sys-passwords"></div>
+                  </div>
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>Rate Limiting</h4>
+                      <p>Limit API requests per user</p>
+                    </div>
+                    <div class="toggle on" id="sys-ratelimit"></div>
+                  </div>
+                  <div class="toggle-wrap">
+                    <div class="toggle-info">
+                      <h4>IP Whitelist</h4>
+                      <p>Restrict admin access by IP</p>
+                    </div>
+                    <div class="toggle" id="sys-ipwhitelist"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Stats -->
+              <div class="control-card">
+                <h3>📊 Quick Export</h3>
+                <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1rem">Download platform data
+                  reports</p>
+                <div style="display:flex;flex-direction:column;gap:0.6rem">
+                  <button class="btn btn-ghost w-full" onclick="exportData('users')">⬇️ Export Users CSV</button>
+                  <button class="btn btn-ghost w-full" onclick="exportData('games')">⬇️ Export Games CSV</button>
+                  <button class="btn btn-ghost w-full" onclick="exportData('reports')">⬇️ Export Reports CSV</button>
+                  <button class="btn btn-ghost w-full" onclick="exportData('audit')">⬇️ Export Audit Log</button>
+                </div>
+              </div>
+
+              <!-- Danger Zone -->
+              <div class="control-card danger-zone">
+                <h3>⚠️ Danger Zone</h3>
+                <div class="danger-btn" onclick="dangerAction('purge-sessions')">
+                  <div>
+                    <h4>Purge All Sessions</h4>
+                    <p>Disconnect all active game sessions</p>
+                  </div>
+                  <span>⚡</span>
+                </div>
+                <div class="danger-btn" onclick="dangerAction('reset-bans')">
+                  <div>
+                    <h4>Lift All Bans</h4>
+                    <p>Remove all active player bans</p>
+                  </div>
+                  <span>🔓</span>
+                </div>
+                <div class="danger-btn" onclick="dangerAction('clear-reports')">
+                  <div>
+                    <h4>Archive All Reports</h4>
+                    <p>Mark all pending reports as resolved</p>
+                  </div>
+                  <span>📁</span>
+                </div>
+                <div class="danger-btn" onclick="dangerAction('reset-platform')">
+                  <div>
+                    <h4>Reset Platform Data</h4>
+                    <p>Reset all mock data to defaults</p>
+                  </div>
+                  <span>♻️</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div><!-- /hub-main -->
+      </div><!-- /hub-grid -->
+
+    </div>
+  </div>
+
+  <!-- ── ADD USER MODAL ── -->
+  <div class="modal-overlay" id="add-user-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">👑 Add User</h3>
+        <span class="modal-close" onclick="Modal.close('add-user-modal')">✕</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <input type="hidden" id="au-edit-id" />
+        <div class="form-group">
+          <label class="form-label">Username <span class="required">*</span></label>
+          <input class="form-input" id="au-username" placeholder="Username (3–20 chars)" />
+          <span class="form-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" id="au-email" type="email" placeholder="email@example.com" />
+          <span class="form-error"></span>
+        </div>
+        <div class="cards-grid-2">
+          <div class="form-group">
+            <label class="form-label">Role <span class="required">*</span></label>
+            <select class="form-select" id="au-role">
+              <option value="player">Player</option>
+              <option value="publisher">Publisher</option>
+              <option value="moderator">Moderator</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="au-status">
+              <option value="active">Active</option>
+              <option value="banned">Banned</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" id="au-pw-group">
+          <label class="form-label">Password <span class="required">*</span></label>
+          <input class="form-input" id="au-password" type="password" placeholder="Min 8 chars, uppercase + number" />
+          <span class="form-error"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="Modal.close('add-user-modal')">Cancel</button>
+        <button class="btn btn-primary" id="au-save-btn" onclick="saveUser()">Add User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CREATE TOURNAMENT MODAL ── -->
+  <div class="modal-overlay" id="create-tournament-modal">
+    <div class="modal" style="max-width:540px">
+      <div class="modal-header">
+        <h3 class="modal-title">🏆 Create Tournament</h3>
+        <span class="modal-close" onclick="Modal.close('create-tournament-modal')">✕</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">Tournament Name <span class="required">*</span></label>
+          <input class="form-input" id="ct-name" placeholder="e.g. Grand Masters Championship" />
+          <span class="form-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description <span class="required">*</span></label>
+          <textarea class="form-textarea" id="ct-desc" placeholder="Describe this tournament..."
+            style="min-height:80px"></textarea>
+          <span class="form-error"></span>
+        </div>
+        <div class="cards-grid-2">
+          <div class="form-group">
+            <label class="form-label">Game <span class="required">*</span></label>
+            <select class="form-select" id="ct-game"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Participants <span class="required">*</span></label>
+            <input class="form-input" id="ct-max" type="number" min="4" max="1024" value="32" />
+            <span class="form-error"></span>
+          </div>
+        </div>
+        <div class="cards-grid-2">
+          <div class="form-group">
+            <label class="form-label">Start Date <span class="required">*</span></label>
+            <input class="form-input" id="ct-start" type="date" />
+            <span class="form-error"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prize Pool</label>
+            <input class="form-input" id="ct-prize" placeholder="e.g. $500" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="Modal.close('create-tournament-modal')">Cancel</button>
+        <button class="btn btn-purple" onclick="createTournament()">🏆 Create Tournament</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../data/auth.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script>
+    // navigate() provided globally by utils.js (includes CSS fade transition)
+
+    // ─── Section navigation ────────────────────────────────────
+    function showSection(name) {
+      document.querySelectorAll('.hub-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+      document.getElementById('sec-' + name).classList.add('active');
+      document.getElementById('mi-' + name)?.classList.add('active');
+
+      // Render on demand
+      const renderers = {
+        overview: renderOverview,
+        users: renderUsersSection,
+        games: renderGamesPanel,
+        tournaments: renderTournamentsSection,
+        analytics: renderAnalytics,
+        audit: renderAuditLog,
+        system: renderSystemControls
+      };
+      renderers[name]?.();
+    }
+
+    // ─── OVERVIEW ─────────────────────────────────────────────
+    function renderOverview() {
+      const s = getPlatformStats();
+      const totalPlayers = DB.sessions.reduce((a, s) => a + s.players.length, 0);
+
+      document.getElementById('kpi-users').textContent = s.totalUsers;
+      document.getElementById('kpi-users-trend').textContent = `↑ ${s.players} players, ${s.publishers} publishers`;
+      document.getElementById('kpi-games').textContent = s.activeGames;
+      document.getElementById('kpi-games-total').textContent = s.totalGames;
+      document.getElementById('kpi-sessions').textContent = DB.sessions.length;
+      document.getElementById('kpi-sessions-players').textContent = `${totalPlayers} players online`;
+      document.getElementById('kpi-tourns').textContent = s.activeTournaments;
+      document.getElementById('kpi-tourns-up').textContent = `${s.upcomingTournaments} upcoming`;
+
+      // Health bars
+      const healths = [
+        ['User Activity', Math.round(s.players / s.totalUsers * 100), 'var(--accent-cyan)'],
+        ['Game Engagement', Math.round(s.activeGames / s.totalGames * 100), 'var(--accent-green)'],
+        ['Report Rate', Math.round(s.pendingReports / Math.max(s.totalUsers, 1) * 100), 'var(--accent-yellow)'],
+        ['Ban Rate', Math.round(s.activeBans / Math.max(s.players, 1) * 100), 'var(--accent-red)'],
+        ['Tournament Fill', Math.round(DB.tournaments.reduce((a, t) => a + t.participants, 0) / Math.max(DB.tournaments.reduce((a, t) => a + t.maxParticipants, 0), 1) * 100), 'var(--accent-purple)']
+      ];
+      document.getElementById('health-bars').innerHTML = healths.map(([label, pct, color]) => `
+    <div class="health-item">
+      <span class="health-label">${label}</span>
+      <div class="health-bar"><div class="health-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="health-val" style="color:${color}">${pct}%</span>
+    </div>`).join('');
+
+      // Alerts
+      const alerts = [];
+      if (s.pendingGames > 0) alerts.push({ icon: '🟡', msg: `${s.pendingGames} game(s) awaiting approval`, action: "showSection('games')", cls: 'badge-pending' });
+      if (s.pendingReports > 0) alerts.push({ icon: '🔴', msg: `${s.pendingReports} report(s) pending review`, action: "navigate('approvals')", cls: 'badge-pending' });
+      if (s.activeBans > 0) alerts.push({ icon: '🚫', msg: `${s.activeBans} player(s) currently banned`, action: "showSection('users')", cls: 'badge-banned' });
+      if (DB.sessions.length === 0) alerts.push({ icon: '🟠', msg: 'No active game sessions right now', action: '', cls: 'badge-waiting' });
+      if (!alerts.length) alerts.push({ icon: '✅', msg: 'All systems operating normally', action: '', cls: 'badge-approved' });
+
+      document.getElementById('alerts-list').innerHTML = alerts.map(a => `
+    <div class="list-item" style="padding:0.7rem 0.9rem;cursor:${a.action ? 'pointer' : 'default'}" ${a.action ? `onclick="${a.action}"` : ''}> 
+      <span style="font-size:1.1rem">${a.icon}</span>
+      <div class="list-item-info" style="font-size:0.875rem">${a.msg}</div>
+      ${a.action ? '<span style="color:var(--accent-cyan);font-size:0.8rem">→</span>' : ''}
+    </div>`).join('');
+
+      // Live feed
+      document.getElementById('live-feed').innerHTML = DB.activityLog.slice(0, 6).map(a => {
+        const icons = { publisher: '🟢', approval: '🟡', player: '🔵', tournament: '🏆', ban: '🔴', system: '⚙️' };
+        const colors = { publisher: 'rgba(16,185,129,0.15)', approval: 'rgba(245,158,11,0.12)', player: 'rgba(0,212,255,0.12)', tournament: 'rgba(124,58,237,0.15)', ban: 'rgba(239,68,68,0.12)', system: 'rgba(0,212,255,0.08)' };
+        return `<div class="audit-entry">
+      <div class="audit-time">${a.time}</div>
+      <div class="audit-icon" style="background:${colors[a.type] || 'var(--bg-secondary)'}">${icons[a.type] || '📌'}</div>
+      <div class="audit-body"><div class="audit-title">${a.msg}</div></div>
+    </div>`;
+      }).join('');
+    }
+
+    // ─── USERS ────────────────────────────────────────────────
+    function renderUsersSection() {
+      const s = getPlatformStats();
+      document.getElementById('u-kpi-players').textContent = s.players;
+      document.getElementById('u-kpi-pub').textContent = s.publishers;
+      document.getElementById('u-kpi-mod').textContent = s.moderators;
+      document.getElementById('u-kpi-su').textContent = s.admins;
+      renderUsersTable();
+    }
+
+    function renderUsersTable() {
+      const q = document.getElementById('u-search')?.value.toLowerCase() || '';
+      const role = document.getElementById('u-role-filter')?.value || '';
+      const status = document.getElementById('u-status-filter')?.value || '';
+
+      let users = [...DB.users];
+      if (q) users = users.filter(u => u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+      // Admin can only manage player, publisher, moderator
+      users = users.filter(u => ['player', 'publisher', 'moderator'].includes(u.role));
+      if (role) users = users.filter(u => u.role === role);
+      if (status) users = users.filter(u => u.status === status);
+
+      document.getElementById('users-tbody').innerHTML = users.length ? users.map(u => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:0.6rem">
+          <div class="avatar avatar-sm">${u.avatar}</div>
+          <div>
+            <div style="font-weight:600;font-size:0.875rem">${u.username}</div>
+            <div style="font-size:0.75rem;color:var(--text-secondary)">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td>${badgeHTML(u.role)}</td>
+      <td>${badgeHTML(u.status)}</td>
+      <td style="font-size:0.8rem;color:var(--text-secondary)">${formatDate(u.joinDate)}</td>
+      <td style="font-size:0.8rem;color:var(--text-secondary)">${formatDate(u.lastSeen)}</td>
+      <td>
+        <div style="display:flex;gap:0.35rem;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="viewUserDetails('${u.id}')">👁 Details</button>
+          <button class="btn btn-ghost btn-sm" onclick="editUserFromHub('${u.id}')">✏️ Edit</button>
+          ${u.role === 'player' ? `<button class="btn btn-red btn-sm" onclick="quickDelete('${u.id}')">🗑 Delete</button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('') :
+        `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-secondary)">No users found</td></tr>`;
+    }
+
+    function openAddUserModal() {
+      document.getElementById('au-edit-id').value = '';
+      document.getElementById('au-username').value = '';
+      document.getElementById('au-email').value = '';
+      document.getElementById('au-role').value = 'player';
+      document.getElementById('au-role').disabled = false;
+      document.getElementById('au-status').value = 'active';
+      document.getElementById('au-password').value = '';
+      document.getElementById('au-pw-group').style.display = '';
+      document.querySelector('#add-user-modal .modal-title').textContent = '👑 Add User';
+      document.getElementById('au-save-btn').textContent = 'Add User';
+      Modal.open('add-user-modal');
+    }
+
+    function editUserFromHub(id) {
+      const u = DB.users.find(u => u.id === id);
+      if (!u) return;
+      document.getElementById('au-edit-id').value = u.id;
+      document.getElementById('au-username').value = u.username;
+      document.getElementById('au-email').value = u.email;
+      document.getElementById('au-role').value = u.role;
+      document.getElementById('au-role').disabled = true;
+      document.getElementById('au-status').value = u.status;
+      document.getElementById('au-password').value = '';
+      document.getElementById('au-pw-group').style.display = 'none';
+      document.querySelector('#add-user-modal .modal-title').textContent = '✏️ Edit User';
+      document.getElementById('au-save-btn').textContent = 'Save Changes';
+      Modal.open('add-user-modal');
+    }
+
+    function viewUserDetails(id) {
+      const u = DB.users.find(u => u.id === id);
+      Toast.info(`Navigating to details for ${u.username}...`);
+      setTimeout(() => navigate('users'), 1500);
+    }
+
+    function saveUser() {
+      const isEdit = !!document.getElementById('au-edit-id').value;
+      const uEl = document.getElementById('au-username');
+      const eEl = document.getElementById('au-email');
+      const pEl = document.getElementById('au-password');
+      const rules = [
+        { el: uEl, rules: [{ type: 'required' }, { type: 'minLen', n: 3 }, { type: 'maxLen', n: 20 }] },
+        { el: eEl, rules: [{ type: 'required' }, { type: 'email' }] }
+      ];
+      if (!isEdit) rules.push({ el: pEl, rules: [{ type: 'required' }, { type: 'password' }] });
+      if (!Validate.form(rules)) return;
+
+      const id = document.getElementById('au-edit-id').value;
+      const username = uEl.value.trim(), email = eEl.value.trim();
+      const role = document.getElementById('au-role').value;
+      const status = document.getElementById('au-status').value;
+
+      if (DB.users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.id !== id)) {
+        Validate.field(uEl, [{ type: 'custom', fn: () => false, msg: 'Username already taken' }]); return;
+      }
+      if (DB.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.id !== id)) {
+        Validate.field(eEl, [{ type: 'custom', fn: () => false, msg: 'Email already registered' }]); return;
+      }
+
+      if (isEdit) {
+        const u = DB.users.find(u => u.id === id);
+        const roleMap = { 'player': 4, 'publisher': 5, 'moderator': 3, 'admin': 2, 'superuser': 1 };
+        u.user_name = username;
+        u.email = email;
+        if(role) u.role_id = roleMap[role] || u.role_id;
+        u.status = status;
+        u.avatar = username.slice(0, 2).toUpperCase();
+        addAudit('user', `User ${username} edited`, `Role: ${role}, Status: ${status}`);
+        Toast.success('User updated');
+      } else {
+        const numId = Date.now();
+        const roleMap = { 'player': 4, 'publisher': 5, 'moderator': 3, 'admin': 2, 'superuser': 1 };
+        DB.users.push({
+          user_id: numId, user_name: username, role_id: roleMap[role] || 4,
+          email, status, password: pEl.value, avatar: username.slice(0, 2).toUpperCase(), 
+          joinDate: new Date().toISOString().slice(0, 10), lastSeen: new Date().toISOString().slice(0, 10)
+        });
+        addAudit('user', `New user added: ${username}`, `Role: ${role}`);
+        Toast.success('User added');
+      }
+      DB.save();
+      Modal.close('add-user-modal');
+      setTimeout(() => window.location.reload(), 800);
+}
+
+    function quickBan(id) {
+      const u = DB.users.find(u => u.id === id);
+      if (!u) return;
+      confirmAction('Ban User', `Ban ${u.username} from the platform?`, () => {
+        u.status = 'banned';
+        addAudit('ban', `${u.username} permanently banned`, `By ${Auth.getSession().username}`);
+        Toast.success(`${u.username} banned`);
+        renderUsersSection();
+      });
+    }
+
+    function quickUnban(id) {
+      const u = DB.users.find(u => u.id === id);
+      if (!u) return;
+      u.status = 'active';
+      addAudit('user', `${u.username} unbanned`, `By ${Auth.getSession().username}`);
+      Toast.success(`${u.username} unbanned`);
+      renderUsersSection();
+    }
+
+    function quickDelete(id) {
+      const u = DB.users.find(u => u.id === id);
+      if (!u) return;
+      confirmAction('Delete User', `Permanently delete ${u.username}? Cannot be undone.`, () => {
+        DB.users.splice(DB.users.findIndex(u => u.id === id), 1);
+        addAudit('user', `User deleted: ${u.username}`, `By ${Auth.getSession().username}`);
+        Toast.success('User deleted');
+        renderUsersSection();
+      });
+    }
+
+    // ─── GAMES ────────────────────────────────────────────────
+    function renderGamesPanel() {
+      const s = getPlatformStats();
+      document.getElementById('g-kpi-total').textContent = DB.games.length;
+      document.getElementById('g-kpi-approved').textContent = s.approvedGames;
+      document.getElementById('g-kpi-pending').textContent = s.pendingGames;
+      document.getElementById('g-kpi-disabled').textContent = DB.games.filter(g => g.status === 'approved' && !g.enabled).length;
+
+      const f = document.getElementById('g-filter')?.value || '';
+      let games = [...DB.games];
+      if (f) games = games.filter(g => g.status === f);
+
+      document.getElementById('games-tbody').innerHTML = games.map(g => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          ${getGameIconHTML(g, 0, '40px')}
+          <div>
+            <div style="font-weight:600;font-size:0.875rem">${g.title}</div>
+            <div style="font-size:0.72rem;color:var(--text-secondary)">${g.players} players</div>
+          </div>
+        </div>
+      </td>
+      <td style="font-size:0.82rem">${g.publisher}</td>
+      <td><span class="tag" style="font-size:0.7rem">${g.genre}</span></td>
+      <td>${badgeHTML(g.status)}</td>
+      <td>${g.status === 'approved' ? (g.enabled ? badgeHTML('enabled') : badgeHTML('blacklisted')) : '—'}</td>
+      <td style="font-size:0.82rem;color:var(--accent-cyan)">${(g.views / 1000 || 0).toFixed(1)}K</td>
+      <td>
+        <div style="display:flex;gap:0.3rem;flex-wrap:wrap">
+          ${g.status === 'pending' ? `<button class="btn btn-green btn-sm" onclick="quickApprove('${g.id}')">✓</button><button class="btn btn-red btn-sm" onclick="quickReject('${g.id}')">✕</button>` : ''}
+          ${g.status === 'approved' ? `<button class="btn btn-outline btn-sm" onclick="quickToggle('${g.id}')" style="${g.enabled ? 'color:var(--accent-red);border-color:rgba(239,68,68,0.5)' : 'color:var(--accent-green);border-color:rgba(16,185,129,0.5)'}">${g.enabled ? '🔒 Blacklist' : '🔓 Enable'}</button>` : ''}
+          <button class="btn btn-red btn-sm" onclick="quickDeleteGame('${g.id}')">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+    }
+
+    function quickApprove(id) {
+      const g = DB.games.find(g => g.id === id);
+      const session = Auth.getSession();
+      g.status = 'approved'; g.enabled = true;
+      addAudit('game', `Game approved: ${g.title}`, `By ${session.username}`);
+      if (typeof dispatchUserNotification !== 'undefined') {
+         dispatchUserNotification(g.publisher, session.role, session.username, `has <b>approved</b> your submitted game: ${g.title}.`);
+      }
+      Toast.success(`${g.title} approved`); renderGamesPanel();
+    }
+
+    function quickReject(id) {
+      const g = DB.games.find(g => g.id === id);
+      const session = Auth.getSession();
+      confirmAction('Reject Game', `Reject "${g.title}"?`, () => {
+        g.status = 'rejected';
+        addAudit('game', `Game rejected: ${g.title}`, `By ${session.username}`);
+        if (typeof dispatchUserNotification !== 'undefined') {
+           dispatchUserNotification(g.publisher, session.role, session.username, `has <b>rejected</b> your submitted game: ${g.title}.`);
+        }
+        Toast.info(`${g.title} rejected`); renderGamesPanel();
+      });
+    }
+
+    function quickToggle(id) {
+      const g = DB.games.find(g => g.id === id);
+      g.enabled = !g.enabled;
+      addAudit('game', `${g.title} ${g.enabled ? 'enabled' : 'blacklisted'}`, `By ${Auth.getSession().username}`);
+      Toast.info(`${g.title} ${g.enabled ? 'enabled' : 'blacklisted'}`); renderGamesPanel();
+    }
+
+    function quickDeleteGame(id) {
+      const g = DB.games.find(g => g.id === id);
+      confirmAction('Delete Game', `Delete "${g.title}"?`, () => {
+        DB.games.splice(DB.games.findIndex(g => g.id === id), 1);
+        addAudit('game', `Game deleted: ${g.title}`, `By ${Auth.getSession().username}`);
+        Toast.success('Game deleted'); renderGamesPanel();
+      });
+    }
+
+    // ─── TOURNAMENTS ─────────────────────────────────────────
+    function renderTournamentsSection() {
+      document.getElementById('t-kpi-active').textContent = DB.tournaments.filter(t => t.status === 'in-progress').length;
+      document.getElementById('t-kpi-upcoming').textContent = DB.tournaments.filter(t => t.status === 'upcoming').length;
+      document.getElementById('t-kpi-done').textContent = DB.tournaments.filter(t => t.status === 'completed').length;
+      document.getElementById('t-kpi-players').textContent = DB.tournaments.reduce((a, t) => a + t.participants, 0);
+
+      document.getElementById('tournaments-list').innerHTML = DB.tournaments.map(t => `
+    <div class="tournament-control-card">
+      <span style="font-size:2rem">🏆</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem">
+          <span style="font-family:'Orbitron',monospace;font-size:0.9rem;font-weight:700">${t.name}</span>
+          ${badgeHTML(t.status)}
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);display:flex;gap:1rem;flex-wrap:wrap">
+          <span>🎮 ${t.game}</span>
+          <span>👥 ${t.participants}/${t.maxParticipants}</span>
+          <span>📅 ${formatDate(t.startDate)}</span>
+          <span style="color:var(--accent-yellow)">💰 ${t.prize}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.4rem;flex-shrink:0">
+        ${t.status === 'upcoming' ? `<button class="btn btn-green btn-sm" onclick="startTournament('${t.id}')">▶️ Start</button>` : ''}
+        ${t.status === 'in-progress' ? `<button class="btn btn-ghost btn-sm" onclick="endTournament('${t.id}')">⏹ End</button>` : ''}
+        <button class="btn btn-red btn-sm" onclick="deleteTournament('${t.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+    }
+
+    function openCreateTournamentModal() {
+      // Populate game select
+      const sel = document.getElementById('ct-game');
+      sel.innerHTML = DB.games.filter(g => g.status === 'approved').map(g => `<option value="${g.id}">${g.title}</option>`).join('');
+      document.getElementById('ct-start').min = new Date().toISOString().slice(0, 10);
+      document.getElementById('ct-start').value = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+      Modal.open('create-tournament-modal');
+    }
+
+    function createTournament() {
+      const nEl = document.getElementById('ct-name');
+      const dEl = document.getElementById('ct-desc');
+      const mEl = document.getElementById('ct-max');
+      const sEl = document.getElementById('ct-start');
+      if (!Validate.form([
+        { el: nEl, rules: [{ type: 'required' }, { type: 'minLen', n: 5, msg: 'Min 5 characters' }] },
+        { el: dEl, rules: [{ type: 'required' }, { type: 'minLen', n: 10, msg: 'Min 10 characters' }] },
+        { el: mEl, rules: [{ type: 'required' }, { type: 'numeric' }, { type: 'custom', fn: v => v >= 4 && v <= 1024, msg: 'Must be between 4 and 1024' }] },
+        { el: sEl, rules: [{ type: 'required', msg: 'Start date required' }] }
+      ])) return;
+
+      const gameId = document.getElementById('ct-game').value;
+      const game = DB.games.find(g => g.id === gameId);
+      const regClose = new Date(sEl.value); regClose.setDate(regClose.getDate() - 2);
+      DB.tournaments.push({
+        id: generateId('t'),
+        name: nEl.value.trim(),
+        desc: dEl.value.trim(),
+        game: game?.title || 'Unknown',
+        gameId,
+        participants: 0,
+        maxParticipants: parseInt(mEl.value),
+        status: 'upcoming',
+        startDate: sEl.value,
+        regClose: regClose.toISOString().slice(0, 10),
+        prize: document.getElementById('ct-prize').value || 'N/A',
+        organizer: Auth.getSession().userId || 'u1',
+        registeredPlayers: []
+      });
+      addAudit('tournament', `Tournament created: ${nEl.value}`, `By ${Auth.getSession().username}`);
+      Toast.success('Tournament created!');
+      Modal.close('create-tournament-modal');
+      renderTournamentsSection();
+    }
+
+    function startTournament(id) {
+      const t = DB.tournaments.find(t => t.id === id);
+      t.status = 'in-progress';
+      addAudit('tournament', `${t.name} started`, `By ${Auth.getSession().username}`);
+      Toast.success(`${t.name} started!`); renderTournamentsSection();
+    }
+
+    function endTournament(id) {
+      const t = DB.tournaments.find(t => t.id === id);
+      confirmAction('End Tournament', `Mark "${t.name}" as completed?`, () => {
+        t.status = 'completed';
+        addAudit('tournament', `${t.name} completed`, `By ${Auth.getSession().username}`);
+        Toast.info(`${t.name} completed`); renderTournamentsSection();
+      }, 'info');
+    }
+
+    function deleteTournament(id) {
+      const t = DB.tournaments.find(t => t.id === id);
+      confirmAction('Delete Tournament', `Delete "${t.name}"?`, () => {
+        DB.tournaments.splice(DB.tournaments.findIndex(t => t.id === id), 1);
+        addAudit('tournament', `Tournament deleted: ${t.name}`, `By ${Auth.getSession().username}`);
+        Toast.success('Tournament deleted'); renderTournamentsSection();
+      });
+    }
+
+    // ─── ANALYTICS ────────────────────────────────────────────
+    function renderAnalytics() {
+      // Sessions per game bar chart
+      const games = DB.games.filter(g => g.status === 'approved').slice(0, 6);
+      const maxSess = Math.max(...games.map(g => g.sessions), 1);
+      document.getElementById('sessions-chart').innerHTML = games.map(g => `
+    <div class="bar-col">
+      <div class="bar-val">${g.sessions}</div>
+      <div class="bar-fill" style="height:${Math.round(g.sessions / maxSess * 120)}px" title="${g.title}: ${g.sessions} sessions"></div>
+      <div class="bar-label">${g.title.split(' ')[0]}</div>
+    </div>`).join('');
+
+      // Donut chart (SVG)
+      const s = getPlatformStats();
+      const segments = [
+        { label: 'Players', pct: s.players / s.totalUsers, color: '#00d4ff' },
+        { label: 'Publishers', pct: s.publishers / s.totalUsers, color: '#10b981' },
+        { label: 'Moderators', pct: s.moderators / s.totalUsers, color: '#7c3aed' },
+        { label: 'Admins', pct: s.admins / s.totalUsers, color: '#f59e0b' }
+      ];
+      const r = 60, cx = 80, cy = 80, stroke = 22;
+      const circ = 2 * Math.PI * r;
+      let offset = 0;
+      const paths = segments.map(seg => {
+        const dash = seg.pct * circ;
+        const path = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${circ - dash}" stroke-dashoffset="${-offset}" style="transition:all 0.5s;opacity:0.85" transform="rotate(-90,${cx},${cy})"/>`;
+        offset += dash;
+        return path;
+      }).join('');
+      const legendHTML = segments.map((seg, i) => {
+        const count = [s.players, s.publishers, s.moderators, s.admins][i];
+        return `<div class="donut-legend-item"><div class="donut-dot" style="background:${seg.color}"></div><span>${seg.label}: <strong>${count}</strong></span></div>`;
+      }).join('');
+      document.getElementById('donut-wrap').innerHTML = `
+    <svg class="donut-svg" width="160" height="160" viewBox="0 0 160 160">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--bg-secondary)" stroke-width="${stroke}"/>
+      ${paths}
+      <text x="${cx}" y="${cy}" text-anchor="middle" dy="0.35em" fill="white" font-size="14" font-family="Orbitron,monospace" font-weight="700">${s.totalUsers}</text>
+    </svg>
+    <div class="donut-legend">${legendHTML}</div>`;
+
+      // Views leaderboard
+      const sorted = [...DB.games].sort((a, b) => b.views - a.views);
+      const maxV = sorted[0]?.views || 1;
+      document.getElementById('views-leaderboard').innerHTML = sorted.map((g, i) => `
+    <div class="analytics-bar-row">
+      <div style="width:20px;font-size:0.8rem;color:var(--text-muted)">#${i + 1}</div>
+      <div class="analytics-bar-label" style="width:110px">${g.title.slice(0, 12)}${g.title.length > 12 ? '…' : ''}</div>
+      <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.round(g.views / maxV * 100)}%"></div></div>
+      <div class="analytics-bar-val">${(g.views / 1000).toFixed(1)}K</div>
+    </div>`).join('');
+
+      // Prize pool
+      const totalPrize = DB.tournaments.reduce((sum, t) => { const n = parseInt(t.prize?.replace(/\D/g, '')) || 0; return sum + n; }, 0);
+      document.getElementById('prize-summary').innerHTML = `
+    <div style="text-align:center;padding:1rem 0">
+      <div style="font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:800;background:var(--gradient-brand);-webkit-background-clip:text;-webkit-text-fill-color:transparent">$${totalPrize.toLocaleString()}</div>
+      <div style="color:var(--text-secondary);font-size:0.82rem;margin:0.5rem 0">Total Prize Pool Across All Tournaments</div>
+    </div>
+    ${DB.tournaments.map(t => `
+      <div class="analytics-bar-row">
+        <div class="analytics-bar-label" style="width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.name.split(' ').slice(0, 2).join(' ')}</div>
+        <div style="flex:1"></div>
+        ${badgeHTML(t.status)}
+        <div style="width:55px;text-align:right;font-size:0.82rem;color:var(--accent-yellow);font-weight:600">${t.prize}</div>
+      </div>`).join('')}`;
+
+      // Win rate leaderboard
+      const players = DB.users.filter(u => u.role === 'player' && u.matches > 0).sort((a, b) => (b.wins / b.matches) - (a.wins / a.matches));
+      document.getElementById('winrate-tbody').innerHTML = players.map((u, i) => {
+        const wr = Math.round(u.wins / u.matches * 100);
+        const colors = ['var(--accent-yellow)', 'var(--text-secondary)', '#cd7f32'];
+        return `<tr>
+      <td style="font-weight:700;color:${colors[i] || 'var(--text-muted)'}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1)}</td>
+      <td><div style="display:flex;align-items:center;gap:0.5rem"><div class="avatar avatar-sm">${u.avatar}</div>${u.username}</div></td>
+      <td style="color:var(--text-secondary)">${u.matches}</td>
+      <td style="color:var(--accent-green)">${u.wins}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <div style="flex:1;height:6px;background:var(--bg-input);border-radius:99px;overflow:hidden;width:80px"><div style="height:100%;width:${wr}%;background:var(--gradient-brand);border-radius:99px"></div></div>
+          <span style="font-weight:700;color:var(--accent-cyan);font-size:0.85rem">${wr}%</span>
+        </div>
+      </td>
+      <td style="color:var(--accent-purple);font-weight:600">${u.level}</td>
+    </tr>`;
+      }).join('');
+    }
+
+    // ─── AUDIT LOG ────────────────────────────────────────────
+    const auditLog = [
+      { type: 'user', msg: 'SuperAdmin logged in', detail: 'IP: 192.168.1.1', time: 'just now', actor: 'SuperAdmin' },
+      { type: 'game', msg: 'Fantasy Quest approved for publication', detail: 'Submitted by IndieDevStudios', time: '5m ago', actor: 'SystemAdmin' },
+      { type: 'ban', msg: 'ToxicPlayer banned for 7 days', detail: 'Reason: Toxic behavior', time: '2h ago', actor: 'ModeratorOne' },
+      { type: 'tournament', msg: 'Racing Thunder Grand Prix started', detail: '24 participants registered', time: '6h ago', actor: 'System' },
+      { type: 'user', msg: 'New publisher registered: IndieDevStudios', detail: 'Email: hello@indiedev.com', time: '1d ago', actor: 'System' },
+      { type: 'system', msg: 'Platform settings updated', detail: 'Maintenance mode toggled off', time: '2d ago', actor: 'SuperAdmin' },
+      { type: 'game', msg: 'Space Warriors enabled on platform', detail: 'Publisher: EpicGamesStudio', time: '3d ago', actor: 'SystemAdmin' },
+      { type: 'user', msg: 'ModeratorTwo account created', detail: 'Role: Moderator', time: '5d ago', actor: 'SuperAdmin' },
+      { type: 'system', msg: 'Session timeout changed to 30 minutes', detail: 'Previous: 60 minutes', time: '7d ago', actor: 'SuperAdmin' },
+      { type: 'tournament', msg: 'Puzzle Masters Open completed', detail: 'Winner: ShadowMaster', time: '1w ago', actor: 'System' },
+    ];
+
+    function addAudit(type, msg, detail) {
+      const session = Auth.getSession();
+      auditLog.unshift({ type, msg, detail, time: 'just now', actor: session.username });
+      if (!DB.activityLog) DB.activityLog = [];
+      DB.activityLog.unshift({ type, msg, time: 'just now' });
+      if (typeof dispatchRoleNotification !== 'undefined' && session.role !== 'superuser') {
+         dispatchRoleNotification('superuser', session.role, session.username, `Audit Action: ${msg} (${detail})`);
+      }
+    }
+
+    function renderAuditLog() {
+      const typeFilter = document.getElementById('audit-type-filter')?.value || '';
+      let entries = [...auditLog];
+      if (typeFilter) entries = entries.filter(e => e.type === typeFilter);
+
+      const iconMap = { user: '👤', game: '🎮', ban: '🚫', tournament: '🏆', system: '⚙️' };
+      const colorMap = { user: 'rgba(0,212,255,0.12)', game: 'rgba(16,185,129,0.12)', ban: 'rgba(239,68,68,0.12)', tournament: 'rgba(124,58,237,0.12)', system: 'rgba(245,158,11,0.12)' };
+
+      document.getElementById('audit-log-list').innerHTML = entries.length ? entries.map(e => `
+    <div class="audit-entry">
+      <div class="audit-time">${e.time}</div>
+      <div class="audit-icon" style="background:${colorMap[e.type] || 'var(--bg-secondary)'}">${iconMap[e.type] || '📌'}</div>
+      <div class="audit-body">
+        <div class="audit-title">${e.msg}</div>
+        <div class="audit-detail">${e.detail}</div>
+      </div>
+      <div class="audit-actor">${e.actor}</div>
+    </div>`).join('') :
+        `<div style="text-align:center;padding:2rem;color:var(--text-secondary)">No audit entries found</div>`;
+    }
+
+    function clearAuditLog() {
+      confirmAction('Clear Audit Log', 'Archive and clear the current audit log?', () => {
+        auditLog.length = 0;
+        addAudit('system', 'Audit log cleared', 'Manual clear by admin');
+        renderAuditLog();
+        Toast.success('Audit log cleared');
+      });
+    }
+
+    // ─── SYSTEM CONTROLS ─────────────────────────────────────
+    function renderSystemControls() {
+      makeToggle(document.getElementById('sys-maintenance'), DB.settings.maintenanceMode, v => { DB.settings.maintenanceMode = v; addAudit('system', `Maintenance mode ${v ? 'ON' : 'OFF'}`, `By ${Auth.getSession().username}`); Toast.info(`Maintenance mode ${v ? 'enabled' : 'disabled'}`); });
+      makeToggle(document.getElementById('sys-registration'), DB.settings.registrationOpen, v => { DB.settings.registrationOpen = v; addAudit('system', `Registrations ${v ? 'opened' : 'closed'}`, `By ${Auth.getSession().username}`); Toast.info(`Registrations ${v ? 'opened' : 'closed'}`); });
+      makeToggle(document.getElementById('sys-tournaments'), true, v => Toast.info(`Tournament creation ${v ? 'enabled' : 'disabled'}`));
+      makeToggle(document.getElementById('sys-publishing'), true, v => Toast.info(`Game publishing ${v ? 'enabled' : 'disabled'}`));
+      makeToggle(document.getElementById('sys-2fa'), DB.settings.twoFactorAuth, v => { DB.settings.twoFactorAuth = v; Toast.info(`2FA ${v ? 'enabled' : 'disabled'}`); });
+      makeToggle(document.getElementById('sys-passwords'), DB.settings.strongPasswords, v => { DB.settings.strongPasswords = v; Toast.info(`Strong passwords ${v ? 'enforced' : 'optional'}`); });
+      makeToggle(document.getElementById('sys-ratelimit'), true, v => Toast.info(`Rate limiting ${v ? 'on' : 'off'}`));
+      makeToggle(document.getElementById('sys-ipwhitelist'), false, v => Toast.info(`IP whitelist ${v ? 'on' : 'off'}`));
+    }
+
+    function exportData(type) {
+      const exports = {
+        users: DB.users.map(u => `${u.username},${u.email},${u.role},${u.status}`).join('\n'),
+        games: DB.games.map(g => `${g.title},${g.publisher},${g.genre},${g.status}`).join('\n'),
+        reports: DB.reports.map(r => `${r.id},${r.reporterName},${r.reportedName},${r.type},${r.status}`).join('\n'),
+        audit: auditLog.map(e => `${e.time},${e.type},${e.msg},${e.actor}`).join('\n')
+      };
+      const blob = new Blob([exports[type] || ''], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `playcarys_${type}_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      Toast.success(`${capitalize(type)} data exported!`);
+      addAudit('system', `Data exported: ${type}`, `By ${Auth.getSession().username}`);
+    }
+
+    function dangerAction(action) {
+      const actions = {
+        'purge-sessions': { title: 'Purge All Sessions', msg: 'This will immediately disconnect ALL active game sessions. Players will be kicked.', fn: () => { DB.sessions.length = 0; addAudit('system', 'All sessions purged', `By ${Auth.getSession().username}`); Toast.warning('All sessions terminated'); } },
+        'reset-bans': { title: 'Lift All Bans', msg: 'This will remove ALL active player bans and restore access to banned users.', fn: () => { DB.bans.forEach(b => b.active = false); DB.users.filter(u => u.status === 'banned').forEach(u => u.status = 'active'); addAudit('system', 'All bans lifted', `By ${Auth.getSession().username}`); Toast.success('All bans lifted'); } },
+        'clear-reports': { title: 'Archive All Reports', msg: 'This will mark ALL pending reports as resolved.', fn: () => { DB.reports.forEach(r => r.status = 'resolved'); addAudit('system', 'All reports archived', `By ${Auth.getSession().username}`); Toast.info('All reports archived'); } },
+        'reset-platform': { title: 'Reset Platform Data', msg: '⚠️ This resets all session data to mock defaults. Are you absolutely sure?', fn: () => { DB.sessions.length = 0; Toast.warning('Platform data reset'); addAudit('system', 'Platform data reset', `By ${Auth.getSession().username}`); } }
+      };
+      const a = actions[action];
+      if (!a) return;
+      confirmAction(a.title, a.msg, a.fn);
+    }
+
+    // ─── Init ─────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['admin', 'superuser']);
+      if (!session) return;
+      buildNavbar('admin', 'hub');
+
+      // Fill sidebar profile
+      document.getElementById('sb-avatar').textContent = session.avatar;
+      document.getElementById('sb-name').textContent = session.username;
+      const u = DB.users.find(u => u.username === session.username);
+      document.getElementById('sb-email').textContent = u?.email || '';
+
+      // Add 'Admin Hub' to navbar active - override active to 'admin'
+      renderOverview();
+    });
+  </script>
+</body>
+
+</html>
+

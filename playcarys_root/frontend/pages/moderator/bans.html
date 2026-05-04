@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Ban Management</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content" id="main-view">
+
+  <div class="page-header">
+    <h1>Ban Management</h1>
+    <p class="text-muted">Manage player bans and restrictions</p>
+  </div>
+
+  <div class="stats-grid stats-grid-3 mb-3">
+    <div class="stat-card"><div class="label">Total Players</div><div class="value" id="s-total">0</div><div class="icon">👥</div></div>
+    <div class="stat-card"><div class="label">Banned</div><div class="value text-red" id="s-banned">0</div><div class="icon">🚫</div></div>
+    <div class="stat-card"><div class="label">Active</div><div class="value text-green" id="s-active">0</div><div class="icon">✅</div></div>
+  </div>
+
+  <!-- Search -->
+  <div style="position:relative;margin-bottom:1.25rem;max-width:400px">
+    <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-secondary)">🔍</span>
+    <input class="form-input" id="player-search" placeholder="Search player name…" oninput="renderBanned(); renderActive()" style="padding-left:2.2rem"/>
+  </div>
+
+  <!-- Banned Players -->
+  <div id="banned-section">
+    <h2 class="mb-2">Banned Players</h2>
+    <div id="banned-list"></div>
+  </div>
+
+  <!-- Active Players -->
+  <div class="mt-3">
+    <h2 class="mb-2">Active Players</h2>
+    <div class="cards-grid-2" id="active-list"></div>
+  </div>
+
+</div>
+
+<!-- BAN PLAYER VIEW -->
+<div class="page-content hidden" id="ban-view">
+  <div class="back-btn" onclick="showMain()">← Back</div>
+  <h1>Ban Player</h1>
+  <p class="text-muted mb-2">Issue a temporary or permanent ban</p>
+  <div id="ban-content"></div>
+</div>
+
+</div>
+
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script>
+// navigate() provided globally by utils.js
+let banTargetId = null;
+
+function isPlayer(u) {
+  return u.role === 'player' || u.role_id === 4 || u.role_id === '4';
+}
+
+function updateStats() {
+  const players = DB.users.filter(isPlayer);
+  document.getElementById('s-total').textContent  = players.length;
+  document.getElementById('s-banned').textContent = players.filter(u => u.status==='banned').length;
+  document.getElementById('s-active').textContent = players.filter(u => u.status!=='banned').length;
+}
+
+function getSearch() { return (document.getElementById('player-search')?.value||'').toLowerCase().trim(); }
+
+function renderBanned() {
+  const q = getSearch();
+  const banned = DB.users.filter(u => isPlayer(u) && u.status==='banned' && (!q || (u.username||u.user_name||'').toLowerCase().includes(q)));
+  const section = document.getElementById('banned-section');
+  if (!banned.length) {
+    document.getElementById('banned-list').innerHTML = `<div style="text-align:center;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:var(--radius-lg)"><p style="color:var(--text-secondary)">No banned players</p></div>`;
+    return;
+  }
+  document.getElementById('banned-list').innerHTML = banned.map(u => {
+    const ban = DB.bans.find(b => (b.playerId===u.id||b.playerId===u.user_id) && b.active);
+    const prof = DB.player_profiles?.find(p => p.user_id === (u.user_id||u.id));
+    const name = u.username || u.user_name || 'Unknown';
+    return `<div class="list-item">
+      <div class="avatar">${u.avatar || name.slice(0,2).toUpperCase()}</div>
+      <div class="list-item-info">
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span class="list-item-title">${name}</span>
+          ${badgeHTML('banned')}
+        </div>
+        <div class="list-item-sub">Lv.${u.level||prof?.level||1} · ${u.wins||0}W / ${u.losses||0}L · ${prof?.carys_points||0} PCP</div>
+        ${ban ? `<div class="text-xs" style="color:var(--accent-red);margin-top:0.25rem">📅 Banned ${ban.bannedDate||''} · Expires: ${formatDate(ban.expiresDate)} · Reason: ${ban.reason||'—'}</div>` : ''}
+      </div>
+      <button class="btn btn-ghost btn-sm" style="border-color:var(--accent-green);color:var(--accent-green)" onclick="unbanPlayer('${u.id||u.user_id}')">
+        ✅ Unban
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function renderActive() {
+  const q = getSearch();
+  const active = DB.users.filter(u => isPlayer(u) && u.status !== 'banned' && (!q || (u.username||u.user_name||'').toLowerCase().includes(q)));
+  document.getElementById('active-list').innerHTML = active.map(u => {
+    const prof = DB.player_profiles?.find(p => p.user_id === (u.user_id||u.id));
+    const name = u.username || u.user_name || 'Unknown';
+    const wr = (u.matches||0) > 0 ? Math.round(((u.wins||0)/(u.matches||1))*100) : 0;
+    return `
+    <div class="list-item">
+      <div class="avatar">${u.avatar || name.slice(0,2).toUpperCase()}</div>
+      <div class="list-item-info">
+        <div class="list-item-title">${name}</div>
+        <div class="list-item-sub text-sm">Lv.${u.level||1} · ${u.wins||0}W / ${u.losses||0}L · ${wr}% WR · ${prof?.carys_points||0} PCP</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="border-color:var(--accent-red);color:var(--accent-red)" onclick="showBanView('${u.id||u.user_id}')">
+        🚫 Ban
+      </button>
+    </div>`;
+  }).join('') || `<p style="color:var(--text-secondary);font-size:0.85rem;text-align:center;padding:1rem">No players found</p>`;
+}
+
+function showBanView(userId) {
+  const u = DB.users.find(u => String(u.id||u.user_id) === String(userId));
+  if (!u) return;
+  banTargetId = userId;
+
+  document.getElementById('ban-content').innerHTML = `
+    <div class="detail-card">
+      <h3>Player Information</h3>
+      <div style="display:flex;align-items:center;gap:1rem;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:1rem;margin-top:0.75rem">
+        <div class="avatar avatar-lg">${u.avatar}</div>
+        <div>
+          <div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700">${u.username}</div>
+          <div style="color:var(--text-secondary);font-size:0.85rem;margin-top:0.25rem">Level ${u.level||1}</div>
+          <div style="color:var(--text-secondary);font-size:0.82rem">${u.wins||0}W / ${u.losses||0}L · games played</div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-card">
+      <h3>🚫 Ban Details <span style="font-size:0.78rem;color:var(--text-secondary);font-family:Inter">Configure the ban settings for this player</span></h3>
+      <div style="display:flex;flex-direction:column;gap:1rem;margin-top:1rem">
+        <div class="form-group">
+          <label class="form-label">Ban Duration</label>
+          <select class="form-select" id="ban-duration">
+            <option value="1 Day">1 Day</option>
+            <option value="3 Days">3 Days</option>
+            <option value="7 Days" selected>7 Days</option>
+            <option value="14 Days">14 Days</option>
+            <option value="30 Days">30 Days</option>
+            <option value="Permanent">Permanent</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason <span class="required">*</span></label>
+          <textarea class="form-textarea" id="ban-reason" placeholder="Explain the reason for the ban..."></textarea>
+          <span class="form-error"></span>
+          <span class="form-hint">This reason will be visible to the player and stored in the moderation log</span>
+        </div>
+        <div class="alert alert-danger">
+          🚫 This action will prevent <strong>${u.username}</strong> from accessing the platform for the selected duration
+        </div>
+        <div style="display:flex;gap:0.75rem">
+          <button class="btn btn-ghost" style="flex:1" onclick="showMain()">Cancel</button>
+          <button class="btn btn-red" style="flex:1" onclick="issueBan()">🚫 Issue Ban</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('ban-view').classList.remove('hidden');
+}
+
+function showMain() {
+  document.getElementById('main-view').classList.remove('hidden');
+  document.getElementById('ban-view').classList.add('hidden');
+  updateStats(); renderBanned(); renderActive();
+}
+
+function issueBan() {
+  const reasonEl = document.getElementById('ban-reason');
+  if (!Validate.field(reasonEl, [
+    { type:'required', msg:'Ban reason is required' },
+    { type:'minLen', n:10, msg:'Please provide a more detailed reason (min 10 characters)' }
+  ])) return;
+
+  const u = DB.users.find(u => String(u.id||u.user_id) === String(banTargetId));
+  if (!u) return;
+  const duration = document.getElementById('ban-duration').value;
+
+  const daysMap = { '1 Day':1,'3 Days':3,'7 Days':7,'14 Days':14,'30 Days':30,'Permanent':3650 };
+  const days = daysMap[duration] || 7;
+  const expires = new Date(); expires.setDate(expires.getDate()+days);
+
+  u.status = 'banned';
+  DB.bans.push({
+    id: generateId('b'),
+    playerId: u.id || u.user_id,
+    playerName: u.username || u.user_name,
+    level: u.level||1,
+    duration,
+    reason: reasonEl.value,
+    bannedBy: Auth.getSession().username,
+    bannedDate: new Date().toISOString().slice(0,10),
+    expiresDate: expires.toISOString().slice(0,10),
+    active: true
+  });
+  DB.activityLog.unshift({ type:'ban', msg:`${u.username||u.user_name} banned for ${duration}`, time:'just now' });
+  if (typeof dispatchRoleNotification !== 'undefined') {
+     dispatchRoleNotification('superuser', Auth.getSession().role, Auth.getSession().username, `issued a ban on player ${u.username||u.user_name} for ${duration}.`);
+  }
+  if (typeof dispatchUserNotification !== 'undefined') {
+     dispatchUserNotification(u.username||u.user_name, Auth.getSession().role, Auth.getSession().username, `You have been banned for ${duration}. Reason: ${reasonEl.value}`);
+  }
+  // Log moderator action
+  const s = Auth.getSession();
+  DB.moderator_actions.push({
+    action_id: Date.now(), moderator_id: parseInt(s.userId,10),
+    action_type: 'ban', action_date: new Date().toISOString().split('T')[0],
+    action_reason: reasonEl.value
+  });
+  DB.save();
+  Toast.success(`${u.username||u.user_name} has been banned for ${duration}`);
+  showMain();
+}
+
+function unbanPlayer(userId) {
+  const u = DB.users.find(u => String(u.id||u.user_id) === String(userId));
+  if (!u) return;
+  confirmAction('Unban Player', `Remove ban from ${u.username||u.user_name}?`, () => {
+    u.status = 'active';
+    const ban = DB.bans.find(b => (b.playerId===u.id||b.playerId===u.user_id) && b.active);
+    if (ban) ban.active = false;
+    if (typeof dispatchRoleNotification !== 'undefined') {
+        dispatchRoleNotification('superuser', Auth.getSession().role, Auth.getSession().username, `removed a ban from player ${u.username||u.user_name}.`);
+    }
+    if (typeof dispatchUserNotification !== 'undefined') {
+        dispatchUserNotification(u.username||u.user_name, Auth.getSession().role, Auth.getSession().username, `Your ban has been removed. Welcome back!`);
+    }
+    DB.save();
+    Toast.success(`${u.username||u.user_name} has been unbanned`);
+    updateStats(); renderBanned(); renderActive();
+  }, 'info');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['moderator']);
+  if (!session) return;
+  buildNavbar('moderator','bans');
+  updateStats(); renderBanned(); renderActive();
+});
+</script>
+</body>
+</html>
+

@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Game Catalog</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<style>
+.fav-btn{position:absolute;top:.6rem;right:.6rem;background:rgba(0,0,0,.5);border:none;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;transition:all var(--trans-fast)}
+.fav-btn:hover{background:rgba(236,72,153,.3)}
+.fav-btn.active{color:#ec4899}
+.genre-badge{position:absolute;top:.6rem;left:.6rem;background:rgba(0,0,0,.65);color:#fff;font-size:.7rem;font-weight:600;padding:.2rem .5rem;border-radius:99px}
+.game-card-img-wrap{position:relative}
+.qp-btn{display:inline-flex;align-items:center;gap:.35rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:1px solid rgba(16,185,129,.5);border-radius:var(--radius-md);padding:.45rem .9rem;font-size:.78rem;font-weight:700;cursor:pointer;transition:all var(--trans-fast);white-space:nowrap}
+.qp-btn:hover{box-shadow:0 0 18px rgba(16,185,129,.45);transform:translateY(-1px)}
+.qp-btn.dim{background:rgba(255,255,255,.05);border:1px solid var(--border-primary);color:var(--text-muted);cursor:default}
+.qp-btn.dim:hover{transform:none;box-shadow:none}
+[data-tip]{position:relative;cursor:help;overflow:visible !important}
+[data-tip]::before{content:attr(data-tip);position:absolute;bottom:calc(100% + 15px);left:50%;transform:translateX(-50%);background:#000;border:2px solid #00d4ff;color:#fff;font-size:0.8rem;font-weight:700;line-height:1.4;padding:0.7rem 1.2rem;border-radius:10px;max-width:300px;width:max-content;text-align:center;white-space:normal;pointer-events:none;display:none;z-index:2147483647;box-shadow:0 0 30px rgba(0,212,255,0.4);-webkit-font-smoothing:antialiased;}
+[data-tip]:hover::before{display:block !important;}
+.past-row{display:flex;align-items:center;gap:.75rem;padding:.6rem .9rem;border-radius:var(--radius-md);background:var(--bg-secondary);border:1px solid var(--border-primary);margin-bottom:.45rem}
+.soon-banner{position:absolute;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:1.2rem;letter-spacing:0.1em;pointer-events:none;z-index:2;text-shadow:0 0 10px rgba(0,0,0,1)}
+.card-soon{opacity:0.8;filter:grayscale(0.4)}
+.card-soon:hover{opacity:1;filter:grayscale(0)}
+#qp-modal .modal{text-align:center;padding:2rem 1.5rem;max-width:360px}
+.dot-trio span{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent-green);margin:0 3px;animation:dpulse 1.4s ease-in-out infinite}
+.dot-trio span:nth-child(2){animation-delay:.25s}
+.dot-trio span:nth-child(3){animation-delay:.5s}
+@keyframes dpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(.6)}}
+@keyframes pulse-green{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
+.live-banner{display:flex;align-items:center;gap:1rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.live-banner .btn-leave{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-md);padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:all var(--trans-fast);display:inline-flex;align-items:center;gap:.35rem}
+.live-banner .btn-leave:hover{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.5)}
+.live-banner .btn-goto{background:rgba(0,212,255,.1);color:var(--accent-cyan);border:1px solid rgba(0,212,255,.3);border-radius:var(--radius-md);padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;transition:all var(--trans-fast);display:inline-flex;align-items:center;gap:.35rem}
+.live-banner .btn-goto:hover{background:rgba(0,212,255,.18);border-color:rgba(0,212,255,.5)}
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+
+<div class="page-content" id="catalog-view">
+
+  <!-- ── Active Session Banner (TOP — always visible if in a room) ── -->
+  <div id="live-banner" style="display:none;align-items:center;gap:1rem;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.35);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1.25rem;flex-wrap:wrap">
+    <span style="font-size:1.6rem" id="lb-icon">🛡</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:700;font-size:.98rem;color:var(--accent-cyan)" id="lb-name"></div>
+      <div style="font-size:.8rem;color:var(--text-secondary)" id="lb-sub"></div>
+    </div>
+    <div style="display:flex;align-items:stretch;gap:0.5rem">
+      <button onclick="goToMySession()" style="background:rgba(0,212,255,.12);color:var(--accent-cyan);border:1px solid rgba(0,212,255,.35);border-radius:var(--radius-md);padding:0 1rem;height:36px;font-size:.82rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;transition:all var(--trans-fast)">🎮 Go to My Room</button>
+      <button onclick="leaveMySession()" style="background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:var(--radius-md);padding:0 1rem;height:36px;font-size:.82rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;transition:all var(--trans-fast)">🚪 Leave</button>
+    </div>
+  </div>
+
+  <div class="page-header-row mb-2">
+    <div>
+      <h1>Game Catalog</h1>
+      <p class="text-muted">Browse games — hit ⚡ Quick Play to jump into the busiest session instantly</p>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="fav-btn" onclick="toggleFavView()">♥ Favourites (<span id="fav-count">0</span>)</button>
+  </div>
+  <div class="filter-bar">
+    <div class="search-wrap" style="flex:1;max-width:400px">
+      <span class="search-icon">🔍</span>
+      <input class="form-input" id="search-input" placeholder="Search games or genre…" oninput="applyFilters()"/>
+    </div>
+
+    <select class="form-select" id="genre-filter" onchange="applyFilters()" style="width:160px">
+      <option value="">All Genres</option>
+    </select>
+    <select class="form-select" id="sort-filter" onchange="applyFilters()" style="width:160px">
+      <option value="rating">Top Rated</option>
+      <option value="views">Most Viewed</option>
+      <option value="newest">Newest</option>
+    </select>
+  </div>
+
+  <div id="games-grid"></div>
+
+  <!-- Upcoming Games Section -->
+  <div id="upcoming-section" style="margin-top:3rem">
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem">
+      <div style="width:4px;height:28px;background:linear-gradient(180deg,var(--accent-purple),var(--accent-cyan));border-radius:99px"></div>
+      <div>
+        <h2 style="margin:0;font-size:1.2rem;font-family:'Orbitron',monospace;color:#fff">🚀 Upcoming Games</h2>
+        <p style="margin:0;font-size:0.78rem;color:var(--text-secondary)">Games in development — coming to PlayCarys soon</p>
+      </div>
+    </div>
+    <div id="upcoming-grid"></div>
+  </div>
+</div>
+
+<div class="page-content hidden" id="detail-view">
+  <div class="back-btn" onclick="showCatalog()">← Back to Catalog</div>
+  <div id="detail-content"></div>
+</div>
+
+</div>
+
+<!-- Quick Play loading overlay -->
+<div class="modal-overlay" id="qp-modal" onclick="if(event.target===this) cancelMatchmaking()">
+  <div class="modal">
+    <div style="font-size:3rem;margin-bottom:.75rem">⚡</div>
+    <h3 style="font-family:'Orbitron',monospace;margin-bottom:.4rem">Quick Play</h3>
+    <p id="qp-msg" style="color:var(--text-secondary);font-size:.875rem;margin-bottom:1.25rem">Scanning for the best open session…</p>
+    <div class="dot-trio" style="margin-bottom:1.5rem"><span></span><span></span><span></span></div>
+    <button class="btn btn-ghost btn-sm" onclick="cancelQP()">Cancel Search</button>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script>
+let showingFavs=false,qpTimer=null;
+
+// navigate() provided globally by utils.js (includes CSS fade transition)
+function getUID(){const s=Auth.getSession();return s ? String(s.userId) : 'u7';}
+
+function getMyLive(){
+  const uid = getUID();
+  const now = Date.now();
+  return DB.sessions.find(s => {
+    if (s.status === 'completed') return false;
+    if (s.chess?.gameEnded) return false;
+    if(s.isQuickPlay && s.status==='in-progress'){
+      const created=new Date(s.createdAt||s.start_time).getTime();
+      if(now-created > 3*60*60*1000){ s.status='completed'; DB.save(); return false; }
+    }
+    const players = (s.players || []).map(String);
+    return players.includes(String(uid)) && (s.status === 'waiting' || s.status === 'in-progress') && (s.maxPlayers > 1) && (!s.isQuickPlay);
+  }) || null;
+}
+
+function getFavs(){ return (DB.favorites[getUID()] || []).map(String); }
+function isFav(id){ return getFavs().includes(String(id)); }
+
+
+function toggleFav(id, e){
+  e?.stopPropagation();
+  const sid = String(id);
+  let f = getFavs();
+  if(f.includes(sid)) f = f.filter(x => x !== sid);
+  else f.push(sid);
+  DB.favorites[getUID()] = f;
+  DB.save();
+  updateFavCount();
+  if(typeof applyFilters === 'function') applyFilters();
+}
+
+/** Check if a game has a working engine in /games/ folder */
+function hasEngine(gameId) {
+  // Only Chess (7) and Hill Climbing (8) are currently integrated
+  const implemented = ['7', '8'];
+  const gid = String(gameId).replace('g', '');
+  return implemented.includes(gid);
+}
+
+function updateFavCount(){
+  const fc = document.getElementById('fav-count');
+  if(fc) fc.textContent = getFavs().length;
+}
+function toggleFavView(){
+  showingFavs = !showingFavs;
+  const btn = document.getElementById('fav-btn');
+  if(showingFavs){
+    btn.textContent = '← Back to Games';
+  } else {
+    btn.innerHTML = `♥ Favourites (<span id="fav-count">${getFavs().length}</span>)`;
+  }
+  applyFilters();
+  updateFavCount();
+}
+
+
+function applyFilters(){
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const genre = document.getElementById('genre-filter').value;
+  const sort = document.getElementById('sort-filter').value;
+
+  // ── Available games (approved + enabled) ──
+  let games = DB.games.filter(g => g.status === 'approved' && g.enabled);
+  if(showingFavs) games = games.filter(g => getFavs().includes(String(g.id)));
+  if(q) games = games.filter(g => (g.title||'').toLowerCase().includes(q) || (g.genre||'').toLowerCase().includes(q) || (g.desc||'').toLowerCase().includes(q));
+  if(genre) games = games.filter(g => g.genre === genre);
+
+  if(sort==='rating') games.sort((a,b) => b.rating - a.rating);
+  else if(sort==='views') games.sort((a,b) => b.views - a.views);
+  else if(sort==='newest') games.sort((a,b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+
+  renderGames(games);
+
+  // ── Upcoming games — only show when not in favs view & no search active ──
+  const upcomingSection = document.getElementById('upcoming-section');
+  if(showingFavs || q || genre){
+    if(upcomingSection) upcomingSection.style.display = 'none';
+  } else {
+    if(upcomingSection) upcomingSection.style.display = '';
+    const upcoming = DB.games.filter(g => !(g.status === 'approved' && g.enabled));
+    renderUpcomingGames(upcoming);
+  }
+}
+
+function renderGames(games){
+  const grid = document.getElementById('games-grid');
+  if(!games.length){
+    grid.innerHTML = `<div class="empty-state"><div class="icon">🎮</div><h3>${showingFavs?'No favourites yet':'No games found'}</h3><p>${showingFavs?'Add games to favourites to see them here':'Try adjusting your filters'}</p></div>`;
+    return;
+  }
+
+  const renderCard = (g, i) => {
+    const isSoon = !hasEngine(g.id);
+    return `
+    <div class="game-card ${isSoon ? 'card-soon' : ''}" onclick="viewGame('${g.id}')">
+      <div class="game-card-img-wrap">
+        ${getGameIconHTML(g, i, '100%', 'position:absolute;inset:0')}
+        <div class="genre-badge">${g.genre}</div>
+        <button class="fav-btn${isFav(g.id)?' active':''}" onclick="toggleFav('${g.id}',event)">${isFav(g.id)?'♥':'♡'}</button>
+      </div>
+      <div class="game-card-body">
+        <div class="game-card-title">${g.title}</div>
+        <div class="game-card-desc">${g.desc}</div>
+        <div class="game-card-meta">
+          <span>👥 ${g.players}</span>
+          <span style="color:var(--accent-yellow)">⭐ ${g.rating || '—'}</span>
+        </div>
+        <div class="game-card-actions" onclick="event.stopPropagation()">
+          ${isSoon ? `
+            <button class="btn btn-ghost btn-sm" style="flex:1;pointer-events:none;opacity:0.6">⏳ Coming Soon</button>
+          ` : (String(g.players)==="1" ? `
+            <button class="btn btn-primary btn-sm" onclick="launchSinglePlayer('${g.id}',event)"
+              data-tip="Play ${g.title} instantly" style="flex:1;font-size:0.8rem;padding:0.5rem 0.2rem">▶ Play Now</button>
+          ` : `
+            <button class="btn btn-primary btn-sm" onclick="quickPlay('${g.id}',event)"
+              data-tip="Join a match instantly" style="flex:1;font-size:0.7rem;padding:0.5rem 0.2rem">⚡ Quick</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();if(hasEngine('${g.id}')){window.location.href='join-session.html?gameId=${g.id}'}else{Toast.info('Lobby coming soon!')}"
+              data-tip="Browse sessions" style="flex:1;font-size:0.7rem;padding:0.5rem 0.2rem">🎮 Lobby</button>
+          `)}
+        </div>
+      </div>
+    </div>`;
+  };
+
+  grid.innerHTML = `<div class="cards-grid-4">${games.map((g,i) => renderCard(g,i)).join('')}</div>`;
+}
+
+function renderUpcomingGames(games){
+  const grid = document.getElementById('upcoming-grid');
+  if(!grid) return;
+  if(!games.length){
+    grid.innerHTML = '';
+    return;
+  }
+  grid.innerHTML = `<div class="cards-grid-4">${games.map((g, i) => {
+    const emoji = (GAME_ASSETS.EMOJI_MAP[g.img] || '🎮');
+    const bg = GAME_ASSETS.COLORS[i % GAME_ASSETS.COLORS.length];
+    return `
+    <div style="border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-card);border:1px solid var(--border-primary);opacity:0.85;position:relative;transition:all .25s;cursor:default"
+         onmouseover="this.style.opacity='1';this.style.borderColor='rgba(139,92,246,0.5)'"
+         onmouseout="this.style.opacity='0.85';this.style.borderColor='var(--border-primary)'">
+      <div style="height:130px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:3.5rem;position:relative">
+        ${emoji}
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.35)"></div>
+        <div style="position:absolute;top:0.5rem;left:0.5rem;background:rgba(139,92,246,0.8);color:#fff;font-size:0.62rem;font-weight:800;padding:0.2rem 0.55rem;border-radius:99px;letter-spacing:0.08em">COMING SOON</div>
+        <div style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.5);color:var(--text-secondary);font-size:0.62rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:99px">${g.genre || g.game_type}</div>
+      </div>
+      <div style="padding:0.85rem 0.9rem">
+        <div style="font-weight:800;font-size:0.92rem;margin-bottom:0.3rem;color:#fff">${g.title || g.game_name}</div>
+        <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.4;margin-bottom:0.75rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${g.desc}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.7rem;color:var(--text-muted)">
+          <span>👥 ${g.players}</span>
+          <span style="background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25);border-radius:99px;padding:0.15rem 0.6rem">In Development</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ⚡ QUICK PLAY — localStorage-based matchmaking (bulletproof)
+//   Works across two tabs on the same browser with zero race conds.
+//   Color is embedded in the redirect URL (?color=w/b) so chess
+//   never has to guess which side you're on.
+// ═══════════════════════════════════════════════════════════════
+
+// Per-TAB unique ID (sessionStorage survives page refresh, NOT navigation)
+function getTabId() {
+  let t = sessionStorage.getItem('_pc_tab');
+  if (!t) { t = 'T' + Date.now() + Math.random().toString(36).slice(2,6); sessionStorage.setItem('_pc_tab', t); }
+  return t;
+}
+
+const QP_WAIT  = gid => 'pc_qp_wait_'  + gid;   // who is waiting for this game
+const QP_MATCH = tid => 'pc_qp_match_' + tid;    // match result for a specific tab
+const QP_TTL   = 60000;    // 60 seconds stale threshold
+
+let isMatchmakingActive = false;
+let currentQpGameId     = null;
+let _qpPoll             = null;
+
+// ── Expire stale QP sessions (>30 min) so getMyLive() doesn't block ──
+function expireStaleQP() {
+  const now = Date.now();
+  DB.sessions.forEach(s => {
+    if (s.isQuickPlay && s.status === 'in-progress') {
+      const created = new Date(s.createdAt || s.start_time || 0).getTime();
+      if (now - created > 30 * 60 * 1000) s.status = 'completed';
+    }
+  });
+  DB.save();
+}
+
+// ── Build & save the session object, return its id ──
+function _buildQPSession(gid, hostUid, guestUid) {
+  const parsedGid  = parseInt(String(gid).replace('g',''), 10);
+  const now        = new Date().toISOString();
+  const sid        = 'QP' + (Date.now() % 9999999);
+  const g          = DB.games.find(g => String(g.id||g.game_id) === String(gid));
+  const hostUser   = DB.users.find(u => String(u.user_id) === String(hostUid));
+  const guestUser  = DB.users.find(u => String(u.user_id) === String(guestUid));
+
+  const ns = {
+    session_id: sid, game_id: parsedGid,
+    created_by: parseInt(hostUid,10),
+    name: `⚡ ${hostUser?.user_name||'Player'} vs ${guestUser?.user_name||'Player'}`,
+    game: g?.game_name||g?.title||'Game',
+    host: hostUser?.user_name||'Player',
+    hostId: String(hostUid),
+    maxPlayers: 2, status: 'in-progress', mode: 'competitive',
+    isQuickPlay: true, start_time: now, start_ts: Date.now(),
+    end_time: new Date(Date.now()+7200000).toISOString(), createdAt: now
+  };
+  DB.sessions.push(ns);
+  DB.attachGetters?.(ns, 'session');
+  DB.player_session.push({ player_id: parseInt(hostUid,10),  session_id: sid });
+  DB.player_session.push({ player_id: parseInt(guestUid,10), session_id: sid });
+  DB.save();
+  return sid;
+}
+
+function _gamePathFor(gid) {
+  const n = parseInt(String(gid).replace('g',''), 10);
+  return n === 7 ? 'chess' : 'hill_climbing';
+}
+
+// ── Called when this tab is the SECOND to click Quick Play ──
+//   Creates the session, notifies the waiting tab, navigates self as guest
+function _doMatch(gid, waiter, myTabId, myUid) {
+  localStorage.removeItem(QP_WAIT(gid));   // remove the queue entry
+
+  const sid      = _buildQPSession(gid, waiter.uid, myUid);
+  const gamePath = _gamePathFor(gid);
+
+  // Notify the WAITING tab (host → White)
+  localStorage.setItem(QP_MATCH(waiter.tid),
+    JSON.stringify({ sid, gid, color: 'w', gamePath, ts: Date.now() }));
+
+  // Navigate THIS tab as guest (Black)
+  document.getElementById('qp-msg').innerHTML =
+    `<h3>Match Found!</h3><p style="color:var(--accent-cyan)">Connecting...</p>`;
+  setTimeout(() => {
+    window.location.href = `../../games/${gamePath}/index.html?sid=${sid}&color=b`;
+  }, 600);
+}
+
+// ── Main Quick Play entry point ──
+function quickPlay(gameId, e) {
+  e?.stopPropagation();
+
+  if (!hasEngine(gameId)) {
+    Toast.info('Coming soon! 🚀 This game engine is being integrated.');
+    return;
+  }
+
+  expireStaleQP();
+
+  const uid    = getUID();
+  const tid    = getTabId();
+  const gid    = String(gameId);
+
+  // Guard: already in a live session
+  const live = getMyLive();
+  if (live) {
+    Toast.warning(`You're already in a session. Leave first.`);
+    return;
+  }
+
+  // ── Check if someone is already waiting for this game ──
+  let waiter = null;
+  try {
+    const raw = localStorage.getItem(QP_WAIT(gid));
+    if (raw) {
+      const w = JSON.parse(raw);
+      const stale  = Date.now() - w.ts > QP_TTL;
+      const isSelf = w.tid === tid;          // same tab — ignore
+      if (!stale && !isSelf) waiter = w;
+      else localStorage.removeItem(QP_WAIT(gid));
+    }
+  } catch(_) {}
+
+  if (waiter) {
+    // ── INSTANT MATCH ──
+    document.getElementById('qp-msg').innerHTML =
+      `<div style="font-size:3rem">⚡</div><h3>Match Found!</h3><p>Connecting...</p>`;
+    Modal.open('qp-modal');
+    _doMatch(gid, waiter, tid, uid);
+    return;
+  }
+
+  // ── NO MATCH YET — join the queue ──
+  localStorage.setItem(QP_WAIT(gid), JSON.stringify({ uid, tid, gid, ts: Date.now() }));
+  isMatchmakingActive = true;
+  currentQpGameId     = gid;
+
+  document.getElementById('qp-msg').innerHTML = `
+    <div style="font-size:3rem;margin-bottom:1rem;animation:qp-spin 1.5s linear infinite">🔍</div>
+    <h3>Searching for a player...</h3>
+    <p style="color:var(--text-secondary)">Open another tab and Quick Play the same game!</p>
+    <button class="btn btn-ghost mt-4" onclick="cancelMatchmaking()">Cancel</button>
+    <style>@keyframes qp-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+  `;
+  Modal.open('qp-modal');
+
+  // Poll for our match result (written by the other tab)
+  if (_qpPoll) clearInterval(_qpPoll);
+  _qpPoll = setInterval(() => {
+    const raw = localStorage.getItem(QP_MATCH(tid));
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      if (Date.now() - data.ts > 15000) { localStorage.removeItem(QP_MATCH(tid)); return; }
+      clearInterval(_qpPoll); _qpPoll = null;
+      localStorage.removeItem(QP_MATCH(tid));
+      isMatchmakingActive = false;
+      document.getElementById('qp-msg').innerHTML =
+        `<h3>Match Found!</h3><p style="color:var(--accent-cyan)">Connecting...</p>`;
+      setTimeout(() => {
+        window.location.href =
+          `../../games/${data.gamePath}/index.html?sid=${data.sid}&color=${data.color}`;
+      }, 600);
+    } catch(_) {}
+  }, 250);
+
+  // ── Also try WebSocket (cross-browser fallback) ──
+  if (window.playcarysSocket?.connected) {
+    window.playcarysSocket.emit('quick_play_join', { gameId: gid, uid: String(uid) });
+  }
+}
+
+function cancelMatchmaking() {
+  isMatchmakingActive = false;
+  if (_qpPoll) { clearInterval(_qpPoll); _qpPoll = null; }
+  // Remove our wait entry
+  try {
+    const tid = getTabId();
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('pc_qp_wait_')) {
+        try { const d = JSON.parse(localStorage.getItem(key)); if (d.tid === tid) localStorage.removeItem(key); } catch(_){}
+      }
+    }
+  } catch(_) {}
+  if (window.playcarysSocket?.connected) {
+    window.playcarysSocket.emit('quick_play_cancel', { uid: String(getUID()) });
+  }
+  Modal.close('qp-modal');
+}
+window.cancelQP = cancelMatchmaking;
+window.cancelMatchmaking = cancelMatchmaking;
+
+// WebSocket fallback: if backend matches across browsers, handle it here
+(function setupWSFallback() {
+  if (!window.playcarysSocket) { setTimeout(setupWSFallback, 700); return; }
+  if (window._qpWSAttached) return;
+  window._qpWSAttached = true;
+
+  window.playcarysSocket.on('quick_play_match_found', (data) => {
+    if (!isMatchmakingActive) return;
+    if (data.role !== 'host') return; // guest handled by broadcast below
+    isMatchmakingActive = false;
+    if (_qpPoll) { clearInterval(_qpPoll); _qpPoll = null; }
+    localStorage.removeItem(QP_WAIT(currentQpGameId)); // clean queue
+    const g = DB.games.find(g => String(g.id||g.game_id) === String(data.gameId));
+    const parsedGid = parseInt(String(data.gameId).replace('g',''), 10);
+    const now = new Date().toISOString();
+    const sid = _buildQPSession(data.gameId, getUID(), data.oppId);
+    window.playcarysSocket.emit('quick_play_session_ready', { oppId: data.oppId, sessionId: sid });
+    document.getElementById('qp-msg').innerHTML = `<h3>Match Found!</h3><p>Connecting...</p>`;
+    setTimeout(() => {
+      window.location.href = `../../games/${_gamePathFor(data.gameId)}/index.html?sid=${sid}&color=w`;
+    }, 700);
+  });
+
+  window.playcarysSocket.on('quick_play_session_ready_broadcast', (data) => {
+    if (String(data.oppId) !== String(getUID())) return;
+    if (_qpPoll) { clearInterval(_qpPoll); _qpPoll = null; }
+    isMatchmakingActive = false;
+    setTimeout(() => {
+      window.location.href = `../../games/${_gamePathFor(currentQpGameId)}/index.html?sid=${data.sessionId}&color=b`;
+    }, 300);
+  });
+})();
+
+
+function viewGame(id){
+  const g=DB.games.find(g=>g.id===id);
+  if(!g)return;
+  const uid=getUID();
+  const live=DB.sessions.filter(s=>String(s.gameId)===String(id) && s.status !== 'completed' && !s.chess?.gameEnded);
+  const tourns=DB.tournaments.filter(t=>t.gameId===id&&t.status!=='completed');
+  const past=DB.sessions.filter(s=>String(s.gameId)===String(id)&&s.players.includes(uid)&&s.status!=='waiting').slice(0,6);
+  const idx=parseInt(g.id.replace('g',''),10)||0;
+
+  document.getElementById('detail-content').innerHTML=`
+    <div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1.5rem">
+      ${getGameIconHTML(g, idx, '88px')}
+      <div style="flex:1;min-width:200px">
+        <h1 style="font-size:1.8rem;margin-bottom:.3rem">${g.title}</h1>
+        <p style="color:var(--text-secondary);margin-bottom:.75rem">${g.desc}</p>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <span class="tag">${g.genre}</span>
+          <span class="badge badge-active">👥 ${g.players}</span>
+          <span style="color:var(--accent-yellow)">⭐ ${g.rating}</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-secondary)">By ${g.publisher} · ${(g.views/1000).toFixed(1)}K views</p>
+        <div style="display:flex;gap:.75rem;margin-top:1rem;flex-wrap:wrap">
+          ${String(g.players) === "1" ? `
+            <button class="btn btn-primary" onclick="launchSinglePlayer('${g.id}',event)"
+              data-tip="Start playing instantly">▶ Play Now</button>
+          ` : `
+            ${(hasEngine(g.id) && String(g.id) === '7') ? `
+              <button class="btn btn-primary" onclick="window.location.href='../../games/chess/index.html?mode=ai'"
+                data-tip="Play offline against the computer">🤖 Play vs AI</button>
+              <button class="btn btn-ghost" onclick="window.location.href='../../games/chess/index.html?mode=2p'"
+                data-tip="Play offline with a friend on the same screen">👥 Local 2-Player</button>
+            ` : ''}
+            <button class="btn btn-primary" onclick="if(hasEngine('${g.id}')){ window.location.href='join-session.html?gameId=${g.id}' } else { Toast.info('Lobby coming soon! Logic integration in progress.') }"
+              data-tip="Browse all live sessions, create your own room, or join via a session code">🎮 Browse Sessions</button>
+          `}
+          <button class="btn ${isFav(g.id)?'btn-purple':'btn-ghost'}" onclick="toggleFav('${g.id}',event);applyFilters()">${isFav(g.id)?'♥ Favourited':'♡ Favourite'}</button>
+        </div>
+      </div>
+    </div>
+
+    ${live.length?`
+    <div class="card mb-2">
+      <h3 class="mb-2">🟢 Live Sessions</h3>
+      ${live.map(s=>`
+        <div class="list-item" style="padding:.7rem 1rem">
+          <div class="list-item-info">
+            <span style="font-weight:600">${s.name}</span>
+            <div class="text-xs text-muted">Host: ${s.host} · ${s.players.length}/${s.maxPlayers} players · ${s.mode} mode</div>
+          </div>
+          ${badgeHTML(s.status)}
+          ${s.status==='waiting'
+            ?`<button class="btn btn-primary btn-sm" onclick="joinFromDetail('${s.id}')"
+                data-tip="Clicking Join places you in this waiting room. You can leave freely before the host starts the game.">Join</button>`
+            :`<span style="font-size:.76rem;color:var(--accent-yellow);padding:.35rem .7rem;border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-sm)">🔒 In Progress</span>`}
+        </div>`).join('')}
+    </div>`:''}
+
+    ${past.length?`
+    <div class="card mb-2">
+      <h3 class="mb-2">📋 Your Past Sessions — ${g.title}</h3>
+      <p style="font-size:.8rem;color:var(--text-secondary);margin-bottom:.75rem">Sessions you previously participated in for this game.</p>
+      ${past.map(s=>`
+        <div class="past-row">
+          <span style="font-size:1.1rem">${s.status==='in-progress'?'⚡':'✅'}</span>
+          <div style="flex:1">
+            <div style="font-size:.875rem;font-weight:600">${s.name}</div>
+            <div class="text-xs text-muted">Hosted by ${s.host} · ${s.players.length} players · ${s.mode}</div>
+          </div>
+          <span style="font-size:.72rem;background:rgba(124,58,237,.12);color:#a78bfa;padding:.2rem .6rem;border-radius:99px;border:1px solid rgba(124,58,237,.25)">${capitalize(s.status)}</span>
+        </div>`).join('')}
+    </div>`:''}
+
+    ${tourns.length?`
+    <div class="card">
+      <h3 class="mb-2">🏆 Related Tournaments</h3>
+      ${tourns.map(t=>`
+        <div class="list-item" style="padding:.7rem 1rem">
+          <div class="list-item-info">
+            <span style="font-weight:600">${t.name}</span>
+            <div class="text-xs text-muted">Starts ${formatDate(t.startDate)} · ${t.participants}/${t.maxParticipants} · Prize: ${t.prize}</div>
+          </div>
+          ${badgeHTML(t.status)}
+          <button class="btn btn-purple btn-sm" onclick="navigate('tournaments')">View</button>
+        </div>`).join('')}
+    </div>`:''}
+    
+    ${(!live.length && !past.length && !tourns.length) ? `
+    <div style="text-align:center;padding:3rem 1rem;border:1px dashed rgba(255,255,255,0.1);border-radius:var(--radius-lg);margin-top:2rem">
+      <div style="font-size:2.5rem;margin-bottom:1rem;color:var(--text-muted)">🌌</div>
+      <h3 style="margin-bottom:0.5rem">It's quiet here...</h3>
+      <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.5rem">No active or past sessions found for this game. Be the first to start a room!</p>
+      <button class="btn btn-primary" onclick="window.location.href='join-session.html?gameId=${g.id}'">Create New Room</button>
+    </div>
+    ` : ''}
+    <div id="game-reviews-wrapper" style="margin-top: 1.5rem;"></div>`;
+
+  document.getElementById('catalog-view').classList.add('hidden');
+  document.getElementById('detail-view').classList.remove('hidden');
+
+  if (typeof renderReviews === 'function') renderReviews(g.id);
+}
+
+function joinFromDetail(sid){
+  const s=DB.sessions.find(s=>String(s.id)===String(sid)||String(s.session_id)===String(sid));
+  const uid=getUID();
+  if(!s)return;
+  const live=getMyLive();
+  if(live&&String(live.id)!==String(sid)){Toast.warning(`You're already in "${live.name}". Leave that session first.`);return;}
+  const players=(s.players||[]).map(String);
+  if(players.includes(uid)){window.location.href=`join-session.html?gameId=${s.gameId||s.game_id}&sid=${s.id||s.session_id}`;return;}
+  if(players.length>=s.maxPlayers){Toast.error('This session is full');return;}
+  DB.player_session.push({ player_id:uid, session_id:s.session_id });
+  Toast.success(`Joined "${s.name}"! Heading to lobby…`);
+  updateBanner();
+  setTimeout(()=>window.location.href=`join-session.html?gameId=${s.gameId||s.game_id}&sid=${s.id||s.session_id}`,900);
+}
+
+function showCatalog(){
+  document.getElementById('catalog-view').classList.remove('hidden');
+  document.getElementById('detail-view').classList.add('hidden');
+}
+
+function updateBanner(){
+  const s=getMyLive();
+  const banner=document.getElementById('live-banner');
+  if(s){
+    banner.style.display='flex';
+    const isH=s.hostId===getUID();
+    document.getElementById('lb-icon').textContent=isH?'🛡':'🎮';
+    document.getElementById('lb-name').textContent=isH?`Your Room: ${s.name}`:`Currently In: ${s.name}`;
+    document.getElementById('lb-sub').textContent=`${s.game} · ${s.players.length}/${s.maxPlayers} players · ${s.status==='waiting'?'Waiting to start':'Game in progress'}${isH?' · You are the host · Click "Go to My Room" to manage it':''}`;
+  }else{
+    banner.style.display='none';
+  }
+}
+function leaveMySession(){
+  const s=getMyLive();if(!s)return;
+  const uid=getUID();
+  if(String(s.hostId)===uid){
+    confirmAction('Delete Room', 'You host "'+s.name+'". Deleting it removes all players. Continue?', () => {
+      DB.sessions=DB.sessions.filter(ss=>String(ss.id)!==String(s.id)&&String(ss.session_id)!==String(s.session_id));
+      DB.player_session=DB.player_session.filter(ps=>String(ps.session_id)!==String(s.session_id));
+      Toast.success(`Room "${s.name}" deleted`);
+      DB.save();
+      updateBanner();applyFilters();
+    });
+    return;
+  }else{
+    DB.player_session=DB.player_session.filter(ps=>!(String(ps.session_id)===String(s.session_id)&&String(ps.player_id)===uid));
+    Toast.info(`Left the room: "${s.name}". You can now join another.`);
+  }
+  DB.save();
+  updateBanner();applyFilters();
+}
+function goToMySession(){
+  const s=getMyLive();if(!s)return;
+  window.location.href=`join-session.html?gameId=${s.gameId}&sid=${s.id}`;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const s=Auth.requireAuth(['player', 'guest']);
+  if(!s)return;
+  const user = DB.users.find(u => String(u.id || u.user_id) === String(s.userId));
+  if (user && user.status === 'suspended') {
+      document.querySelector('.page-wrapper').innerHTML = `
+        <div style="text-align:center;padding:4rem 1rem">
+          <div style="font-size:3rem;margin-bottom:1rem">⏸</div>
+          <h2>Account Suspended</h2>
+          <p style="color:var(--text-secondary);max-width:400px;margin:0.5rem auto">Your account is currently suspended. You cannot access the game catalog, but you can still access your messages via the menu to contact support.</p>
+        </div>`;
+      buildNavbar(s.role,'games'); 
+      return;
+  }
+  buildNavbar(s.role,'games');
+
+  // Populate genre dropdown dynamically now that DB is loaded
+  const genreSel = document.getElementById('genre-filter');
+  if (genreSel) {
+    GAME_ASSETS.GENRES.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g;
+      opt.textContent = g;
+      genreSel.appendChild(opt);
+    });
+  }
+
+  updateFavCount();
+  updateBanner();
+  applyFilters();
+});
+function launchSinglePlayer(gameId, e) {
+  e?.stopPropagation();
+
+  // Intercept un-implemented games
+  if (!hasEngine(gameId)) {
+    Toast.info("Coming Soon! 🚀 This game engine is currently being integrated.");
+    return;
+  }
+
+  const uid = getUID();
+  const live = getMyLive();
+  if (live) {
+    Toast.warning(`You're already in a session. Leave first.`);
+    return;
+  }
+  const g = DB.games.find(x => String(x.id||x.game_id) === String(gameId));
+  if (!g) return;
+  
+  const newSid = Date.now() % 999999;
+  const username = DB.users.find(u=>String(u.id||u.user_id)===String(uid))?.username || 'Player';
+  
+  DB.sessions.push({
+    session_id: newSid,
+    game_id: parseInt(g.game_id||g.id, 10),
+    created_by: uid,
+    name: g.game_name + " (Solo)",
+    game: g.game_name,
+    hostId: uid, host: username,
+    players: [uid],
+    maxPlayers: 1, 
+    status: 'in-progress', 
+    mode: 'casual',
+    privacy: 'private'
+  });
+  DB.player_session.push({ player_id: uid, session_id: newSid });
+  DB.save();
+  
+  window.location.href = `../../games/${g.img || 'generic'}/index.html?sid=${newSid}`;
+}
+
+function renderReviews(gameId) {
+  const wrapper = document.getElementById('game-reviews-wrapper');
+  if (!wrapper) return;
+  const uid = getUID();
+  const reviews = (DB.reviews || []).filter(r => String(r.gameId) === String(gameId)).sort((a,b) => new Date(b.date) - new Date(a.date));
+  
+  const hasPlayed = DB.match_results.some(r => String(r.player_id) === String(uid) && String(r.game_id) === String(gameId)) || 
+                    DB.player_session.some(ps => { const s = DB.sessions.find(sx=>String(sx.session_id)===String(ps.session_id)); return s && String(s.game_id)===String(gameId) && String(ps.player_id)===String(uid); });
+  const hasReviewed = reviews.some(r => String(r.playerId) === String(uid));
+
+  let html = `<div class="card"><h3 class="mb-2">⭐ Player Reviews</h3>`;
+  
+  if (reviews.length > 0) {
+    const avgRating = (reviews.reduce((s,r) => s + r.rating, 0) / reviews.length).toFixed(1);
+    html += `<div style="font-size:2rem; font-weight:800; color:var(--accent-yellow); margin-bottom:1rem">${avgRating} <span style="font-size:1rem;color:var(--text-secondary)">/ 5.0 (${reviews.length} reviews)</span></div>`;
+    html += reviews.map(r => {
+      const u = DB.users.find(u => String(u.id || u.user_id) === String(r.playerId));
+      const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+      return `<div style="padding:1rem 0; border-bottom:1px solid var(--border-primary);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem">
+          <div style="font-weight:600; display:flex; align-items:center; gap:0.5rem">
+            ${u ? `<div class="avatar avatar-sm">${u.avatar || u.username.substring(0,2).toUpperCase()}</div> ${u.username || u.user_name}` : 'Player'}
+          </div>
+          <div style="color:var(--accent-yellow); font-size:1.1rem">${stars}</div>
+        </div>
+        <p style="color:var(--text-secondary); font-size:0.85rem">${r.comment}</p>
+        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.4rem">${formatDate(r.date)}</div>
+      </div>`;
+    }).join('');
+  } else {
+    html += `<p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem">No reviews yet. Be the first to share your thoughts!</p>`;
+  }
+
+  if (hasPlayed && !hasReviewed) {
+    html += `
+      <div style="margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid var(--border-primary)">
+        <h4 style="margin-bottom:0.5rem">Write a Review</h4>
+        <div style="display:flex; gap:0.3rem; margin-bottom:0.75rem" id="star-selector">
+           ${[1,2,3,4,5].map(i => `<span style="cursor:pointer; font-size:1.5rem; color:var(--text-muted); padding:0 0.1rem; line-height:1" onclick="selectRating(${i})" id="star-${i}">☆</span>`).join('')}
+        </div>
+        <input type="hidden" id="new-rating" value="0">
+        <textarea id="new-review-comment" class="form-textarea mb-1" placeholder="What did you think of the game?"></textarea>
+        <button class="btn btn-primary" onclick="submitReview('${gameId}')">Submit Review</button>
+      </div>
+    `;
+  } else if (!hasPlayed) {
+    html += `<div style="margin-top:1rem; padding:0.75rem; background:rgba(255,255,255,0.05); border-radius:var(--radius-md); font-size:0.8rem; color:var(--text-secondary); text-align:center">You need to play this game at least once before you can leave a review.</div>`;
+  } else if (hasReviewed) {
+    html += `<div style="margin-top:1rem; padding:0.75rem; background:rgba(16,185,129,0.1); color:var(--accent-green); border-radius:var(--radius-md); font-size:0.8rem; text-align:center; font-weight:600">You have already reviewed this game.</div>`;
+  }
+  
+  html += `</div>`;
+  wrapper.innerHTML = html;
+}
+
+window.selectRating = function(rating) {
+  document.getElementById('new-rating').value = rating;
+  for(let i=1; i<=5; i++) {
+    const s = document.getElementById('star-'+i);
+    if(i<=rating) { s.innerHTML='★'; s.style.color='var(--accent-yellow)'; }
+    else { s.innerHTML='☆'; s.style.color='var(--text-muted)'; }
+  }
+}
+
+window.submitReview = function(gameId) {
+  const rating = parseInt(document.getElementById('new-rating').value, 10);
+  const comment = document.getElementById('new-review-comment').value.trim();
+  if (rating === 0) { Toast.error('Please select a star rating.'); return; }
+  if (comment.length < 5) { Toast.error('Please provide a comment.'); return; }
+  
+  if (!DB.reviews) DB.reviews = [];
+  DB.reviews.push({
+    id: Date.now(),
+    gameId: String(gameId),
+    playerId: String(getUID()),
+    rating: rating,
+    comment: comment,
+    date: new Date().toISOString()
+  });
+  
+  const gReviews = DB.reviews.filter(r => String(r.gameId) === String(gameId));
+  const avg = gReviews.reduce((s,r) => s + r.rating, 0) / gReviews.length;
+  const gameInfo = DB.games.find(g => String(g.id || g.game_id) === String(gameId));
+  if (gameInfo) {
+      gameInfo.rating = parseFloat(avg.toFixed(1));
+  }
+  
+  DB.save();
+  Toast.success('Review submitted successfully!');
+  renderReviews(gameId);
+}
+</script>
+</body>
+</html>
+

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Match History</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    .history-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+      transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .history-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s ease;
+    }
+
+    .history-item:hover {
+      border-color: var(--accent-cyan);
+      transform: translateX(6px) scale(1.01);
+      background: var(--bg-card-hover);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .history-item:hover::before {
+      transform: translateX(100%);
+    }
+
+    .win-bar { border-left: 5px solid var(--accent-green); }
+    .loss-bar { border-left: 5px solid var(--accent-red); }
+    .draw-bar { border-left: 5px solid var(--accent-yellow); }
+
+    .game-icon-box {
+      width: 58px;
+      height: 58px;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-primary);
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    }
+
+    .sum-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      text-align: center;
+      position: relative;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .sum-card:hover {
+       transform: translateY(-4px);
+       border-color: var(--accent-cyan);
+       background: var(--bg-card-hover);
+    }
+
+    .sum-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent-cyan);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .sum-card:hover::after { opacity: 1; }
+
+    @media(max-width:640px) {
+      .summary-cards { grid-template-columns: 1fr 1fr; }
+      .history-item { gap: 1rem; padding: 1rem; }
+    }
+
+    .sum-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.8rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .sum-lbl {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 0.35rem;
+    }
+
+    .result-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.25rem 0.65rem;
+      border-radius: 99px;
+    }
+
+    .win-badge {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .loss-badge {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    .draw-badge {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--accent-yellow);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+
+    .pcp-gain {
+      font-family: 'Orbitron', monospace;
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+
+    .pcp-pos { color: var(--accent-green); }
+    .pcp-neg { color: var(--accent-red); }
+    .pcp-neu { color: var(--accent-yellow); }
+
+    .filter-row {
+      display: flex;
+      gap: 0.65rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 0.45rem 1.25rem;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: 1px solid var(--border-primary);
+      background: rgba(255,255,255,0.02);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active,
+    .filter-btn:hover {
+      background: rgba(0, 212, 255, 0.12);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+    
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content" style="max-width:1000px; margin:0 auto;">
+
+      <div class="page-header-row mb-3" style="background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, transparent 100%); padding: 2rem; border-radius: var(--radius-xl); border: 1px solid var(--border-primary); margin-top: 1rem;">
+        <div style="display:flex; align-items:center; gap:1.5rem;">
+          <div style="width:64px; height:64px; background:var(--gradient-brand); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; font-size:2rem; box-shadow:var(--shadow-glow);">🛡️</div>
+          <div>
+            <h1 style="margin-bottom:0; font-family:'Orbitron', sans-serif; font-weight:900; letter-spacing:-0.02em;">Match Forensics</h1>
+            <p class="text-muted" style="margin-top:0.25rem; font-size:0.95rem;">Analyze your strategic patterns and past battle performance.</p>
+          </div>
+        </div>
+        <div style="margin-left:auto">
+           <button class="btn btn-ghost" onclick="window.location.href='dashboard.html'" style="padding:0.6rem 1.25rem; border:1px solid var(--border-primary); background:rgba(255,255,255,0.03)">❮ Back to Home</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-cards" id="summary-row"></div>
+
+      <!-- Filters -->
+      <div class="filter-row">
+        <button class="filter-btn active" id="f-all" onclick="filterResults('all')">All</button>
+        <button class="filter-btn" id="f-win" onclick="filterResults('win')">Wins</button>
+        <button class="filter-btn" id="f-loss" onclick="filterResults('loss')">Losses</button>
+        <button class="filter-btn" id="f-draw" onclick="filterResults('draw')">Draws</button>
+      </div>
+
+      <div id="history-container" style="max-width:900px; margin:0 auto"></div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script>
+    const GAME_EMOJI = {
+      call_of_duty: '🔫', deadshot: '🎯', carrom: '🎲', horror_escape: '👻',
+      f1_2022: '🏎️', pubg_lite: '🪂', chess: '♟️', hill_climbing: '🚙', candy_crush: '🍬'
+    };
+
+    let _allResults = [];
+    let _currentFilter = 'all';
+
+    function calcPCP(result, gameId) {
+      const base = result === 'win' ? 100 : result === 'draw' ? 25 : 15;
+      // Use loose equality (==) so numeric 7 matches stored string "7" and vice versa
+      const multi = gameId == 7 ? 1.5 : gameId == 8 ? 1.1 : 1.0;
+      const sign = result === 'win' ? 1 : result === 'draw' ? 1 : -1;
+      return sign * Math.round(base * multi);
+    }
+
+    function renderSummary(results) {
+      const wins = results.filter(r => r._resultType === 'win').length;
+      const losses = results.filter(r => r._resultType === 'loss').length;
+      const draws = results.filter(r => r._resultType === 'draw').length;
+      const totalPCP = results.reduce((s, r) => s + r._pcp, 0);
+
+      document.getElementById('summary-row').innerHTML = `
+    <div class="sum-card">
+      <div class="sum-val">${results.length}</div>
+      <div class="sum-lbl">Total Matches</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-val" style="color:var(--accent-green)">${wins}</div>
+      <div class="sum-lbl">Wins</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-val" style="color:var(--accent-red)">${losses}</div>
+      <div class="sum-lbl">Losses</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-val" style="color:${totalPCP >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${totalPCP >= 0 ? '+' : ''}${totalPCP}</div>
+      <div class="sum-lbl">PCP Earned</div>
+    </div>`;
+    }
+
+    function renderList(results) {
+      const container = document.getElementById('history-container');
+      if (!results.length) {
+        container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--text-muted)">No matches for this filter</div>`;
+        return;
+      }
+
+      container.innerHTML = results.map(r => {
+        const resultType = r._resultType;
+        const pcp = r._pcp;
+        const barCls = resultType + '-bar';
+        const badgeCls = resultType + '-badge';
+        const pcpCls = resultType === 'win' ? 'pcp-pos' : resultType === 'draw' ? 'pcp-neu' : 'pcp-neg';
+        const game = r._game;
+        const session = r._session;
+        const emoji = GAME_EMOJI[game?.img || ''] || '🎮';
+        const gameName = game ? (game.game_name || game.title || 'Game') : 'Unknown Game';
+        const sessionName = session?.name || 'Casual Match';
+        const modeLabel = session?.mode ? (`<span style="font-size:0.7rem;padding:0.15rem 0.45rem;border-radius:99px;background:rgba(255,255,255,0.07);color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;">${session.mode}</span>`) : '';
+        const xp = resultType === 'win' ? '+150' : resultType === 'draw' ? '+75' : '+25';
+        const elo = resultType === 'win' ? '+25' : resultType === 'draw' ? '+5' : '-25';
+        const eloColor = resultType === 'win' ? 'var(--accent-green)' : resultType === 'draw' ? 'var(--accent-yellow)' : 'var(--accent-red)';
+        const scoreLabel = r.score != null ? `<span style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);">Score: ${r.score}</span>` : '';
+
+        return `
+    <div class="history-item ${barCls}" onclick="viewDetails('${r.session_id}')">
+      <div class="game-icon-box">${emoji}</div>
+      <div class="history-info">
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.3rem;">
+          <strong style="font-size:1rem">${gameName}</strong>
+          <span class="result-badge ${badgeCls}">${resultType}</span>
+          ${modeLabel}
+        </div>
+        <div style="font-size:0.82rem;color:var(--text-secondary);">
+          ${sessionName} &nbsp;·&nbsp; ${formatDate(r.joined_at)}
+        </div>
+        <div style="display:flex;gap:0.75rem;margin-top:0.4rem;">
+          <span style="font-size:0.75rem;font-weight:700;color:var(--accent-cyan);">${xp} XP</span>
+          <span style="font-size:0.75rem;font-weight:700;color:${eloColor};">${elo} ELO</span>
+          ${r.distance ? `<span style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);">📍 ${r.distance}m</span>` : scoreLabel}
+        </div>
+      </div>
+      <div class="history-stats">
+        <div class="pcp-gain ${pcpCls}">${pcp >= 0 ? '+' : ''}${pcp} PCP</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.25rem">Rank #${r.player_rank || '—'}</div>
+      </div>
+      <div style="color:var(--text-muted);font-size:1.1rem">›</div>
+    </div>`;
+      }).join('');
+    }
+
+    function filterResults(type) {
+      _currentFilter = type;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('f-' + type)?.classList.add('active');
+      const filtered = type === 'all' ? _allResults : _allResults.filter(r => r._resultType === type);
+      renderList(filtered);
+    }
+
+    function viewDetails(sid) {
+      window.location.href = `match-details.html?sid=${sid}`;
+    }
+
+    // navigate() provided globally by utils.js
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['player']);
+      if (!session) return;
+      buildNavbar('player', 'profile');
+
+      const uid = parseInt(session.userId, 10);
+
+      let myResults = DB.match_results.filter(r => r.player_id === uid);
+      myResults = myResults.sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
+
+      if (!myResults.length) {
+        document.getElementById('history-container').innerHTML = `
+      <div style="text-align:center;padding:4rem;color:var(--text-muted)">
+        <div style="font-size:3rem;margin-bottom:1rem">🎮</div>
+        <h3>No match results yet</h3>
+        <p>Head to the game library and start competing to build your history!</p>
+        <button class="btn btn-primary" onclick="window.location.href='games.html'">Browse Games</button>
+      </div>`;
+        return;
+      }
+
+      // Enrich each result
+      _allResults = myResults.map(r => {
+        const sess = DB.sessions.find(s => String(s.session_id) === String(r.session_id));
+        const gameId = r.game_id || sess?.game_id || 0;
+        const game = DB.games.find(g => String(g.game_id || g.id) === String(gameId));
+
+        // Determine result type — prefer explicit r.result field, then fall back to rank
+        // Normalise to lowercase to handle any casing inconsistencies
+        let resultType;
+        if (r.result && typeof r.result === 'string') {
+          resultType = r.result.toLowerCase();
+        } else if (r.player_rank === 1) {
+          resultType = 'win';
+        } else if (r.player_rank > 1) {
+          resultType = 'loss';
+        } else {
+          resultType = 'draw';
+        }
+        // Guard against unexpected values
+        if (!['win', 'loss', 'draw'].includes(resultType)) resultType = 'loss';
+
+        const pcp = calcPCP(resultType, gameId);
+        return { ...r, _game: game, _session: sess, _resultType: resultType, _pcp: pcp };
+      });
+
+      renderSummary(_allResults);
+      renderList(_allResults);
+    });
+  </script>
+</body>
+
+</html>
+

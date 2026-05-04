@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Superuser · Reports & Bans</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+.tab-bar { display:flex;gap:0.25rem;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:0.25rem;width:fit-content;margin-bottom:1.5rem; }
+.tab-btn { padding:0.45rem 1.2rem;border-radius:var(--radius-sm);font-size:0.875rem;font-weight:600;cursor:pointer;color:var(--text-secondary);transition:all var(--trans-fast);border:none;background:transparent; }
+.tab-btn.active { background:var(--bg-card);color:var(--accent-cyan);box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="page-header-row mb-2">
+    <div>
+      <h1>⚠️ Reports &amp; Bans</h1>
+      <p class="text-muted">Override moderator decisions — resolve, dismiss or escalate any report. Manage all bans.</p>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="stats-grid stats-grid-4 mt-2 mb-3" id="rb-kpis"></div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-reports" onclick="switchTab('reports')">⚠️ Reports</button>
+    <button class="tab-btn" id="tab-bans" onclick="switchTab('bans')">🚫 Active Bans</button>
+  </div>
+
+  <!-- Reports Panel -->
+  <div id="panel-reports">
+    <div class="filter-bar">
+      <select class="form-select" id="rep-status" onchange="renderReports()" style="width:170px">
+        <option value="">All Reports</option>
+        <option value="pending">Pending</option>
+        <option value="under-review">Under Review</option>
+        <option value="resolved">Resolved</option>
+      </select>
+      <select class="form-select" id="rep-type" onchange="renderReports()" style="width:170px">
+        <option value="">All Types</option>
+        <option value="Toxic Behavior">Toxic Behavior</option>
+        <option value="Cheating">Cheating</option>
+        <option value="Griefing">Griefing</option>
+      </select>
+    </div>
+    <div id="reports-list"></div>
+  </div>
+
+  <!-- Bans Panel -->
+  <div id="panel-bans" style="display:none">
+    <div id="bans-list"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- RESOLVE MODAL -->
+<div class="modal-overlay" id="resolve-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="rm-title">Resolve Report</h3>
+      <span class="modal-close" onclick="Modal.close('resolve-modal')">✕</span>
+    </div>
+    <div id="rm-body"></div>
+    <div class="form-group mt-2">
+      <label class="form-label">Action Notes <span class="required">*</span></label>
+      <textarea class="form-textarea" id="rm-notes" placeholder="Explain your decision as Superuser..."></textarea>
+      <span class="form-error"></span>
+    </div>
+    <div class="modal-footer" id="rm-footer"></div>
+  </div>
+</div>
+
+<!-- BAN MODAL -->
+<div class="modal-overlay" id="ban-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">🚫 Issue Ban</h3>
+      <span class="modal-close" onclick="Modal.close('ban-modal')">✕</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <input type="hidden" id="ban-uid"/>
+      <div class="form-group">
+        <label class="form-label">Ban Duration <span class="required">*</span></label>
+        <select class="form-select" id="ban-duration">
+          <option value="1 Day">1 Day</option>
+          <option value="3 Days">3 Days</option>
+          <option value="7 Days" selected>7 Days</option>
+          <option value="30 Days">30 Days</option>
+          <option value="Permanent">Permanent</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason <span class="required">*</span></label>
+        <textarea class="form-textarea" id="ban-reason" placeholder="Reason for this ban..."></textarea>
+        <span class="form-error"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('ban-modal')">Cancel</button>
+      <button class="btn btn-red" onclick="issueBan()">🚫 Issue Ban</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script>
+// navigate() provided globally by utils.js
+let currentReportId = null;
+
+function switchTab(tab) {
+  document.getElementById('panel-reports').style.display = tab==='reports' ? '' : 'none';
+  document.getElementById('panel-bans').style.display    = tab==='bans'    ? '' : 'none';
+  document.getElementById('tab-reports').classList.toggle('active', tab==='reports');
+  document.getElementById('tab-bans').classList.toggle('active', tab==='bans');
+  if (tab==='bans') renderBans();
+  else renderReports();
+}
+
+function renderKPIs() {
+  const s = getPlatformStats();
+  document.getElementById('rb-kpis').innerHTML = [
+    { label:'Pending Reports', val:DB.reports.filter(r=>r.status==='pending').length,       icon:'🔴', cls:'text-red'    },
+    { label:'Under Review',    val:DB.reports.filter(r=>r.status==='under-review').length,  icon:'🟡', cls:'text-yellow' },
+    { label:'Resolved',        val:DB.reports.filter(r=>r.status==='resolved').length,      icon:'✅', cls:'text-green'  },
+    { label:'Active Bans',     val:DB.bans.filter(b=>b.active).length,                      icon:'🚫', cls:'text-red'    },
+  ].map(k=>`
+    <div class="stat-card">
+      <div class="label">${k.label}</div>
+      <div class="value ${k.cls}">${k.val}</div>
+      <div class="icon">${k.icon}</div>
+    </div>`).join('');
+}
+
+function renderReports() {
+  const statusF = document.getElementById('rep-status').value;
+  const typeF   = document.getElementById('rep-type').value;
+  let reports = [...DB.reports];
+  if (statusF) reports = reports.filter(r=>r.status===statusF);
+  if (typeF)   reports = reports.filter(r=>r.type===typeF);
+
+  document.getElementById('reports-list').innerHTML = reports.length ? reports.map(r=>`
+    <div class="list-item">
+      <div class="list-item-info">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+          <span class="list-item-title">Report #${r.id}</span>
+          ${badgeHTML(r.status)} <span class="tag">${r.type}</span>
+        </div>
+        <div class="list-item-sub mt-1">
+          ${avatarHTML(r.reporterName.slice(0,2),'sm')} <strong>${r.reporterName}</strong>
+          <span>reported</span>
+          ${avatarHTML(r.reportedName.slice(0,2),'sm')} <strong>${r.reportedName}</strong>
+          <span>· ${r.time}</span>
+        </div>
+        <div class="text-sm text-muted mt-1">${r.desc}</div>
+        ${r.actionNote ? `<div class="text-xs text-muted mt-1">📝 Note: ${r.actionNote}</div>` : ''}
+      </div>
+      <div class="list-item-actions">
+        ${r.status!=='resolved' ? `
+          <button class="btn btn-yellow btn-sm" onclick="openResolveModal('${r.id}','resolve')">✓ Resolve</button>
+          <button class="btn btn-ghost btn-sm" onclick="openResolveModal('${r.id}','dismiss')">✕ Dismiss</button>
+        ` : `<button class="btn btn-ghost btn-sm" onclick="reopenReport('${r.id}')">↩ Reopen</button>`}
+        <button class="btn btn-red btn-sm" onclick="openBanModal('${r.reportedId}')">🚫 Ban</button>
+      </div>
+    </div>`).join('') : `<div class="empty-state"><div class="icon">✅</div><h3>No reports found</h3><p>No reports match your filters</p></div>`;
+}
+
+function renderBans() {
+  const active = DB.bans.filter(b=>b.active);
+  document.getElementById('bans-list').innerHTML = active.length ? active.map(b=>`
+    <div class="list-item">
+      <div class="avatar">${b.playerName.slice(0,2)}</div>
+      <div class="list-item-info">
+        <div class="list-item-title">${b.playerName}</div>
+        <div class="list-item-sub">
+          <span>Duration: <strong>${b.duration}</strong></span>
+          <span>· By: ${b.bannedBy}</span>
+          <span>· ${formatDate(b.bannedDate)}</span>
+          ${b.expiresDate ? `<span>· Expires: ${formatDate(b.expiresDate)}</span>` : ''}
+        </div>
+        <div class="text-sm text-muted mt-1">${b.reason}</div>
+      </div>
+      <div class="list-item-actions">
+        <button class="btn btn-green btn-sm" onclick="liftBan('${b.id}')">🔓 Lift Ban</button>
+      </div>
+    </div>`).join('') : `<div class="empty-state"><div class="icon">🔓</div><h3>No active bans</h3><p>All players are currently in good standing</p></div>`;
+}
+
+function openResolveModal(id, action) {
+  currentReportId = id;
+  const r = DB.reports.find(r=>r.id===id); if (!r) return;
+  document.getElementById('rm-title').textContent = action==='resolve' ? '✓ Resolve Report' : '✕ Dismiss Report';
+  document.getElementById('rm-notes').value = '';
+  document.getElementById('rm-body').innerHTML = `
+    <div style="background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+        <span style="font-weight:700">Report #${r.id}</span> ${badgeHTML(r.status)} <span class="tag">${r.type}</span>
+      </div>
+      <div style="font-size:0.85rem;color:var(--text-secondary)">${r.desc}</div>
+    </div>`;
+  document.getElementById('rm-footer').innerHTML = `
+    <button class="btn btn-ghost" onclick="Modal.close('resolve-modal')">Cancel</button>
+    <button class="btn btn-${action==='resolve'?'green':'ghost'}" onclick="submitResolve('${action}')">
+      ${action==='resolve'?'✓ Mark Resolved':'✕ Dismiss'}
+    </button>`;
+  Modal.open('resolve-modal');
+}
+
+function submitResolve(action) {
+  const notesEl = document.getElementById('rm-notes');
+  if (!Validate.field(notesEl,[{type:'required',msg:'Notes required'},{type:'minLen',n:5,msg:'Min 5 characters'}])) return;
+  const r = DB.reports.find(r=>r.id===currentReportId);
+  r.status = 'resolved'; r.actionNote = `[Superuser ${action}] ${notesEl.value}`;
+  Toast.success(action==='resolve' ? 'Report resolved' : 'Report dismissed');
+  Modal.close('resolve-modal');
+  renderKPIs(); renderReports();
+}
+
+function reopenReport(id) {
+  const r = DB.reports.find(r=>r.id===id);
+  r.status = 'pending'; r.actionNote = '';
+  Toast.info('Report reopened');
+  renderKPIs(); renderReports();
+}
+
+function openBanModal(uid) {
+  const u = DB.users.find(u=>u.id===uid);
+  if (!u) { Toast.error('User not found'); return; }
+  document.getElementById('ban-uid').value = uid;
+  document.getElementById('ban-reason').value = '';
+  Modal.open('ban-modal');
+}
+
+function issueBan() {
+  const reasonEl = document.getElementById('ban-reason');
+  if (!Validate.field(reasonEl,[{type:'required',msg:'Reason required'},{type:'minLen',n:10,msg:'Min 10 characters'}])) return;
+  const uid = document.getElementById('ban-uid').value;
+  const u = DB.users.find(u=>u.id===uid);
+  const dur = document.getElementById('ban-duration').value;
+  u.status = 'banned';
+  const exp = new Date(); exp.setDate(exp.getDate() + (parseInt(dur)||7));
+  DB.bans.push({ id:generateId('b'), playerId:uid, playerName:u.username, level:u.level||1, duration:dur, reason:reasonEl.value, bannedBy:Auth.getSession().username, bannedDate:new Date().toISOString().slice(0,10), expiresDate:dur==='Permanent'?null:exp.toISOString().slice(0,10), active:true });
+  Toast.success(`${u.username} banned for ${dur}`);
+  Modal.close('ban-modal');
+  renderKPIs(); renderReports();
+}
+
+function liftBan(id) {
+  const ban = DB.bans.find(b=>b.id===id); if (!ban) return;
+  confirmAction('Lift Ban', `Remove ban from ${ban.playerName}?`, () => {
+    ban.active = false;
+    const u = DB.users.find(u=>u.id===ban.playerId);
+    if (u) u.status = 'active';
+    Toast.success(`Ban lifted for ${ban.playerName}`);
+    renderKPIs(); renderBans();
+  }, 'info');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['superuser']);
+  if (!session) return;
+  buildNavbar('superuser', 'reports');
+  renderKPIs();
+  renderReports();
+});
+</script>
+</body>
+</html>
+
