@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Tournaments</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+  /* Tabbed Menu */
+  .t-tabs { display:flex; gap:0.5rem; border-bottom:1px solid var(--border-primary); margin-bottom:1.5rem; overflow-x:auto; }
+  .t-tab { padding:0.8rem 1.25rem; font-size:0.9rem; font-weight:700; color:var(--text-secondary); cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; white-space:nowrap; }
+  .t-tab:hover { color:var(--text-primary); background:rgba(255,255,255,0.03); }
+  .t-tab.active { color:var(--accent-cyan); border-bottom-color:var(--accent-cyan); background:rgba(0,212,255,0.05); }
+
+  /* Match Action Bar */
+  .match-action-bar { background:linear-gradient(45deg,rgba(124,58,237,0.2),rgba(0,212,255,0.2)); border:1px solid var(--accent-purple); border-radius:var(--radius-lg); padding:1.25rem; margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; animation:glow 2s infinite alternate; }
+  @keyframes glow { from { box-shadow:0 0 10px rgba(139,92,246,0.2); } to { box-shadow:0 0 20px rgba(139,92,246,0.4); } }
+  /* LIST VIEW CARDS */
+  .t-card { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-xl); padding:1.5rem; margin-bottom:1.25rem; transition:all .2s; cursor:pointer; position:relative; overflow:hidden; }
+  .t-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .t-card.status-upcoming::before { background:linear-gradient(90deg,var(--accent-purple),transparent); }
+  .t-card.status-in-progress::before { background:linear-gradient(90deg,#ef4444,transparent); }
+  .t-card.status-completed::before { background:linear-gradient(90deg,var(--accent-green),transparent); }
+  .t-card:hover { border-color:var(--accent-cyan); transform:translateY(-3px); box-shadow:0 12px 40px rgba(0,0,0,0.4); }
+  .t-card-grid { display:grid; grid-template-columns:80px 1fr; gap:1.25rem; align-items:center; }
+  .t-meta-row { display:flex; gap:1.5rem; flex-wrap:wrap; margin-top:0.6rem; font-size:0.8rem; color:var(--text-secondary); }
+  .t-meta-chip { display:flex; align-items:center; gap:0.3rem; }
+  .t-actions { display:flex; gap:0.6rem; justify-content:flex-end; margin-top:1rem; padding-top:0.9rem; border-top:1px solid var(--border-primary); align-items:center; }
+
+  /* Progress bar */
+  .reg-bar-wrap { background:var(--bg-secondary); border-radius:99px; height:5px; overflow:hidden; margin:0.6rem 0 0.25rem; }
+  .reg-bar-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent-purple),var(--accent-cyan)); transition:width .5s ease; }
+
+  /* LIVE dot */
+  .live-dot { width:8px; height:8px; border-radius:50%; background:#ef4444; animation:blink 1s ease-in-out infinite; display:inline-block; margin-right:4px; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:.2} }
+
+  /* ─────────── DETAIL VIEW STYLES ─────────── */
+  /* Hero Banner */
+  .detail-hero { border-radius:var(--radius-xl); overflow:hidden; margin-bottom:2rem; background:var(--bg-card); border:1px solid var(--border-primary); }
+  .detail-hero-inner { padding:2.5rem; background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(0,212,255,0.08)); position:relative; }
+  .hero-prize { font-family:'Orbitron',monospace; font-size:3rem; font-weight:900; color:var(--accent-yellow); text-shadow:0 0 30px rgba(245,158,11,0.35); line-height:1; }
+  .hero-title { font-size:1.8rem; font-weight:900; margin-bottom:0.4rem; }
+  .hero-desc { color:var(--text-secondary); font-size:0.9rem; max-width:600px; line-height:1.6; }
+  .hero-chips { display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:1rem; }
+  .hero-chip { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.14); border-radius:99px; padding:0.3rem 0.85rem; font-size:0.75rem; font-weight:700; }
+
+  /* Detail grid */
+  .detail-grid { display:grid; grid-template-columns:1fr 360px; gap:2rem; }
+  @media(max-width:900px){ .detail-grid { grid-template-columns:1fr; } }
+
+  /* Info cards */
+  .info-section { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-xl); padding:1.5rem; margin-bottom:1.5rem; }
+  .info-section h3 { font-size:1rem; font-weight:800; margin:0 0 1.125rem 0; display:flex; align-items:center; gap:0.5rem; }
+
+  /* Prize breakdown */
+  .prize-row { display:flex; align-items:center; gap:1rem; padding:0.7rem 0; border-bottom:1px solid var(--border-primary); }
+  .prize-row:last-child { border:none; }
+  .prize-rank-badge { width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1rem; }
+  .prize-bar { flex:1; height:6px; background:var(--bg-secondary); border-radius:99px; overflow:hidden; }
+  .prize-bar-fill { height:100%; border-radius:99px; }
+
+  /* Bracket */
+  .bracket-stage { display:flex; flex-direction:column; gap:0.5rem; }
+  .bracket-match { background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:var(--radius-md); padding:0.5rem 0.75rem; font-size:0.82rem; }
+  .bracket-match.final { border-color:var(--accent-yellow); background:rgba(245,158,11,0.08); }
+  .bracket-match.winner { border-color:var(--accent-green); }
+  .bracket-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-secondary); font-weight:800; margin-bottom:0.4rem; }
+  .bracket-scroll { display:flex; gap:1rem; overflow-x:auto; padding-bottom:0.5rem; }
+  .bracket-round { min-width:140px; flex-shrink:0; }
+
+  /* Roster */
+  .player-seed-row { display:flex; align-items:center; gap:0.85rem; padding:0.7rem; background:rgba(255,255,255,0.02); border-radius:var(--radius-md); margin-bottom:0.4rem; border:1px solid transparent; transition:all .15s; }
+  .player-seed-row:hover { background:rgba(0,212,255,0.04); border-color:rgba(0,212,255,0.15); }
+  .seed-num { width:28px; font-family:'Orbitron',monospace; font-size:0.75rem; font-weight:800; color:var(--text-secondary); text-align:center; flex-shrink:0; }
+  .player-pcp-mini { font-family:'Orbitron',monospace; font-size:0.72rem; color:var(--accent-cyan); margin-left:auto; flex-shrink:0; }
+
+  /* Timeline */
+  .timeline { position:relative; padding-left:1.5rem; }
+  .timeline::before { content:''; position:absolute; left:0.52rem; top:0; bottom:0; width:2px; background:var(--border-primary); }
+  .timeline-item { position:relative; padding-bottom:1.25rem; padding-left:0.5rem; }
+  .timeline-dot { position:absolute; left:-1.5rem; top:0.15rem; width:12px;height:12px; border-radius:50%; border:2px solid var(--border-primary); background:var(--bg-secondary); }
+  .timeline-dot.done { background:var(--accent-green); border-color:var(--accent-green); }
+  .timeline-dot.active { background:var(--accent-cyan); border-color:var(--accent-cyan); box-shadow:0 0 8px rgba(0,212,255,0.5); }
+  .timeline-title { font-weight:700; font-size:0.9rem; margin-bottom:0.15rem; }
+  .timeline-date { font-size:0.75rem; color:var(--text-secondary); }
+
+  /* Right panel */
+  .side-panel { position:sticky; top:1rem; }
+  .action-panel { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-xl); padding:1.5rem; margin-bottom:1.25rem; }
+  .reg-cta { width:100%; padding:0.9rem; font-size:1rem; font-weight:800; border-radius:var(--radius-lg); border:none; cursor:pointer; transition:all .2s; }
+  .reg-cta.open { background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan)); color:#fff; }
+  .reg-cta.open:hover { filter:brightness(1.1); transform:translateY(-2px); box-shadow:0 8px 25px rgba(139,92,246,0.4); }
+  .reg-cta.registered { background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.35); color:var(--accent-green); pointer-events:none; }
+  .reg-cta.full { background:rgba(255,255,255,0.04); color:var(--text-secondary); border:1px solid var(--border-primary); pointer-events:none; }
+  .org-card { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-xl); padding:1.25rem; }
+
+  /* Kind filter — one segmented control rather than four loose pills */
+  .kind-filter-row {
+    display:inline-flex; gap:0.2rem; margin-bottom:0.5rem; flex-wrap:wrap;
+    background:var(--bg-card); border:1px solid var(--border-primary);
+    border-radius:99px; padding:0.25rem;
+  }
+  .kind-filter-tab {
+    padding:0.42rem 0.95rem; border-radius:99px; font-size:0.8rem; font-weight:700;
+    color:var(--text-secondary); cursor:pointer; transition:all var(--trans-fast);
+    background:transparent; border:none; white-space:nowrap;
+  }
+  .kind-filter-tab:hover { color:var(--text-primary); background:rgba(255,255,255,0.04); }
+  .kind-filter-tab.active { background:linear-gradient(135deg,#00d4ff,#7c3aed); color:#fff; }
+
+  /* A list of rows reads badly at 1400px — the eye loses the connection
+     between a title on the far left and its button on the far right. Cap it
+     at a comfortable reading width and centre it. */
+  #list-view.page-content { max-width:1120px; }
+
+  /* ─── Section labels ─── */
+  .sec-label {
+    display:flex; align-items:baseline; gap:0.6rem;
+    margin:2rem 0 0.9rem; padding-bottom:0.6rem;
+    border-bottom:1px solid var(--border-primary);
+  }
+  .sec-label:first-of-type { margin-top:0.25rem; }
+  .sec-label-title {
+    font-size:0.74rem; text-transform:uppercase; letter-spacing:0.13em; font-weight:900;
+    color:var(--text-secondary); display:flex; align-items:center; gap:0.45rem;
+  }
+  .sec-count {
+    font-size:0.68rem; font-weight:800; color:var(--text-muted);
+    background:var(--bg-secondary); border:1px solid var(--border-primary);
+    border-radius:99px; padding:0.05rem 0.5rem; line-height:1.5;
+  }
+  .sec-count:empty { display:none; }
+
+  /* ─── Tournament card ─────────────────────────────────────────
+     Three explicit columns — emblem · content · action — so nothing
+     floats into the dead space a flex row leaves at this width. */
+  .tcard {
+    background:var(--bg-card);
+    border:1px solid var(--border-primary);
+    border-left:3px solid var(--accent-purple);
+    border-radius:var(--radius-lg);
+    padding:1.05rem 1.25rem;
+    display:grid; grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center; column-gap:1.15rem;
+    cursor:pointer; transition:border-color .18s, background .18s, transform .18s;
+    margin-bottom:0.65rem;
+  }
+  .tcard.kind-official  { border-left-color:#8b5cf6; }
+  .tcard.kind-casual    { border-left-color:#00d4ff; }
+  .tcard.kind-community { border-left-color:#f59e0b; }
+  .tcard:hover {
+    background:var(--bg-secondary);
+    border-color:var(--border-secondary);
+    transform:translateY(-1px);
+  }
+  .tcard.kind-official:hover  { border-left-color:#a78bfa; }
+  .tcard.kind-casual:hover    { border-left-color:#22d3ee; }
+  .tcard.kind-community:hover { border-left-color:#fbbf24; }
+
+  .tcard-emblem {
+    width:52px; height:52px; border-radius:var(--radius-md);
+    background:var(--bg-secondary); border:1px solid var(--border-primary);
+    display:flex; align-items:center; justify-content:center; font-size:1.4rem;
+  }
+  .tcard-body { min-width:0; }
+  .tcard-head { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.25rem; }
+  .tcard-title { font-family:'Orbitron',monospace; font-size:0.97rem; font-weight:800; letter-spacing:0.01em; }
+  .tcard-desc {
+    color:var(--text-secondary); font-size:0.8rem; line-height:1.45; margin:0 0 0.45rem;
+    overflow:hidden; text-overflow:ellipsis; display:-webkit-box;
+    -webkit-line-clamp:1; -webkit-box-orient:vertical;
+  }
+  .tcard-meta {
+    display:flex; align-items:center; gap:0.55rem; flex-wrap:wrap;
+    font-size:0.75rem; color:var(--text-secondary);
+  }
+  .tcard-meta .sep { color:var(--border-secondary); }
+  .tcard-prize { color:var(--accent-yellow); font-weight:700; }
+
+  /* Progress sits under the meta and is deliberately short — a hairline
+     spanning the whole card just read as a stray rule. */
+  .tcard-progress { display:flex; align-items:center; gap:0.6rem; margin-top:0.55rem; }
+  .tcard-bar { width:150px; height:4px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden; flex-shrink:0; }
+  .tcard-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent-cyan),var(--accent-purple)); border-radius:99px; transition:width .4s; }
+  .tcard-barlabel { font-size:0.68rem; color:var(--text-muted); }
+
+  .tcard-action { display:flex; align-items:center; justify-content:flex-end; min-width:132px; }
+
+  .kind-pill { font-size:0.66rem; font-weight:800; border-radius:99px; padding:0.16rem 0.6rem; white-space:nowrap; }
+  .kind-pill-official  { background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.4); color:#a78bfa; }
+  .kind-pill-casual    { background:rgba(0,212,255,0.12); border:1px solid rgba(0,212,255,0.35); color:var(--accent-cyan); }
+  .kind-pill-community { background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); color:var(--accent-yellow); }
+  .kind-pill-team      { background:rgba(255,255,255,0.06); border:1px solid var(--border-primary); color:var(--text-secondary); }
+  .kind-pill-reg       { background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); color:var(--accent-green); }
+
+  .tc-btn {
+    border:1px solid transparent; border-radius:var(--radius-md);
+    padding:0.5rem 1.1rem; font-size:0.79rem; font-weight:800;
+    cursor:pointer; transition:all .16s; white-space:nowrap; min-width:112px;
+  }
+  .tc-btn-primary { background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan)); color:#fff; }
+  .tc-btn-primary:hover { filter:brightness(1.12); box-shadow:0 4px 14px rgba(139,92,246,0.35); }
+  .tc-btn-live { background:linear-gradient(135deg,#ef4444,#f59e0b); color:#fff; }
+  .tc-btn-live:hover { filter:brightness(1.12); box-shadow:0 4px 14px rgba(239,68,68,0.3); }
+  .tc-btn-ghost { background:transparent; border-color:var(--border-secondary); color:var(--text-secondary); }
+  .tc-btn-ghost:hover { background:rgba(255,255,255,0.06); color:var(--text-primary); border-color:var(--text-muted); }
+  .tc-note { font-size:0.73rem; color:var(--text-muted); white-space:nowrap; }
+
+  .tempty {
+    text-align:center; padding:2.25rem 1rem; background:var(--bg-card);
+    border:1px dashed var(--border-primary); border-radius:var(--radius-lg);
+    color:var(--text-secondary); font-size:0.85rem;
+  }
+  .tempty .ico { font-size:1.9rem; display:block; margin-bottom:0.5rem; opacity:0.55; }
+
+  @media (max-width:640px) {
+    .tcard { flex-wrap:wrap; }
+    .tcard-emblem { width:48px; height:48px; font-size:1.35rem; }
+    .tcard-action { width:100%; }
+    .tc-btn { width:100%; }
+  }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+
+  <!-- LIST VIEW -->
+  <div class="page-content" id="list-view">
+    <div class="page-header-row" style="margin-bottom:1.25rem">
+      <div>
+        <h1 style="margin-bottom:0.3rem">Tournaments</h1>
+        <p class="text-muted" style="font-size:0.86rem">Official events, casual pickup games, and your groups' community tournaments</p>
+      </div>
+      <button class="btn btn-yellow" onclick="window.location.href='create-tournament.html'">🏆 Create Tournament</button>
+    </div>
+
+    <div class="kind-filter-row" id="kind-filter-row">
+      <div class="kind-filter-tab active" data-kind="all" onclick="setKindFilter('all')">🎮 All</div>
+      <div class="kind-filter-tab" data-kind="official" onclick="setKindFilter('official')">🏢 Official</div>
+      <div class="kind-filter-tab" data-kind="casual" onclick="setKindFilter('casual')">🎲 Casual</div>
+      <div class="kind-filter-tab" data-kind="community" onclick="setKindFilter('community')">🛡️ Community</div>
+    </div>
+
+    <div class="sec-label">
+      <div class="sec-label-title"><span class="live-dot"></span> Live Now</div>
+      <span class="sec-count" id="active-count"></span>
+    </div>
+    <div id="active-list"></div>
+
+    <div class="sec-label">
+      <div class="sec-label-title">Upcoming</div>
+      <span class="sec-count" id="upcoming-count"></span>
+    </div>
+    <div id="upcoming-list"></div>
+
+    <div class="sec-label">
+      <div class="sec-label-title">Completed</div>
+      <span class="sec-count" id="completed-count"></span>
+    </div>
+    <div id="completed-list"></div>
+  </div>
+
+  <!-- DETAIL VIEW -->
+  <div class="page-content hidden" id="detail-view">
+    <div class="back-btn" onclick="showList()">← All Tournaments</div>
+    <div id="detail-content"></div>
+  </div>
+
+</div>
+
+<!-- REGISTER MODAL -->
+<div class="modal-overlay" id="reg-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3 class="modal-title">Confirm Registration</h3>
+      <span class="modal-close" onclick="Modal.close('reg-modal')">✕</span>
+    </div>
+    <div id="reg-content" style="padding:1.25rem 1.5rem"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('reg-modal')">Cancel</button>
+      <button class="btn btn-purple" id="confirm-reg-btn">Confirm & Register</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/game-launch.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+// navigate() provided globally by utils.js (includes CSS fade transition)
+
+function getUserId() {
+  const s = Auth.getSession();
+  return s?.userId || DB.users.find(u => u.username === s?.username)?.id || null;
+}
+
+/** Look a user up by id. DB.users' `id` is a STRING getter, so `u.id === 9`
+ *  never matches a numeric session id — compare as strings, always. */
+function userById(id) {
+  return DB.users.find(u => String(u.id ?? u.user_id) === String(id));
+}
+
+/** Every team I'm a member of. */
+function myTeams() {
+  const uid = getUserId();
+  return (DB.teams || []).filter(tm => (tm.member_ids || []).some(m => String(m) === String(uid)));
+}
+
+/** Teams of mine that are entered in this tournament. */
+function myTeamsIn(t) {
+  const entered = new Set(
+    (DB.team_tournament || [])
+      .filter(r => String(r.tournament_id) === String(t.tournament_id))
+      .map(r => String(r.team_id)));
+  return myTeams().filter(tm => entered.has(String(tm.team_id)));
+}
+
+/**
+ * Am I in this tournament?
+ *
+ * A TEAM tournament records entries in `team_tournament` keyed by team_id and
+ * leaves `player_tournament` empty — so the old player-only check reported
+ * "not registered" for a tournament your own team had already entered. The
+ * card then offered "Register Now", and pressing it just said you were
+ * already in: the button looked broken because the badge beside it was wrong.
+ */
+function isRegistered(t) {
+  if (t.team_size) return myTeamsIn(t).length > 0;
+  return t.registeredPlayers.includes(String(getUserId()));
+}
+
+/**
+ * Name whatever occupies a bracket slot.
+ *
+ * A bracket slot holds an ENTRANT id — a player_id normally, a team_id in a
+ * team tournament. Resolving it against DB.users unconditionally meant a team
+ * bracket rendered the wrong people entirely: team 3 vs team 1 displayed as
+ * "ModeratorOne vs SuperAdmin", because those happen to be users 3 and 1.
+ */
+function entrantName(t, slot) {
+  if (slot == null) return 'TBD';
+  if (String(slot) === 'BYE') return 'BYE';
+  if (t.team_size) {
+    const team = (DB.teams || []).find(x => String(x.team_id) === String(slot));
+    return team ? team.name : `Team ${slot}`;
+  }
+  return userById(slot)?.user_name || userById(slot)?.username || String(slot);
+}
+
+/** How many entrants — teams for a team tournament, players otherwise. */
+function entrantCount(t) {
+  if (t.team_size) {
+    return (DB.team_tournament || []).filter(r => String(r.tournament_id) === String(t.tournament_id)).length;
+  }
+  return t.registeredPlayers.length;
+}
+
+function hasEngine(gameId) {
+  // Shared resolver — covers builtin, uploaded-bundle and self-hosted games.
+  if (window.GameLaunch) return GameLaunch.hasEngine(gameId);
+  return ['7','8'].includes(String(gameId).replace('g',''));
+}
+
+// ── Seed from leaderboard ────────────────────────────────────────────────────
+function seedOf(uid) {
+  const sorted = [...DB.player_profiles].sort((a,b)=>(b.carys_points||0)-(a.carys_points||0));
+  const idx = sorted.findIndex(p => p.user_id === parseInt(uid,10));
+  return idx >= 0 ? idx+1 : '—';
+}
+
+function pcpOf(uid) {
+  const prof = DB.player_profiles.find(p=>p.user_id===parseInt(uid,10));
+  return prof?.carys_points || 0;
+}
+
+// ── LIST VIEW ────────────────────────────────────────────────────────────────
+const KIND_LABEL = { official: '🏢 Official', casual: '🎲 Casual', community: '🛡️ Community' };
+// `kind` itself only exists on the enriched REST /tournaments response, never
+// on the raw rows db-export hands this page — so it's derived here from the
+// fields that DO sync (mirrors TournamentService.kindOf() server-side,
+// including its fallback to the organizer's actual role for tournaments
+// seeded before organizer_role existed — without it every old publisher
+// tournament misclassifies as Casual).
+function kindOf(t) {
+  const role = t.organizer_role || DB.users.find(u => String(u.user_id) === String(t.organizer))?.role;
+  if (role === 'publisher') return 'official';
+  if (t.group_id != null) return 'community';
+  return 'casual';
+}
+
+function renderTournamentCard(t) {
+  const entrants = entrantCount(t);
+  const pct = t.maxParticipants ? Math.min(100, Math.round(entrants / t.maxParticipants * 100)) : 0;
+  const reg = isRegistered(t);
+  const isLive = t.status === 'in-progress';
+  const kind = kindOf(t);
+  const isTeam = !!t.team_size;
+  const regClosed = new Date() > new Date(t.regClose);
+  const isFull = entrants >= t.maxParticipants;
+
+  // Which of MY teams is in — named on the card, so a team entry reads as
+  // clearly as a solo one instead of just a generic "Registered" tick.
+  const mine = isTeam ? myTeamsIn(t) : [];
+  const regLabel = isTeam && mine.length ? `✓ ${mine[0].name}` : '✓ Registered';
+
+  // Only offer an action that can actually succeed. Previously "Register Now"
+  // was shown whenever you weren't registered — including after registration
+  // had closed or the field was full — so pressing it only produced an error.
+  let action = '';
+  if (t.status === 'upcoming' && reg) {
+    action = `<button class="tc-btn tc-btn-ghost" onclick="unregisterForTournament('${t.id}')">Withdraw</button>`;
+  } else if (t.status === 'upcoming' && isFull) {
+    action = `<span class="tc-note">Field is full</span>`;
+  } else if (t.status === 'upcoming' && regClosed) {
+    action = `<span class="tc-note">Registration closed</span>`;
+  } else if (t.status === 'upcoming') {
+    action = `<button class="tc-btn tc-btn-primary" onclick="openRegModal('${t.id}')">${isTeam ? 'Enter a Team' : 'Register'}</button>`;
+  } else if (isLive) {
+    action = `<button class="tc-btn tc-btn-live" onclick="viewTournament('${t.id}')">${reg ? '⚔️ My Match' : '👁 Watch'}</button>`;
+  } else if (t.status === 'completed') {
+    action = `<button class="tc-btn tc-btn-ghost" onclick="viewTournament('${t.id}')">Results</button>`;
+  }
+
+  return `
+  <div class="tcard kind-${kind}" onclick="viewTournament('${t.id}')">
+    <div class="tcard-emblem">${isTeam ? '⚔️' : isLive ? '🔥' : '🏆'}</div>
+    <div class="tcard-body">
+      <div class="tcard-head">
+        ${isLive ? '<span class="live-dot"></span>' : ''}
+        <span class="tcard-title">${t.name}</span>
+        <span class="kind-pill kind-pill-${kind}">${KIND_LABEL[kind]}</span>
+        ${isTeam ? `<span class="kind-pill kind-pill-team">⚔️ ${t.team_size}v${t.team_size}</span>` : ''}
+        ${reg ? `<span class="kind-pill kind-pill-reg">${regLabel}</span>` : ''}
+      </div>
+      <p class="tcard-desc">${t.desc || ''}</p>
+      <div class="tcard-meta">
+        <span>🎮 ${t.game}</span><span class="sep">·</span>
+        <span>${isTeam ? '⚔️' : '👥'} ${entrants}/${t.maxParticipants} ${isTeam ? 'teams' : 'players'}</span><span class="sep">·</span>
+        <span>📅 ${formatDate(t.startDate)}</span><span class="sep">·</span>
+        <span class="tcard-prize">${t.prize}</span>
+      </div>
+      ${t.status === 'upcoming' ? `
+        <div class="tcard-progress">
+          <div class="tcard-bar"><div class="tcard-bar-fill" style="width:${pct}%"></div></div>
+          <span class="tcard-barlabel">${pct}% full · ${regClosed ? 'registration closed' : 'closes ' + formatDate(t.regClose)}</span>
+        </div>` : ''}
+    </div>
+    <div class="tcard-action" onclick="event.stopPropagation()">${action}</div>
+  </div>`;
+}
+
+let kindFilter = 'all';
+function setKindFilter(kind) {
+  kindFilter = kind;
+  document.querySelectorAll('.kind-filter-tab').forEach(el => el.classList.toggle('active', el.dataset.kind === kind));
+  render();
+}
+
+function render() {
+  const uid = getUserId();
+  // db-export has no viewer context, so it hands back every tournament
+  // including private ones — visibility is enforced here, client-side, on the
+  // one browse list players actually see. A private tournament is shown only
+  // to its organizer or someone already registered for it; anyone else needs
+  // the invite code (or the group membership, for a Community one) to find it
+  // at all, same as the real backend's own /tournaments?includePrivate rule.
+  const visible = t =>
+    t.visibility !== 'private' ||
+    String(t.organizer) === String(uid) ||
+    t.registeredPlayers.includes(String(uid));
+  let all = DB.tournaments.filter(visible);
+  if (kindFilter !== 'all') all = all.filter(t => kindOf(t) === kindFilter);
+  const active    = all.filter(t=>t.status==='in-progress');
+  const upcoming  = all.filter(t=>t.status==='upcoming');
+  const completed = all.filter(t=>t.status==='completed');
+
+  const emptyHTML = (ico, msg) => `<div class="tempty"><span class="ico">${ico}</span>${msg}</div>`;
+  const scope = kindFilter === 'all' ? '' : ` ${KIND_LABEL[kindFilter].replace(/^\S+\s/, '').toLowerCase()}`;
+
+  const paint = (id, rows, ico, msg) => {
+    document.getElementById(id + '-list').innerHTML = rows.length
+      ? rows.map(renderTournamentCard).join('')
+      : emptyHTML(ico, msg);
+    const c = document.getElementById(id + '-count');
+    if (c) c.textContent = rows.length ? `${rows.length}` : '';
+  };
+
+  paint('active',    active,    '🔥', `No live${scope} tournaments right now`);
+  paint('upcoming',  upcoming,  '📅', `No upcoming${scope} tournaments — why not create one?`);
+  paint('completed', completed, '✅', `No completed${scope} tournaments yet`);
+}
+
+// ── PROFESSIONAL DETAIL VIEW ──────────────────────────────────────────────────
+/* ── Build Detail Layout ── */
+function renderTournamentDetail(t) {
+  const uid = getUserId();
+  const reg = isRegistered(t);
+  // Is this a SCORE CONTEST or a knockout?
+  //
+  // Was `String(t.game_id) === '8'` — literally "is this Hill Climbing". Every
+  // other single-player tournament therefore got the bracket UI, with a roster
+  // seeded by global points and no way to see anyone's actual score.
+  //
+  // The tournament declares its format; a game's declared game_mode is the
+  // fallback for rows created before that field existed.
+  const gameOf = DB.games.find(g => String(g.game_id || g.id) === String(t.game_id));
+  const isScoreContest = t.format
+    ? t.format === 'score'
+    : (gameOf && gameOf.game_mode ? gameOf.game_mode === 'single' : String(t.game_id) === '8');
+  const publisherUser = DB.users.find(u => String(u.user_id) === String(t.publisherId));
+  
+  // Find my current local match
+  // In a team tournament the slots hold TEAM ids, so "is this mine" is
+  // "is one of my teams in it", not "is my user id in it" — otherwise a team
+  // player never sees their own match.
+  const mySlots = t.team_size
+    ? myTeamsIn(t).map(tm => String(tm.team_id))
+    : [String(uid)];
+  const myMatch = DB.tournament_matches.find(m =>
+    String(m.tournamentId) === String(t.id) &&
+    (mySlots.includes(String(m.player1)) || mySlots.includes(String(m.player2))) &&
+    m.status === 'waiting' && m.player1 && m.player2 && m.player1 !== 'BYE' && m.player2 !== 'BYE'
+  );
+
+  return `
+    <div class="detail-hero">
+      <div class="detail-hero-inner">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+              ${badgeHTML(t.status)}
+               <span style="font-size:0.75rem;color:var(--text-secondary)">ID: ${t.id}</span>
+            </div>
+            <h1 class="hero-title">${t.name}</h1>
+            <p class="hero-desc">${t.desc}</p>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:0.75rem;text-transform:uppercase;color:var(--text-secondary)">Prize Pool</div>
+            <div class="hero-prize">${t.prize}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${myMatch ? `
+    <div class="match-action-bar">
+      <div>
+        <h3 style="margin-bottom:0.15rem">⚔️ Your Match is Ready!</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary)">Match ID: ${myMatch.match_id} · Opponent: ${entrantName(t, mySlots.includes(String(myMatch.player1)) ? myMatch.player2 : myMatch.player1)}</p>
+      </div>
+      <button class="btn btn-purple btn-lg" onclick="enterTournamentMatch('${t.id}', '${myMatch.match_id}')">ENTER ARENA</button>
+    </div>` : ''}
+
+    ${(() => {
+      // Find matches pending my verification
+      const pendingMatch = DB.tournament_matches.find(m => 
+        String(m.tournamentId) === String(t.id) && 
+        (String(m.player1) === String(uid) || String(m.player2) === String(uid)) &&
+        m.status === 'pending'
+      );
+      if (!pendingMatch) return '';
+      
+      if (String(pendingMatch.reportedBy) === String(uid)) {
+        return `<div class="match-action-bar" style="background:rgba(245,158,11,0.1); border-color:var(--accent-yellow)">
+          <div><h3>⏳ Result Reported</h3><p class="text-sm">Waiting for your opponent to confirm the 1-0 result...</p></div>
+          <button class="btn btn-ghost disabled">Pending...</button>
+        </div>`;
+      } else {
+        return `<div class="match-action-bar" style="background:rgba(16,185,129,0.1); border-color:var(--accent-green)">
+          <div><h3>✅ Verify Result</h3><p class="text-sm">Your opponent reported a win. Do you agree with this result?</p></div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-green" onclick="confirmTournResult('${pendingMatch.match_id}', '${t.id}')">Yes, I Agree</button>
+            <button class="btn btn-ghost" style="color:var(--accent-red)" onclick="disputeTournResult('${pendingMatch.match_id}', '${t.id}')">No, Dispute</button>
+          </div>
+        </div>`;
+      }
+    })()}
+
+    ${(() => {
+      const disputedMatch = DB.tournament_matches.find(m => 
+        String(m.tournamentId) === String(t.id) && 
+        (String(m.player1) === String(uid) || String(m.player2) === String(uid)) &&
+        m.status === 'disputed'
+      );
+      if (!disputedMatch) return '';
+      return `<div class="match-action-bar" style="background:rgba(239,68,68,0.1); border-color:var(--accent-red); animation:none">
+        <div><h3>⚠️ Match in Dispute</h3><p class="text-sm">A publisher is currently reviewing the logs for match ${disputedMatch.match_id}.</p></div>
+        <button class="btn btn-ghost disabled">Under Review</button>
+      </div>`;
+    })()}
+
+    ${isScoreContest && reg && t.status === 'upcoming' ? `
+    <div class="match-action-bar" style="background:rgba(255,255,255,0.03);border-color:var(--border-primary);animation:none">
+      <div>
+        <h3 style="margin-bottom:0.15rem">⏳ Not open yet</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary)">You're in. ${t.game} opens for scoring on ${formatDate(t.startDate)} — runs played before then don't count towards the leaderboard.</p>
+      </div>
+      <button class="btn btn-ghost btn-lg" disabled style="opacity:0.55;cursor:not-allowed">🔒 Locked</button>
+    </div>` : ''}
+    ${isScoreContest && reg && t.status === 'in-progress' ? `
+    <div class="match-action-bar" style="background:linear-gradient(45deg,rgba(245,158,11,0.15),rgba(239,68,68,0.15));border-color:var(--accent-yellow);animation:none">
+      <div>
+        <h3 style="margin-bottom:0.15rem">🎯 ${t.game} — Score Contest</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary)">Play to set your best ${t.metric_label || 'score'}. Your best run is what lands on the leaderboard.</p>
+      </div>
+      <button class="btn btn-lg" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-weight:800;border:none;padding:0.75rem 1.5rem;font-size:1rem" onclick="playTournamentGame('${t.id}')">🎮 Play Now</button>
+    </div>` : ''}
+
+    ${buildOrganizerPanel(t)}
+
+    <div class="t-tabs">
+      <div class="t-tab active" onclick="setTab(this,'tab-overview')">📁 Overview</div>
+      <div class="t-tab" onclick="setTab(this,'tab-bracket')">🎯 Bracket</div>
+      <div class="t-tab" onclick="setTab(this,'tab-format')">📜 Format & Rules</div>
+      <div class="t-tab" onclick="setTab(this,'tab-leaderboard')">🏆 Leaderboard & Participants</div>
+    </div>
+
+    <div id="tab-overview" class="tab-content">
+      <div class="detail-grid">
+        <div>
+          <div class="info-section"><h3>📆 Timeline</h3>${buildTimeline(t, Date.now())}</div>
+          <div class="info-section"><h3>🥇 Prize Distribution</h3>${buildPrizeBreakdown(t.prize)}</div>
+        </div>
+        <div class="side-panel">
+          <div class="action-panel">
+            <button class="reg-cta ${!reg ? 'open' : 'registered'}" onclick="${!reg ? `openRegModal('${t.id}')` : ''}">${!reg ? '⚡ Register Now' : '✓ Registered'}</button>
+            ${isScoreContest && reg && t.status === 'in-progress' ? `<button class="reg-cta open" style="margin-top:0.75rem;background:linear-gradient(135deg,#f59e0b,#ef4444);box-shadow:0 4px 15px rgba(245,158,11,0.3)" onclick="playTournamentGame('${t.id}')">🎮 Play ${t.game}</button>` : ''}
+          </div>
+          <div class="org-card">
+              <div style="font-size:0.68rem;text-transform:uppercase;color:var(--text-secondary);margin-bottom:0.75rem">Organized by</div>
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <div class="avatar">${publisherUser?.avatar || '🎮'}</div>
+                <div><div style="font-weight:700">${publisherUser?.username || t.publisherName || 'PlayCarys'}</div><div style="font-size:0.72rem;color:var(--accent-cyan)">Verified Publisher ✓</div></div>
+              </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-bracket" class="tab-content hidden">
+      <div class="info-section">
+        <h3>🎯 Dynamic Tournament Bracket</h3>
+        ${buildBracket(t)}
+      </div>
+    </div>
+
+    <div id="tab-format" class="tab-content hidden">
+       <div class="info-section" style="margin-bottom:1.5rem">
+         <h3>🎮 Match Flow & Qualification</h3>
+         <div style="padding:1rem;background:rgba(255,255,255,0.02);border-radius:var(--radius-lg)">
+            <p style="margin-bottom:1rem"><strong>Match Flow:</strong> ${t.match_flow || 'Single Elimination tournament structure. Winners advance to the next round immediately.'}</p>
+            <p><strong>Qualification:</strong> ${t.qualification || 'Open registration for all authorized players. No minimum PCP required.'}</p>
+         </div>
+       </div>
+       <div class="info-section">
+         <h3>📜 Professional Rulebook</h3>
+         <div style="display:flex;flex-direction:column;gap:0.75rem">
+            ${(t.rules_list || ['Participants must be present at match time.', 'Unfair play leads to disqualification.']).map((r,i) => `<div style="display:flex;gap:0.75rem;padding:0.7rem;background:rgba(255,255,255,0.02);border-radius:var(--radius-md);border-left:3px solid var(--accent-purple)"><span style="color:var(--accent-purple);font-weight:800">${i+1}</span><span style="font-size:0.9rem">${r}</span></div>`).join('')}
+         </div>
+       </div>
+    </div>
+
+    <div id="tab-leaderboard" class="tab-content hidden">
+       <div class="info-section">
+         <h3>${isScoreContest ? '🏁 Leaderboard' : '🏆 Official Leaderboard'}</h3>
+         <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:1rem">${isScoreContest ? 'Everyone plays the same game; the best result wins. Play to set your record and climb the board.' : 'Players are seeded by their global PlayCarys Points (PCP). Win matches to climb the ranks!'}</p>
+         ${isScoreContest ? '<div id="score-leaderboard"><p class="text-muted text-sm">Loading…</p></div>' : buildRoster(t.registeredPlayers)}
+       </div>
+
+       <!-- Tournament chat: one public thread everyone in this tournament
+            shares. Asked for directly in the flow-corrections document. -->
+       <div class="info-section">
+         <h3>💬 Tournament Chat</h3>
+         <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem">
+           Everyone registered for this tournament sees this thread.
+         </p>
+         <div id="tourn-chat-log" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.6rem"></div>
+         ${reg ? `
+         <div style="display:flex;gap:0.4rem">
+           <input id="tourn-chat-input" class="form-input" maxlength="500" placeholder="Say something…"
+                  style="flex:1;font-size:0.8rem" onkeydown="if(event.key==='Enter')sendTournChat('${t.tournament_id || t.id}')"/>
+           <button class="btn btn-primary btn-sm" onclick="sendTournChat('${t.tournament_id || t.id}')">Send</button>
+         </div>` : `
+         <p class="text-muted text-sm">Register for this tournament to join the chat.</p>`}
+       </div>
+    </div>
+  `;
+}
+
+function setTab(el, tabId) {
+  if (document.startViewTransition) {
+    document.startViewTransition(() => _doSetTab(el, tabId));
+  } else {
+    _doSetTab(el, tabId);
+  }
+}
+
+function _doSetTab(el, tabId) {
+  document.querySelectorAll('.t-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+  document.getElementById(tabId).classList.remove('hidden');
+}
+
+function viewTournament(id) {
+  const t = DB.tournaments.find(t=>t.id===id);
+  if (!t) return;
+  
+  const doView = () => {
+    document.getElementById('detail-content').innerHTML = renderTournamentDetail(t);
+    document.getElementById('list-view').classList.add('hidden');
+    document.getElementById('detail-view').classList.remove('hidden');
+    window.scrollTo(0,0);
+    // The score leaderboard is ranked server-side, so it arrives after the
+    // markup does. The placeholder above says "Loading…" until it lands.
+    if (document.getElementById('score-leaderboard')) buildScoreLeaderboard(t);
+    buildTournamentChat(t);
+  };
+
+  if (document.startViewTransition) {
+    document.startViewTransition(doView);
+  } else {
+    doView();
+  }
+}
+
+// ── Build Roster ─────────────────────────────────────────────────────────────
+function buildRoster(pids) {
+  if (!pids.length) return `<p class="text-muted text-sm">No players registered yet. Be the first!</p>`;
+  const myUid = getUserId();
+
+  // Sort by PCP descending → this IS the seeding
+  const enriched = pids.map(pid => {
+    const u = DB.users.find(u => u.id === pid);
+    return { uid: pid, user: u, pcp: pcpOf(pid), seed: seedOf(pid) };
+  }).sort((a,b) => a.seed - b.seed);
+
+  return enriched.map((e, i) => {
+    const isMe = String(e.uid) === String(myUid);
+    const localSeed = i + 1; // local seed within this tournament
+    return `
+    <div class="player-seed-row ${isMe ? 'me-row' : ''}">
+      <span class="seed-num">#${localSeed}</span>
+      <div class="avatar avatar-sm">${e.user?.avatar || '?'}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:0.875rem">${e.user?.username || 'Unknown'} ${isMe ? '⭐' : ''}</div>
+        <div style="font-size:0.68rem;color:var(--text-secondary)">Global Seed #${e.seed}</div>
+      </div>
+      <span class="player-pcp-mini">${e.pcp} PCP</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Hill Climbing Tournament Play ────────────────────────────────────────────
+/**
+ * Launch THIS tournament's game for a score run.
+ *
+ * Was playHillClimbing(): it hardcoded games/hill_climbing regardless of what
+ * was actually being contested, so entering a Chess score contest opened Hill
+ * Climbing — and any run you set there could never count, because the
+ * leaderboard only reads results tagged with this tournament AND its game.
+ * GameLaunch is the shared resolver that already knows how to open builtin,
+ * uploaded-bundle and self-hosted games alike.
+ */
+/**
+ * Controls only the ORGANIZER sees.
+ *
+ * A bracket does not exist until somebody generates it, and the bracket tab
+ * said exactly that — "must be started by the organizer" — while offering no
+ * way for a player-organizer to do it. Publishers had a Start button on their
+ * own page; a player who created a tournament had no equivalent anywhere, so
+ * every player-run bracket was a dead end.
+ */
+function buildOrganizerPanel(t) {
+  const uid = getUserId();
+  if (String(t.organizer) !== String(uid)) return '';
+
+  const entrants = entrantCount(t);
+  const isBracket = t.format === 'bracket';
+
+  if (t.status === 'upcoming') {
+    const min = isBracket ? 2 : 1;
+    const ready = entrants >= min;
+    const unit = t.team_size ? 'teams' : 'players';
+    return `
+    <div class="match-action-bar" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.4);animation:none">
+      <div>
+        <h3 style="margin-bottom:0.15rem">🎛️ You're the organizer</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary)">${
+          ready
+            ? (isBracket
+                ? `Starting locks registration and generates the bracket from the ${entrants} ${unit} entered.`
+                : `Starting opens scoring — entrants can play and the leaderboard goes live.`)
+            : `You need at least ${min} ${unit} to start. ${entrants} so far.`
+        }</p>
+      </div>
+      <button class="btn btn-lg" ${ready ? '' : 'disabled'}
+        style="background:${ready ? 'linear-gradient(135deg,var(--accent-purple),var(--accent-cyan))' : 'rgba(255,255,255,0.06)'};color:#fff;font-weight:800;border:none;padding:0.75rem 1.5rem;${ready ? '' : 'opacity:0.5;cursor:not-allowed'}"
+        onclick="startMyTournament('${t.id}')">🚀 Start Tournament</button>
+    </div>`;
+  }
+
+  if (t.status === 'in-progress') {
+    return `
+    <div class="match-action-bar" style="background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3);animation:none">
+      <div>
+        <h3 style="margin-bottom:0.15rem">🎛️ You're the organizer</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary)">This tournament is live. Disputed matches come to you to settle.</p>
+      </div>
+      <span class="badge badge-success">Running</span>
+    </div>`;
+  }
+  return '';
+}
+
+/** Organizer presses Start: the server generates the bracket / opens scoring. */
+async function startMyTournament(id) {
+  const t = DB.tournaments.find(x => x.id === String(id));
+  if (!t) return;
+  const uid = getUserId();
+  confirmAction('Start Tournament',
+    `Start ${t.name}? Registration closes and this cannot be undone.`,
+    async () => {
+      try {
+        await API.post(`/tournaments/${t.tournament_id}/start`, { organizer_id: parseInt(uid, 10) });
+      } catch (e) {
+        Toast.error(e.message || 'Could not start the tournament.');
+        return;
+      }
+      Toast.success(`${t.name} has started!`);
+      location.reload();
+    }, 'primary');
+}
+
+function playTournamentGame(tid) {
+  const t = DB.tournaments.find(x => x.id === String(tid));
+  if (!t) return;
+  const gameId = String(t.game_id);
+  const params = { mode: 'tournament', tournamentId: t.tournament_id };
+
+  if (window.GameLaunch && GameLaunch.hasEngine(gameId)) {
+    GameLaunch.launch(gameId, params);
+    return;
+  }
+  Toast.warning(`${t.game} can't be launched from here yet — open it from the Games page.`);
+}
+
+// ── Score-contest leaderboard ────────────────────────────────────────────────
+//
+// Was buildHillLeaderboard(): hardcoded to game_id '8' and the field `distance`,
+// so a score contest for any other game ranked the entire field at zero and
+// looked convincingly like nobody had played. It also sorted high-wins only,
+// which is wrong for anything timed.
+//
+// The server now ranks on the tournament's DECLARED metric and direction, and
+// only counts results tagged with this tournament and inside its window. This
+// renders whatever it is handed.
+async function buildScoreLeaderboard(t) {
+  const host = document.getElementById('score-leaderboard');
+  if (!host) return;
+  const myUid = getUserId();
+
+  let data;
+  try {
+    const res = await fetch(`${window.PC_API}/tournaments/${t.tournament_id || t.id}/leaderboard`);
+    if (!res.ok) throw new Error('failed');
+    data = await res.json();
+  } catch (e) {
+    host.innerHTML = `<p class="text-muted text-sm">Could not load the leaderboard.</p>`;
+    return;
+  }
+
+  if (!data.standings.length) {
+    host.innerHTML = `<p class="text-muted text-sm">No players registered yet. Be the first!</p>`;
+    return;
+  }
+
+  const unit = data.metric_unit || '';
+  const rankEmojis = ['🥇','🥈','🥉'];
+
+  host.innerHTML = `
+    <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary);margin-bottom:0.5rem">
+      Ranked by ${esc(data.metric_label)} · ${data.direction === 'low' ? 'lowest' : 'highest'} wins
+    </div>` +
+    data.standings.map((e, i) => {
+      const isMe = String(e.player_id) === String(myUid);
+      const rankLabel = e.played ? (i < 3 ? rankEmojis[i] : `#${e.rank}`) : '—';
+      return `
+      <div class="player-seed-row ${isMe ? 'me-row' : ''}">
+        <span class="seed-num" style="font-size:${i<3&&e.played?'1.2rem':'0.85rem'};width:32px">${rankLabel}</span>
+        <div class="avatar avatar-sm">${esc(e.avatar || '?')}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:0.875rem">${esc(e.player_name)} ${isMe ? '⭐' : ''}</div>
+          <div style="font-size:0.68rem;color:var(--text-secondary)">
+            ${e.played ? `Best of ${e.attempts} attempt${e.attempts === 1 ? '' : 's'}` : 'Has not played yet'}
+          </div>
+        </div>
+        <span style="font-family:'Orbitron',monospace;font-size:0.9rem;font-weight:800;color:${e.played ? 'var(--accent-cyan)' : 'var(--text-secondary)'}">
+          ${e.played ? e.value + unit : '—'}
+        </span>
+      </div>`;
+    }).join('');
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Tournament chat ──────────────────────────────────────────────────────────
+//
+// One public thread per tournament. Stored server-side in `messages` with a
+// tournament_id instead of a to_user — the same table the friends chat uses,
+// because a message to a tournament is a different addressee, not a different
+// kind of message.
+let _tournChatTimer = null;
+
+async function buildTournamentChat(t) {
+  const tid = t.tournament_id || t.id;
+  const log = document.getElementById('tourn-chat-log');
+  if (!log) return;
+
+  const paint = async () => {
+    const el = document.getElementById('tourn-chat-log');
+    if (!el) { clearInterval(_tournChatTimer); _tournChatTimer = null; return; }
+    try {
+      const rows = await fetch(`${window.PC_API}/tournaments/${tid}/chat`).then(r => r.ok ? r.json() : []);
+      el.innerHTML = rows.length
+        ? rows.map(m => `
+          <div style="font-size:0.78rem;line-height:1.4">
+            <span style="font-weight:700;color:var(--accent-cyan)">${esc(m.from_name)}</span>
+            <span style="color:var(--text-secondary);font-size:0.66rem;margin-left:0.3rem">
+              ${new Date(m.sent_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}
+            </span>
+            <div style="color:var(--text-primary)">${esc(m.body)}</div>
+          </div>`).join('')
+        : `<p class="text-muted text-sm" style="margin:0">No messages yet.</p>`;
+      el.scrollTop = el.scrollHeight;
+    } catch (e) { /* leave whatever is on screen */ }
+  };
+
+  await paint();
+  if (_tournChatTimer) clearInterval(_tournChatTimer);
+  _tournChatTimer = setInterval(() => { if (!document.hidden) paint(); }, 5000);
+}
+
+async function sendTournChat(tid) {
+  const input = document.getElementById('tourn-chat-input');
+  if (!input) return;
+  const body = input.value.trim();
+  if (!body) return;
+  input.value = '';
+  try {
+    const res = await fetch(`${window.PC_API}/tournaments/${tid}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'role': 'player' },
+      body: JSON.stringify({ user_id: getUserId(), body })
+    });
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}));
+      throw new Error(b.message || 'Could not send.');
+    }
+    buildTournamentChat({ tournament_id: tid });
+  } catch (e) {
+    input.value = body;               // hand it back rather than lose it
+    Toast.error(e.message);
+  }
+}
+
+// ── Build Prize Breakdown ────────────────────────────────────────────────────
+function buildPrizeBreakdown(prizeStr) {
+  const total = parseInt(prizeStr.replace(/[^0-9]/g, '')) || 0;
+  const isINR = prizeStr.includes('₹');
+  const sym = isINR ? '₹' : '$';
+  
+  const tiers = [
+    { place:'1st', emoji:'🥇', pct:60, color:'var(--accent-yellow)', barColor:'linear-gradient(90deg,#f59e0b,#fcd34d)' },
+    { place:'2nd', emoji:'🥈', pct:25, color:'#c0c0c0',              barColor:'linear-gradient(90deg,#9ca3af,#d1d5db)' },
+    { place:'3rd', emoji:'🥉', pct:10, color:'#cd7f32',              barColor:'linear-gradient(90deg,#b45309,#d97706)' },
+    { place:'4th+',emoji:'🎖️', pct:5,  color:'var(--text-secondary)', barColor:'var(--border-primary)' },
+  ];
+  return tiers.map(t => `
+  <div class="prize-row">
+    <div class="prize-rank-badge" style="background:rgba(255,255,255,0.05);color:${t.color};border:1px solid ${t.color};border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:1rem">${t.emoji}</div>
+    <div style="min-width:42px;font-weight:700">${t.place}</div>
+    <div class="prize-bar" style="flex:1"><div class="prize-bar-fill" style="width:${t.pct}%;background:${t.barColor}"></div></div>
+    <div style="min-width:40px;text-align:right;font-weight:700;color:${t.color}">${t.pct}%</div>
+    <div style="min-width:72px;text-align:right;font-size:0.78rem;color:var(--text-secondary)">${sym}${Math.round(total * t.pct / 100).toLocaleString()}</div>
+  </div>`).join('');
+}
+
+// ── Build Timeline ───────────────────────────────────────────────────────────
+function buildTimeline(t, now) {
+  const regCloseTs = t.regClose ? new Date(t.regClose).getTime() : 0;
+  const startTs    = t.startDate ? new Date(t.startDate).getTime() : 0;
+  const isDone = t.status === 'completed';
+  const isLive = t.status === 'in-progress';
+
+  const events = [
+    { label:'Registrations Open',  date: 'Now',              done: true,            active: false },
+    { label:'Registration Deadline',date: formatDate(t.regClose), done: now>regCloseTs, active: now<regCloseTs && t.status==='upcoming' },
+    { label:'Brackets Announced',  date:'24h before start',  done: isLive||isDone,  active: false },
+    { label:'Tournament Begins',   date: formatDate(t.startDate), done: isLive||isDone, active: isLive },
+    { label:'Grand Finals',        date:'Final round',        done: isDone,          active: false },
+    { label:'Results & Auto-Payouts',    date: isDone ? 'Smart Contract Executed' : 'After Grand Finals', done: isDone,          active: false },
+  ];
+
+  return `<div class="timeline">${events.map(e => `
+    <div class="timeline-item">
+      <div class="timeline-dot ${e.done?'done':e.active?'active':''}"></div>
+      <div class="timeline-title" style="color:${e.active?'var(--accent-cyan)':e.done?'var(--text-primary)':'var(--text-secondary)'}">${e.label}</div>
+      <div class="timeline-date">${e.date}</div>
+    </div>`).join('')}</div>`;
+}
+
+// ── Build Bracket ────────────────────────────────────────────────────────────
+function buildBracket(t) {
+  const matches = DB.tournament_matches.filter(m => String(m.tournamentId) === String(t.id));
+  if (!matches.length) return `<div class="text-muted p-3">Bracket not generated yet. Tournament must be started by the organizer.</div>`;
+
+  const rounds = [...new Set(matches.map(m => m.round))].sort((a,b)=>a-b);
+  
+  return `<div class="bracket-scroll">${rounds.map(round => {
+    const roundMatches = matches.filter(m => m.round === round);
+    const roundLabel = round === rounds.length ? 'Final' : `Round ${round}`;
+    return `
+    <div class="bracket-round">
+      <div class="bracket-label">${roundLabel}</div>
+      <div class="bracket-stage">
+        ${roundMatches.map(m => {
+          const p1 = entrantName(t, m.player1);
+          const p2 = entrantName(t, m.player2);
+          const isFinal = round === rounds.length;
+          return `
+          <div class="bracket-match ${isFinal?'final':''} ${m.status==='completed'?'winner':''}">
+            <div style="display:flex;justify-content:space-between;padding:0.2rem 0;border-bottom:1px dashed var(--border-primary)">
+              <span style="${m.winnerId && String(m.winnerId)===String(m.player1)?'color:var(--accent-green)':''}">${p1}</span>
+              <span style="font-size:0.7rem">${m.score1}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:0.2rem 0">
+              <span style="${m.winnerId && String(m.winnerId)===String(m.player2)?'color:var(--accent-green)':''}">${p2}</span>
+              <span style="font-size:0.7rem">${m.score2}</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── Show List ─────────────────────────────────────────────────────────────────
+function showList() {
+  const doList = () => {
+    document.getElementById('list-view').classList.remove('hidden');
+    document.getElementById('detail-view').classList.add('hidden');
+    render();
+    window.scrollTo(0,0);
+  };
+  
+  if (document.startViewTransition) {
+    document.startViewTransition(doList);
+  } else {
+    doList();
+  }
+}
+
+// ── Registration ──────────────────────────────────────────────────────────────
+function openRegModal(id) {
+  const t = DB.tournaments.find(t=>t.id===id);
+  if (!t) return;
+  const uid = getUserId();
+  // userById compares as strings: DB.users' `id` is a string getter while the
+  // session id is a number, so the old `u.id === uid` never matched and the
+  // modal introduced you as "undefined" with a "??" avatar.
+  const u   = userById(uid);
+
+  // Team tournaments register a TEAM, not a player — a different flow entirely.
+  if (t.team_size) { openTeamRegModal(t); return; }
+
+  const inviteFieldHTML = t.visibility === 'private' ? `
+    <div class="form-group" style="margin-bottom:1rem">
+      <label class="form-label">🔒 Invite Code <span class="required">*</span></label>
+      <input class="form-input" id="reg-invite-code" placeholder="e.g. 2N8JQR" style="text-transform:uppercase"/>
+    </div>` : '';
+
+  document.getElementById('reg-content').innerHTML = `
+    <div style="background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem">
+      <div style="font-family:'Orbitron',monospace;font-weight:700;margin-bottom:0.35rem">${t.name}</div>
+      <div style="font-size:0.82rem;color:var(--text-secondary)">${t.game} · ${formatDate(t.startDate)} · Prize: ${t.prize}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
+      <div class="avatar">${u?.avatar||'??'}</div>
+      <div>
+        <div style="font-weight:600">${u?.username || u?.user_name || 'You'}</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary)">Global Seed #${seedOf(uid)} · ${u?.wins||0}W ${u?.losses||0}L</div>
+      </div>
+    </div>
+    ${inviteFieldHTML}
+    <div class="alert alert-info">ℹ️ By registering, you commit to participate on ${formatDate(t.startDate)}. Registration closes ${formatDate(t.regClose)}.</div>`;
+  // Reset — the team-registration path below repurposes this same button
+  // (different label, different action) and must not leak into this one.
+  const soloBtn = document.getElementById('confirm-reg-btn');
+  soloBtn.textContent = 'Confirm & Register';
+  soloBtn.onclick = () => registerForTournament(id);
+  Modal.open('reg-modal');
+}
+
+// Registration is a real backend call — the API is what actually enforces
+// invite codes, team sizing, capacity and the registration window. The old
+// local-only DB.player_tournament.push() bypassed every one of those checks:
+// a client could push itself into a private tournament with no code at all.
+async function registerForTournament(id) {
+  const t = DB.tournaments.find(t=>t.id===id);
+  const uid = getUserId();
+  if (!t || t.registeredPlayers.includes(String(uid))) { Toast.warning('Already registered'); return; }
+
+  const inviteEl = document.getElementById('reg-invite-code');
+  const invite_code = inviteEl ? inviteEl.value.trim() : undefined;
+
+  try {
+    await API.post(`/tournaments/${t.tournament_id}/register`, { player_id: parseInt(uid, 10), invite_code });
+  } catch (e) {
+    Toast.error(e.message || 'Could not register — is the backend running?');
+    return;
+  }
+  Modal.close('reg-modal');
+  Toast.success(`Registered for ${t.name}! 🏆 Good luck!`);
+  // db.js only hydrates from the backend once, at load, so a reload is what
+  // actually reflects the change — anything less keeps the stale counts.
+  location.reload();
+}
+
+async function unregisterForTournament(id) {
+  const t = DB.tournaments.find(t=>t.id===id);
+  const uid = getUserId();
+  if (!t || !isRegistered(t)) return;
+
+  // A team tournament withdraws the TEAM, not the person — and only its
+  // captain may do it, so say which team is leaving rather than implying
+  // this only affects you.
+  const team = t.team_size ? myTeamsIn(t)[0] : null;
+  if (t.team_size && !team) return;
+  if (team && String(team.captain_id) !== String(uid)) {
+    Toast.warning(`Only ${team.name}'s captain can withdraw the team.`);
+    return;
+  }
+
+  const what = team ? `Withdraw ${team.name} from ${t.name}?` : `Withdraw from ${t.name}?`;
+  confirmAction('Withdraw', what, async () => {
+    try {
+      if (team) {
+        await API.del(`/teams/${team.team_id}/register/${t.tournament_id}?requesterId=${parseInt(uid, 10)}`);
+      } else {
+        await API.del(`/tournaments/${t.tournament_id}/register/${parseInt(uid, 10)}`);
+      }
+    } catch (e) {
+      Toast.error(e.message || 'Could not withdraw.');
+      return;
+    }
+    // Drop the row from THIS client's copy before reloading.
+    //
+    // /db-import treats player_tournament as APPEND-ONLY: it unions whatever
+    // the client posts on top of the server's rows. db.js posts the whole
+    // local DB on its next save, so a client still holding the withdrawn row
+    // put it straight back — the server deleted it, the page reloaded, the
+    // sync resurrected it, and Withdraw looked like it did nothing at all.
+    if (team) {
+      dropLocalRows('team_tournament', r => String(r.team_id) === String(team.team_id)
+                                         && String(r.tournament_id) === String(t.tournament_id));
+    } else {
+      dropLocalRows('player_tournament', r => String(r.player_id) === String(uid)
+                                           && String(r.tournament_id) === String(t.tournament_id));
+    }
+    Toast.info(team ? `${team.name} withdrawn from ${t.name}` : `Withdrew from ${t.name}`);
+    // db.js only hydrates from the backend once, at load, so a reload is what
+    // actually reflects the change — anything less keeps the stale counts.
+    location.reload();
+  });
+}
+
+/**
+ * Remove matching rows from a local DB table and from the cached copy,
+ * WITHOUT posting to the server.
+ *
+ * DB.save() would POST the whole database back, which is the very thing we
+ * are trying not to do mid-withdraw; we only need this client to stop
+ * claiming a registration the server has already dropped.
+ */
+function dropLocalRows(table, matches) {
+  if (Array.isArray(DB[table])) {
+    for (let i = DB[table].length - 1; i >= 0; i--) {
+      if (matches(DB[table][i])) DB[table].splice(i, 1);
+    }
+  }
+  try {
+    const KEY = 'playcarys_db_store_v5';
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    const cached = JSON.parse(raw);
+    if (Array.isArray(cached[table])) {
+      cached[table] = cached[table].filter(r => !matches(r));
+      localStorage.setItem(KEY, JSON.stringify(cached));
+    }
+  } catch (e) { /* cache unavailable; the server is still authoritative */ }
+}
+
+// ── Team registration ────────────────────────────────────────
+async function openTeamRegModal(t) {
+  const uid = getUserId();
+  let myTeams = [];
+  try { myTeams = await API.get(`/teams?playerId=${parseInt(uid, 10)}`); } catch (e) { myTeams = []; }
+
+  const eligible = myTeams.filter(team => team.member_ids.length === t.team_size && Number(team.captain_id) === parseInt(uid, 10));
+  const inviteFieldHTML = t.visibility === 'private' ? `
+    <div class="form-group" style="margin:1rem 0">
+      <label class="form-label">🔒 Invite Code <span class="required">*</span></label>
+      <input class="form-input" id="reg-invite-code" placeholder="e.g. 2N8JQR" style="text-transform:uppercase"/>
+    </div>` : '';
+  // Community context, so it's clear WHICH group this tournament belongs to —
+  // the modal otherwise only ever mentions "Team", never the group at all.
+  const groupTag = t.group_id != null
+    ? (DB.groups || []).find(g => Number(g.group_id) === Number(t.group_id))
+    : null;
+  const groupLineHTML = groupTag ? `<div style="font-size:0.78rem;color:var(--accent-yellow);margin-top:0.15rem">🛡️ ${groupTag.name}</div>` : '';
+
+  // Already registered? One of MY teams may already be in — show that instead
+  // of a picker that would silently double-book the same team.
+  const myTeamIds = new Set(myTeams.map(tm => String(tm.team_id)));
+  const alreadyIn = (DB.team_tournament || []).find(
+    r => String(r.tournament_id) === String(t.tournament_id) && myTeamIds.has(String(r.team_id)));
+
+  const headerHTML = `
+    <div style="background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:1rem;margin-bottom:1rem">
+      <div style="font-family:'Orbitron',monospace;font-weight:700;margin-bottom:0.35rem">${t.name}</div>
+      <div style="font-size:0.82rem;color:var(--text-secondary)">Team tournament · teams of ${t.team_size}</div>
+      ${groupLineHTML}
+    </div>`;
+
+  if (alreadyIn) {
+    const team = myTeams.find(tm => String(tm.team_id) === String(alreadyIn.team_id));
+    document.getElementById('reg-content').innerHTML = headerHTML +
+      `<div class="alert alert-info"><span>✅ Your team <b>${team?.name || alreadyIn.team_id}</b> is already registered for this tournament.</span></div>`;
+    document.getElementById('confirm-reg-btn').textContent = 'Close';
+    document.getElementById('confirm-reg-btn').onclick = () => Modal.close('reg-modal');
+    Modal.open('reg-modal');
+    return;
+  }
+
+  if (!eligible.length) {
+    document.getElementById('reg-content').innerHTML = headerHTML +
+      `<div class="alert alert-info"><span>You need to <b>captain</b> a team with exactly <b>${t.team_size}</b> members to register. Head to Teams to create or fill one out.</span></div>`;
+    // The button used to say "Confirm & Register" and silently just close the
+    // modal — looked broken because it was: the label promised an action it
+    // never took. It now does the one thing that's actually possible here.
+    const btn = document.getElementById('confirm-reg-btn');
+    btn.textContent = 'Manage My Teams →';
+    btn.onclick = () => { window.location.href = 'community.html?tab=teams'; };
+    Modal.open('reg-modal');
+    return;
+  }
+
+  document.getElementById('reg-content').innerHTML = headerHTML + `
+    <div class="form-group">
+      <label class="form-label">Register which of your teams?</label>
+      <select class="form-input" id="reg-team-select">
+        ${eligible.map(team => `<option value="${team.team_id}">${team.name} (${team.member_ids.length} members)</option>`).join('')}
+      </select>
+    </div>
+    ${inviteFieldHTML}`;
+  const btn = document.getElementById('confirm-reg-btn');
+  btn.textContent = 'Confirm & Register';
+  btn.onclick = () => registerTeamForTournament(t.tournament_id);
+  Modal.open('reg-modal');
+}
+
+async function registerTeamForTournament(tournamentId) {
+  const uid = getUserId();
+  const teamId = document.getElementById('reg-team-select').value;
+  try {
+    await API.post(`/teams/${teamId}/register/${tournamentId}?requesterId=${parseInt(uid, 10)}`);
+  } catch (e) {
+    Toast.error(e.message || 'Could not register your team.');
+    return;
+  }
+  Modal.close('reg-modal');
+  Toast.success('Team registered! 🏆 Good luck!');
+  // No live "refetch from backend" call exists in db.js (it only hydrates once
+  // at load), so a full reload is what actually shows the fresh registration —
+  // anything less would keep displaying the stale pre-registration counts.
+  location.reload(); return;
+  render();
+}
+
+// ── Enter Tournament Match ─────────────────────────────────────────────────────
+/**
+ * Enter a bracket match.
+ *
+ * This used to hardcode the route: game 8 went to Hill Climbing and EVERY OTHER
+ * GAME went to chess. A DEADshot tournament sent both players into a chess
+ * board. It also set the match "live" by writing to the local DB and syncing,
+ * which meant a player's own copy decided the state of the bracket.
+ *
+ * Now: ask the platform for this player's signed match token, then hand off.
+ * For a publisher's game that means their deep link carrying the shared
+ * match_id — their matchmaker groups whoever presents it. For a builtin we ship,
+ * GameLaunch resolves the right game, which is what it exists for.
+ */
+async function enterTournamentMatch(tid, mid) {
+  const t = DB.tournaments.find(x => String(x.id) === String(tid) || String(x.tournament_id) === String(tid));
+  if (!t) return;
+  const uid = getUserId();
+
+  confirmAction('Enter Match', `Starting match ${mid}. Ready?`, async () => {
+    let tok = null;
+    try {
+      const res = await fetch(`${window.PC_API}/tournaments/matches/${encodeURIComponent(mid)}/token?userId=${uid}`);
+      if (res.ok) tok = await res.json();
+      else {
+        const body = await res.json().catch(() => ({}));
+        // A game with no integration secret cannot be handed a token. That is
+        // not an error — it is the dual-report path, and it is worth saying so.
+        console.info('[Tournament] no match token:', body.message);
+      }
+    } catch (e) { /* fall through to the builtin route */ }
+
+    if (tok && tok.deep_link) {
+      window.location.href = tok.deep_link;
+      return;
+    }
+
+    // Builtin, or a publisher game with no game_url: let the resolver decide
+    // which game this actually is instead of assuming chess.
+    if (window.GameLaunch && GameLaunch.launch(t.game_id, {
+      mode: 'tournament', matchId: mid, tournamentId: tid, token: tok ? tok.token : undefined
+    })) return;
+
+    Toast.error(window.GameLaunch
+      ? GameLaunch.unplayableReason(t.game_id)
+      : 'This game could not be launched.');
+  });
+}
+
+function confirmTournResult(mid, tid) {
+  confirmAction('Confirm Result', 'This will officially record the win for your opponent and advance the bracket.', () => {
+    DB.confirmResult(mid);
+    Toast.success('Result confirmed! The bracket has updated.');
+    viewTournament(tid);
+  });
+}
+
+function disputeTournResult(mid, tid) {
+  confirmAction('Dispute Match', 'This will flag the match for a Publisher to review. Only use this if the reported result is false.', () => {
+    DB.disputeResult(mid);
+    Toast.error('Match disputed. A moderator has been notified.');
+    viewTournament(tid);
+  });
+}
+
+// REMOVED: navigateToLobby().
+//
+// It seated a tournament entrant in a room — find my waiting room, else find an
+// open one and join it, else create one — and then sent them to room-lobby.html.
+//
+// It was also DEAD: defined here and called from nowhere, which is its own
+// comment on how tournament matches were actually being played. How a
+// tournament match starts is Phase 6's problem, and the answer there is a
+// signed match token handed to the publisher's own matchmaker, not a room.
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['player']);
+  if (!session) return;
+  buildNavbar(session.role,'tournaments');
+  render();
+
+  // Support direct-linking from Competitive Center
+  const params = new URLSearchParams(window.location.search);
+  const highlight = params.get('highlight');
+  if (highlight) setTimeout(() => viewTournament(highlight), 80);
+});
+</script>
+</body>
+</html>

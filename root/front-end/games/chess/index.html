@@ -1,0 +1,3787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlayCarys Chess</title>
+  <!-- Everything this page needs to RUN is served from vendor/ — see its README.
+       jQuery, chessboard.js and chess.js used to come from three different
+       CDNs, and the piece images from a fourth. That made a LAN game need the
+       internet: on a phone joined to the host laptop's hotspot with no data,
+       all four requests fail, jQuery is undefined, and the page is a dead grey
+       rectangle. Fonts are the one exception below — they degrade to a system
+       font instead of breaking anything. -->
+  <script src="vendor/jquery-3.6.0.min.js"></script>
+  <link rel="stylesheet" href="vendor/chessboard-1.0.0.min.css">
+  <script src="vendor/chessboard-1.0.0.min.js"></script>
+  <script src="vendor/chess.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- PlayCarys core — must load before game logic so DB and Auth are available -->
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <style>
+    :root {
+      --bg:        #1a1814;
+      --surface:   #242019;
+      --panel:     #1e1c17;
+      --border:    #2e2b24;
+      --border2:   #3a3730;
+      --green:     #7fa650;
+      --green-glow:#a5d16a;
+      --gold:      #e8c96a;
+      --red:       #e05555;
+      --text:      #e8e4dc;
+      --muted:     #8a847a;
+      --faint:     #4a4640;
+      --light-sq:  #f0d9b5;
+      --dark-sq:   #b58863;
+      --last-move-light: #cdd16f;
+      --last-move-dark:  #aaa23a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top Nav ── */
+    .topnav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      height: 48px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .topnav-logo {
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .topnav-logo .logo-piece { font-size: 1.3rem; }
+    .topnav-logo span { color: var(--green-glow); }
+    .topnav-meta {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .topnav-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .mode-badge {
+      background: rgba(127,166,80,0.12);
+      border: 1px solid rgba(127,166,80,0.3);
+      color: var(--green-glow);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+    }
+
+    /* ── Main Layout ── */
+    .game-wrap {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      padding: 1rem 1.25rem;
+      gap: 1rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ── Board Column ── */
+    .board-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      flex-shrink: 0;
+    }
+
+    /* ── Player Plate ── */
+    .player-plate {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.45rem 0.5rem;
+      gap: 0.75rem;
+    }
+    .player-left {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      min-width: 0;
+    }
+    .player-avatar {
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 2px solid var(--border2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: border-color 0.3s;
+    }
+    .player-avatar img { width: 26px; height: 26px; }
+    .player-details { min-width: 0; }
+    .player-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+    .player-captured {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-wrap: wrap;
+      font-size: 0.7rem;
+      color: var(--muted);
+      min-width: 80px;
+    }
+    .cap-piece { font-size: 0.82rem; line-height: 1; }
+    .material-adv {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--green-glow);
+      margin-left: 2px;
+    }
+
+    /* ── Timer ── */
+    .timer-box {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.35rem;
+      font-weight: 500;
+      padding: 0.3rem 0.7rem;
+      border-radius: 7px;
+      min-width: 82px;
+      text-align: center;
+      letter-spacing: 0.04em;
+      transition: background 0.25s, color 0.25s;
+      flex-shrink: 0;
+    }
+    .timer-active  { background: #fff; color: #111; }
+    .timer-idle    { background: #2a2720; color: var(--faint); border: 1px solid var(--border2); }
+    .timer-danger  {
+      background: var(--red);
+      color: #fff;
+      animation: timerPulse 0.7s ease-in-out infinite;
+    }
+    @keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
+
+    /* ── Board Frame ── */
+    .board-frame {
+      position: relative;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px var(--border),
+        0 8px 32px rgba(0,0,0,0.6),
+        0 2px 8px rgba(0,0,0,0.4);
+    }
+    #myBoard {
+      width: min(500px, calc(100vh - 200px));
+      display: block;
+    }
+
+    /* ── Touch: the board owns the whole gesture ──────────────────────
+     *
+     * Dragging a piece on a phone scrolled the page instead of moving the
+     * piece. chessboard.js does call preventDefault() on touchmove, but it
+     * binds that listener to `window`, and browsers have treated window-level
+     * touchmove listeners as PASSIVE by default since Chrome 56 — the
+     * preventDefault is ignored, so the browser keeps the gesture for panning.
+     * touch-action is the declarative fix that does not depend on it.
+     *
+     * This used to live inside `@media (max-width: 860px)`, which reads as "the
+     * mobile rule" but is a WIDTH test, and a phone in landscape is 900-930 CSS
+     * pixels wide. So the one orientation you would rotate INTO to see the board
+     * properly was the one where dragging silently went back to scrolling.
+     * Unconditional now — there is no viewport where the board should hand a
+     * drag over to the scroller.
+     *
+     * The descendant selector matters too: touch-action is not inherited, and
+     * the gesture actually starts on the piece <img> inside the square.
+     * .piece-417db is listed separately because chessboard.js reparents the
+     * dragged piece onto <body>, outside #myBoard entirely.
+     */
+    #myBoard, #myBoard *, .piece-417db {
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      /* Stops the long-press "Save image / Copy" sheet hijacking a slow drag. */
+      -webkit-touch-callout: none;
+    }
+    /* Override chessboard.js light/dark squares */
+    .white-1e1d7 { background: var(--light-sq) !important; }
+    .black-3c85d { background: var(--dark-sq) !important; }
+
+    /* ── Highlight last move squares ── */
+    .highlight-white { background: var(--last-move-light) !important; }
+    .highlight-black { background: var(--last-move-dark) !important; }
+
+    /* ── Check highlight ── */
+    .king-in-check { background: rgba(220,50,50,0.7) !important; }
+
+    /* ── Rank/File Labels ── */
+    .board-labels {
+      display: grid;
+      position: absolute;
+      pointer-events: none;
+    }
+
+    /* ── Status Bar ── */
+    .status-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.5rem;
+      min-height: 28px;
+    }
+    .status-check {
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(220,60,60,0.12);
+      border: 1px solid rgba(220,60,60,0.35);
+      border-radius: 5px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #f08080;
+      animation: shakeX 0.4s ease;
+    }
+    .status-check.show { display: flex; }
+    @keyframes shakeX {
+      0%,100%{transform:translateX(0)}
+      25%{transform:translateX(-5px)}
+      75%{transform:translateX(5px)}
+    }
+    .status-review {
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(127,166,80,0.08);
+      border: 1px solid rgba(127,166,80,0.25);
+      border-radius: 5px;
+      padding: 0.2rem 0.65rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--green);
+    }
+    .status-review.show { display: flex; }
+
+    /* ── Turn indicator ── */
+    .turn-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      transition: background 0.3s;
+      display: inline-block;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: min(540px, calc(100vh - 80px));
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-family: 'Sora', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.7rem 0.4rem;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.15s;
+    }
+    .tab-btn.active { color: var(--text); }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 12%; right: 12%;
+      height: 2px;
+      background: var(--green);
+      border-radius: 1px 1px 0 0;
+    }
+    .tab-btn:hover:not(.active) { color: #bbb; background: rgba(255,255,255,0.02); }
+
+    /* ── Tab Content ── */
+    .tab-pane { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .tab-pane.active { display: flex; }
+
+    /* ── Draw offer ── */
+    .draw-offer-bar {
+      display: none;
+      margin: 0.5rem 0.6rem 0;
+      background: rgba(232,201,106,0.07);
+      border: 1px solid rgba(232,201,106,0.3);
+      border-radius: 7px;
+      padding: 0.55rem 0.8rem;
+      font-size: 0.78rem;
+      color: var(--gold);
+    }
+    .draw-offer-bar.show { display: block; }
+    .draw-offer-label { font-weight: 700; margin-bottom: 0.4rem; }
+    .draw-offer-btns { display: flex; gap: 0.4rem; }
+    .draw-yes, .draw-no {
+      flex: 1;
+      border: none;
+      border-radius: 5px;
+      padding: 0.3rem;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.73rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .draw-yes { background: #2e6018; color: var(--green-glow); }
+    .draw-yes:hover { filter: brightness(1.2); }
+    .draw-no { background: rgba(220,60,60,0.12); color: #f08080; border: 1px solid rgba(220,60,60,0.25); }
+    .draw-no:hover { filter: brightness(1.2); }
+
+    /* ── Moves List ── */
+    .moves-scroll {
+      flex: 1;
+      overflow-y: auto;
+      background: #161410;
+      min-height: 0;
+    }
+    .moves-scroll::-webkit-scrollbar { width: 4px; }
+    .moves-scroll::-webkit-scrollbar-track { background: transparent; }
+    .moves-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .move-row {
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid #1e1c18;
+    }
+    .move-num {
+      width: 34px;
+      background: #1a1815;
+      color: var(--faint);
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      border-right: 1px solid #1e1c18;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .move-ply {
+      flex: 1;
+      padding: 0.42rem 0.65rem;
+      font-size: 0.83rem;
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+      color: #c8c4bc;
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+      border-right: 1px solid #1e1c18;
+    }
+    .move-ply:last-child { border-right: none; }
+    .move-ply:hover { background: #242018; color: #fff; }
+    .move-ply.active { background: rgba(127,166,80,0.18); color: #d8f0a8; }
+    .move-ply.empty { color: transparent; cursor: default; pointer-events: none; }
+
+    .moves-empty {
+      color: var(--faint);
+      text-align: center;
+      padding: 2.5rem 1rem;
+      font-size: 0.78rem;
+      font-style: italic;
+    }
+
+    /* ── Controls ── */
+    .controls-panel {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .playback-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .pb-btn {
+      width: 36px; height: 32px;
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.14s;
+    }
+    .pb-btn:hover { background: var(--border2); color: var(--text); border-color: var(--faint); }
+    .pb-btn:active { transform: scale(0.93); }
+
+    .action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.45rem 0.65rem;
+      gap: 0.35rem;
+    }
+    .act-left { display: flex; gap: 0.35rem; }
+    .act-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #b0a99f;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.73rem;
+      font-weight: 700;
+      padding: 0.38rem 0.65rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .act-btn:hover { color: #fff; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22); }
+    .act-btn.draw:hover { color: var(--gold); border-color: rgba(232,201,106,0.4); background: rgba(232,201,106,0.06); }
+    .act-btn.resign:hover { color: #f08080; border-color: rgba(220,60,60,0.4); background: rgba(220,60,60,0.06); }
+    .act-btn.exit { color: var(--green); border-color: rgba(127,166,80,0.35); background: rgba(127,166,80,0.06); }
+    .act-btn.exit:hover { background: rgba(127,166,80,0.12); }
+
+    /* ── Chat ── */
+    .chat-history {
+      flex: 1;
+      padding: 0.75rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      min-height: 0;
+    }
+    .chat-history::-webkit-scrollbar { width: 4px; }
+    .chat-history::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .chat-msg { font-size: 0.8rem; line-height: 1.5; color: #c8c4bc; }
+    .chat-name { font-weight: 800; margin-right: 0.3rem; }
+    .chat-name.me { color: #fff; }
+    .chat-name.opp { color: var(--green); }
+    .chat-sys {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--gold);
+      font-style: italic;
+      padding: 0.15rem 0;
+      opacity: 0.85;
+    }
+    .chat-empty {
+      color: var(--faint);
+      font-size: 0.75rem;
+      text-align: center;
+      font-style: italic;
+      padding: 2rem 1rem;
+    }
+    .chat-input-row {
+      display: flex;
+      background: #141210;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .chat-inp {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: 'Sora', sans-serif;
+      font-size: 0.8rem;
+      padding: 0.7rem 0.75rem;
+      outline: none;
+    }
+    .chat-inp::placeholder { color: var(--faint); }
+    .chat-send {
+      background: transparent;
+      border: none;
+      color: var(--green);
+      cursor: pointer;
+      padding: 0 0.75rem;
+      font-size: 1rem;
+      transition: color 0.15s;
+    }
+    .chat-send:hover { color: var(--green-glow); }
+
+    /* ── Game Over Overlay ── */
+    #go-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.82);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #go-overlay.show { display: flex; }
+
+    .go-card {
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      padding: 2.5rem 2.8rem;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
+      animation: popUp 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes popUp {
+      from { transform: scale(0.72) translateY(20px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .go-icon { font-size: 3.8rem; margin-bottom: 0.65rem; line-height: 1; }
+    .go-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+    .go-reason {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+    }
+    .go-score {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 1.6rem;
+    }
+    .go-score-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .go-score-box strong { display: block; font-size: 1.05rem; color: var(--text); font-weight: 800; }
+    .go-btns { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
+    .go-btn {
+      padding: 0.62rem 1.3rem;
+      border-radius: 8px;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .go-ghost {
+      background: rgba(255,255,255,0.05);
+      color: #bbb;
+      border: 1px solid rgba(255,255,255,0.13);
+    }
+    .go-ghost:hover { background: rgba(255,255,255,0.11); }
+    .go-primary {
+      background: linear-gradient(135deg, #7fa650, #5a8632);
+      color: #fff;
+    }
+    .go-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .go-rematch {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(217,119,6,0.3);
+    }
+    .go-rematch:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+    /* ── Mode Select Overlay ── */
+    #mode-overlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      backdrop-filter: blur(8px);
+      z-index: 10001;
+      align-items: center;
+      justify-content: center;
+    }
+    #mode-overlay.hidden { display: none; }
+    /* Generic utility class — this page is standalone and doesn't import the
+       shared app CSS where `.hidden` normally lives, so without this rule
+       every element that relies on plain class="hidden" (match-status,
+       friend-picker, …) renders visible by default, `hidden` class or not. */
+    .hidden { display: none !important; }
+    .mode-card {
+      background: #242019;
+      border: 1px solid #3a3730;
+      border-radius: 18px;
+      padding: 2.5rem 2.8rem;
+      text-align: center;
+      max-width: 460px;
+      width: 92%;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.8);
+      animation: popUp 0.38s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .mode-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.3rem;
+      color: #e8e4dc;
+    }
+    .mode-title span { color: #a5d16a; }
+    .mode-sub {
+      font-size: 0.82rem;
+      color: #8a847a;
+      margin-bottom: 2rem;
+    }
+    .mode-name-row {
+      display: flex;
+      gap: 0.8rem;
+      margin-bottom: 1.6rem;
+    }
+    .mode-name-group {
+      flex: 1;
+      text-align: left;
+    }
+    .mode-name-group label {
+      font-size: 0.72rem;
+      color: #8a847a;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+    .mode-name-group input {
+      width: 100%;
+      background: #1a1814;
+      border: 1px solid #3a3730;
+      border-radius: 7px;
+      color: #e8e4dc;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.85rem;
+      padding: 0.55rem 0.75rem;
+      outline: none;
+    }
+    .mode-name-group input:focus { border-color: #7fa650; }
+    .mode-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+    }
+    .mode-btn {
+      padding: 1rem 0.6rem;
+      border-radius: 12px;
+      border: 2px solid #3a3730;
+      background: #1a1814;
+      color: #e8e4dc;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.18s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .mode-btn .m-icon { font-size: 2.2rem; }
+    .mode-btn:hover { border-color: #7fa650; background: rgba(127,166,80,0.1); color: #a5d16a; }
+    .mode-btn.ai-btn:hover { border-color: #e8c96a; background: rgba(232,201,106,0.08); color: #e8c96a; }
+
+    /* ── AI Difficulty Select Overlay ── */
+    #ai-level-overlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      backdrop-filter: blur(8px);
+      z-index: 10002;
+      align-items: center;
+      justify-content: center;
+    }
+    #ai-level-overlay.hidden { display: none; }
+    .level-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin-top: 0.4rem;
+    }
+    .level-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      border: 2px solid #3a3730;
+      background: #1a1814;
+      color: #e8e4dc;
+      font-family: 'Sora', sans-serif;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-align: left;
+      width: 100%;
+    }
+    .level-btn .l-icon { font-size: 1.7rem; flex: 0 0 auto; }
+    .level-btn .l-text { flex: 1; min-width: 0; }
+    .level-btn .l-name { font-size: 0.95rem; font-weight: 800; display: block; }
+    .level-btn .l-sub { font-size: 0.72rem; color: #8a847a; font-weight: 600; display: block; margin-top: 0.15rem; }
+    .level-btn .l-pct { font-size: 0.72rem; font-weight: 800; flex: 0 0 auto; opacity: 0.85; }
+    .level-btn[data-level="beginner"]:hover { border-color: #7fa650; background: rgba(127,166,80,0.1); color: #a5d16a; }
+    .level-btn[data-level="pro"]:hover { border-color: #e8c96a; background: rgba(232,201,106,0.08); color: #e8c96a; }
+    .level-btn[data-level="grandmaster"]:hover { border-color: #d9704a; background: rgba(217,112,74,0.1); color: #e0895f; }
+    /* Top tier reads as its own thing rather than "another red one": it is the
+       only option that is always outlined, so the ladder ends somewhere. */
+    .level-btn[data-level="elite"] {
+      border-color: #6d4bb8;
+      background: linear-gradient(135deg, rgba(109,75,184,0.13), rgba(109,75,184,0.04));
+    }
+    .level-btn[data-level="elite"]:hover { border-color: #9b78f0; background: rgba(155,120,240,0.16); color: #c3a9ff; }
+    .level-btn[data-level="elite"] .l-pct { color: #b699f5; letter-spacing: 0.04em; }
+    @keyframes ai-think-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+    #top-net.thinking { animation: ai-think-pulse 0.9s ease-in-out infinite; }
+    .level-back {
+      margin-top: 1.4rem;
+      background: none;
+      border: none;
+      color: #8a847a;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .level-back:hover { color: #e8e4dc; }
+    .engine-status {
+      font-size: 0.7rem;
+      color: #8a847a;
+      margin-top: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+    .engine-status .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #8a847a;
+      transition: background 0.3s;
+    }
+    .engine-status.ready .dot { background: #7fa650; }
+    .engine-status.error .dot { background: #c25050; }
+
+    /* ── Confirm Dialog ── */
+    #confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 9998;
+      align-items: center;
+      justify-content: center;
+    }
+    #confirm-overlay.show { display: flex; }
+    .confirm-card {
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 1.8rem 2rem;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      animation: popUp 0.3s ease;
+    }
+    .confirm-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+    .confirm-msg {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 1.4rem;
+      line-height: 1.55;
+    }
+    .confirm-btns { display: flex; gap: 0.5rem; justify-content: center; }
+    .confirm-cancel {
+      flex: 1;
+      padding: 0.55rem;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #aaa;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .confirm-cancel:hover { background: rgba(255,255,255,0.1); }
+    .confirm-ok {
+      flex: 1;
+      padding: 0.55rem;
+      border-radius: 7px;
+      background: var(--red);
+      border: none;
+      color: #fff;
+      font-family: 'Sora', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .confirm-ok:hover { filter: brightness(1.1); }
+
+    /* ── Toast ── */
+    #toast-stack {
+      position: fixed;
+      bottom: 1.2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.4rem;
+      z-index: 10000;
+      pointer-events: none;
+    }
+    .toast {
+      background: #2c2920;
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      animation: toastIn 0.3s ease forwards;
+      white-space: nowrap;
+    }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.info    { border-left: 3px solid #6ab0d4; }
+    .toast.warning { border-left: 3px solid var(--gold); }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Promotion Dialog ── */
+    #promo-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      z-index: 9997;
+      align-items: center;
+      justify-content: center;
+    }
+    #promo-overlay.show { display: flex; }
+    .promo-card {
+      background: var(--panel);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      animation: popUp 0.3s ease;
+    }
+    .promo-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .promo-pieces {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .promo-piece {
+      width: 64px; height: 64px;
+      background: var(--surface);
+      border: 2px solid var(--border2);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .promo-piece:hover { background: var(--border2); border-color: var(--green); transform: translateY(-2px); }
+    .promo-piece img { width: 48px; height: 48px; }
+
+    /* ── Responsive ── */
+    /* touch-action is set unconditionally above — these are width rules only. */
+    @media (max-width: 860px) {
+      .sidebar { width: 260px; }
+      #myBoard { width: min(380px, calc(100vw - 300px)); }
+    }
+    @media (max-width: 640px) {
+      /* ONE scrolling column, with the document as the only scroller.
+       *
+       * This layout was built for a desktop: <body> has overflow:hidden, the
+       * board and the sidebar are sized to fit exactly, and the sidebar keeps
+       * its own internal scrollers. Nothing scrolls the page, by design.
+       *
+       * That design breaks the moment it is narrow. The phone's browser chrome
+       * takes ~120px, so the sidebar's lower half — the CHAT tab, ½ Draw,
+       * Resign — sits below the fold, and there is no way to reach it: the
+       * board correctly refuses touch gestures (touch-action: none, or you
+       * cannot drag a piece), the moves list swallows drags into its own
+       * scroller, and <body> cannot scroll at all. The player could move the
+       * pieces and use nothing else on the page.
+       *
+       * So on a phone: the body scrolls, the wrap and sidebar stop being fixed
+       * boxes, and their content flows into that one scroll. The lists keep a
+       * capped scroller so a 60-move game does not produce an endless page,
+       * but everything around them is now grabbable. */
+      html, body { overflow-y: auto; height: auto; }
+      body { min-height: 100dvh; }
+      .game-wrap {
+        flex-direction: column;
+        padding: 0.5rem 0.5rem 1.5rem;
+        overflow: visible;
+        justify-content: flex-start;
+        flex: none;
+        height: auto;
+      }
+      .sidebar { width: 100%; height: auto; max-height: none; overflow: visible; flex-shrink: 0; }
+      .tab-pane { overflow: visible; }
+      .moves-scroll, .chat-history { max-height: 40vh; }
+      #myBoard { width: min(360px, 96vw); }
+    }
+
+    /* A phone held sideways: short and wide. Height is the scarce axis, so the
+       board is sized off it — the width rules above would hand it 380px on a
+       412px-tall screen and push the bottom two ranks off the display.
+       Measured budget at 915x412: 48px nav + 2 player plates + wrap padding.
+       The plates are slimmed here so the board keeps what is left. */
+    @media (max-height: 520px) and (orientation: landscape) {
+      .game-wrap { flex-direction: row; padding: 0.3rem; gap: 0.5rem; overflow: hidden; }
+      .topnav { height: 38px; min-height: 38px; }
+      .player-plate { padding: 0.2rem 0.6rem; }
+      .player-avatar { width: 26px; height: 26px; font-size: 0.8rem; }
+      .timer-box { font-size: 0.95rem; padding: 0.1rem 0.5rem; }
+      .player-captured { display: none; }      /* the first thing worth losing */
+      #myBoard { width: min(calc(100vh - 130px), 46vw); }
+      /* Sideways there is no room to let the sidebar grow, so it keeps its own
+         scroller — but it must actually have one, or the chat and the action
+         buttons are unreachable here for the same reason they were in portrait. */
+      .sidebar {
+        width: min(300px, 40vw);
+        height: auto;
+        max-height: calc(100dvh - 46px);
+        overflow-y: auto;
+      }
+    }
+
+    /* ── Chessboard custom square highlights ── */
+    .square-55d63 { transition: background 0.07s; }
+    .highlight-from { box-shadow: inset 0 0 0 3px rgba(200,220,100,0.75) !important; }
+    .highlight-to   { background-color: rgba(200,220,100,0.45) !important; }
+  </style>
+</head>
+<body>
+
+<!-- Top Nav -->
+<nav class="topnav">
+  <div class="topnav-logo">
+    <span class="logo-piece">♟</span>
+    Play<span>Carys</span>
+  </div>
+  <div class="topnav-meta" id="nav-meta">10+0 · Casual</div>
+  <div class="topnav-right">
+    <span class="mode-badge" id="nav-mode">In Progress</span>
+  </div>
+</nav>
+
+<!-- Main -->
+<div class="game-wrap">
+
+  <!-- Board Column -->
+  <div class="board-col" id="board-col">
+
+    <!-- Top Player (Opponent) -->
+    <div class="player-plate" id="top-plate">
+      <div class="player-left">
+        <div class="player-avatar" id="top-avatar">👤</div>
+        <div class="player-details">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <div class="player-name" id="top-name">Opponent</div>
+            <span id="top-net" title="Connection status" style="width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;flex-shrink:0;transition:background 0.4s"></span>
+          </div>
+        </div>
+      </div>
+      <div class="player-captured" id="top-captured"></div>
+      <div class="timer-box timer-idle" id="top-timer">10:00</div>
+    </div>
+
+    <!-- Board -->
+    <div class="board-frame">
+      <div id="myBoard"></div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-check" id="check-bar">⚠ CHECK</div>
+      <div class="status-review" id="review-bar">👁 Review Mode</div>
+    </div>
+
+    <!-- Bottom Player (You) -->
+    <div class="player-plate" id="bottom-plate">
+      <div class="player-left">
+        <div class="player-avatar" id="bottom-avatar">👤</div>
+        <div class="player-details">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <div class="player-name" id="bottom-name">You</div>
+            <span id="bottom-net" title="Connection status" style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;display:inline-block;flex-shrink:0;transition:background 0.4s"></span>
+          </div>
+        </div>
+      </div>
+      <div class="player-captured" id="bottom-captured"></div>
+      <div class="timer-box timer-active" id="bottom-timer">10:00</div>
+    </div>
+
+  </div><!-- /board-col -->
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-moves-btn" onclick="switchTab('moves')">♟ Moves</button>
+      <button class="tab-btn" id="tab-chat-btn" onclick="switchTab('chat')">💬 Chat</button>
+    </div>
+
+    <!-- Moves Tab -->
+    <div class="tab-pane active" id="tab-moves">
+      <!-- Draw Offer -->
+      <div class="draw-offer-bar" id="draw-bar">
+        <div class="draw-offer-label">½ Opponent offers a Draw</div>
+        <div class="draw-offer-btns">
+          <button class="draw-yes" onclick="respondDraw(true)">✓ Accept</button>
+          <button class="draw-no" onclick="respondDraw(false)">✗ Decline</button>
+        </div>
+      </div>
+
+      <!-- Move history -->
+      <div class="moves-scroll" id="moves-list">
+        <div class="moves-empty">Game hasn't started yet.</div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-panel">
+        <div class="playback-row">
+          <button class="pb-btn" onclick="navMove('start')" title="First move">⏮</button>
+          <button class="pb-btn" onclick="navMove('prev')"  title="Previous">◀</button>
+          <button class="pb-btn" onclick="navMove('next')"  title="Next">▶</button>
+          <button class="pb-btn" onclick="navMove('end')"   title="Last move">⏭</button>
+          <button class="pb-btn" onclick="board&&board.flip()" title="Flip board" style="margin-left:4px;">⇌</button>
+        </div>
+        <div class="action-row">
+          <div class="act-left">
+            <button class="act-btn draw" id="btn-draw" onclick="offerDraw()">½ Draw</button>
+            <button class="act-btn resign" id="btn-resign" onclick="doResign()">🏳 Abort</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Tab -->
+    <div class="tab-pane" id="tab-chat">
+      <div class="chat-history" id="chat-history">
+        <div class="chat-empty">Say hi to your opponent 👋</div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-inp" id="chat-inp" placeholder="Type a message…"
+          onkeypress="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+  </div><!-- /sidebar -->
+
+</div><!-- /game-wrap -->
+
+<!-- Game Over Overlay -->
+<div id="go-overlay">
+  <div class="go-card">
+    <div class="go-icon" id="go-icon">🏆</div>
+    <div class="go-title" id="go-title">Game Over</div>
+    <div class="go-reason" id="go-reason"></div>
+    <div class="go-score" id="go-score"></div>
+    <div class="go-btns" id="go-btns"></div>
+  </div>
+</div>
+
+<!-- Mode Select Overlay -->
+<div id="mode-overlay">
+  <div class="mode-card">
+    <div class="mode-title">♟ Play<span>Carys</span> Chess</div>
+    <div class="mode-sub">Set player names and choose your game mode</div>
+    <div class="mode-name-row" id="mode-name-row">
+      <div class="mode-name-group">
+        <label>⬜ White Player</label>
+        <input id="inp-white" type="text" value="White" maxlength="18" placeholder="White's name">
+      </div>
+      <div class="mode-name-group" id="black-name-group">
+        <label>⬛ Black Player</label>
+        <input id="inp-black" type="text" value="Black" maxlength="18" placeholder="Black's name">
+      </div>
+    </div>
+    <div class="mode-btns">
+      <!-- Chess finds its own opponent now.
+           This used to happen out in the platform: the catalogue ran the
+           matchmaking, built a room row, seated both players in it, and only
+           then sent them here with ?sid=&color=. The player therefore crossed a
+           PlayCarys lobby to reach a game that has always been perfectly
+           capable of pairing people itself. -->
+      <button class="mode-btn" id="btn-find-opponent" onclick="ChessMatch.find()">
+        <span class="m-icon">🌐</span>
+        Play Online
+        <span style="font-size:0.7rem;color:#8a847a;font-weight:600">Random opponent</span>
+      </button>
+      <!-- Play a specific friend. The doc asks for friends to be usable from
+           inside the game, not only from the platform's drawer. -->
+      <button class="mode-btn" id="btn-play-friend" onclick="ChessMatch.openFriendPicker()">
+        <span class="m-icon">👥</span>
+        Play a Friend
+        <span style="font-size:0.7rem;color:#8a847a;font-weight:600">Challenge someone you know</span>
+      </button>
+      <button class="mode-btn" onclick="startGame('2p')">
+        <span class="m-icon">👥</span>
+        2-Player Local
+        <span style="font-size:0.7rem;color:#8a847a;font-weight:600">Same screen</span>
+      </button>
+      <button class="mode-btn ai-btn" onclick="openAiLevelOverlay()">
+        <span class="m-icon">🤖</span>
+        vs Computer
+        <span style="font-size:0.7rem;color:#8a847a;font-weight:600">Play against AI</span>
+      </button>
+    </div>
+    <div id="match-status" class="hidden" style="margin-top:0.9rem;font-size:0.8rem;color:#c9a227;font-weight:700;text-align:center">
+      <span id="match-status-text">Looking for an opponent…</span>
+      <button onclick="ChessMatch.cancel()"
+              style="margin-left:0.6rem;background:none;border:1px solid rgba(201,162,39,0.5);color:#c9a227;border-radius:6px;padding:0.15rem 0.5rem;font-size:0.7rem;font-weight:700;cursor:pointer">Cancel</button>
+    </div>
+
+    <!-- Friend picker, filled from GET /friends/:id -->
+    <div id="friend-picker" class="hidden" style="margin-top:0.9rem;text-align:left">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+        <span style="font-size:0.78rem;font-weight:800;color:#c9a227">Challenge a friend</span>
+        <button onclick="ChessMatch.closeFriendPicker()"
+                style="background:none;border:none;color:#8a847a;font-size:0.9rem;cursor:pointer">✕</button>
+      </div>
+      <div id="friend-picker-list" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:0.3rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AI Difficulty Select Overlay -->
+<div id="ai-level-overlay" class="hidden">
+  <div class="mode-card">
+    <div class="mode-title">🤖 Choose <span>Difficulty</span></div>
+    <div class="mode-sub">Pick how strong the AI should play</div>
+    <div class="level-btns">
+      <button class="level-btn" data-level="beginner" onclick="selectAiLevel('beginner')">
+        <span class="l-icon">🟢</span>
+        <span class="l-text">
+          <span class="l-name">Beginner</span>
+          <span class="l-sub">Easy — makes mistakes, good for learning</span>
+        </span>
+        <span class="l-pct">25%</span>
+      </button>
+      <button class="level-btn" data-level="pro" onclick="selectAiLevel('pro')">
+        <span class="l-icon">🟡</span>
+        <span class="l-text">
+          <span class="l-name">Pro</span>
+          <span class="l-sub">Strong club-level play, punishes blunders</span>
+        </span>
+        <span class="l-pct">75%</span>
+      </button>
+      <button class="level-btn" data-level="grandmaster" onclick="selectAiLevel('grandmaster')">
+        <span class="l-icon">🔴</span>
+        <span class="l-text">
+          <span class="l-name">Grandmaster</span>
+          <span class="l-sub">Full-strength engine — Anand-level chess</span>
+        </span>
+        <span class="l-pct">100%</span>
+      </button>
+      <button class="level-btn" data-level="elite" onclick="selectAiLevel('elite')">
+        <span class="l-icon">👑</span>
+        <span class="l-text">
+          <span class="l-name">Elite Grandmaster</span>
+          <span class="l-sub">Thinks 3s a move — searches 3 moves deeper than Grandmaster</span>
+        </span>
+        <span class="l-pct">MAX</span>
+      </button>
+    </div>
+    <div class="engine-status" id="engine-status">
+      <span class="dot"></span>
+      <span id="engine-status-text">Loading chess engine…</span>
+    </div>
+    <button class="level-back" onclick="closeAiLevelOverlay()">← Back to mode select</button>
+  </div>
+</div>
+
+<!-- Confirm Dialog -->
+<div id="confirm-overlay">
+  <div class="confirm-card">
+    <div class="confirm-title" id="confirm-title">Confirm</div>
+    <div class="confirm-msg" id="confirm-msg">Are you sure?</div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="confirm-ok" id="confirm-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Promotion Dialog -->
+<div id="promo-overlay">
+  <div class="promo-card">
+    <div class="promo-title">Choose Promotion</div>
+    <div class="promo-pieces" id="promo-pieces"></div>
+  </div>
+</div>
+
+<!-- Toast Stack -->
+<div id="toast-stack"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+// Piece artwork, served by us. Every one of these used to be an <img> pointing
+// at chessboardjs.com — 32 requests to a third-party site just to draw the
+// starting position, which on a phone with no internet renders 64 empty
+// squares. One place to change the set, and it works offline.
+var PIECE_DIR = 'vendor/img/';
+function PIECE_IMG(code) { return PIECE_DIR + code + '.png'; }
+
+var board      = null;
+var game       = new Chess();
+var viewGame   = new Chess();
+var viewIndex  = -1;         // -1 = live
+var myColor    = 'w';        // only meaningful in AI/online mode
+var gameMode   = 'ai';       // '2p', 'ai', or 'online'
+var isReview   = false;
+// Watch-only: opened from a friend's "Spectate" button (?spectate=1). The board
+// follows the live session's state bundle but accepts no input from this tab.
+var isSpectator = false;
+var timerInt   = null;
+var gameEnded  = false;
+var pendingPromo = null;     // { source, target, resolve }
+
+// Online mode - Quick Play competitive state
+var onlineSid   = null;      // session id from URL
+var onlineMoveKey = null;    // localStorage key for move sync
+
+// Simulated game state
+var state = {
+  whiteTime: 600,
+  blackTime: 600,
+  lastMoveTs: Date.now(),
+  deadline: null,         // New: Deadline for the active turn (Unix TS)
+  turn: 'w',
+  drawOffer: null,
+  result: null,
+  chat: [],
+  lastFrom: null,
+  lastTo: null
+};
+
+// Player info
+var players = {
+  white: { name: 'White', rating: 1200 },
+  black: { name: 'Black', rating: 1200 }
+};
+
+// ═══════════════════════════════════════════════════════════
+// AI ENGINE — Stockfish 10 (Web Worker), 4 difficulty tiers
+// ═══════════════════════════════════════════════════════════
+// The first three are a literal percentage of full engine strength, per spec:
+//   Grandmaster = 100% (Skill Level 20 / Depth 16 — full engine strength)
+//   Pro         =  75% (Skill Level 15 / Depth 12)
+//   Beginner    =  25% (Skill Level  5 / Depth  4)
+//
+// ELITE GRANDMASTER sits above all of them, and it is worth being precise
+// about how, because "150%" would be a lie: Stockfish's Skill Level CAPS AT
+// 20, and Grandmaster already uses it. There is no knob left that makes the
+// engine evaluate better. Below 20, Skill Level works by deliberately picking
+// a worse move now and then; at 20 that handicap is simply switched off.
+//
+// So the only real lever above Grandmaster is HOW LONG IT THINKS. Elite keeps
+// Skill 20 and swaps the fixed depth for a time budget.
+//
+// How long that budget needs to be is a property of the ENGINE BUILD, not of
+// chess. Measured here, one quiet middlegame position, hash cleared between
+// runs, same engine version in both columns:
+//
+//                       asm.js (~250k nps)   WebAssembly (~510k nps)
+//   go depth 16              2.8 s                 1.5 s
+//   go movetime 2000         depth 16              depth 17
+//   go movetime 3000         depth 17              depth 19
+//   go movetime 6000         depth 19              depth 21
+//
+// Elite was 6000 ms because that is what the asm.js build needed to reach depth
+// 19. The WebAssembly build reaches the SAME depth 19 in 3000 ms, so the budget
+// is now 3000: identical strength, half the wait. See engine/README.md.
+//
+// The budget is capped by the clock, not by patience: THE AI SPENDS ITS OWN
+// TIME. This is a 10+0 game and applyAiMoveToUI() debits the engine's thinking
+// from Black, so at 15s a move it would flag around move 40 and lose every long
+// game on time. At 3s over 40 moves it uses 2 of its 10 minutes.
+//
+// A tier is therefore either depth-limited or time-limited:
+//   depth    — stop at this many plies (fast, predictable)
+//   movetime — think for this many ms, stopping early at `depth` if reached
+//   timeout  — client-side safety net; MUST comfortably exceed the search, or
+//              the search is abandoned and the basic fallback bot moves instead
+var AI_LEVELS = {
+  beginner:    { label: 'Beginner',    skill: 5,  depth: 4,  timeout: 8000  },
+  pro:         { label: 'Pro',         skill: 15, depth: 12, timeout: 12000 },
+  // 20s, not the 8s this used to be. Depth 16 measured between 2.8s and 6.3s on
+  // the old build depending on the position, so a sharp one could run past that
+  // ceiling — and blowing it did not merely slow the game down, it threw the
+  // engine's move away and let the random fallback bot play instead. The
+  // hardest setting would have produced the weakest move on the board,
+  // occasionally, with nothing on screen to say why. Kept generous because the
+  // asm.js build is still reachable as a fallback.
+  grandmaster: { label: 'Grandmaster', skill: 20, depth: 16, timeout: 20000 },
+  elite:       { label: 'Elite Grandmaster', skill: 20, depth: 26, movetime: 3000, timeout: 12000 }
+};
+
+var aiLevel          = null;   // 'beginner' | 'pro' | 'grandmaster' | 'elite'
+
+// Engine builds, in the order they are tried. See engine/README.md.
+//
+//  1. engine/stockfish.wasm.js  — WebAssembly, served by us. ~500k nodes/sec.
+//  2. engine/stockfish.js       — asm.js, served by us. ~250k nodes/sec.
+//  3. the CDN copy              — last resort, only if our own files are gone.
+//
+// Both of the first two are in the repo on purpose. The page used to fetch the
+// asm.js build from cdnjs at run time, which made a chess AI that needed the
+// internet: on a LAN with no connection the fetch failed and EVERY difficulty
+// quietly became the random-move fallback bot. And the asm.js build is half the
+// speed of the WebAssembly one, which is the whole reason a strong setting had
+// to think for six seconds.
+var SF_BUILDS = [
+  { url: 'engine/stockfish.wasm.js', name: 'WebAssembly' },
+  { url: 'engine/stockfish.js',      name: 'JavaScript'  },
+  { url: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js', name: 'CDN', remote: true }
+];
+var sfBuildIndex     = 0;      // which entry of SF_BUILDS is being tried
+var sfBuildName      = null;   // the one that actually started
+var sfHandshakeTimer = null;   // gives a build a bounded chance to say 'uciok'
+var sfWorker         = null;   // Stockfish Web Worker instance
+var sfLoadAttempted  = false;
+var sfUciOk          = false;  // received 'uciok'
+var sfReady          = false;  // received 'readyok' — engine can accept 'go'
+var sfLoadFailed     = false;  // network/worker/init failure — use fallback bot
+var sfConfiguredLevel = null;  // which level's Skill Level was last applied
+var sfPendingResolve = null;   // resolve() for the in-flight 'go' command
+var sfBestMoveTimeout = null;
+
+// Starts the best engine build that works, falling back down SF_BUILDS.
+//
+// A local build is loaded straight into a Worker — that keeps the worker's base
+// URL pointing at engine/, which is what lets the WebAssembly loader find
+// stockfish.wasm next to it. (The old blob: URL trick is still used for the
+// remote CDN entry, because a cross-origin script URL cannot be given to
+// `new Worker` directly — but a blob: worker has no directory to resolve
+// against, so it can only ever run the single-file asm.js build.)
+function initEngine() {
+  if (sfLoadAttempted) return;
+  sfLoadAttempted = true;
+  sfBuildIndex = 0;
+  tryNextEngineBuild();
+}
+
+function tryNextEngineBuild() {
+  if (sfBuildIndex >= SF_BUILDS.length) {
+    console.warn('[Chess AI] no engine build could be started');
+    handleEngineFailure();
+    return;
+  }
+  var build = SF_BUILDS[sfBuildIndex++];
+  setEngineStatus('loading', 'Loading chess engine…');
+
+  var started = function (worker) {
+    sfWorker = worker;
+    sfBuildName = build.name;
+    sfWorker.onmessage = onEngineMessage;
+    sfWorker.onerror = function (err) {
+      console.warn('[Chess AI] ' + build.name + ' build errored', err);
+      retireEngineBuild();
+    };
+    // A build that loads but never answers is the failure mode that matters:
+    // WebAssembly unsupported, a truncated file from a half-finished cloud
+    // sync. Without a deadline the picker would sit on "Loading…" forever
+    // instead of moving on to a build that does work.
+    sfHandshakeTimer = setTimeout(function () {
+      console.warn('[Chess AI] ' + build.name + ' build did not answer uci');
+      retireEngineBuild();
+    }, 10000);
+    sfWorker.postMessage('uci');
+  };
+
+  try {
+    if (!build.remote) {
+      started(new Worker(build.url));
+      return;
+    }
+    fetch(build.url)
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.text();
+      })
+      .then(function (code) {
+        var blob = new Blob([code], { type: 'application/javascript' });
+        started(new Worker(URL.createObjectURL(blob)));
+      })
+      .catch(function (err) {
+        console.warn('[Chess AI] ' + build.name + ' build failed to load', err);
+        tryNextEngineBuild();
+      });
+  } catch (err) {
+    console.warn('[Chess AI] ' + build.name + ' build could not start', err);
+    tryNextEngineBuild();
+  }
+}
+
+/** This build is no good — bin it and try the next one down the list. */
+function retireEngineBuild() {
+  if (sfHandshakeTimer) { clearTimeout(sfHandshakeTimer); sfHandshakeTimer = null; }
+  if (sfUciOk || sfReady) { handleEngineFailure(); return; }  // it was working, then died
+  if (sfWorker) { try { sfWorker.terminate(); } catch (e) {} sfWorker = null; }
+  tryNextEngineBuild();
+}
+
+function onEngineMessage(e) {
+  var line = e.data;
+  if (typeof line !== 'string') return;
+
+  if (line === 'uciok') {
+    sfUciOk = true;
+    if (sfHandshakeTimer) { clearTimeout(sfHandshakeTimer); sfHandshakeTimer = null; }
+    sfWorker.postMessage('isready');
+    return;
+  }
+  if (line === 'readyok') {
+    sfReady = true;
+    // Name the build. Which one started decides how long every tier thinks, so
+    // when the AI feels sluggish this is the first thing worth knowing.
+    console.log('[Chess AI] Stockfish ready — ' + sfBuildName + ' build');
+    setEngineStatus('ready', 'Engine ready · ' + sfBuildName);
+    return;
+  }
+  if (line.indexOf('bestmove') === 0) {
+    if (sfBestMoveTimeout) { clearTimeout(sfBestMoveTimeout); sfBestMoveTimeout = null; }
+    if (sfPendingResolve) {
+      var parts    = line.split(' ');
+      var uciMove  = parts[1]; // e.g. 'e2e4', or '(none)' if no legal moves
+      var resolve  = sfPendingResolve;
+      sfPendingResolve = null;
+      resolve(uciMove && uciMove !== '(none)' ? uciMove : null);
+    }
+  }
+}
+
+// Engine failed to load/init, or crashed mid-session — mark it dead so
+// engineGetMove() always resolves null immediately and callers fall back
+// to the basic bot instead of hanging or throwing.
+function handleEngineFailure() {
+  sfLoadFailed = true;
+  sfReady = false;
+  setEngineStatus('error', 'Engine unavailable — using basic AI');
+  if (sfBestMoveTimeout) { clearTimeout(sfBestMoveTimeout); sfBestMoveTimeout = null; }
+  if (sfPendingResolve) {
+    var resolve = sfPendingResolve;
+    sfPendingResolve = null;
+    resolve(null);
+  }
+}
+
+function setEngineStatus(kind, text) {
+  var el  = document.getElementById('engine-status');
+  var txt = document.getElementById('engine-status-text');
+  if (!el || !txt) return;
+  el.classList.remove('ready', 'error');
+  if (kind === 'ready') el.classList.add('ready');
+  if (kind === 'error') el.classList.add('error');
+  txt.textContent = text;
+}
+
+function configureEngineLevel(level) {
+  if (!sfWorker || !sfReady) return;
+  if (sfConfiguredLevel === level) return;
+  var cfg = AI_LEVELS[level];
+  if (!cfg) return;
+  sfWorker.postMessage('setoption name Skill Level value ' + cfg.skill);
+  sfConfiguredLevel = level;
+}
+
+// Asks the engine for the best move for a FEN position at a given
+// difficulty level. Always resolves — with a UCI move string like 'e2e4'
+// (or 'e7e8q' for promotion) on success, or null if the engine isn't
+// available or the search times out, so callers can fall back gracefully.
+function engineGetMove(fen, level) {
+  return new Promise(function(resolve) {
+    if (sfLoadFailed || !sfWorker || !sfReady) { resolve(null); return; }
+
+    configureEngineLevel(level);
+    var cfg = AI_LEVELS[level] || AI_LEVELS.grandmaster;
+
+    sfPendingResolve = resolve;
+    sfWorker.postMessage('position fen ' + fen);
+
+    // UCI accepts several limits on one `go` and stops at whichever comes
+    // first. A time-limited tier passes both, so it uses its whole budget in a
+    // sharp position but still answers instantly in a forced one.
+    var go = 'go';
+    if (cfg.movetime) go += ' movetime ' + cfg.movetime;
+    if (cfg.depth)    go += ' depth ' + cfg.depth;
+    sfWorker.postMessage(go);
+
+    // Safety net: never let a stalled search hang the game. Per level, because
+    // one fixed 8s ceiling silently capped every tier — a longer search would
+    // be thrown away here and the basic fallback bot would move instead, so
+    // the strongest setting would have played the WEAKEST chess on the board.
+    sfBestMoveTimeout = setTimeout(function() {
+      sfBestMoveTimeout = null;
+      var r = sfPendingResolve;
+      sfPendingResolve = null;
+      if (r) r(null);
+    }, cfg.timeout || 8000);
+  });
+}
+
+// ── AI Difficulty Overlay ──────────────────────────────────
+function openAiLevelOverlay() {
+  document.getElementById('mode-overlay').classList.add('hidden');
+  document.getElementById('ai-level-overlay').classList.remove('hidden');
+  initEngine(); // pre-warm in the background while the user picks a level
+}
+
+function closeAiLevelOverlay() {
+  document.getElementById('ai-level-overlay').classList.add('hidden');
+  document.getElementById('mode-overlay').classList.remove('hidden');
+}
+
+function selectAiLevel(level) {
+  if (!AI_LEVELS[level]) return;
+  document.getElementById('ai-level-overlay').classList.add('hidden');
+  startGame('ai', { level: level });
+}
+
+// ── Mode Select ────────────────────────────────────────────
+function startGame(mode, opts) {
+  opts = opts || {};
+  gameMode = mode;
+
+  if (mode === 'online') {
+    // Competitive quick play — each tab owns one color
+    myColor = opts.color || 'w';  // 'w' for host, 'b' for guest
+    players.white = { name: opts.whiteName || 'White', rating: opts.whiteRating || 1200 };
+    players.black = { name: opts.blackName || 'Black', rating: opts.blackRating || 1200 };
+    onlineSid     = opts.sid;
+    onlineMoveKey = 'chess_move_' + opts.sid;
+
+    // Listen for opponent moves via localStorage
+    window.addEventListener('storage', onOnlineStorageEvent);
+
+    // CLOCK SYNC — over the socket, not out of a database row.
+    //
+    // This used to read `start_ts` off the session row so both laptops ran the
+    // same clock. There is no session row any more, and it turns out there
+    // never needed to be one: joining the room fires a state request, and
+    // whoever is already there answers with the full bundle — which has carried
+    // the clock (`ts` and `dl`, see _saveGameState) all along. That path is what
+    // already lets a refresh or a reconnect rejoin mid-game at the right time.
+    //
+    // So the row was a second, worse copy of a number the socket was already
+    // sending. White simply starts the clock; Black receives it on join.
+    state.lastMoveTs = Date.now();
+    state.deadline   = state.lastMoveTs + (state.whiteTime * 1000);
+  } else {
+    var wName = document.getElementById('inp-white').value.trim() || 'White';
+    var bName = mode === 'ai'
+      ? 'Computer'
+      : (document.getElementById('inp-black').value.trim() || 'Black');
+    players.white = { name: wName, rating: 1200 };
+    players.black = { name: bName, rating: 1200 };
+    myColor = 'w';
+
+    if (mode === 'ai') {
+      aiLevel = (opts.level && AI_LEVELS[opts.level]) ? opts.level : (aiLevel || 'grandmaster');
+      players.black = { name: 'Computer · ' + AI_LEVELS[aiLevel].label, rating: 1200 };
+    }
+  }
+
+  document.getElementById('mode-overlay').classList.add('hidden');
+
+  if (!board) {
+    initBoard();
+  } else {
+    resetAll();
+  }
+
+  if (mode === 'online') {
+    ChessNet.init();    // Relay over the network — the other laptop
+    _initSyncChannel(); // BroadcastChannel — another tab on this machine
+    _loadGameState();   // Load from localStorage as anchor
+  } else {
+    state.lastMoveTs = Date.now();
+    startTimer();
+  }
+
+  // Update nav badge.
+  //
+  // This is a STATUS LABEL, not a control — it says what you are currently
+  // playing. It read "⚡ Quick Play", which looks exactly like the platform's
+  // old Quick Play button and invites a click that does nothing. Named for what
+  // it is instead.
+  if (mode === 'online') {
+    document.getElementById('nav-mode').textContent = '🌐 Online Match';
+    document.getElementById('nav-meta').textContent = 'Competitive · 10+0';
+    // Flip board to face your color
+    if (board) board.orientation(myColor === 'w' ? 'white' : 'black');
+  } else if (mode === 'ai') {
+    document.getElementById('nav-mode').textContent = 'vs AI · ' + AI_LEVELS[aiLevel].label;
+  } else {
+    document.getElementById('nav-mode').textContent = '2-Player';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// NETWORK RELAY  —  what makes online chess work between two
+//                   different computers
+// ═══════════════════════════════════════════════════════════
+//
+// Everything below this board talks to its opponent by writing a key into
+// localStorage and letting the `storage` event carry it. That event ONLY fires
+// between tabs of the SAME browser on the SAME machine, so a real match — two
+// players, two laptops — exchanged nothing at all: each side saw its own moves,
+// its own clock, and an opponent who was permanently "disconnected".
+//
+// Rather than rewrite thirteen call sites and six listeners against a socket
+// API, this relays the localStorage traffic itself. Every sync write goes
+// through _netSet(), which stores the value locally AND emits it to the other
+// players over the socket the platform already runs; an arriving message is
+// written to localStorage and re-dispatched as a synthetic `storage` event.
+//
+// So every existing listener — moves, the state bundle, chat, draw offers,
+// resignation, rematch, the connection dot — starts working across the network
+// without being touched, and same-browser two-tab play keeps working exactly
+// as before (it never needed the relay).
+// ── ChessMatch — chess finds its own opponent ──────────────────────────────
+//
+// The platform used to do this. It ran the pairing, wrote a room row, seated
+// both players in a player_session junction, and handed chess a ?sid= to read
+// that row back out of. Rooms are gone, and this is what replaces them.
+//
+// What it uses is the pairing service that was already there and already had
+// nothing to do with rooms: `quick_play_join` matches two waiting sockets and
+// replies with { role, oppId, gameId }. It never touched the sessions table —
+// the platform did that afterwards, separately. So chess can call it directly.
+//
+// Who is which colour falls straight out of the pairing: the server picks a
+// host and a guest, host plays White. No colours map, no room row to store it
+// in, no three-way fallback to work out afterwards who was who.
+var ChessMatch = {
+  searching: false,
+  myUid: null,
+  oppUid: null,
+  _wired: false,
+
+  _sock: function () { return window.playcarysSocket || null; },
+
+  _status: function (text, show) {
+    var box = document.getElementById('match-status');
+    var txt = document.getElementById('match-status-text');
+    if (txt && text) txt.textContent = text;
+    if (box) box.classList[show ? 'remove' : 'add']('hidden');
+  },
+
+  _uid: function () {
+    try {
+      var s = (typeof Auth !== 'undefined' && Auth.getSession) ? Auth.getSession() : null;
+      return s && s.userId != null ? String(s.userId) : null;
+    } catch (e) { return null; }
+  },
+
+  _nameOf: function (uid) {
+    try {
+      var raw = localStorage.getItem('playcarys_db_store_v5');
+      if (!raw) return null;
+      var users = (JSON.parse(raw).users) || [];
+      var u = users.find(function (x) { return String(x.user_id != null ? x.user_id : x.id) === String(uid); });
+      return u ? (u.user_name || u.username || null) : null;
+    } catch (e) { return null; }
+  },
+
+  /** Wire the socket listeners once, whenever the socket turns up. */
+  _wire: function (sock) {
+    if (!sock || this._wired) return;
+    this._wired = true;
+    var self = this;
+
+    // Paired. The server tells each side its role and who it is playing.
+    sock.on('quick_play_match_found', function (data) {
+      if (!self.searching) return;
+      self.oppUid = String(data.oppId);
+
+      if (data.role === 'host') {
+        // The host names the match, records it, and tells the guest.
+        //
+        // Deliberately NOT derived from the two user ids: a rematch between the
+        // same pair would compute the same id and silently merge two different
+        // games into one record.
+        var matchId = 'CHESS' + Date.now() + Math.floor(Math.random() * 1000);
+        try {
+          if (typeof DB !== 'undefined' && DB.startMatch) {
+            DB.startMatch(7, {
+              match_id: matchId,
+              created_by: self.myUid,
+              // BOTH players, so presence shows the guest as Playing too and not
+              // merely the person who happened to be picked as host.
+              participants: [self.myUid, self.oppUid],
+              mode: 'ranked'
+            });
+          }
+        } catch (e) { console.warn('[ChessMatch] could not record match', e); }
+
+        sock.emit('quick_play_session_ready', { oppId: self.oppUid, sessionId: matchId });
+        self._begin(matchId, 'w');
+      } else {
+        // The guest waits to be told the id. Same handshake the platform used.
+        self._status('Opponent found — starting…', true);
+      }
+    });
+
+    // The guest's half of that handshake. The server broadcasts, so every
+    // client filters on "is this addressed to me".
+    sock.on('quick_play_session_ready_broadcast', function (data) {
+      if (!self.searching || !data) return;
+      if (String(data.oppId) !== String(self.myUid)) return;
+      self._begin(String(data.sessionId), 'b');
+    });
+  },
+
+  /** Start looking. */
+  find: function () {
+    var sock = this._sock();
+    if (!sock) { showToast('Not connected — cannot play online right now.', 'error'); return; }
+
+    this.myUid = this._uid();
+    if (!this.myUid) { showToast('Sign in to play online.', 'error'); return; }
+
+    this._wire(sock);
+    this.searching = true;
+    this._status('Looking for an opponent…', true);
+    sock.emit('quick_play_join', { gameId: '7', uid: this.myUid });
+  },
+
+  cancel: function () {
+    var sock = this._sock();
+    this.searching = false;
+    this._status('', false);
+    if (sock) sock.emit('quick_play_cancel', { uid: this.myUid });
+  },
+
+  // ── Play a friend ─────────────────────────────────────────
+  //
+  // Random pairing answers "I want a game"; this answers "I want a game with
+  // HIM", which is the thing the friends feature exists for and the one the
+  // game had no way to express.
+  //
+  // Deliberately built on what already works rather than a second matchmaker:
+  // the challenger creates the match id, sends the friend a notification
+  // carrying a link, and sits in the room as White. The friend opens the link,
+  // which is an ordinary rematch-shaped URL (?sid=&color=b) — the one path that
+  // legitimately skips the menu — and ChessNet puts them in the same room. No
+  // new protocol, no new server state.
+
+  openFriendPicker: async function () {
+    var box = document.getElementById('friend-picker');
+    var list = document.getElementById('friend-picker-list');
+    if (!box || !list) return;
+
+    this.myUid = this._uid();
+    if (!this.myUid) { showToast('Sign in to challenge a friend.', 'error'); return; }
+
+    box.classList.remove('hidden');
+    list.innerHTML = '<div style="font-size:0.75rem;color:#8a847a">Loading your friends…</div>';
+
+    var friends = [];
+    try {
+      var base = window.PC_API || ('http://' + location.hostname + ':3000/api/v1');
+      friends = await fetch(base + '/friends/' + this.myUid).then(function (r) { return r.ok ? r.json() : []; });
+    } catch (e) { friends = []; }
+
+    if (!friends.length) {
+      list.innerHTML = '<div style="font-size:0.75rem;color:#8a847a">' +
+        'No friends yet. Add someone from the platform, then challenge them here.</div>';
+      return;
+    }
+
+    var esc = function (s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    };
+
+    list.innerHTML = friends.map(function (f) {
+      var playing = f.presence && f.presence.state === 'playing';
+      var where = playing ? ('Playing ' + (f.presence.game || 'a game')) : 'Offline';
+      return '' +
+        '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.5rem;border:1px solid rgba(255,255,255,0.08);border-radius:8px">' +
+        '  <div style="width:26px;height:26px;border-radius:50%;background:#c9a227;color:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800">' +
+             esc((f.user_name || 'P').substring(0, 2).toUpperCase()) + '</div>' +
+        '  <div style="flex:1;min-width:0">' +
+        '    <div style="font-size:0.78rem;font-weight:700;color:#e8e2d5">' + esc(f.user_name) + '</div>' +
+        '    <div style="font-size:0.64rem;color:' + (playing ? '#6fc3ff' : '#8a847a') + '">' + esc(where) + '</div>' +
+        '  </div>' +
+        '  <button onclick="ChessMatch.challenge(' + f.user_id + ',\'' + esc(f.user_name) + '\')" ' +
+        '          style="background:#c9a227;color:#1a1a1a;border:none;border-radius:6px;padding:0.2rem 0.55rem;font-size:0.7rem;font-weight:800;cursor:pointer">Challenge</button>' +
+        '</div>';
+    }).join('');
+  },
+
+  closeFriendPicker: function () {
+    var box = document.getElementById('friend-picker');
+    if (box) box.classList.add('hidden');
+  },
+
+  /** Invite one friend, then wait in the room as White. */
+  challenge: async function (friendId, friendName) {
+    this.myUid = this._uid();
+    if (!this.myUid) { showToast('Sign in first.', 'error'); return; }
+
+    var matchId = 'CHESS' + Date.now() + Math.floor(Math.random() * 1000);
+    this.oppUid = String(friendId);
+
+    try {
+      if (typeof DB !== 'undefined' && DB.startMatch) {
+        DB.startMatch(7, {
+          match_id: matchId,
+          created_by: this.myUid,
+          participants: [this.myUid, friendId],
+          mode: 'ranked'
+        });
+      }
+    } catch (e) { console.warn('[ChessMatch] could not record match', e); }
+
+    // The invitation. A link, not a room — they open it when they are ready.
+    var link = location.origin + location.pathname + '?sid=' + encodeURIComponent(matchId) + '&color=b';
+    try {
+      var base = window.PC_API || ('http://' + location.hostname + ':3000/api/v1');
+      var me = (typeof Auth !== 'undefined' && Auth.getSession) ? Auth.getSession() : null;
+      await fetch(base + '/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'role': 'player' },
+        body: JSON.stringify({
+          toUser: Number(friendId),
+          from: me ? me.username : 'A player',
+          avatar: me && me.avatar ? me.avatar : 'PC',
+          fromRole: 'player',
+          fromUserId: Number(this.myUid),
+          type: 'system',
+          msg: '<b>' + (me ? me.username : 'A player') + '</b> challenged you to chess — ' +
+               '<a href="' + link + '" style="color:#6fc3ff">accept the challenge</a>'
+        })
+      });
+    } catch (e) { /* the match still exists; they can be told another way */ }
+
+    this.closeFriendPicker();
+    showToast('Challenge sent to ' + friendName + '. Waiting for them to join…', 'success');
+    this._begin(matchId, 'w');
+  },
+
+  /** Both sides land here with the same match id and their own colour. */
+  _begin: function (matchId, color) {
+    this.searching = false;
+    this._status('', false);
+
+    var myName  = this._nameOf(this.myUid)  || 'You';
+    var oppName = this._nameOf(this.oppUid) || 'Opponent';
+
+    startGame('online', {
+      sid:       matchId,
+      color:     color,
+      whiteName: color === 'w' ? myName  : oppName,
+      blackName: color === 'w' ? oppName : myName
+    });
+
+    setTimeout(function () {
+      if (board) board.orientation(color === 'w' ? 'white' : 'black');
+    }, 100);
+  }
+};
+
+var ChessNet = {
+  sock: null,
+  room: null,
+  ready: false,
+
+  key: function () { return 'chess_room_' + onlineSid; },
+
+  init: function () {
+    if (!onlineSid || this.room) return;
+    this.room = this.key();
+    var self = this;
+
+    function attach(sock) {
+      if (!sock || self.sock === sock) return;
+      self.sock = sock;
+
+      sock.on('game_action_received', function (data) { self._receive(data); });
+
+      // Re-join on every (re)connect: a reconnect gets a fresh socket id, so
+      // the server's room membership from before the drop is gone. Without
+      // this, one dropped wifi packet ends the match silently.
+      sock.on('connect', function () { self._join(); });
+      if (sock.connected) self._join();
+    }
+
+    if (window.playcarysSocket) attach(window.playcarysSocket);
+    document.addEventListener('playcarys:socketready', function (e) { attach(e.detail.socket); });
+
+    // utils.js loads socket.io asynchronously, and on a slow first paint the
+    // board can be interactive before the socket exists. Poll briefly rather
+    // than lose the first move of the game.
+    var tries = 0;
+    var poll = setInterval(function () {
+      if (self.sock || tries++ > 60) { clearInterval(poll); return; }
+      if (window.playcarysSocket) { attach(window.playcarysSocket); clearInterval(poll); }
+    }, 300);
+  },
+
+  _join: function () {
+    if (!this.sock || !this.room) return;
+    this.sock.emit('join_room', { roomId: this.room });
+    this.ready = true;
+    console.log('[ChessNet] joined', this.room);
+    // Ask whoever is already in the room for the live position. This is what
+    // lets the second player — or a refresh, or a reconnect — open the board
+    // mid-game instead of at the starting position.
+    this.request();
+  },
+
+  /** Store locally and push to the opponent. */
+  send: function (key, value) {
+    try { localStorage.setItem(key, value); } catch (e) { /* quota / private mode */ }
+    if (this.sock && this.room) {
+      this.sock.emit('game_action', { roomId: this.room, key: key, value: value });
+    }
+  },
+
+  /** "Someone please tell me the current state." */
+  request: function () {
+    if (!this.sock || !this.room) return;
+    this.sock.emit('game_action', { roomId: this.room, key: SYNC_REQ_KEY, value: String(Date.now()) });
+  },
+
+  _receive: function (data) {
+    if (!data || !data.key) return;
+
+    // Answer a newcomer with the full bundle plus a fresh heartbeat, so their
+    // board and their connection dot are both correct immediately.
+    if (data.key === SYNC_REQ_KEY) {
+      if (gameMode === 'online') {
+        _saveGameState();
+        if (myColor) this.send(_netHbKey(myColor), String(Date.now()));
+      }
+      return;
+    }
+
+    // Only this match's traffic. The room already scopes it, but a stray
+    // message must never be written into another session's keys.
+    if (String(data.key).indexOf('chess_') !== 0 || String(data.key).indexOf(String(onlineSid)) === -1) return;
+
+    try { localStorage.setItem(data.key, data.value); } catch (e) { }
+
+    // Hand it to the existing listeners in the only shape they understand.
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: data.key,
+      newValue: data.value,
+      storageArea: localStorage
+    }));
+  }
+};
+
+// Not a real localStorage key — a control message that only travels over the
+// socket, so it is deliberately outside the 'chess_<sid>' namespace above.
+var SYNC_REQ_KEY = '__chess_sync_req__';
+
+/**
+ * Write a sync key. Local first (so a same-browser second tab and a page
+ * refresh still work with no network at all), then out over the socket.
+ */
+function _netSet(key, value) {
+  if (!key) return;
+  ChessNet.send(key, value);
+}
+
+// ── Online Move Sync ───────────────────────────────────────
+function broadcastMove(move) {
+  var payload = JSON.stringify({
+    fen: game.fen(),
+    from: move.from,
+    to: move.to,
+    promotion: move.promotion || null,
+    timers: { w: state.whiteTime, b: state.blackTime, ts: state.lastMoveTs }
+  });
+  _netSet(onlineMoveKey, payload);
+}
+
+function onOnlineStorageEvent(e) {
+  if (!onlineMoveKey || !e.newValue) return;
+  if (gameEnded || game.game_over()) return;
+
+  var isMoveKey  = (e.key === onlineMoveKey);
+  var isStateKey = (e.key === _sessionKey());
+  if (!isMoveKey && !isStateKey) return;
+
+  try {
+    var data = JSON.parse(e.newValue);
+
+    // The "_state" key carries the full bundle written by _saveGameState()
+    // (pgn + timers + chat), which is what _applyStateBundle understands.
+    // The bare move key carries {fen, from, to} only — _applyStateBundle would
+    // reject it outright, so replay it onto the board directly. Handling both
+    // means the game still syncs even when BroadcastChannel is unavailable.
+    if (isStateKey) { _applyStateBundle(data); return; }
+
+    // Only apply the opponent's move, never an echo of my own. A spectator has
+    // no colour of their own, so it applies BOTH sides' moves — skipping this
+    // filter is the whole difference between watching and playing.
+    if (!isSpectator && game.turn() === myColor) return;
+    if (!data.fen || data.fen === game.fen()) return;
+
+    game.load(data.fen);
+    viewGame.load(data.fen);
+    board.position(data.fen);
+    if (data.timers) {
+      state.whiteTime  = data.timers.w;
+      state.blackTime  = data.timers.b;
+      state.lastMoveTs = data.timers.ts;
+    }
+    state.turn     = game.turn();
+    state.lastFrom = data.from;
+    state.lastTo   = data.to;
+    _finishHydration();
+  } catch(err) { console.warn('[Online] Move sync error', err); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PIECE VALUES for material advantage
+// ═══════════════════════════════════════════════════════════
+var PIECE_VAL = { p:1, n:3, b:3, r:5, q:9 };
+
+function getMaterial() {
+  // Count captured pieces from move history perspective
+  var fen = game.fen().split(' ')[0];
+  var counts = { w:{p:0,n:0,b:0,r:0,q:0,k:0}, b:{p:0,n:0,b:0,r:0,q:0,k:0} };
+  for (var ch of fen) {
+    if (ch === '/') continue;
+    if (!isNaN(ch)) continue;
+    var c = ch === ch.toUpperCase() ? 'w' : 'b';
+    counts[c][ch.toLowerCase()]++;
+  }
+  var start = { p:8, n:2, b:2, r:2, q:1, k:1 };
+  var captured = { w:{}, b:{} };
+  for (var pc of ['p','n','b','r','q']) {
+    captured.w[pc] = start[pc] - counts.w[pc]; // captured by black
+    captured.b[pc] = start[pc] - counts.b[pc]; // captured by white
+  }
+  return captured;
+}
+
+function renderCaptures() {
+  var cap = getMaterial();
+  // bottom = myColor captured pieces (shown for opponent who captured them)
+  // top    = opponent's captures
+  var myCapHTML = '';
+  var oppCapHTML = '';
+  var myScore = 0, oppScore = 0;
+
+  for (var pc of ['q','r','b','n','p']) {
+    var sym = { q:'♛', r:'♜', b:'♝', n:'♞', p:'♟' };
+    var wsym= { q:'♕', r:'♖', b:'♗', n:'♘', p:'♙' };
+    // pieces captured by white (shown below board next to my plate)
+    if (myColor === 'w') {
+      for (var i=0; i<(cap.b[pc]||0); i++) myCapHTML += `<span class="cap-piece">${wsym[pc]}</span>`;
+      myScore += (cap.b[pc]||0) * PIECE_VAL[pc];
+      for (var i=0; i<(cap.w[pc]||0); i++) oppCapHTML += `<span class="cap-piece">${sym[pc]}</span>`;
+      oppScore += (cap.w[pc]||0) * PIECE_VAL[pc];
+    } else {
+      for (var i=0; i<(cap.w[pc]||0); i++) myCapHTML += `<span class="cap-piece">${sym[pc]}</span>`;
+      myScore += (cap.w[pc]||0) * PIECE_VAL[pc];
+      for (var i=0; i<(cap.b[pc]||0); i++) oppCapHTML += `<span class="cap-piece">${wsym[pc]}</span>`;
+      oppScore += (cap.b[pc]||0) * PIECE_VAL[pc];
+    }
+  }
+  var myAdv = myScore - oppScore;
+  if (myAdv > 0) myCapHTML += `<span class="material-adv">+${myAdv}</span>`;
+  else if (myAdv < 0) oppCapHTML += `<span class="material-adv">+${-myAdv}</span>`;
+
+  document.getElementById('bottom-captured').innerHTML = myCapHTML;
+  document.getElementById('top-captured').innerHTML    = oppCapHTML;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOARD INIT
+// ═══════════════════════════════════════════════════════════
+function updatePlayerPlates() {
+  // In 2p mode, always show White at bottom, Black at top
+  // In AI mode, human (myColor) is at bottom
+  var wK = PIECE_IMG('wK');
+  var bK = PIECE_IMG('bK');
+
+  if (gameMode === '2p') {
+    document.getElementById('bottom-name').textContent   = players.white.name;
+    document.getElementById('top-name').textContent      = players.black.name;
+    document.getElementById('bottom-avatar').innerHTML   = `<img src="${wK}">`;
+    document.getElementById('top-avatar').innerHTML      = `<img src="${bK}">`;
+  } else {
+    var human = myColor === 'w' ? players.white : players.black;
+    var ai    = myColor === 'w' ? players.black : players.white;
+    document.getElementById('bottom-name').textContent   = human.name;
+    document.getElementById('top-name').textContent      = ai.name;
+    document.getElementById('bottom-avatar').innerHTML   = `<img src="${myColor==='w'?wK:bK}">`;
+    document.getElementById('top-avatar').innerHTML      = `<img src="${myColor==='w'?bK:wK}">`;
+  }
+}
+
+function initBoard() {
+  updatePlayerPlates();
+
+  board = Chessboard('myBoard', {
+    draggable: true,
+    position: 'start',
+    orientation: 'white',
+    pieceTheme: PIECE_DIR + '{piece}.png',
+    onDragStart: onDragStart,
+    onDrop: onDrop,
+    onSnapEnd: onSnapEnd,
+    onMouseoverSquare: onHoverSq,
+    onMouseoutSquare: onUnhoverSq
+  });
+
+  // chessboard.js measures its container ONCE and paints to that size, so
+  // anything that changes the container has to tell it to re-measure.
+  $(window).on('resize', () => board.resize());
+  // Rotating a phone is the case that matters and the one `resize` alone does
+  // not reliably cover: several mobile browsers fire orientationchange without
+  // a resize, or fire resize before the new dimensions are readable. Without
+  // this, turning the phone left the board painted at its portrait size —
+  // overflowing the screen in landscape, with the squares no longer lining up
+  // with where the pieces actually are.
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => board.resize(), 150);
+  });
+  setTimeout(() => board.resize(), 80);
+
+  // LOGIC MOVED TO startGame for atomic control
+  // state.lastMoveTs = Date.now();
+  // startTimer();
+  // renderMoves();
+  var msg = gameMode === '2p'
+    ? 'Game started! ' + players.white.name + ' (White) goes first.'
+    : 'Game started! You are playing as ' + (myColor==='w'?'White':'Black') + '.';
+  systemChat(msg);
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG & DROP
+// ═══════════════════════════════════════════════════════════
+function onDragStart(source, piece) {
+  // A spectator is watching somebody else's match — no seat, no moves.
+  if (isSpectator) return false;
+  if (isReview || gameEnded) return false;
+  if (game.game_over()) return false;
+
+  var turn = game.turn(); // 'w' or 'b'
+
+  if (gameMode === 'online') {
+    // Only drag your own color, and only on your turn
+    if (turn !== myColor) return false;
+    if (myColor === 'w' && piece[0] === 'b') return false;
+    if (myColor === 'b' && piece[0] === 'w') return false;
+  } else if (gameMode === '2p') {
+    // In 2p mode, only the current turn's pieces can be dragged
+    if (turn === 'w' && piece[0] === 'b') return false;
+    if (turn === 'b' && piece[0] === 'w') return false;
+  } else {
+    // AI mode: only human's turn
+    if (turn !== myColor) return false;
+    if (myColor === 'w' && piece[0] === 'b') return false;
+    if (myColor === 'b' && piece[0] === 'w') return false;
+  }
+  // Highlight legal moves
+  highlightLegalMoves(source);
+}
+
+function onDrop(source, target) {
+  removeHighlights();
+  if (isReview || gameEnded) return 'snapback';
+  if (game.game_over()) return 'snapback';
+
+  // In online mode, block if not your turn
+  if (gameMode === 'online' && game.turn() !== myColor) return 'snapback';
+  // In AI mode, block moves that aren't the human's turn
+  if (gameMode === 'ai' && game.turn() !== myColor) return 'snapback';
+
+  // Check promotion
+  var piece = game.get(source);
+  var isPromo = piece && piece.type === 'p' &&
+    ((piece.color==='w' && target[1]==='8') || (piece.color==='b' && target[1]==='1'));
+
+  if (isPromo) {
+    pendingPromo = { source, target };
+    showPromoDialog(piece.color);
+    return 'snapback';
+  }
+
+  var move = game.move({ from: source, to: target, promotion: 'q' });
+  if (move === null) return 'snapback';
+
+  // Broadcast move to opponent tab
+  if (gameMode === 'online') broadcastMove(move);
+
+  onMoveMade(source, target);
+}
+
+function onSnapEnd() {
+  if (viewIndex === -1) board.position(game.fen(), false);
+}
+
+function onMoveMade(source, target) {
+  viewIndex = -1;
+  isReview = false;
+  hideReviewBar();
+
+  // Update time
+  var elapsed = (Date.now() - state.lastMoveTs) / 1000;
+  if (state.turn === 'w') state.whiteTime = Math.max(0, state.whiteTime - elapsed);
+  else state.blackTime = Math.max(0, state.blackTime - elapsed);
+  state.turn = game.turn();
+  state.lastMoveTs = Date.now();
+  state.drawOffer = null;
+  // Calculate turn deadline for synchronization
+  var nextPlayerTime = state.turn === 'w' ? state.whiteTime : state.blackTime;
+  state.deadline = Date.now() + (nextPlayerTime * 1000);
+  
+  _saveGameState();
+
+  highlightLastMove(source, target);
+  renderMoves();
+  renderCaptures();
+  updateStatus();
+
+  if (gameMode === 'online') {
+    // In online mode: board stays oriented to myColor — no flip
+    if (!gameEnded) {
+      var nextColor = game.turn();
+      if (nextColor !== myColor) {
+        showToast("Opponent's turn — waiting...", 'info');
+      } else {
+        showToast('Your turn!', 'info');
+      }
+    }
+  } else if (gameMode === '2p') {
+    // In 2p mode flip board for next player after a short pause
+    if (!gameEnded) {
+      var nextColor = game.turn(); // 'w' or 'b' after move
+      setTimeout(() => {
+        board.orientation(nextColor === 'w' ? 'white' : 'black');
+        var turnName = nextColor === 'w' ? players.white.name : players.black.name;
+        var turnLabel = nextColor === 'w' ? 'White' : 'Black';
+        showToast(turnName + "'s turn (" + turnLabel + ')', 'info');
+      }, 180);
+    }
+  } else {
+    // AI mode: let AI reply.
+    //
+    // The 0.5-1s pause is there so an instant reply does not feel robotic —
+    // Beginner answers in 27ms and Pro in 400ms, and without it the piece moves
+    // before you have let go of yours. A tier with its own time budget already
+    // pauses to think, so for those the same delay is not atmosphere, it is a
+    // second of dead time bolted onto every move.
+    if (!gameEnded && game.turn() !== myColor) {
+      var lvl = AI_LEVELS[aiLevel || 'grandmaster'];
+      var pause = (lvl && lvl.movetime) ? 0 : 500 + Math.random() * 500;
+      setTimeout(aiMove, pause);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AI — Stockfish engine move, with capture-preferring fallback
+// ═══════════════════════════════════════════════════════════
+// Show that the engine is working.
+//
+// Grandmaster answers in well under a second, so nothing was ever needed. Elite
+// spends six, and six silent seconds on a still board is indistinguishable from
+// a hung page — the honest fix for a slower opponent is to say it is thinking,
+// not to make it think less.
+var _aiMetaText = null;
+function _setAiThinking(on) {
+  var dot  = document.getElementById('top-net');
+  var meta = document.getElementById('nav-meta');
+  if (dot) {
+    dot.style.background = on ? '#e8c96a' : '#555';
+    dot.style.boxShadow  = on ? '0 0 8px #e8c96a' : 'none';
+    dot.classList.toggle('thinking', !!on);
+    dot.title = on ? 'Engine is thinking' : 'Connection status';
+  }
+  if (meta) {
+    if (on) {
+      if (_aiMetaText === null) _aiMetaText = meta.textContent;
+      meta.textContent = '🤔 Thinking…';
+    } else if (_aiMetaText !== null) {
+      meta.textContent = _aiMetaText;
+      _aiMetaText = null;
+    }
+  }
+}
+
+function aiMove() {
+  if (gameEnded || game.game_over()) return;
+  if (game.turn() === myColor) return;
+
+  var level = aiLevel || 'grandmaster';
+  var fen   = game.fen();
+
+  _setAiThinking(true);
+  engineGetMove(fen, level).then(function(uciMove) {
+    _setAiThinking(false);
+    // Re-validate state — the engine call is async, so the game may have
+    // ended, been reset, or left AI mode while we were waiting.
+    if (gameMode !== 'ai' || gameEnded || game.game_over()) return;
+    if (game.turn() === myColor) return;
+
+    var moveObj = null;
+    if (uciMove) {
+      var from  = uciMove.slice(0, 2);
+      var to    = uciMove.slice(2, 4);
+      var promo = uciMove.length > 4 ? uciMove.slice(4, 5) : undefined;
+      moveObj = game.move({ from: from, to: to, promotion: promo });
+    }
+
+    // Engine unavailable, timed out, or returned an unusable move — fall back
+    // to the basic capture-preferring random mover so the game never stalls.
+    if (!moveObj) {
+      moveObj = aiMoveFallback();
+      if (!moveObj) return; // no legal moves (game_over guard above should catch this)
+    }
+
+    applyAiMoveToUI(moveObj);
+  });
+}
+
+// Basic fallback bot: prefers captures, then checks, else a random legal
+// move. Used only when the real engine can't produce a move.
+function aiMoveFallback() {
+  var moves = game.moves({ verbose: true });
+  if (moves.length === 0) return null;
+
+  var captures = moves.filter(m => m.captured);
+  var checks   = moves.filter(m => m.san.includes('+'));
+  var pool = captures.length ? captures : (checks.length ? checks : moves);
+  var pick = pool[Math.floor(Math.random() * pool.length)];
+
+  return game.move(pick);
+}
+
+// Applies an already-made AI move (game.move() has already run) to the
+// clock/UI state — shared by the engine path and the fallback path.
+function applyAiMoveToUI(pick) {
+  var elapsed = (Date.now() - state.lastMoveTs) / 1000;
+  if (state.turn === 'w') state.whiteTime = Math.max(0, state.whiteTime - elapsed);
+  else state.blackTime = Math.max(0, state.blackTime - elapsed);
+  state.turn = game.turn();
+  state.lastMoveTs = Date.now();
+  state.lastFrom = pick.from;
+  state.lastTo   = pick.to;
+
+  // AI turn finish: calculate human deadline
+  var nextPlayerTime = state.turn === 'w' ? state.whiteTime : state.blackTime;
+  state.deadline = Date.now() + (nextPlayerTime * 1000);
+
+  highlightLastMove(pick.from, pick.to);
+  board.position(game.fen(), true);
+  renderMoves();
+  renderCaptures();
+  updateStatus();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SQUARE HIGHLIGHTS
+// ═══════════════════════════════════════════════════════════
+function highlightLegalMoves(sq) {
+  removeHighlights();
+  var moves = game.moves({ square: sq, verbose: true });
+  moves.forEach(m => {
+    $(`[data-square="${m.to}"]`).addClass('highlight-to');
+  });
+  $(`[data-square="${sq}"]`).addClass('highlight-from');
+}
+
+function removeHighlights() {
+  $('.square-55d63').removeClass('highlight-from highlight-to');
+}
+
+function highlightLastMove(from, to) {
+  $('.square-55d63').removeClass('highlight-from highlight-to');
+  $(`[data-square="${from}"]`).css('background-color','');
+  $(`[data-square="${to}"]`).css('background-color','');
+
+  // Use CSS classes by checking square color
+  var fromEl = $(`[data-square="${from}"]`);
+  var toEl   = $(`[data-square="${to}"]`);
+  fromEl.css('background-color', isLightSquare(from) ? 'rgba(200,220,80,0.45)' : 'rgba(170,185,50,0.5)');
+  toEl.css('background-color',   isLightSquare(to)   ? 'rgba(200,220,80,0.55)' : 'rgba(170,185,50,0.6)');
+}
+
+function isLightSquare(sq) {
+  var file = sq.charCodeAt(0) - 97; // a=0..h=7
+  var rank = parseInt(sq[1]) - 1;
+  return (file + rank) % 2 !== 0;
+}
+
+var _hoveredSq = null;
+function onHoverSq(sq) {
+  if (isReview || gameEnded) return;
+  var piece = game.get(sq);
+  if (!piece || piece.color !== myColor) return;
+  _hoveredSq = sq;
+}
+function onUnhoverSq() {
+  if (_hoveredSq) {
+    if (viewIndex === -1 && state.lastFrom) {
+      highlightLastMove(state.lastFrom, state.lastTo);
+    }
+  }
+  _hoveredSq = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROMOTION DIALOG
+// ═══════════════════════════════════════════════════════════
+function showPromoDialog(color) {
+  var pieces = ['q','r','b','n'];
+  var names = { q:'Queen', r:'Rook', b:'Bishop', n:'Knight' };
+  var pieceCodes = { q: color==='w'?'wQ':'bQ', r: color==='w'?'wR':'bR', b: color==='w'?'wB':'bB', n: color==='w'?'wN':'bN' };
+  var html = pieces.map(p =>
+    `<div class="promo-piece" onclick="pickPromo('${p}')">
+      <img src="${PIECE_IMG(pieceCodes[p])}" title="${names[p]}">
+    </div>`
+  ).join('');
+  document.getElementById('promo-pieces').innerHTML = html;
+  document.getElementById('promo-overlay').classList.add('show');
+}
+
+function pickPromo(piece) {
+  document.getElementById('promo-overlay').classList.remove('show');
+  if (!pendingPromo) return;
+  var { source, target } = pendingPromo;
+  pendingPromo = null;
+  var move = game.move({ from: source, to: target, promotion: piece });
+  if (move) {
+    board.position(game.fen(), false);
+    onMoveMade(source, target);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOVE NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function navMove(dir) {
+  var hist = game.history({ verbose: true });
+  if (!hist.length) return;
+  var cur = viewIndex === -1 ? hist.length - 1 : viewIndex;
+
+  if (dir==='start')      viewIndex = 0;
+  else if (dir==='end')   viewIndex = -1;
+  else if (dir==='prev')  { if (cur <= 0) return; viewIndex = cur - 1; }
+  else if (dir==='next')  {
+    if (viewIndex === -1) return;
+    viewIndex = viewIndex >= hist.length-1 ? -1 : viewIndex + 1;
+  }
+
+  viewGame = new Chess();
+  var end = viewIndex === -1 ? hist.length : viewIndex + 1;
+  for (var i=0; i<end; i++) viewGame.move(hist[i]);
+  board.position(viewGame.fen(), false);
+
+  isReview = viewIndex !== -1 && !gameEnded;
+  isReview ? showReviewBar() : hideReviewBar();
+  renderMoves();
+}
+
+function jumpMove(idx) {
+  var hist = game.history({ verbose: true });
+  viewIndex = idx;
+  viewGame = new Chess();
+  for (var i=0; i<=idx; i++) viewGame.move(hist[i]);
+  board.position(viewGame.fen(), false);
+  if (idx === hist.length - 1) {
+    viewIndex = -1;
+    isReview = false;
+    hideReviewBar();
+  } else {
+    isReview = !gameEnded;
+    if (isReview) showReviewBar();
+  }
+  renderMoves();
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER MOVES
+// ═══════════════════════════════════════════════════════════
+function renderMoves() {
+  var hist = game.history();
+  var el = document.getElementById('moves-list');
+  if (!hist.length) {
+    el.innerHTML = '<div class="moves-empty">No moves yet.</div>';
+    return;
+  }
+  var active = viewIndex === -1 ? hist.length - 1 : viewIndex;
+  var html = '';
+  for (var i=0; i<hist.length; i+=2) {
+    var w = hist[i], b = hist[i+1]||null;
+    var wa = i===active ? ' active' : '';
+    var ba = (i+1)===active ? ' active' : '';
+    html += `<div class="move-row">
+      <div class="move-num">${(i/2)+1}</div>
+      <div class="move-ply${wa}" onclick="jumpMove(${i})">${w}</div>
+      ${b !== null
+        ? `<div class="move-ply${ba}" onclick="jumpMove(${i+1})">${b}</div>`
+        : `<div class="move-ply empty"></div>`}
+    </div>`;
+  }
+  el.innerHTML = html;
+  var actEl = el.querySelector('.move-ply.active');
+  if (actEl) actEl.scrollIntoView({ block: 'nearest' });
+  else el.scrollTop = el.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════
+// NETWORK INDICATOR
+// ═══════════════════════════════════════════════════════════
+var _netInterval = null;
+
+function _netHbKey(color) { return 'chess_hb_' + onlineSid + '_' + color; }
+
+function _startNetIndicator() {
+  if (!onlineSid) return;
+  var oppColor = myColor === 'w' ? 'b' : 'w';
+
+  // Write our own heartbeat every 2s
+  function writeHb() {
+    try { _netSet(_netHbKey(myColor), String(Date.now())); } catch(e) {}
+  }
+  writeHb();
+  if (_netInterval) clearInterval(_netInterval);
+  _netInterval = setInterval(function() {
+    writeHb();
+    // Check opponent heartbeat
+    try {
+      var raw = localStorage.getItem(_netHbKey(oppColor));
+      var fresh = raw && (Date.now() - parseInt(raw, 10)) < 5000;
+      var dot = document.getElementById('top-net');
+      if (dot) {
+        dot.style.background = fresh ? '#22c55e' : '#ef4444';
+        dot.style.boxShadow  = fresh ? '0 0 6px #22c55e' : '0 0 6px #ef4444';
+        dot.title = fresh ? 'Opponent connected' : 'Opponent disconnected';
+      }
+    } catch(e) {}
+  }, 2000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PERSISTENCE & SYNC (BroadcastChannel / PGN / Timers)
+// ═══════════════════════════════════════════════════════════
+var syncChannel = null;
+
+function _sessionKey() { return onlineMoveKey ? onlineMoveKey + '_state' : null; }
+
+function _initSyncChannel() {
+  if (!onlineSid) return;
+  syncChannel = new BroadcastChannel('pc_chess_' + onlineSid);
+  syncChannel.onmessage = function(e) {
+    var d = e.data;
+    if (d.type === 'SYNC_REQ') {
+      // Another tab reloaded — send them our current state
+      syncChannel.postMessage({
+        type: 'SYNC_RES',
+        pgn: game.pgn(),
+        state: { w:state.whiteTime, b:state.blackTime, ts:state.lastMoveTs, dl:state.deadline, turn:state.turn, lf:state.lastFrom, lt:state.lastTo },
+        chat: _sharedChat()
+      });
+    } else if (d.type === 'SYNC_RES' || d.type === 'MOVE') {
+      _applyStateBundle(d);
+    }
+  };
+  // Ask other tabs for state (fixes refresh delay)
+  syncChannel.postMessage({ type: 'SYNC_REQ' });
+}
+
+/**
+ * Switch the board into watch-only mode.
+ *
+ * The players' tabs publish a full state bundle (pgn + timers + chat) under
+ * _sessionKey() on every move, and onOnlineStorageEvent already knows how to
+ * apply it. A spectator therefore needs only two things: the bundle that is
+ * ALREADY sitting in storage from before it opened the page — otherwise the
+ * board would show the opening position until the next move landed — and no
+ * way to touch the game.
+ */
+function _enterSpectatorMode(whiteName, blackName) {
+  // Catch up to the live position.
+  try {
+    var key = _sessionKey();
+    var raw = key ? localStorage.getItem(key) : null;
+    if (raw) _applyStateBundle(JSON.parse(raw));
+  } catch (e) { /* no bundle yet — the first move will deliver one */ }
+
+  // Resigning or offering a draw on someone else's behalf is not a thing.
+  ['btn-draw', 'btn-resign'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  var badge = document.createElement('div');
+  badge.textContent = '👁 Spectating — ' + whiteName + ' vs ' + blackName;
+  badge.style.cssText =
+    'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:900;' +
+    'background:rgba(0,212,255,.14);border:1px solid rgba(0,212,255,.45);color:#00d4ff;' +
+    'padding:.35rem .9rem;border-radius:99px;font-size:.8rem;font-weight:700;white-space:nowrap';
+  document.body.appendChild(badge);
+
+  systemChat('You are watching this match. You cannot move the pieces.');
+}
+
+function _applyStateBundle(d) {
+  if (!d.pgn && !d.state) return;
+  try {
+    if (d.pgn) {
+      game.load_pgn(d.pgn);
+      viewGame.load_pgn(d.pgn);
+      board.position(game.fen());
+    }
+    if (d.state) {
+      state.whiteTime  = d.state.w;
+      state.blackTime  = d.state.b;
+      state.lastMoveTs = d.state.ts;
+      state.deadline   = d.state.dl;
+      state.turn       = d.state.turn || game.turn();
+      // Two spellings are in circulation: _saveGameState() writes lastFrom /
+      // lastTo, the BroadcastChannel SYNC_RES writes lf / lt. Only lf/lt was
+      // read, so every bundle that arrived by the storage/network path cleared
+      // the highlight instead of moving it — the opponent's move landed on the
+      // board with nothing marking where it came from. Accept both.
+      state.lastFrom   = (d.state.lf != null) ? d.state.lf : d.state.lastFrom;
+      state.lastTo     = (d.state.lt != null) ? d.state.lt : d.state.lastTo;
+    }
+    if (d.chat) _mergeChat(d.chat);
+
+    _finishHydration();
+  } catch(ex) { console.warn('[Sync] bundle error', ex); }
+}
+
+function _finishHydration() {
+  renderMoves();
+  renderCaptures();
+  renderChat();
+  updateStatus();
+  if (state.lastFrom) highlightLastMove(state.lastFrom, state.lastTo);
+  
+  // Restart timer if needed
+  if (!timerInt && !gameEnded) startTimer();
+}
+
+function _saveGameState() {
+  if (gameMode !== 'online' || !_sessionKey()) return;
+  var data = {
+    pgn:   game.pgn(),
+    state: {
+      w: state.whiteTime,
+      b: state.blackTime,
+      ts: state.lastMoveTs,
+      dl: state.deadline,
+      turn: state.turn,
+      lastFrom: state.lastFrom,
+      lastTo: state.lastTo
+    },
+    chat: _sharedChat()
+  };
+  _netSet(_sessionKey(), JSON.stringify(data));
+
+  // Also Broadcast for instant sync
+  if (syncChannel) {
+    syncChannel.postMessage({ type: 'MOVE', pgn: data.pgn, state: data.state, chat: data.chat });
+  }
+}
+
+function _loadGameState() {
+  if (gameMode !== 'online' || !_sessionKey()) return;
+  var raw = localStorage.getItem(_sessionKey());
+  if (!raw) {
+    // No saved moves yet — use session start time as anchor
+    _finishHydration();
+    return;
+  }
+  try {
+    var data = JSON.parse(raw);
+    _applyStateBundle(data);
+  } catch(e) { 
+    _finishHydration();
+  }
+}
+
+function startTimer() {
+  if (timerInt) clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    if (gameEnded) return;
+    
+    var wT = state.whiteTime;
+    var bT = state.blackTime;
+    var now = Date.now();
+
+    // If turn is active, calculate remaining from deadline or lastMoveTs
+    if (state.turn === 'w') {
+      if (state.deadline) wT = Math.max(0, (state.deadline - now)/1000);
+      else wT = Math.max(0, state.whiteTime - (now - state.lastMoveTs)/1000);
+    } else {
+      if (state.deadline) bT = Math.max(0, (state.deadline - now)/1000);
+      else bT = Math.max(0, state.blackTime - (now - state.lastMoveTs)/1000);
+    }
+
+    if (wT <= 0 && state.turn === 'w') { endGame('b', 'White ran out of time!'); return; }
+    if (bT <= 0 && state.turn === 'b') { endGame('w', 'Black ran out of time!'); return; }
+
+    setTimerEl('bottom-timer', myColor==='w'?wT:bT, state.turn === myColor);
+    setTimerEl('top-timer',    myColor==='w'?bT:wT, state.turn !== myColor);
+  }, 300);
+}
+
+function setTimerEl(id, secs, active) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = fmtTime(secs);
+  var cls = secs < 30 && active ? 'timer-danger' : active ? 'timer-active' : 'timer-idle';
+  el.className = 'timer-box ' + cls;
+}
+
+function fmtTime(s) {
+  s = Math.max(0, s);
+  var m = Math.floor(s/60), sec = Math.floor(s%60);
+  return m + ':' + (sec<10?'0':'') + sec;
+}
+
+// ═══════════════════════════════════════════════════════════
+// GAME STATUS
+// ═══════════════════════════════════════════════════════════
+function updateStatus() {
+  if (gameEnded) return;
+
+  var checkBar = document.getElementById('check-bar');
+  if (game.in_check() && !game.game_over()) {
+    checkBar.classList.add('show');
+    checkBar.style.animation = 'none';
+    void checkBar.offsetWidth;
+    checkBar.style.animation = 'shakeX 0.4s ease';
+  } else {
+    checkBar.classList.remove('show');
+  }
+
+  if (game.in_checkmate()) {
+    var winner = game.turn()==='w' ? 'b' : 'w';
+    endGame(winner, 'Checkmate!');
+  } else if (game.in_stalemate()) {
+    endGame('draw', 'Stalemate — no legal moves.');
+  } else if (game.insufficient_material()) {
+    endGame('draw', 'Insufficient material.');
+  } else if (game.in_threefold_repetition()) {
+    endGame('draw', 'Threefold repetition.');
+  } else if (game.in_draw()) {
+    endGame('draw', '50-move rule.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// END GAME
+// ═══════════════════════════════════════════════════════════
+function endGame(winner, reason) {
+  if (gameEnded) return;
+  gameEnded = true;
+  state.result = { winner, reason };
+  clearInterval(timerInt);
+  systemChat('Game Over: ' + reason);
+
+  // Record the finished match (online play)
+  if (gameMode === 'online' && onlineSid) {
+    _recordChessMatch(onlineSid);
+    try { _netSet('chess_qp_ended_' + onlineSid, Date.now().toString()); } catch(ex) {}
+  } else if (gameMode === 'ai' || gameMode === '2p') {
+    // AI and local 2P games — save result directly
+    _saveLocalChessResult(winner);
+  }
+
+  // ── Tournament Result Reporting ──
+  var urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mode') === 'tournament') {
+    var mid = urlParams.get('matchId');
+    var tid = urlParams.get('tournamentId');
+    _reportTournamentResult(tid, mid, winner);
+  }
+
+  renderMoves();
+  updateResignBtn();
+  showGameOver(winner, reason);
+}
+
+// Saves a match result row for AI / local 2P chess games
+function _saveLocalChessResult(winner) {
+  try {
+    if (typeof DB === 'undefined' || typeof Auth === 'undefined' || !DB.recordMatchResult) return;
+    var auth = Auth.getSession();
+    if (!auth || !auth.userId) return;
+
+    var uid    = auth.userId;          // keep as-is (string or number)
+    var sid    = 'chess_' + Date.now(); // unique session id (string avoids modulo collision)
+
+    // ── Ensure player_profile exists for new/registered players ──
+    var hasProfile = DB.player_profiles && DB.player_profiles.some(function(p) { return String(p.user_id) === String(uid); });
+    if (!hasProfile && DB.player_profiles) {
+      DB.player_profiles.push({
+        user_id: parseInt(uid, 10) || uid,
+        player_name: auth.username || 'Player',
+        carys_points: 0,
+        play_time: 0,
+        matches_won: 0,
+        player_status: true
+      });
+    }
+
+    // Determine result from the logged-in player's perspective
+    var res;
+    if (winner === 'draw' || winner === 'abort') {
+      res = 'draw';
+    } else if (gameMode === 'ai') {
+      res = (winner === myColor) ? 'win' : 'loss';
+    } else {
+      // ── LOCAL 2-PLAYER IS ALWAYS A DRAW, WORTH NOTHING ────────────
+      //
+      // Both players are the same person, on one keyboard, on one account.
+      // This used to record `winner === 'w' ? 'win' : 'loss'` and pay 150 Carys
+      // for a "win" — so the fastest way to earn on this platform was to open
+      // local 2-player, move White's pieces, checkmate yourself, and repeat.
+      // Fool's mate is four moves; that is roughly 2,000 Carys a minute.
+      //
+      // There is no opponent to beat, so there is no win to record. It is
+      // logged as a played game (it happened, and it belongs in history) that
+      // is worth nothing.
+      res = 'draw';
+    }
+
+    // A local game earns NOTHING. Only the AI and online modes pay out, because
+    // only those have a second party whose result the player did not control.
+    var isLocal2P = (gameMode === '2p');
+    var carysMap = { win: 150, draw: 50, loss: 0 };
+    var xpMap    = { win: 150, draw: 75, loss: 25 };
+    var eloMap   = { win: 25,  draw: 5,  loss: -25 };
+    var pColor   = (gameMode === 'ai' || gameMode === 'online') ? myColor : 'w';
+
+    DB.recordMatchResult(sid, uid, 7, res, null, {
+      game_mode: gameMode,
+      carys_earned: isLocal2P ? 0 : (carysMap[res] || 0),
+      xp_gained:    isLocal2P ? 0 : (xpMap[res] || 0),
+      elo_delta:    isLocal2P ? 0 : (eloMap[res] || 0),
+      moves: game.history(),
+      color: pColor
+    });
+
+    // Persist
+    if (typeof DB.saveLocal === 'function') DB.saveLocal();
+    else if (typeof DB.save === 'function') DB.save();
+  } catch(ex) {
+    console.warn('[Chess AI Save]', ex);
+  }
+}
+
+
+function _reportTournamentResult(tid, mid, winner) {
+  try {
+    // The winner's user id comes from the bracket row (player1 = White,
+    // player2 = Black) and the reporter is the logged-in user. The old code
+    // read state.players / players.me, neither of which exists, so this whole
+    // function threw on its first line and no result was ever reported.
+    const match = (window.DB && DB.tournament_matches || []).find(x => String(x.match_id) === String(mid));
+    const winnerId = match ? ((winner === 'w') ? match.player1 : (winner === 'b' ? match.player2 : null)) : null;
+    const session = (typeof Auth !== 'undefined' && Auth.getSession) ? Auth.getSession() : null;
+    const myUid = session ? session.userId : null;
+
+    if (window.DB && DB.reportResult) {
+      DB.reportResult(mid, winnerId, myUid);
+      systemChat('Tournament result reported to the engine. Waiting for verification.');
+    } else {
+      // Fallback if DB didn't load (unlikely)
+      console.error('Tournament Engine not found!');
+    }
+  } catch(e) { console.warn('[Tourn Report]', e); }
+}
+
+function showGameOver(winner, reason) {
+  var icon = document.getElementById('go-icon');
+  var title = document.getElementById('go-title');
+  var reasonEl = document.getElementById('go-reason');
+  var scoreEl  = document.getElementById('go-score');
+  var btnsEl   = document.getElementById('go-btns');
+
+  if (winner === 'draw') {
+    icon.textContent = '🤝'; title.textContent = 'Draw!'; title.style.color = '#e8c96a';
+  } else if (winner === 'abort') {
+    icon.textContent = '🚪'; title.textContent = 'Aborted'; title.style.color = '#888';
+  } else if (gameMode === '2p') {
+    var winName = winner === 'w' ? players.white.name : players.black.name;
+    var winLabel = winner === 'w' ? 'White' : 'Black';
+    icon.textContent = '🏆';
+    title.textContent = winName + ' Wins!';
+    title.style.color = '#a5d16a';
+    reason = winLabel + ' wins by ' + reason;
+  } else if (winner === myColor) {
+    icon.textContent = '🏆'; title.textContent = 'You Win!'; title.style.color = '#a5d16a';
+  } else {
+    icon.textContent = '😞'; title.textContent = 'You Lose'; title.style.color = '#e05555';
+  }
+
+  reasonEl.textContent = reason;
+
+  // Score boxes
+  var moves = game.history().length;
+  scoreEl.innerHTML = `
+    <div class="go-score-box"><strong>${moves}</strong>Moves</div>
+    <div class="go-score-box"><strong>${fmtTime(myColor==='w'?state.whiteTime:state.blackTime)}</strong>Time Left</div>
+  `;
+
+  var btnHtml = `
+    <button class="go-btn go-ghost" onclick="reviewGame()">👁 Review</button>
+    <button class="go-btn go-rematch" onclick="rematch()">⚡ Rematch</button>
+  `;
+
+  if (gameMode === 'online') {
+    var isTourn = new URLSearchParams(window.location.search).get('mode') === 'tournament';
+    if (isTourn) {
+      btnHtml += `<button class="go-btn go-primary" onclick="window.location.href='../../pages/player/tournaments.html?id=${new URLSearchParams(window.location.search).get('tournamentId')}'">🏆 Return to Tournament</button>`;
+    } else {
+      btnHtml += `<button class="go-btn go-primary" onclick="quitToLobby()">🚪 Exit to Sessions</button>`;
+    }
+  } else {
+    btnHtml += `<button class="go-btn go-primary" onclick="newGame()">New Game</button>`;
+    btnHtml += `<button class="go-btn go-ghost" onclick="quitToLobby()">🚪 Exit to Sessions</button>`;
+  }
+
+  btnsEl.innerHTML = btnHtml;
+
+  document.getElementById('go-overlay').classList.add('show');
+}
+
+function reviewGame() {
+  document.getElementById('go-overlay').classList.remove('show');
+  showReviewBar();
+}
+
+function rematch() {
+  document.getElementById('go-overlay').classList.remove('show');
+
+  if (gameMode === 'online') {
+    // In online mode: ask the opponent first
+    _sendRematchRequest();
+    return;
+  }
+  if (gameMode === 'ai') myColor = myColor === 'w' ? 'b' : 'w'; // swap sides
+  resetAll();
+}
+
+// ── Online Rematch Request / Response ──────────────────────
+var _rematchBanner = null;
+
+function _rematchKey() { return onlineMoveKey + '_rematch'; }
+
+function _sendRematchRequest() {
+  _netSet(_rematchKey(), JSON.stringify({ type: 'request', from: myColor, ts: Date.now() }));
+  // Show waiting UI
+  document.getElementById('go-btns').innerHTML = `
+    <button class="go-btn go-ghost" id="rematch-cancel-btn" onclick="_cancelRematch()">✕ Cancel</button>
+    <span style="font-size:0.85rem;color:#aaa;padding:0.5rem">Waiting for opponent...</span>
+  `;
+}
+
+function _cancelRematch() {
+  _netSet(_rematchKey(), JSON.stringify({ type: 'cancel', from: myColor, ts: Date.now() }));
+  // Restore normal game-over buttons
+  showGameOver(state.result?.winner || 'draw', state.result?.reason || '');
+}
+
+function _acceptRematch() {
+  var b = document.getElementById('rematch-banner');
+  if (b) b.remove();
+  // Tell the requester we accepted
+  _netSet(_rematchKey(), JSON.stringify({ type: 'accepted', from: myColor, ts: Date.now() }));
+  // Reload with swapped color (guest becomes white, host becomes black)
+  var newColor = myColor === 'w' ? 'b' : 'w';
+  setTimeout(function() {
+    window.location.href = window.location.pathname + '?sid=' + onlineSid + '&color=' + newColor;
+  }, 400);
+}
+
+function _declineRematch() {
+  var b = document.getElementById('rematch-banner');
+  if (b) b.remove();
+  _netSet(_rematchKey(), JSON.stringify({ type: 'declined', from: myColor, ts: Date.now() }));
+  showToast('Rematch declined.', 'info');
+}
+
+/**
+ * Record the finished game.
+ *
+ * The old version had to work out, after the fact, which player had been which
+ * colour. It tried three sources in turn — a `chess.colors` map written by the
+ * room lobby, then the signed-in user of whichever tab happened to be running
+ * this code, then "index 0 is white" — and the last of those is a guess that is
+ * wrong half the time. All of it existed because the room was written by one
+ * part of the system and read by another.
+ *
+ * Chess now does its own pairing, so it simply knows: host is White, guest is
+ * Black, and it has had both user ids since the moment they were paired. There
+ * is nothing to reconstruct.
+ */
+function _recordChessMatch(sid) {
+  if (!sid) return;
+  try {
+    if (typeof DB === 'undefined' || !DB.recordMatchResult) return;
+    var winner = (state.result && state.result.winner) || 'draw';
+
+    var meUid  = ChessMatch.myUid;
+    var oppUid = ChessMatch.oppUid;
+
+    // Opened straight from a URL (a rematch link, a tournament link) rather
+    // than through pairing, so this tab only knows itself.
+    if (!meUid) {
+      try {
+        var s = (typeof Auth !== 'undefined' && Auth.getSession) ? Auth.getSession() : null;
+        meUid = s && s.userId != null ? String(s.userId) : null;
+      } catch (e) {}
+    }
+    if (!meUid) return;
+
+    // The match row may not exist yet if this game began from a URL.
+    var known = (DB.matches || []).some(function (m) { return String(m.match_id) === String(sid); });
+    if (!known && DB.startMatch) {
+      DB.startMatch(7, {
+        match_id: sid,
+        created_by: meUid,
+        participants: oppUid ? [meUid, oppUid] : [meUid],
+        mode: 'ranked'
+      });
+    }
+
+    var CARYS = { win: 150, draw: 50, loss: 0 };
+    var XP    = { win: 150, draw: 75, loss: 25 };
+
+    function outcomeFor(color) {
+      if (winner === 'draw' || winner === 'abort') return 'draw';
+      return color === winner ? 'win' : 'loss';
+    }
+
+    // One row per player, each with the colour it actually played.
+    var side = [{ uid: meUid, color: myColor }];
+    if (oppUid) side.push({ uid: oppUid, color: myColor === 'w' ? 'b' : 'w' });
+
+    side.forEach(function (p) {
+      var res = outcomeFor(p.color);
+      DB.recordMatchResult(String(sid), p.uid, 7, res, null, {
+        game_mode: 'online',
+        carys_earned: CARYS[res] || 0,
+        xp_gained: XP[res] || 0,
+        moves: game.history(),
+        color: p.color
+      });
+    });
+
+    if (DB.endMatch) DB.endMatch(sid);
+
+    // ── Achievements ──────────────────────────────────────────
+    // Two were seeded against game 7 and until now could never fire: chess is a
+    // builtin, so it never loads the SDK and had no way to report one.
+    //
+    // Only MY outcome is reported — the opponent's client reports theirs. A
+    // client claiming an achievement for somebody else is exactly the kind of
+    // thing the server-side once-per-player rule exists to bound, but there is
+    // no reason to hand it the opportunity.
+    if (DB.unlockAchievement) {
+      var myOutcome = outcomeFor(myColor);
+      if (myOutcome === 'win') {
+        DB.unlockAchievement(7, 'first_win', sid);
+        // 'chess_checkmate' is for winning by mate specifically — a resignation
+        // or a timeout is a win, but it is not a checkmate.
+        if (winner !== 'draw' && winner !== 'abort' && game.in_checkmate && game.in_checkmate()) {
+          DB.unlockAchievement(7, 'chess_checkmate', sid);
+        }
+      }
+    }
+    if (DB.evaluatePlatformAchievements) DB.evaluatePlatformAchievements();
+
+    if (typeof DB.save === 'function') DB.save();
+
+    // Drop the local game-state cache for this match.
+    var sk = _sessionKey();
+    if (sk) localStorage.removeItem(sk);
+    var tk = onlineMoveKey ? onlineMoveKey + '_time' : null;
+    if (tk) localStorage.removeItem(tk);
+  } catch (ex) { console.warn('[ChessMatch] record failed', ex); }
+}
+
+
+function newGame() {
+  document.getElementById('go-overlay').classList.remove('show');
+  if (gameMode === 'online') {
+    quitToLobby();
+    return;
+  }
+  // Return to mode select so players can reconfigure
+  document.getElementById('mode-overlay').classList.remove('hidden');
+}
+
+function quitToLobby() {
+  if (gameMode === 'online' && onlineSid) {
+    _recordChessMatch(onlineSid);
+  }
+  
+  var urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mode') === 'tournament') {
+    var tid = urlParams.get('tournamentId');
+    window.location.href = '../../pages/player/tournaments.html' + (tid ? '?id=' + tid : '');
+  } else {
+    try {
+      // Auth.SESSION_KEY, not 'playcarys_auth'. Nothing has ever written that
+      // key, so localStorage.getItem() returned null on every single call and
+      // both branches below it were dead code — a moderator or superuser who
+      // opened a board to watch it was dropped on the player pages on the way
+      // out, with no route back to the queue they came from.
+      var authRaw = localStorage.getItem('playcarys_session')
+                 || sessionStorage.getItem('playcarys_session');
+      if (authRaw) {
+        var auth = JSON.parse(authRaw);
+        if (auth.role === 'moderator') {
+          window.location.href = '../../pages/moderator/sessions.html';
+          return;
+        } else if (auth.role === 'superuser') {
+          window.location.href = '../../pages/superuser/hub.html';
+          return;
+        }
+      }
+    } catch(e) {}
+
+    // Default for players.
+    //
+    // join-session.html renders its hero from ?gameId=. Called bare — which is
+    // what this did — it has no game to describe, so it falls back to a generic
+    // "Live Sessions / Browse sessions" panel. Finishing a chess match therefore
+    // landed you on a contextless page that listed nothing, because the match
+    // you just played was the session and _cleanupQPSession() above had already
+    // removed it. It read as "the game vanished".
+    //
+    // CHESS_GAME_ID is this game's row in DB.games and is the same '7' that
+    // game-launch.js maps to the chess engine. Passing it back gets you the
+    // Chess Pro header, its session list, and a Create Session button — i.e. the
+    // page you would have used to start another match.
+    var CHESS_GAME_ID = '7';
+    var backId = urlParams.get('gameId') || CHESS_GAME_ID;
+    if (onlineSid) {
+      window.location.href = '../../pages/player/join-session.html?gameId=' + encodeURIComponent(backId);
+    } else {
+      window.location.href = '../../pages/player/games.html';
+    }
+  }
+}
+
+function resetAll() {
+  game = new Chess();
+  viewGame = new Chess();
+  viewIndex = -1;
+  isReview = false;
+  gameEnded = false;
+  state = {
+    whiteTime: 600, blackTime: 600,
+    lastMoveTs: Date.now(), turn: 'w',
+    drawOffer: null, result: null,
+    chat: [], lastFrom: null, lastTo: null
+  };
+  clearInterval(timerInt);
+  document.getElementById('check-bar').classList.remove('show');
+  hideReviewBar();
+  document.getElementById('draw-bar').classList.remove('show');
+  document.getElementById('bottom-captured').innerHTML = '';
+  document.getElementById('top-captured').innerHTML = '';
+
+  board.orientation('white');  // always start white at bottom; 2p mode will flip during play
+  board.start();
+  updatePlayerPlates();
+
+  setTimerEl('bottom-timer', 600, true);
+  setTimerEl('top-timer',    600, false);
+  updateResignBtn();
+  startTimer();
+  renderMoves();
+  document.getElementById('chat-history').innerHTML = '<div class="chat-empty">Say hi to your opponent 👋</div>';
+  
+  if (gameMode === 'online') {
+    // Online state managed by _initSyncChannel Handshake
+  } else {
+    state.lastMoveTs = Date.now();
+    startTimer();
+  }
+
+  if (gameMode === '2p') {
+    systemChat('New game! ' + players.white.name + ' (White) goes first.');
+  } else {
+    systemChat('New game! Playing as ' + (myColor==='w'?'White':'Black') + '.');
+    if (myColor === 'b') setTimeout(aiMove, 600 + Math.random()*400);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAW / RESIGN / ABORT
+// ═══════════════════════════════════════════════════════════
+function offerDraw() {
+  if (gameEnded) return;
+  
+  var offererColor = (gameMode === '2p') ? game.turn() : myColor;
+
+  if (state.drawOffer === offererColor) { showToast('Already offered a draw.', 'info'); return; }
+  state.drawOffer = offererColor;
+  showToast('Draw offered!', 'info');
+  systemChat((offererColor==='w'?'White':'Black') + ' offers a draw.');
+
+  if (gameMode === 'online') {
+    // Sync the draw offer to the opponent — same machine or not
+    _netSet(onlineMoveKey + '_draw', JSON.stringify({ from: myColor, ts: Date.now() }));
+    showToast('Draw offer sent to opponent.', 'info');
+  } else if (gameMode === '2p') {
+    // In 2p mode, the offer stays until the next player answers it
+  } else {
+    // AI mode: simulate opponent randomly accepting
+    setTimeout(() => {
+      if (!gameEnded && state.drawOffer === offererColor) {
+        if (Math.random() < 0.3) {
+          endGame('draw', 'Draw by agreement.');
+        } else {
+          state.drawOffer = null;
+          systemChat('Draw declined.');
+          document.getElementById('draw-bar').classList.remove('show');
+          showToast('Opponent declined the draw.', 'warning');
+        }
+      }
+    }, 1800 + Math.random()*1200);
+  }
+}
+
+function respondDraw(accept) {
+  document.getElementById('draw-bar').classList.remove('show');
+  state.drawOffer = null;
+  if (accept) {
+    if (gameMode === 'online') {
+      // Broadcast draw acceptance
+      _netSet(onlineMoveKey + '_draw', JSON.stringify({ from: 'accepted', ts: Date.now() }));
+    }
+    endGame('draw', 'Draw by agreement.');
+  } else {
+    if (gameMode === 'online') {
+      _netSet(onlineMoveKey + '_draw', JSON.stringify({ from: 'declined', ts: Date.now() }));
+    }
+    systemChat('Draw offer declined.');
+    showToast('Draw declined.', 'info');
+  }
+}
+
+function checkDrawOfferBanner() {
+  var bar = document.getElementById('draw-bar');
+  if (!state.drawOffer || gameEnded) {
+    bar.classList.remove('show');
+    return;
+  }
+  
+  var isOpponentOffer = false;
+  if (gameMode === '2p') {
+    isOpponentOffer = (state.drawOffer !== game.turn());
+  } else {
+    isOpponentOffer = (state.drawOffer !== myColor);
+  }
+
+  if (isOpponentOffer) {
+    bar.classList.add('show');
+    var label = document.querySelector('.draw-offer-label');
+    if (label) {
+      if (gameMode === '2p') {
+        var oppColorName = state.drawOffer === 'w' ? players.white.name : players.black.name;
+        label.textContent = '½ ' + oppColorName + ' offers a Draw';
+      } else {
+        label.textContent = '½ Opponent offers a Draw';
+      }
+    }
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+function doResign() {
+  if (gameEnded) { newGame(); return; }
+  var isAbort  = game.history().length < 2;
+  var title    = isAbort ? '🏳 Abort Match' : '🏳 Resign Game';
+  var msg      = isAbort
+    ? 'Abort this match? No rating points will change.'
+    : 'Resign this game? This will count as a loss.';
+
+  showConfirm(title, msg, function() {
+    if (isAbort) {
+      if (gameMode === 'online') {
+        _netSet(onlineMoveKey + '_resign',
+          JSON.stringify({ color: myColor, type: 'abort', ts: Date.now() }));
+      }
+      endGame('abort', 'Match aborted.');
+    } else if (gameMode === 'online') {
+      var opp = myColor === 'w' ? 'b' : 'w';
+      _netSet(onlineMoveKey + '_resign',
+        JSON.stringify({ color: myColor, type: 'resign', ts: Date.now() }));
+      endGame(opp, (myColor === 'w' ? 'White' : 'Black') + ' resigned.');
+    } else if (gameMode === '2p') {
+      var curTurn  = game.turn();
+      var winner   = curTurn === 'w' ? 'b' : 'w';
+      var resigner = curTurn === 'w' ? players.white.name : players.black.name;
+      endGame(winner, resigner + ' resigned.');
+    } else {
+      var opp = myColor === 'w' ? 'b' : 'w';
+      endGame(opp, (myColor === 'w' ? 'White' : 'Black') + ' resigned.');
+    }
+  });
+}
+
+function updateResignBtn() {
+  var btnResign = document.getElementById('btn-resign');
+  var btnDraw = document.getElementById('btn-draw');
+  
+  if (gameEnded) {
+    btnResign.textContent = '🔄 New Game';
+    btnResign.className = 'act-btn exit';
+    btnResign.onclick = newGame;
+    
+    btnDraw.style.display = 'flex';
+    btnDraw.textContent = '🚪 Sessions';
+    btnDraw.className = 'act-btn resign';
+    btnDraw.onclick = quitToLobby;
+  } else {
+    var isAbort = game.history().length < 2;
+    btnResign.textContent = isAbort ? '🏳 Abort' : '🏳 Resign';
+    btnResign.className = 'act-btn resign';
+    btnResign.onclick = doResign;
+
+    btnDraw.style.display = 'flex';
+    btnDraw.textContent = '½ Draw';
+    btnDraw.className = 'act-btn draw';
+    btnDraw.onclick = offerDraw;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════════
+var chatMsgs = [];
+function sendChat() {
+  var inp = document.getElementById('chat-inp');
+  var txt = inp.value.trim();
+  if (!txt) return;
+
+  // `players` only ever holds .white and .black — the old code read
+  // players.me.name, which is undefined and threw on every send, so chat never
+  // worked at all. Tag each message with the AUTHOR'S COLOUR instead: the
+  // message travels to the opponent inside the state bundle, and each side
+  // renders it as "me" or "opp" relative to its own colour (see renderChat).
+  var author = (gameMode === 'online') ? myColor : game.turn();
+  var name   = (author === 'b') ? players.black.name : players.white.name;
+
+  chatMsgs.push({ from: author, name: name, text: txt, ts: Date.now() });
+  inp.value = '';
+  renderChat();
+  _saveGameState();   // pushes the message to the opponent
+
+  // Offline modes have nobody on the other end, so keep the canned replies
+  // there only — never fake a reply from a real opponent.
+  if (gameMode !== 'online') {
+    var replies = ['Good move!', 'Interesting...', 'Let me think.', 'Nice one!', 'Hmm.', '👀'];
+    setTimeout(() => {
+      var oppColor = (author === 'w') ? 'b' : 'w';
+      var oppName  = (oppColor === 'b') ? players.black.name : players.white.name;
+      chatMsgs.push({ from: oppColor, name: oppName, text: replies[Math.floor(Math.random()*replies.length)] });
+      renderChat();
+    }, 800 + Math.random()*1500);
+  }
+}
+
+function systemChat(txt) {
+  // System lines are LOCAL only ("You are playing as White", etc.). They are
+  // stripped from the synced bundle by _saveGameState — otherwise the opponent
+  // received our copy and was told they were playing the wrong colour.
+  chatMsgs.push({ from: 'sys', text: txt, ts: Date.now() });
+  renderChat();
+  _saveGameState();
+}
+
+// Only real player messages travel between the two laptops.
+function _sharedChat() {
+  return chatMsgs.filter(function (m) { return m.from !== 'sys'; });
+}
+
+// Keep our own system lines, take the opponent's real messages, order by time.
+function _mergeChat(incoming) {
+  var localSys = chatMsgs.filter(function (m) { return m.from === 'sys'; });
+  var remote   = (incoming || []).filter(function (m) { return m.from !== 'sys'; });
+  chatMsgs = localSys.concat(remote).sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); });
+}
+
+function renderChat() {
+  var el = document.getElementById('chat-history');
+  if (!chatMsgs.length) {
+    el.innerHTML = '<div class="chat-empty">Say hi to your opponent 👋</div>';
+    return;
+  }
+  var atBottom = el.scrollHeight - el.clientHeight <= el.scrollTop + 60;
+  el.innerHTML = chatMsgs.slice(-80).map(m => {
+    if (m.from === 'sys') return `<div class="chat-sys">⚡ ${m.text}</div>`;
+    // Messages are stored with the author's colour, so the same message list
+    // renders correctly on both laptops. ('me' is kept for older saved games.)
+    var mine = (m.from === 'me') || (gameMode === 'online' && m.from === myColor);
+    var cls = mine ? 'me' : 'opp';
+    return `<div class="chat-msg"><span class="chat-name ${cls}">${m.name}:</span>${m.text}</div>`;
+  }).join('');
+  if (atBottom) el.scrollTop = el.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB SWITCH
+// ═══════════════════════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+id+'-btn').classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if (id==='chat') {
+    var h = document.getElementById('chat-history');
+    setTimeout(() => h.scrollTop = h.scrollHeight, 50);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// REVIEW BAR
+// ═══════════════════════════════════════════════════════════
+function showReviewBar() { document.getElementById('review-bar').classList.add('show'); }
+function hideReviewBar() { document.getElementById('review-bar').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════════
+// CONFIRM DIALOG
+// ═══════════════════════════════════════════════════════════
+var _confirmCb = null;
+function showConfirm(title, msg, cb) {
+  _confirmCb = cb;
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent   = msg;
+  document.getElementById('confirm-overlay').classList.add('show');
+  document.getElementById('confirm-ok').onclick = () => { 
+    var cbToCall = _confirmCb;
+    closeConfirm(); 
+    if (cbToCall) cbToCall(); 
+  };
+}
+function closeConfirm() { document.getElementById('confirm-overlay').classList.remove('show'); _confirmCb = null; }
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  type = type || 'info';
+  var el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toast-stack').appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity 0.4s'; setTimeout(()=>el.remove(),400); }, 2800);
+}
+
+// ═══════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (document.activeElement.tagName === 'INPUT') return;
+  if (e.key === 'ArrowLeft')  navMove('prev');
+  if (e.key === 'ArrowRight') navMove('next');
+  if (e.key === 'ArrowUp')    navMove('start');
+  if (e.key === 'ArrowDown')  navMove('end');
+  if (e.key === 'f')          board && board.flip();
+});
+
+// ═══════════════════════════════════════════════════════════
+// BOOT — wait for mode selection before initing the board
+// ═══════════════════════════════════════════════════════════
+$(document).ready(() => {
+  // ── Pre-fill player name from logged-in session ──
+  try {
+    var _sess = typeof Auth !== 'undefined' ? Auth.getSession() : null;
+    if (_sess && _sess.username) {
+      var _wInp = document.getElementById('inp-white');
+      if (_wInp) _wInp.value = _sess.username;
+    }
+  } catch(e) {}
+
+  var urlParams  = new URLSearchParams(window.location.search);
+  var mode       = urlParams.get('mode');
+  var sid        = urlParams.get('sid');
+  var colorParam = urlParams.get('color'); // 'w' or 'b' — set on a rematch link
+
+  // Only skip the menu for a match that genuinely IS already decided.
+  //
+  // A bare ?sid= is not enough evidence. The catalogue used to attach one to an
+  // ordinary Play press, and this branch then hid the menu and dropped the
+  // player onto a competitive board waiting for an opponent who had never been
+  // paired with them — no way to reach "vs Computer" or "2-Player Local"
+  // without editing the URL.
+  //
+  // A decided match always carries more than an id: a rematch link states the
+  // colour, a tournament link states mode=tournament, and a spectator link
+  // states spectate. Anything else is somebody opening chess, and they get the
+  // menu — which is what the flow-corrections document asks for.
+  var preDecided = !!sid && (colorParam === 'w' || colorParam === 'b' ||
+                             mode === 'tournament' || urlParams.get('spectate') === '1');
+
+  if (preDecided) {
+    document.getElementById('mode-overlay').style.display = 'none';
+
+    // Colour comes from the URL — no guessing, no shared-key collision.
+    var myCol = (colorParam === 'b') ? 'b' : 'w';
+
+    // Names.
+    //
+    // This used to dig them out of the session row: read the room, read its
+    // member list (or the junction if the list was empty), then read a
+    // `chess.colors` map to find out who was White — with a positional
+    // "first player is White" guess if that map was missing. Four ways to be
+    // wrong about two names.
+    //
+    // There is no room to read now. This tab knows who IS signed into it; the
+    // opponent's name arrives over the socket with the rest of the game state,
+    // the same way the position and the clock do.
+    var whiteName = 'White', blackName = 'Black';
+    try {
+      var _s = (typeof Auth !== 'undefined' && Auth.getSession) ? Auth.getSession() : null;
+      var myName = _s && _s.username ? _s.username : null;
+      if (myName) { if (myCol === 'w') whiteName = myName; else blackName = myName; }
+    } catch(e) {}
+
+    isSpectator = urlParams.get('spectate') === '1';
+
+    startGame('online', {
+      sid:         sid,
+      color:       myCol,
+      whiteName:   whiteName,
+      blackName:   blackName,
+      whiteRating: 1200,
+      blackRating: 1200
+    });
+
+    setTimeout(function() {
+      if (board) board.orientation(myCol === 'w' ? 'white' : 'black');
+      if (isSpectator) {
+        // Always show a spectator White-side, and pull whatever the players have
+        // already done so the board opens mid-game rather than from the start.
+        if (board) board.orientation('white');
+        _enterSpectatorMode(whiteName, blackName);
+      } else {
+        var myName = myCol === 'w' ? whiteName : blackName;
+        systemChat('Quick Play started! You play as ' + myName + ' (' + (myCol === 'w' ? 'White ⬜' : 'Black ⬛') + ').');
+      }
+      // Start network indicator polling for online mode
+      _startNetIndicator();
+    }, 200);
+
+    // Listen for opponent resign/draw events via localStorage
+    window.addEventListener('storage', function(e) {
+      if (!onlineMoveKey) return;
+      // Other tab ended the game — record the match here too
+      if (e.key === 'chess_qp_ended_' + onlineSid && e.newValue) {
+        _recordChessMatch(onlineSid);
+      }
+      // Resign / Abort by opponent
+      if (e.key === onlineMoveKey + '_resign' && e.newValue) {
+        try {
+          var data = JSON.parse(e.newValue);
+          if (data.color !== myColor) { // opponent acted
+            if (data.type === 'abort') {
+              endGame('abort', 'Match aborted.');
+            } else {
+              endGame(myColor, (data.color==='w'?'White':'Black') + ' resigned. You win!');
+            }
+          }
+        } catch(ex) {}
+      }
+      // Draw offer by opponent
+      if (e.key === onlineMoveKey + '_draw' && e.newValue) {
+        try {
+          var data = JSON.parse(e.newValue);
+          if (data.from === 'accepted') {
+            if (!gameEnded) endGame('draw', 'Draw by agreement.');
+          } else if (data.from === 'declined') {
+            state.drawOffer = null;
+            document.getElementById('draw-bar').classList.remove('show');
+            showToast('Opponent declined your draw offer.', 'warning');
+          } else if (!gameEnded && data.from !== myColor) {
+            // Opponent is offering draw
+            state.drawOffer = data.from;
+            document.getElementById('draw-bar').classList.add('show');
+          }
+        } catch(ex) {}
+      }
+      // ── Rematch request / response ──
+      if (e.key === _rematchKey() && e.newValue) {
+        try {
+          var rm = JSON.parse(e.newValue);
+          if (rm.type === 'request' && rm.from !== myColor) {
+            // Opponent wants a rematch — show banner
+            var banner = document.createElement('div');
+            banner.id = 'rematch-banner';
+            banner.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a2a1a;border:1px solid #4a7c4a;border-radius:12px;padding:1rem 1.5rem;z-index:9999;display:flex;align-items:center;gap:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.6)';
+            banner.innerHTML = '<span style="font-size:1.2rem">⚡</span><span style="font-weight:700">Opponent wants a Rematch!</span>'
+              + '<button onclick="_acceptRematch()" style="background:#2a7c2a;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:700;cursor:pointer">Accept</button>'
+              + '<button onclick="_declineRematch()" style="background:#7c2a2a;color:#fff;border:none;border-radius:8px;padding:0.45rem 1rem;font-weight:700;cursor:pointer">Decline</button>';
+            var old = document.getElementById('rematch-banner');
+            if (old) old.remove();
+            document.body.appendChild(banner);
+          } else if (rm.type === 'accepted' && rm.from !== myColor) {
+            // Opponent accepted our rematch — swap colors and reload
+            var newColor = myColor === 'w' ? 'b' : 'w';
+            window.location.href = window.location.pathname + '?sid=' + onlineSid + '&color=' + newColor;
+          } else if (rm.type === 'declined' && rm.from !== myColor) {
+            showToast('Opponent declined the rematch.', 'warning');
+            // Restore game-over buttons
+            showGameOver(state.result?.winner || 'draw', state.result?.reason || '');
+          } else if (rm.type === 'cancel') {
+            var b = document.getElementById('rematch-banner');
+            if (b) b.remove();
+          }
+        } catch(ex) {}
+      }
+    });
+
+  } else if (mode === 'tournament') {
+    // Tournament Match Logic
+    var tid = urlParams.get('tournamentId');
+    var mid = urlParams.get('matchId');
+    document.getElementById('mode-overlay').style.display = 'none';
+    
+    // Find match data to get opponents.
+    // Read from the live DB object (db.js is already loaded and hydrated from
+    // the backend). The old code parsed localStorage key 'playcarys_db', which
+    // does not exist — the real key is 'playcarys_db_store_v5' — so this always
+    // threw and both players showed up as "P1"/"P2".
+    var p1 = 'Player 1', p2 = 'Player 2';
+    var tMatch = null;
+    try {
+      tMatch = (window.DB && DB.tournament_matches || []).find(function (x) {
+        return String(x.match_id) === String(mid);
+      });
+      if (tMatch) {
+        var uP1 = DB.users.find(function (u) { return String(u.user_id) === String(tMatch.player1); });
+        var uP2 = DB.users.find(function (u) { return String(u.user_id) === String(tMatch.player2); });
+        if (uP1) p1 = uP1.user_name;
+        if (uP2) p2 = uP2.user_name;
+      }
+    } catch(e) {}
+
+    // Seat each player on their own side. Previously BOTH clients were handed
+    // color 'w', so each one treated every opponent move as "not your turn"
+    // and the match could never be played.
+    var tSession = (typeof Auth !== 'undefined' && Auth.getSession) ? Auth.getSession() : null;
+    var tMyUid   = tSession ? String(tSession.userId) : null;
+    var tColor   = (tMatch && tMyUid && String(tMatch.player2) === tMyUid) ? 'b' : 'w';
+
+    startGame('online', {
+      sid: 'T_' + mid,
+      color: tColor,   // player1 = White, player2 = Black
+      whiteName: p1,
+      blackName: p2,
+      whiteRating: 1500,
+      blackRating: 1500
+    });
+    systemChat('TOURNAMENT MATCH: ' + p1 + ' vs ' + p2);
+
+  } else if (mode === '2p') {
+    startGame(mode);
+  } else if (mode === 'ai') {
+    openAiLevelOverlay();
+  }
+  // else: show the mode overlay
+
+  setInterval(checkDrawOfferBanner, 300);
+});
+</script>
+</body>
+</html>
+

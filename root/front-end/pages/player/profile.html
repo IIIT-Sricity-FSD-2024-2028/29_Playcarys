@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Player Profile</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    /* ── Profile Layout ── */
+    .profile-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .profile-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .profile-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .profile-main {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* ── Cards Refinements ── */
+    .profile-card-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .profile-stats-row {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-top: 1.25rem;
+      width: 100%;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 1.25rem;
+    }
+
+    .pcp-card-vertical {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .achievement {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.6rem;
+      transition: all var(--trans-fast);
+    }
+
+    .achievement.unlocked {
+      border-color: rgba(124, 58, 237, 0.4);
+      background: rgba(124, 58, 237, 0.08);
+    }
+
+    .achievement-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .achievement.unlocked .achievement-icon {
+      background: rgba(124, 58, 237, 0.2);
+    }
+
+    .achievement-info {
+      flex: 1;
+    }
+
+    .achievement-info h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .achievement-info p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-row .label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .stat-row .val {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .report-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    /* ── Two-column report / contact grid ── */
+    .report-contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    @media (max-width: 700px) {
+      .report-contact-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Contact Moderator card extras */
+    .contact-mod-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(124, 58, 237, 0.25) !important;
+      background: linear-gradient(145deg, rgba(124, 58, 237, 0.06), var(--bg-card)) !important;
+    }
+
+    .mod-glow-blob {
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .mod-icon-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(0, 212, 255, 0.15));
+      border: 1px solid rgba(124, 58, 237, 0.35);
+      font-size: 1.6rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .mod-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .mod-sub {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 1rem;
+    }
+
+    .mod-assigned {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      background: rgba(124, 58, 237, 0.1);
+      border: 1px solid rgba(124, 58, 237, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 0.9rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .mod-assigned.hidden {
+      display: none;
+    }
+
+    .mod-assigned-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .mod-assigned-name {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #a78bfa;
+    }
+
+    .mod-send-btn {
+      transition: background 0.4s ease, transform 0.15s ease;
+    }
+
+    .mod-send-btn:active {
+      transform: scale(0.97);
+    }
+
+    .mod-btn-icon {
+      margin-right: 0.3rem;
+    }
+
+    .mod-note {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.85rem;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <div class="page-header">
+        <h1>Player Profile</h1>
+        <p class="text-muted">Manage your identity and view performance</p>
+      </div>
+
+      <div class="profile-layout">
+
+        <!-- ================= LEFT SIDEBAR ================= -->
+        <div class="profile-sidebar">
+
+          <!-- Identity Card -->
+          <div class="card" id="profile-card">
+            <button class="btn btn-ghost btn-sm" style="position:absolute; top:1rem; right:1rem;"
+              onclick="Modal.open('edit-modal');prefillEditForm()">✏️ Edit</button>
+            <div class="profile-card-content">
+              <!-- The character. Avatar3D swaps itself out for the flat rig
+                   when there is no base body GLB, no WebGL, or a load fails,
+                   so this box is never empty. -->
+              <div id="p-model" style="margin:0 auto .75rem;min-height:2rem"></div>
+              <div class="avatar avatar-xl mb-2" id="p-avatar"></div>
+              <h2 id="p-username" style="font-size:1.4rem; margin-bottom:0.25rem;"></h2>
+              <div style="display:flex; gap:0.5rem; justify-content:center; margin-bottom:0.5rem;">
+                <span class="badge badge-active" id="p-level"></span>
+                <span class="badge badge-active" id="p-status"></span>
+              </div>
+              <div style="color:var(--text-secondary);font-size:0.8rem;" id="p-email"></div>
+
+              <div style="width:100%; margin-top:1.25rem;">
+                <div
+                  style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.4rem">
+                  <span>Level Progress</span><span id="p-pct"></span>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar" id="p-bar"></div>
+                </div>
+              </div>
+
+              <div class="profile-stats-row">
+                <div>
+                  <div style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700" id="p-matches"></div>
+                  <div style="font-size:0.65rem;text-transform:uppercase;color:var(--text-secondary)">Matches</div>
+                </div>
+                <div>
+                  <div
+                    style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;color:var(--accent-green)"
+                    id="p-wins"></div>
+                  <div style="font-size:0.65rem;text-transform:uppercase;color:var(--text-secondary)">Wins</div>
+                </div>
+                <div>
+                  <div style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;color:var(--accent-red)"
+                    id="p-losses"></div>
+                  <div style="font-size:0.65rem;text-transform:uppercase;color:var(--text-secondary)">Losses</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PlayCarys Points -->
+          <div class="card pcp-card-vertical" id="pcp-card">
+            <div style="font-size:3rem; margin-bottom:0.5rem; filter:drop-shadow(0 0 10px rgba(0,212,255,0.4))">🏅</div>
+            <h3 style="font-family:'Orbitron',monospace;font-size:1.1rem; margin-bottom:0.25rem;">PlayCarys Points</h3>
+            <div style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:1.25rem; line-height:1.4">
+              Your performance score based on wins and tournaments.
+            </div>
+
+            <div
+              style="display:flex; justify-content:space-around; width:100%; padding-top:1rem; border-top:1px solid rgba(255,255,255,0.05)">
+              <div>
+                <div
+                  style="font-family:'Orbitron',monospace;font-size:1.8rem;font-weight:900;background:linear-gradient(135deg,#a78bfa,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1"
+                  id="pcp-score">—</div>
+                <div style="font-size:0.65rem;color:var(--text-secondary);text-transform:uppercase;margin-top:0.4rem">
+                  PCP Score</div>
+              </div>
+              <div>
+                <div style="font-size:1.2rem;font-weight:800;color:var(--accent-yellow);line-height:1" id="pcp-rank">—
+                </div>
+                <div style="font-size:0.65rem;color:var(--text-secondary);text-transform:uppercase;margin-top:0.4rem">
+                  Rank Tier</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ================= RIGHT MAIN AREA ================= -->
+        <div class="profile-main">
+
+          <!-- Stats + Achievements (Side by side on desktop) -->
+          <div class="cards-grid-2">
+            <div class="card">
+              <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">🎯 Advanced Statistics</h3>
+              <div id="stats-list"></div>
+            </div>
+            <div class="card">
+              <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">🏅 Trophies & Milestones</h3>
+              <div id="achievements-list"></div>
+            </div>
+          </div>
+
+          <!-- Game achievements: awarded by publishers, distinct from the
+               platform milestones above. -->
+          <div class="card" id="game-ach-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+              <h3 style="display:flex;align-items:center;gap:0.5rem">🎖️ Game Achievements</h3>
+              <div id="title-picker" style="display:none;align-items:center;gap:0.5rem">
+                <label style="font-size:0.78rem;color:var(--text-secondary)">Displayed title</label>
+                <select class="form-input" id="active-title" style="padding:0.35rem 0.6rem;font-size:0.8rem;width:auto"></select>
+              </div>
+            </div>
+            <div id="game-ach-list"></div>
+          </div>
+
+          <!-- Linked external game accounts — self-declared, not OAuth-verified;
+               see the note on LinkedGameAccount in the backend's data/store.ts.
+               Unlocks the "Launch Game" button on external-game tournaments,
+               and the dual-report flow that already exists for un-integrated games. -->
+          <div class="card" id="linked-accounts-card">
+            <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">🔗 Linked Game Accounts</h3>
+            <p class="text-muted" style="font-size:0.78rem;margin-bottom:1rem">Self-declared, not verified — PlayCarys can't see into these games. This is just your roster so tournament organizers know your in-game name.</p>
+            <div id="linked-accounts-list" style="margin-bottom:1rem"></div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end">
+              <div class="form-group" style="margin:0">
+                <label class="form-label" style="font-size:0.72rem">Platform</label>
+                <select class="form-input" id="la-platform" style="padding:0.4rem 0.6rem"></select>
+              </div>
+              <div class="form-group" style="margin:0;flex:1;min-width:160px">
+                <label class="form-label" style="font-size:0.72rem">In-Game Name</label>
+                <input class="form-input" id="la-name" placeholder="e.g. PhoenixRise#NA1" style="padding:0.4rem 0.6rem"/>
+              </div>
+              <button class="btn btn-yellow btn-sm" onclick="linkGameAccount()">+ Link</button>
+            </div>
+          </div>
+
+          <!-- Highlights Gallery -->
+          <div class="card p-0 overflow-hidden" id="highlights-section" style="display:none;">
+            <div class="card-header-row" style="padding:1.25rem; border-bottom:1px solid var(--border-primary);">
+              <h2 style="font-size:1.1rem">📸 Highlights Gallery</h2>
+            </div>
+            <div id="highlights-list"
+              style="display:flex; overflow-x:auto; gap:1rem; padding:1.25rem; background:var(--bg-secondary);">
+            </div>
+          </div>
+
+          <!-- Support & Moderation tools -->
+          <div class="report-contact-grid">
+            <!-- LEFT HALF: Report a Player -->
+            <div class="card report-half">
+              <h3 class="mb-1" style="display:flex;align-items:center;gap:0.5rem">⚠️ Report a Player</h3>
+              <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.9rem">See someone cheating or
+                behaving badly? Flag them here and our team will investigate.</p>
+              <div class="report-form">
+                <div class="form-group">
+                  <label class="form-label">Player Username <span class="required">*</span></label>
+                  <input class="form-input" id="r-player" placeholder="Their username" />
+                  <span class="form-error"></span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Report Type <span class="required">*</span></label>
+                  <select class="form-select" id="r-type">
+                    <option value="">Select type...</option>
+                    <option>Toxic Behavior</option>
+                    <option>Cheating</option>
+                    <option>Griefing</option>
+                    <option>Spam</option>
+                    <option>Hate Speech</option>
+                    <option>Other</option>
+                  </select>
+                  <span class="form-error"></span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Session / Game</label>
+                  <input class="form-input" id="r-session" placeholder="Which game or session?" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Description <span class="required">*</span></label>
+                  <textarea class="form-textarea" id="r-desc" placeholder="Describe what happened in detail..."
+                    style="min-height:80px"></textarea>
+                  <span class="form-error"></span>
+                </div>
+                <button class="btn btn-yellow w-full" onclick="submitReport()">⚠️ Submit Report</button>
+              </div>
+            </div>
+
+            <!-- RIGHT HALF: Contact Moderator -->
+            <div class="card contact-mod-card">
+              <div class="mod-glow-blob"></div>
+              <div class="mod-icon-wrap">🛡️</div>
+              <h3 class="mod-title">Contact a Moderator</h3>
+              <p class="mod-sub">Need urgent help? Send your concern directly to an on-duty moderator. A random
+                available moderator will be assigned.</p>
+
+              <div id="mod-assigned-preview" class="mod-assigned hidden">
+                <div class="mod-assigned-label">Assigned to</div>
+                <div class="mod-assigned-name" id="mod-assigned-name">—</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Your Message <span class="required">*</span></label>
+                <textarea class="form-textarea" id="mod-msg" placeholder="Describe your concern clearly."
+                  style="min-height:95px"></textarea>
+                <span class="form-error" id="mod-msg-err" style="color:var(--accent-red);font-size:0.78rem"></span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Urgency</label>
+                <select class="form-select" id="mod-urgency">
+                  <option value="Low">🟢 Low — General inquiry</option>
+                  <option value="Medium" selected>🟡 Medium — Needs attention</option>
+                  <option value="High">🔴 High — Urgent issue</option>
+                </select>
+              </div>
+
+              <button class="btn btn-primary w-full mod-send-btn" onclick="contactModerator()" id="mod-send-btn">
+                <span class="mod-btn-icon">📡</span> Send to Moderator
+              </button>
+
+              <div class="mod-note">
+                <span>🔒</span> Your message is confidential and reviewed within 24 hours.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EDIT PROFILE MODAL -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Edit Profile</h3>
+        <span class="modal-close" onclick="Modal.close('edit-modal')">✕</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">Username <span class="required">*</span></label>
+          <input class="form-input" id="e-username" />
+          <span class="form-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" id="e-email" type="email" />
+          <span class="form-error"></span>
+        </div>
+        <div style="padding:0.75rem;background:var(--bg-secondary);border-radius:var(--radius-md)">
+          <h4 style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:0.75rem">CHANGE PASSWORD (OPTIONAL)
+          </h4>
+          <div class="form-group mb-2">
+            <label class="form-label">Current Password</label>
+            <input class="form-input" id="e-current" type="password" placeholder="Required to set a new password" autocomplete="current-password" />
+            <span class="form-error"></span>
+          </div>
+          <div class="form-group mb-2">
+            <label class="form-label">New Password</label>
+            <input class="form-input" id="e-password" type="password" placeholder="Leave blank to keep current" autocomplete="new-password" />
+            <span class="form-error"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <input class="form-input" id="e-confirm" type="password" placeholder="Repeat new password" />
+            <span class="form-error"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="Modal.close('edit-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <!-- Presence badges offer a Spectate action; the resolver owns which games support one. -->
+  <script src="../../js/game-launch.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script src="../../js/avatar-model.js"></script>
+  <script src="../../js/avatar-3d.js"></script>
+  <script>
+    // navigate() provided globally by utils.js
+
+    let currentUser = null;
+
+
+    /**
+     * Draw the viewed player's character.
+     *
+     * Reads the equipped set from the economy API rather than DB, because
+     * cosmetics are server-owned — the client's copy of user_cosmetics is a
+     * cache and could be a page-load behind an equip.
+     *
+     * Deliberately fire-and-forget: a profile must render its stats whether or
+     * not a model loads, so nothing here is awaited by the caller.
+     */
+    /**
+     * Put the player's cosmetics where they belong on their own profile.
+     *
+     * A banner across the card, their frame on the avatar, their effect on
+     * their name. All three were purchasable and none of them appeared
+     * anywhere — the profile is the obvious place for every one of them.
+     */
+    async function renderProfileSkin(u) {
+      const uid = u.user_id != null ? u.user_id : u.id;
+      if (typeof PlayerSkin === 'undefined' || uid == null) return;
+      await PlayerSkin.preload([uid]);
+      const skin = PlayerSkin.of(uid);
+
+      // Banner — a strip across the top of the identity card. Inserted rather
+      // than always present so a player without one sees no empty band.
+      const card = document.getElementById('profile-card');
+      const bannerCss = PlayerSkin.banner(uid);
+      if (card && bannerCss) {
+        let band = document.getElementById('p-banner');
+        if (!band) {
+          band = document.createElement('div');
+          band.id = 'p-banner';
+          band.style.cssText =
+            'height:74px;margin:-1px -1px 0;border-radius:14px 14px 0 0;' +
+            'position:relative;overflow:hidden';
+          card.insertBefore(band, card.firstChild);
+        }
+        band.style.background = bannerCss;
+        card.style.paddingTop = '0';
+      }
+
+      // Name effect on the actual username.
+      const nameEl = document.getElementById('p-username');
+      if (nameEl && skin.name_effect) {
+        nameEl.innerHTML = PlayerSkin.name(u, nameEl.textContent);
+      }
+
+      // Frame on the initials bubble. Skipped when the 3D model is showing —
+      // the figure is the avatar there, and ringing an empty circle beside it
+      // would just look like a bug.
+      const bubble = document.getElementById('p-avatar');
+      if (bubble && bubble.style.display !== 'none' && skin.frame) {
+        bubble.style.boxShadow =
+          '0 0 0 3px ' + skin.frame.color + ', 0 0 18px ' + skin.frame.glow;
+      }
+    }
+
+    async function renderProfileModel(u) {
+      const el = document.getElementById('p-model');
+      if (!el || !window.Avatar3D) return;
+
+      const uid = u.user_id != null ? u.user_id : u.id;
+      let equipped = [];
+      try {
+        const cat = await API.get('/economy/catalogue?viewerId=' + encodeURIComponent(uid));
+        equipped = (cat.items || []).filter(i => i.is_equipped);
+      } catch (e) {
+        // The figure is decoration on this page; a shop outage must not take
+        // the profile down with it.
+        console.info('[profile] cosmetics unavailable, skipping model', e);
+        return;
+      }
+
+      const res = await Avatar3D.mount(el, {
+        equipped,
+        name: '',                 // the username already has its own heading
+        size: 220,
+        autoRotate: true
+      });
+
+      // The initials bubble is the fallback for the fallback. Once a real 3D
+      // figure is on screen it is redundant, so it only stays while the flat
+      // rig (or nothing) is showing.
+      const bubble = document.getElementById('p-avatar');
+      if (bubble) bubble.style.display = res && res.mode === '3d' ? 'none' : '';
+    }
+
+    // One WebGL context per visit leaks if the page is left and re-entered.
+    window.addEventListener('pagehide', () => {
+      if (window.Avatar3D) Avatar3D.unmount('p-model');
+    });
+    function loadProfile() {
+      const session = Auth.getSession();
+      // Find user by ID — try getter first, then raw user_id field (for new users without getters)
+      currentUser = DB.users.find(u => String(u.id || u.user_id) === String(session.userId)) ||
+        DB.users.find(u => (u.username || u.user_name) === session.username);
+      if (!currentUser) return;
+
+      const u = currentUser;
+      // Use raw user_id as the canonical ID (handles both getter-attached and plain new users)
+      const uid = u.user_id != null ? u.user_id : u.id;
+
+      const pp = DB.player_profiles.find(p => String(p.user_id) === String(uid));
+      let curTotal = pp ? (pp.carys_points || 0) : 0;
+      let lvl = 1, req = 250, cur = curTotal;
+      while (cur >= req) { cur -= req; lvl++; req = 200 + Math.floor(Math.pow(lvl, 1.8) * 50); }
+      const pct = Math.floor((cur / req) * 100);
+      // Derive stats dynamically from DB.match_results
+      const uidStr = String(uid);
+      const myResults = DB.match_results.filter(r => String(r.player_id) === uidStr);
+      const derivedWins = myResults.filter(r => (r.result||'').toLowerCase() === 'win').length;
+      const derivedLosses = myResults.filter(r => (r.result||'').toLowerCase() === 'loss' || (r.result||'').toLowerCase() === 'lose').length;
+      const derivedMatches = myResults.length;
+
+      const _wins = typeof u.wins !== 'undefined' ? (u.wins || derivedWins) : (pp ? Math.max(derivedWins, pp.matches_won || 0) : derivedWins);
+      const _losses = typeof u.losses !== 'undefined' ? (u.losses || derivedLosses) : derivedLosses;
+      const _matches = typeof u.matches !== 'undefined' ? (u.matches || derivedMatches) : derivedMatches;
+      const winRate = _matches > 0 ? Math.round(_wins / _matches * 100) : 0;
+
+      document.getElementById('p-avatar').textContent = u.avatar || (u.username || u.user_name || 'PL').slice(0, 2).toUpperCase();
+      renderProfileModel(u);
+      document.getElementById('p-username').textContent = u.username || u.user_name;
+      // AFTER the username is written, not before: renderProfileSkin replaces
+      // that element's contents with the styled version, so running it first
+      // let the plain assignment land on top and erase the effect.
+      // .catch so a cosmetics failure cannot take the profile down with it.
+      renderProfileSkin(u).catch(function (e) {
+        console.warn('[profile] cosmetics did not render', e);
+      });
+      document.getElementById('p-level').textContent = `Level ${u.level || lvl || 1}`;
+      // Presence owns the live heartbeat state. The previous isUserOnline helper
+      // was never defined, so this profile always fell back to Offline.
+      const presence = (window.Presence && typeof Presence.statusOf === 'function')
+        ? Presence.statusOf(u)
+        : { state: 'offline', label: 'Offline' };
+      const statusLabel = presence.state === 'playing' ? 'Playing' : presence.label;
+      document.getElementById('p-status').textContent =
+        presence.state === 'online' ? '🟢 Online' :
+        presence.state === 'playing' ? '🎮 ' + statusLabel :
+        '⭕ Offline';
+      document.getElementById('p-email').textContent = u.email;
+      document.getElementById('p-pct').textContent = `${pct}%`;
+      document.getElementById('p-bar').style.width = `${pct}%`;
+      document.getElementById('p-matches').textContent = _matches;
+      document.getElementById('p-wins').textContent = _wins;
+      document.getElementById('p-losses').textContent = _losses;
+
+      // PlayCarys Points (PCP)
+      const gamesWon = _wins;
+      const tournsWon = 0;
+      const totalGames = _matches;
+      const totalTourns = DB.tournaments.filter(t => t.registeredPlayers && t.registeredPlayers.includes(String(uid))).length;
+      const denom = totalGames + totalTourns;
+      const pcpRaw = denom > 0 ? (gamesWon + tournsWon) / denom : 0;
+      const pcpScore = Math.min(100, Math.round(pcpRaw * 100));
+      const pcpRank = pcpScore >= 80 ? '🔥 Legendary' : pcpScore >= 60 ? '💎 Diamond' : pcpScore >= 40 ? '🥇 Gold' : pcpScore >= 20 ? '🥈 Silver' : '🥉 Bronze';
+      document.getElementById('pcp-score').textContent = pcpScore;
+      document.getElementById('pcp-rank').textContent = pcpRank;
+
+      // Stats
+      const _level = u.level || lvl || 1;
+      document.getElementById('stats-list').innerHTML = [
+        ['Win Rate', `${winRate}%`, 'var(--accent-purple)'],
+        ['Total Matches', _matches, 'var(--text-primary)'],
+        ['Current Level', _level, 'var(--text-primary)'],
+        ['Tournaments', totalTourns, 'var(--accent-yellow)'],
+        ['Account Status', capitalize(u.status), u.status === 'active' ? 'var(--accent-green)' : 'var(--accent-red)']
+      ].map(([label, val, color]) =>
+        `<div class="stat-row"><span class="label">${label}</span><span class="val" style="color:${color}">${val}</span></div>`
+      ).join('');
+
+      // Achievements
+      const achievements = [
+        { icon: '🏆', name: 'First Victory', desc: 'Win your first match', condition: _wins >= 1 },
+        { icon: '💎', name: '100 Wins', desc: 'Achieve 100 victories', condition: _wins >= 100 },
+        { icon: '⭐', name: 'Level 50', desc: 'Reach level 50', condition: _level >= 50 },
+        { icon: '🎖️', name: 'Tournament Champion', desc: 'Win a tournament', condition: false },
+        { icon: '🛡️', name: 'Veteran', desc: 'Play 200+ matches', condition: _matches >= 200 },
+        { icon: '🎯', name: 'Win Streak', desc: 'Win 5 matches in a row', condition: _wins >= 5 }
+      ];
+      document.getElementById('achievements-list').innerHTML = achievements.map(a => `
+    <div class="achievement ${a.condition ? 'unlocked' : ''}">
+      <div class="achievement-icon">${a.icon}</div>
+      <div class="achievement-info">
+        <h4>${a.name}</h4>
+        <p>${a.desc}</p>
+      </div>
+      ${a.condition ? '<span class="badge badge-approved">Unlocked</span>' : '<span style="color:var(--text-muted);font-size:0.75rem">Locked</span>'}
+    </div>`).join('');
+
+      // Publisher-defined achievements. Read from the server rather than DB,
+      // because achievements and unlocks are server-owned — db-import refuses
+      // them precisely so a game cannot write its own rewards.
+      loadGameAchievements(uid);
+
+      // Load Highlights Gallery
+      const highlights = (DB.highlights || []).filter(h => String(h.userId) === String(uid)).sort((a, b) => new Date(b.time) - new Date(a.time));
+      const hGallery = document.getElementById('highlights-list');
+      if (hGallery) {
+        if (!highlights.length) {
+          document.getElementById('highlights-section').style.display = 'none';
+        } else {
+          document.getElementById('highlights-section').style.display = 'block';
+          hGallery.innerHTML = highlights.map(h => {
+            const game = DB.games.find(g => String(g.game_id || g.id) === String(h.gameId));
+            const title = game ? (game.game_name || game.title) : 'Highlight';
+            const extra = h.distance ? `${h.distance}m` : '';
+            return `
+                    <div style="flex-shrink:0; width:220px; background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-md); overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                      <img src="${h.img}" style="width:100%; height:120px; object-fit:cover; display:block;" alt="Highlight" />
+                      <div style="padding:0.75rem;">
+                        <div style="font-weight:700; font-size:0.85rem;">${title}</div>
+                        <div style="font-size:0.75rem; color:var(--accent-cyan); font-family:'Orbitron',monospace; margin-top:0.2rem;">${extra}</div>
+                        <div style="font-size:0.7rem; color:var(--text-secondary); margin-top:0.2rem;">${formatDate(h.time)}</div>
+                      </div>
+                    </div>
+                  `;
+          }).join('');
+        }
+      }
+
+    }
+
+    // Prefill edit form from current loaded data (not from DB, to avoid stale reset)
+    function prefillEditForm() {
+      if (!currentUser) return;
+      document.getElementById('e-username').value = currentUser.username || currentUser.user_name || '';
+      document.getElementById('e-email').value = currentUser.email || '';
+      document.getElementById('e-current').value = '';
+      document.getElementById('e-password').value = '';
+      document.getElementById('e-confirm').value = '';
+    }
+
+    /**
+     * Render the achievements this player has earned across all games, plus a
+     * picker for which earned title to display.
+     *
+     * Both come from the API. The client's own DB copy is not consulted: a
+     * game could otherwise write itself an unlock locally and it would show
+     * here as though it were real, even though the server never granted it.
+     */
+    async function loadGameAchievements(uid) {
+      const list = document.getElementById('game-ach-list');
+      const picker = document.getElementById('title-picker');
+      const select = document.getElementById('active-title');
+      if (!list) return;
+
+      let earned = [];
+      let titles = [];
+      try {
+        const [aRes, tRes] = await Promise.all([
+          fetch(window.PC_API + '/players/' + uid + '/achievements'),
+          fetch(window.PC_API + '/players/' + uid + '/titles')
+        ]);
+        if (aRes.ok) earned = await aRes.json();
+        if (tRes.ok) titles = (await tRes.json()).titles || [];
+      } catch (err) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Could not reach the server to load achievements.</p>';
+        return;
+      }
+
+      // ── What is still there to earn ───────────────────────────
+      //
+      // This page used to show ONLY what the player had already collected,
+      // which answers "what have I done" but not "what is worth doing" — and
+      // the second is the question an achievement list exists to answer.
+      //
+      // Locked ones are fetched per game, for the games this player has
+      // actually played. Secret achievements arrive already masked by the
+      // server, so nothing is spoiled here.
+      const playedGameIds = [...new Set(
+        (DB.match_results || [])
+          .filter(r => String(r.player_id) === String(uid))
+          .map(r => String(r.game_id))
+          .filter(Boolean)
+      )];
+      const earnedIds = new Set(earned.map(a => a.achievement_id));
+
+      let locked = [];
+      try {
+        const lists = await Promise.all(playedGameIds.map(gid =>
+          fetch(window.PC_API + '/games/' + gid + '/achievements?viewerId=' + uid)
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => [])
+        ));
+        locked = lists.flat().filter(a => !a.unlocked && !earnedIds.has(a.achievement_id));
+      } catch (e) { locked = []; }
+
+      if (!earned.length && !locked.length) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">' +
+          'No game achievements yet. Publishers can attach them to their games — play on to start collecting.</p>';
+        picker.style.display = 'none';
+        return;
+      }
+
+      // Grouped by game, because "which game was this from" is the first thing
+      // a player asks and a flat list of badges does not answer it.
+      const byGame = {};
+      earned.forEach(a => { (byGame[a.game_name] = byGame[a.game_name] || []).push(a); });
+
+      const gameNameOf = (gid) => {
+        const g = (DB.games || []).find(x => String(x.game_id || x.id) === String(gid));
+        return g ? (g.game_name || g.title) : 'Other';
+      };
+
+      const earnedHTML = Object.keys(byGame).map(game => `
+        <div style="margin-bottom:1.1rem">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-secondary);font-weight:800;margin-bottom:0.5rem">${game}</div>
+          ${byGame[game].map(a => `
+            <div class="achievement unlocked" style="margin-bottom:0.45rem">
+              <div class="achievement-icon">${a.icon || '🏆'}</div>
+              <div class="achievement-info">
+                <h4>${a.name}${a.title_awarded ? ` <span style="font-size:0.7rem;color:var(--accent-purple);font-weight:700">· ${a.title_awarded}</span>` : ''}</h4>
+                <p>${a.description || ''}</p>
+              </div>
+              <span class="badge badge-approved">+${a.carys_granted || 0}</span>
+            </div>`).join('')}
+        </div>`).join('');
+
+      const lockedHTML = locked.length ? `
+        <div style="margin-top:0.4rem;padding-top:0.9rem;border-top:1px dashed var(--border-primary)">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-secondary);font-weight:800;margin-bottom:0.6rem">
+            Still to earn · ${locked.length}
+          </div>
+          ${locked.map(a => `
+            <div class="achievement" style="margin-bottom:0.45rem;opacity:0.6">
+              <div class="achievement-icon" style="filter:grayscale(1)">${a.icon || '🏆'}</div>
+              <div class="achievement-info">
+                <h4>${a.name} <span style="font-size:0.68rem;color:var(--text-muted);font-weight:600">· ${gameNameOf(a.game_id)}</span></h4>
+                <p>${a.description || ''}</p>
+              </div>
+              <span class="badge" style="background:rgba(255,255,255,0.06);color:var(--text-secondary)">+${a.carys_reward || 0}</span>
+            </div>`).join('')}
+        </div>` : '';
+
+      list.innerHTML = earnedHTML + lockedHTML;
+
+      if (!titles.length) { picker.style.display = 'none'; return; }
+
+      const profile = (DB.player_profiles || []).find(p => String(p.user_id) === String(uid));
+      const active = profile ? (profile.active_title || '') : '';
+      picker.style.display = 'flex';
+      select.innerHTML = '<option value="">No title</option>' +
+        titles.map(t => `<option value="${t}"${t === active ? ' selected' : ''}>${t}</option>`).join('');
+      select.onchange = () => setActiveTitle(uid, select.value);
+    }
+
+    /** Ask the server to display a title. It refuses ones you have not earned. */
+    async function setActiveTitle(uid, title) {
+      try {
+        const res = await fetch(window.PC_API + '/players/' + uid + '/title', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: parseInt(uid, 10), title: title || null })
+        });
+        if (!res.ok) {
+          let msg = 'Could not set that title.';
+          try { const b = await res.json(); msg = b.message || msg; } catch (e) {}
+          Toast.error(msg);
+          return;
+        }
+        const body = await res.json();
+        const profile = (DB.player_profiles || []).find(p => String(p.user_id) === String(uid));
+        if (profile) profile.active_title = body.active_title;
+        Toast.success(body.active_title ? ('Title set: ' + body.active_title) : 'Title cleared.');
+      } catch (err) {
+        Toast.error('Could not reach the server to set your title.');
+      }
+    }
+
+    async function saveProfile() {
+      const uEl = document.getElementById('e-username');
+      const eEl = document.getElementById('e-email');
+      const curEl = document.getElementById('e-current');
+      const pEl = document.getElementById('e-password');
+      const cEl = document.getElementById('e-confirm');
+
+      const rules = [
+        { el: uEl, rules: [{ type: 'required' }, { type: 'minLen', n: 3 }, { type: 'maxLen', n: 20 }] },
+        { el: eEl, rules: [{ type: 'required' }, { type: 'email' }] }
+      ];
+      if (pEl.value) {
+        rules.push({ el: curEl, rules: [{ type: 'required', msg: 'Enter your current password to change it' }] });
+        rules.push({ el: pEl, rules: [{ type: 'password' }] });
+        rules.push({ el: cEl, rules: [{ type: 'required', msg: 'Please confirm new password' }, { type: 'match', target: pEl, msg: 'Passwords do not match' }] });
+      }
+      if (!Validate.form(rules)) return;
+
+      const newUsername = uEl.value.trim();
+      const newEmail = eEl.value.trim();
+
+      const curId = String(currentUser.user_id != null ? currentUser.user_id : currentUser.id);
+      if (DB.users.find(u => (u.username || u.user_name || '').toLowerCase() === newUsername.toLowerCase() && String(u.user_id != null ? u.user_id : u.id) !== curId)) {
+        Validate.field(uEl, [{ type: 'custom', fn: () => false, msg: 'Username already taken' }]); return;
+      }
+      // Only another PLAYER account blocks this address; the same person's
+      // studio account is allowed to share it.
+      if (DB.emailTakenForRole(newEmail, 'player', curId)) {
+        Validate.field(eEl, [{ type: 'custom', fn: () => false, msg: 'Another player account already uses this email' }]); return;
+      }
+
+      // A password change goes to the server FIRST and is only applied if the
+      // current password checks out there.
+      //
+      // This used to be `currentUser.password = pEl.value` with no verification
+      // at all, so anyone who found an unlocked machine could take the account
+      // over in two clicks. The check has to be server-side: the browser no
+      // longer holds passwords to compare against, and a check written here
+      // could simply be skipped.
+      if (pEl.value) {
+        let res;
+        try {
+          res = await fetch(window.PC_API + '/auth/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: parseInt(curId, 10),
+              current_password: curEl.value,
+              new_password: pEl.value
+            })
+          });
+        } catch (err) {
+          Toast.error('Could not reach the server to change your password.');
+          return;
+        }
+        if (!res.ok) {
+          let msg = 'Current password is incorrect';
+          try { const j = await res.json(); msg = j.message || msg; } catch (e) {}
+          Validate.field(curEl, [{ type: 'custom', fn: () => false, msg: msg }]);
+          return;
+        }
+        // The server owns the stored value; this client keeps none.
+        delete currentUser.password;
+      }
+
+      // Update the real underlying DB fields (username/email are read-only getters)
+      currentUser.user_name = newUsername;
+      currentUser.email = newEmail;
+      currentUser.avatar = newUsername.slice(0, 2).toUpperCase();
+
+      // Sync player_profiles table so leaderboards, match history etc. stay up to date
+      const pp = (DB.player_profiles || []).find(p => String(p.user_id) === curId);
+      if (pp) pp.player_name = newUsername;
+
+      // Update session token — persist to both storages
+      const session = Auth.getSession();
+      session.username = newUsername;
+      session.avatar = currentUser.avatar;
+      const updatedSession = JSON.stringify(session);
+      sessionStorage.setItem('playcarys_session', updatedSession);
+      localStorage.setItem('playcarys_session', updatedSession);
+
+      DB.save(); // Actually persist changes to the mock database!
+
+      Modal.close('edit-modal');
+      Toast.success('Profile updated successfully!');
+      loadProfile();
+      buildNavbar('player', 'profile');
+    }
+
+    // ── Report a Player ────────────────────────────────────────────
+    function submitReport() {
+      const pEl = document.getElementById('r-player');
+      const tEl = document.getElementById('r-type');
+      const dEl = document.getElementById('r-desc');
+
+      if (!Validate.form([
+        { el: pEl, rules: [{ type: 'required', msg: 'Player username is required' }] },
+        { el: tEl, rules: [{ type: 'required', msg: 'Please select a report type' }] },
+        { el: dEl, rules: [{ type: 'required', msg: 'Description is required' }, { type: 'minLen', n: 20, msg: 'Please provide more detail (min 20 characters)' }] }
+      ])) return;
+
+      const targetName = pEl.value.trim();
+      const targetUser = DB.users.find(u => u.username.toLowerCase() === targetName.toLowerCase());
+      if (!targetUser) { Validate.field(pEl, [{ type: 'custom', fn: () => false, msg: 'User not found on this platform' }]); return; }
+      if (targetUser.id === currentUser.id) { Validate.field(pEl, [{ type: 'custom', fn: () => false, msg: 'You cannot report yourself' }]); return; }
+
+      // Randomly assign to a moderator for faster triage
+      const mods = DB.users.filter(u => u.role === 'moderator');
+      const assignedMod = mods.length ? mods[Math.floor(Math.random() * mods.length)] : null;
+
+      const newReport = {
+        report_id: Math.floor(Math.random() * 1000000),
+        reported_by: parseInt(currentUser.id || currentUser.user_id, 10),
+        reported_user: parseInt(targetUser.id || targetUser.user_id, 10),
+        type: tEl.value,
+        reason: dEl.value,
+        session: document.getElementById('r-session').value || 'Unknown',
+        sessionId: '',
+        status: 'pending',
+        report_date: new Date().toISOString().slice(0, 10),
+        time: 'just now',
+        actionNote: '',
+        assignedModerator: assignedMod ? assignedMod.username : null
+      };
+      DB.reports.push(newReport);
+      if (DB.attachReportGetters) DB.attachReportGetters(newReport);
+      DB.save();
+
+      pEl.value = ''; tEl.value = ''; document.getElementById('r-session').value = ''; dEl.value = '';
+      Toast.success('Report submitted. Our moderators will review it shortly.');
+    }
+
+    // ── Contact Moderator ──────────────────────────────────────────
+    function contactModerator() {
+      const msgEl = document.getElementById('mod-msg');
+      const errEl = document.getElementById('mod-msg-err');
+      const urgEl = document.getElementById('mod-urgency');
+      const btnEl = document.getElementById('mod-send-btn');
+
+      errEl.textContent = '';
+      const msg = msgEl.value.trim();
+      if (msg.length < 15) {
+        errEl.textContent = 'Please provide at least 15 characters describing your concern.';
+        msgEl.focus();
+        return;
+      }
+
+      // Pick a random on-duty moderator
+      const mods = DB.users.filter(u => u.role === 'moderator');
+      if (!mods.length) {
+        Toast.error('No moderators are currently available. Please try again later.');
+        return;
+      }
+      const mod = mods[Math.floor(Math.random() * mods.length)];
+      const urgency = urgEl.value;
+
+      // Inject a direct-contact report into DB so moderator sees it
+      const contactReport = {
+        report_id: Math.floor(Math.random() * 1000000),
+        reported_by: parseInt(currentUser.id || currentUser.user_id, 10),
+        reported_user: null,
+        type: `Direct Contact [${urgency}]`,
+        reason: msg,
+        session: 'Player → Moderator',
+        sessionId: '',
+        status: 'pending',
+        report_date: new Date().toISOString().slice(0, 10),
+        time: 'just now',
+        actionNote: '',
+        assignedModerator: mod.username,
+        isDirectContact: true
+      };
+      DB.reports.push(contactReport);
+      if (DB.attachReportGetters) DB.attachReportGetters(contactReport);
+      DB.save();
+
+      // Reveal assigned moderator pill
+      const initials = (mod.avatar || mod.username.slice(0, 2).toUpperCase());
+      document.getElementById('mod-assigned-name').textContent = `${initials}  ${mod.username}`;
+      document.getElementById('mod-assigned-preview').classList.remove('hidden');
+
+      // Button feedback
+      btnEl.disabled = true;
+      btnEl.innerHTML = '✅ Message Sent!';
+      btnEl.style.background = 'var(--accent-green)';
+      setTimeout(() => {
+        btnEl.disabled = false;
+        btnEl.innerHTML = '<span class="mod-btn-icon">📡</span> Send to Moderator';
+        btnEl.style.background = '';
+        msgEl.value = '';
+        urgEl.value = 'Medium';
+      }, 3000);
+
+      Toast.success(`Message sent! Moderator ${mod.username} will review it shortly.`);
+    }
+
+    // ── Linked (external) game accounts ─────────────────────
+    async function loadLinkedAccounts() {
+      const sel = document.getElementById('la-platform');
+      let platforms = [];
+      try { platforms = await API.get('/linked-accounts/platforms'); } catch (e) { platforms = []; }
+      sel.innerHTML = platforms.map(p => `<option value="${p.key}">${p.label}</option>`).join('');
+
+      const uid = parseInt(Auth.getSession().userId, 10);
+      let mine = [];
+      try { mine = await API.get(`/linked-accounts/player/${uid}`); } catch (e) { mine = []; }
+      const list = document.getElementById('linked-accounts-list');
+      list.innerHTML = mine.length ? mine.map(l => `
+        <div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.75rem;background:var(--bg-secondary);border-radius:var(--radius-md);margin-bottom:0.4rem">
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:0.85rem">${l.platform_label}</div>
+            <div style="font-size:0.75rem;color:var(--text-secondary)">${l.in_game_name}</div>
+          </div>
+          ${l.launch_url ? `<a href="${l.launch_url}" target="_blank" class="btn btn-ghost btn-sm">🚀 Launch</a>` : ''}
+          <button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="unlinkGameAccount(${l.link_id})">✕</button>
+        </div>`).join('') : `<div class="text-muted" style="font-size:0.8rem;padding:0.5rem 0">No linked accounts yet.</div>`;
+    }
+    async function linkGameAccount() {
+      const uid = parseInt(Auth.getSession().userId, 10);
+      const platform = document.getElementById('la-platform').value;
+      const in_game_name = document.getElementById('la-name').value.trim();
+      if (!in_game_name) { Toast.error('Enter your in-game name.'); return; }
+      try {
+        await API.post('/linked-accounts', { player_id: uid, platform, in_game_name });
+        document.getElementById('la-name').value = '';
+        Toast.success('Linked! 🔗');
+        loadLinkedAccounts();
+      } catch (e) { Toast.error(e.message || 'Could not link that account.'); }
+    }
+    async function unlinkGameAccount(linkId) {
+      const uid = parseInt(Auth.getSession().userId, 10);
+      try { await API.del(`/linked-accounts/${linkId}?requesterId=${uid}`); Toast.info('Unlinked.'); loadLinkedAccounts(); }
+      catch (e) { Toast.error(e.message); }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['player', 'guest']);
+      if (!session) return;
+      buildNavbar(session.role, 'profile');
+      loadProfile();
+      loadLinkedAccounts();
+    });
+  </script>
+</body>
+
+</html>

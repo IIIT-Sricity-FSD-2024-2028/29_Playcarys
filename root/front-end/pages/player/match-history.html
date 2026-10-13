@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Match History</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       Match History
+       ------------------------------------------------------------
+       Everything here is built from the shared tokens in
+       variables.css and mirrors the components the sibling player
+       pages already use (.card, .stat-strip-card, .badge, .back-btn,
+       .filter-bar, .form-select). This page used to carry its own
+       skin — a gradient hero tile, skewed shine sweeps, 50px glows
+       and hardcoded rgba(255,255,255,…) greys — which made it read
+       as a different product bolted onto the site.
+       ============================================================ */
+
+    body { font-family: 'Inter', sans-serif; }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Summary strip ───────────────────────────────────────────
+       Same proportions as .stat-strip-card on the Competitive
+       Center page, so the two read as one component. */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .sum-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.15rem 1.25rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: border-color var(--trans-med), box-shadow var(--trans-med), transform var(--trans-med);
+    }
+
+    /* The same quiet cyan wash .card uses on hover — not a swipe animation. */
+    .sum-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient-card);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--trans-med);
+    }
+
+    .sum-card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      box-shadow: var(--shadow-glow);
+      transform: translateY(-1px);
+    }
+
+    .sum-card:hover::before { opacity: 1; }
+
+    .sum-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1.15;
+      position: relative;
+    }
+
+    .sum-lbl {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.25rem;
+      font-weight: 600;
+      position: relative;
+    }
+
+    /* Secondary line under a stat — the losses/draws split next to Wins. */
+    .sum-sub {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      position: relative;
+    }
+
+    /* Win-rate meter. A percentage is easier to read against a bar than alone. */
+    .sum-bar {
+      height: 4px;
+      border-radius: 3px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      margin-top: 0.55rem;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sum-bar > i {
+      display: block;
+      height: 100%;
+      border-radius: 3px;
+      background: var(--gradient-brand);
+      transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ── Insights row ───────────────────────────────────────────
+       Three panels between the headline stats and the match list:
+       recent form, per-game record, personal bests. */
+    .insights-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .ins-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.1rem 1.2rem;
+      transition: border-color var(--trans-med), box-shadow var(--trans-med);
+    }
+
+    .ins-card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      box-shadow: var(--shadow-glow);
+    }
+
+    /* Section label picks up the brand gradient, matching the dashboard. */
+    .ins-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      margin-bottom: 0.85rem;
+      background: var(--gradient-brand);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Recent form — one pill per match, newest on the LEFT. */
+    .form-strip { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+    .form-pill {
+      width: 1.55rem; height: 1.55rem;
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 800;
+      border: 1px solid transparent;
+    }
+
+    /* Same colour recipe as .badge-* in variables.css. */
+    .form-win  { background: rgba(16, 185, 129, 0.12); color: var(--accent-green);  border-color: rgba(16, 185, 129, 0.25); }
+    .form-loss { background: rgba(239, 68, 68, 0.12);  color: var(--accent-red);    border-color: rgba(239, 68, 68, 0.25); }
+    .form-draw { background: rgba(245, 158, 11, 0.12); color: var(--accent-yellow); border-color: rgba(245, 158, 11, 0.25); }
+
+    /* Per-game record rows with an inline win-rate bar. */
+    .game-row {
+      display: grid; grid-template-columns: 1.4rem 1fr auto;
+      align-items: center; gap: 0.55rem; margin-bottom: 0.6rem;
+      font-size: 0.82rem; font-weight: 600;
+    }
+    .game-row:last-child { margin-bottom: 0; }
+
+    .game-row .gr-bar {
+      height: 5px; border-radius: 3px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      overflow: hidden;
+    }
+    .game-row .gr-bar > i {
+      display: block; height: 100%; border-radius: 3px;
+      background: var(--gradient-brand);
+    }
+    .game-row .gr-num { color: var(--text-secondary); font-size: 0.75rem; }
+
+    .pb-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 0.55rem; font-size: 0.82rem;
+    }
+    .pb-row:last-child { margin-bottom: 0; }
+    .pb-row span { color: var(--text-secondary); font-weight: 600; }
+    .pb-row b { font-size: 1.05rem; font-weight: 800; }
+
+    /* ── Filters ─────────────────────────────────────────────────
+       .filter-bar + .form-select are the shared controls the Game
+       Catalog uses; the result toggles are plain chips rather than
+       gradient-filled pills. */
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-select {
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      padding: 0.55rem 0.9rem;
+      font-size: 0.85rem;
+      width: auto;
+      min-width: 160px;
+      transition: border-color var(--trans-fast), box-shadow var(--trans-fast);
+      outline: none;
+    }
+    .filter-select:hover,
+    .filter-select:focus { border-color: rgba(0, 212, 255, 0.4); }
+
+    /* One segmented control, matching the Tournaments and Community filters,
+       instead of four separately outlined pills. */
+    .filter-group {
+      display: inline-flex;
+      gap: 0.2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: 99px;
+      padding: 0.25rem;
+    }
+
+    .filter-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.42rem 1rem;
+      border-radius: 99px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans-fast);
+      outline: none;
+      white-space: nowrap;
+    }
+
+    .filter-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, #00d4ff, #7c3aed);
+      color: #fff;
+    }
+
+    /* ── Match rows ──────────────────────────────────────────────
+       Aligned to .card: same surface, radius, border and the same
+       one-pixel lift on hover the rest of the site uses. */
+    /* Explicit columns — icon · detail · opponents · result.
+       This was a flex row whose result block used margin-left:auto, so on a
+       short entry the Carys/rank floated off at the far edge with a wide dead
+       gap mid-row. A grid gives the result a real column instead. */
+    .history-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      display: grid;
+      /* icon · detail · chips · opponents(optional) · result. The trailing
+         columns are auto, so the row lays out correctly whether or not a
+         match has opponents recorded. */
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+      align-items: center;
+      gap: 1.15rem;
+      margin-bottom: 0.7rem;
+      transition: border-color var(--trans-med), background var(--trans-med), transform var(--trans-med);
+      cursor: pointer;
+      color: inherit;
+      position: relative;
+      overflow: hidden;
+      animation: rowIn 0.35s ease backwards;
+    }
+    .history-item:hover { transform: translateY(-1px); }
+
+    /* Stat chips get their own column and stay next to the detail rather than
+       being pushed to an edge, keeping the row visually balanced. */
+    .history-chips {
+      position: relative;
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .history-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient-card);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--trans-med);
+    }
+
+    .history-item:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      box-shadow: var(--shadow-glow);
+      transform: translateY(-1px);
+    }
+
+    .history-item:hover::before { opacity: 1; }
+
+    .history-info { position: relative; }
+    /* A defined results column, divided off from the detail beside it, so the
+       Carys/rank pair reads as a deliberate column rather than drifting. */
+    .history-stats {
+      position: relative;
+      text-align: right;
+      min-width: 112px;
+      padding-left: 1.15rem;
+      border-left: 1px solid var(--border-primary);
+    }
+
+    /* Result stripe down the leading edge. Sits above the wash, no glow. */
+    .win-bar::after,
+    .loss-bar::after,
+    .draw-bar::after {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    }
+    .win-bar::after  { background: var(--accent-green); }
+    .loss-bar::after { background: var(--accent-red); }
+    .draw-bar::after { background: var(--accent-yellow); }
+
+    .game-icon-box {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.7rem;
+      flex-shrink: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      position: relative;
+    }
+
+    /* Result badge — the shared .badge shape and colour recipe. */
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.2rem 0.65rem;
+      border-radius: 99px;
+      border: 1px solid transparent;
+    }
+    .win-badge  { background: rgba(16, 185, 129, 0.12); color: var(--accent-green);  border-color: rgba(16, 185, 129, 0.25); }
+    .loss-badge { background: rgba(239, 68, 68, 0.12);  color: var(--accent-red);    border-color: rgba(239, 68, 68, 0.25); }
+    .draw-badge { background: rgba(245, 158, 11, 0.12); color: var(--accent-yellow); border-color: rgba(245, 158, 11, 0.25); }
+
+    .stat-chip {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .row-meta {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .pcp-gain {
+      font-family: 'Orbitron', monospace;
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+    .pcp-pos { color: var(--accent-green); }
+    .pcp-neg { color: var(--accent-red); }
+    .pcp-neu { color: var(--accent-yellow); }
+
+    .rank-line {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .opponents-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-left: auto;
+      margin-right: 1.25rem;
+      position: relative;
+    }
+
+    .opp-title {
+      font-size: 0.62rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      margin-bottom: 0.1rem;
+    }
+
+    .opponent-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      padding: 0.25rem 0.55rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .opponent-avatar {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--gradient-brand);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    /* ── Inline match detail ─────────────────────────────────────
+       Clicking a row opens its stats in place. Navigating to a
+       separate page to read six numbers loses your scroll position
+       and your filters. */
+    /* The open row drops its own bottom margin, so the panel butts straight
+       up against it and the pair reads as one card. */
+    .detail-panel {
+      margin: 0 0 0.85rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      padding: 1rem 1.25rem 1.15rem;
+      animation: detailIn 0.18s ease;
+    }
+    @keyframes detailIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; } }
+
+    .detail-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 0.75rem; margin-bottom: 0.9rem;
+    }
+    .detail-cell {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.7rem;
+    }
+    .detail-cell .dc-lbl {
+      font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.09em;
+      color: var(--text-secondary); font-weight: 700;
+    }
+    .detail-cell .dc-val { font-size: 1rem; font-weight: 800; margin-top: 0.15rem; }
+
+    .history-item.open {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      margin-bottom: 0;
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+    .history-item.open::after { border-radius: var(--radius-lg) 0 0 0; }
+
+    /* ── Pagination ──────────────────────────────────────────────
+       Active page uses the same solid cyan as .btn-primary. */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 0.4rem;
+      margin: 1.75rem 0 2rem;
+      flex-wrap: wrap;
+    }
+
+    .page-btn {
+      min-width: 2.25rem;
+      padding: 0.45rem 0.85rem;
+      border: 1px solid var(--border-primary);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans-fast);
+    }
+
+    .page-btn:hover:not(:disabled) {
+      color: var(--text-primary);
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+
+    .page-btn.active {
+      background: var(--accent-cyan);
+      color: #000;
+      border-color: transparent;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 860px) {
+      .summary-cards { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      /* The row is a grid now, so stack it by collapsing to one column
+         rather than by flex-direction, which no longer applies. */
+      .history-item { gap: 0.75rem; padding: 1.1rem; grid-template-columns: auto 1fr; align-items: start; }
+      .history-chips { grid-column: 1 / -1; justify-content: flex-start; }
+      .history-stats {
+        grid-column: 1 / -1; margin-top: 0.75rem; width: 100%;
+        display: flex; justify-content: space-between; align-items: center;
+        text-align: left; padding-left: 0; border-left: none;
+        border-top: 1px solid var(--border-primary); padding-top: 0.7rem; min-width: 0;
+      }
+      .opponents-list { width: 100%; margin: 0.5rem 0 0; flex-direction: row; flex-wrap: wrap; align-items: center; }
+      .opp-title { width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <!-- Same reading width as Tournaments and Community, so the player pages
+         line up instead of each choosing its own measure. -->
+    <div class="page-content" style="max-width:1120px; margin:0 auto;">
+
+      <!-- Same entry pattern as Leaderboard / Competitive Center: a plain back
+           link above a plain page header. The old bespoke hero card — gradient
+           tile, Orbitron 900 "Match Forensics", a button where every other page
+           has a text link — was the main reason this page felt like a different
+           site. -->
+      <div class="back-btn" onclick="navigateTo('dashboard.html')">← Back to Dashboard</div>
+
+      <div class="page-header-row mb-3">
+        <div>
+          <h1>Match History</h1>
+          <p class="text-muted">Every match you have played, with your record and rewards</p>
+        </div>
+        <div style="display:flex;gap:0.75rem">
+          <button class="btn btn-ghost" onclick="navigateTo('leaderboard.html')">👑 Leaderboard</button>
+          <button class="btn btn-purple" onclick="navigateTo('games.html')">＋ Play a Game</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="summary-cards" id="summary-row"></div>
+
+      <!-- Everything about your record on one page: recent form, a per-game
+           breakdown, and personal bests, so the page answers "how am I doing"
+           without needing to open a single match. -->
+      <div class="insights-row" id="insights-row"></div>
+
+      <!-- Filters -->
+      <div class="filter-row">
+        <select class="filter-select" id="gameFilter" onchange="applyFilters()">
+          <option value="">All Games</option>
+        </select>
+        <div class="filter-group">
+          <button class="filter-btn active" id="f-all" onclick="setResultFilter('')">All</button>
+          <button class="filter-btn" id="f-win" onclick="setResultFilter('win')">Wins</button>
+          <button class="filter-btn" id="f-loss" onclick="setResultFilter('loss')">Losses</button>
+          <button class="filter-btn" id="f-draw" onclick="setResultFilter('draw')">Draws</button>
+        </div>
+        <span id="filter-count" style="margin-left:auto;font-size:0.75rem;color:var(--text-muted);font-weight:700"></span>
+      </div>
+
+      <div id="history-container"></div>
+
+      <div class="pagination" id="pagination-controls"></div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <!-- Partial sync. This page shows the signed-in player's OWN matches and
+       filters every read by player_id anyway, so there is no reason to
+       download every match on the platform to render it. db.js reads these
+       before it hydrates; declaring nothing keeps the old full-database
+       behaviour, which is what every unconverted page still does. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = { userId: _s.userId, historyLimit: 300 };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <!-- Presence badges offer a Spectate action; the resolver owns which games support one. -->
+  <script src="../../js/game-launch.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    const GAME_EMOJI = {
+      call_of_duty: '🔫', deadshot: '🎯', carrom: '🎲', horror_escape: '👻',
+      f1_2022: '🏎️', pubg_lite: '🪂', chess: '♟️', hill_climbing: '🚙', candy_crush: '🍬'
+    };
+
+    let _currentPage = 1;
+    let _currentResultFilter = '';
+    let _userId = null;
+
+    // Count-up that CANNOT leave a stale number on screen.
+    //
+    // This used to paint "0" into the card and then rely on requestAnimationFrame
+    // to walk it up to the real figure. rAF does not run in a background tab, is
+    // throttled hard on battery saver, and is skipped entirely by some reduced-
+    // motion setups — in any of those the summary sat at "0 matches, 0 wins,
+    // 0%, 0 Carys" forever while the list underneath happily showed 20 games.
+    // That is what "match history is not working" looked like.
+    //
+    // The value is now written FIRST and the animation is decoration on top of a
+    // correct DOM. If it never runs, the card is still right.
+    function animateValue(obj, start, end, duration, prefix = '', suffix = '') {
+        if (!obj) return;
+        const finalText = prefix + end + suffix;
+        obj.textContent = finalText;                       // correct immediately
+
+        const reduced = window.matchMedia &&
+                        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduced || document.hidden || start === end) return;
+
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            obj.textContent = prefix + Math.floor(progress * (end - start) + start) + suffix;
+            if (progress < 1) window.requestAnimationFrame(step);
+            else obj.textContent = finalText;              // land exactly on the value
+        };
+        window.requestAnimationFrame(step);
+    }
+
+    function renderSummary(stats) {
+      const matches = stats.total_matches || 0;
+      const wins    = stats.wins || 0;
+      const losses  = stats.losses || 0;
+      const draws   = Math.max(0, matches - wins - losses);
+      const rate    = stats.win_rate || 0;
+      const carys   = stats.total_carys || 0;
+      const carysSign = carys >= 0 ? '+' : '';
+
+      // The real numbers go straight into the markup. They used to be hardcoded
+      // "0" placeholders that a deferred animation was expected to overwrite —
+      // see animateValue() for why that left the whole summary reading zero.
+      document.getElementById('summary-row').innerHTML = `
+        <div class="sum-card">
+          <div class="sum-val" id="sum-matches">${matches}</div>
+          <div class="sum-lbl">Total Matches</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val" id="sum-wins" style="color:var(--accent-green)">${wins}</div>
+          <div class="sum-lbl">Wins</div>
+          <div class="sum-sub">${losses}L${draws ? ' · ' + draws + 'D' : ''}</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val" id="sum-rate" style="color:var(--accent-cyan)">${rate}%</div>
+          <div class="sum-lbl">Win Rate</div>
+          <div class="sum-bar"><i style="width:${rate}%"></i></div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-val" id="sum-carys" style="color:${carys >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${carysSign}${carys}</div>
+          <div class="sum-lbl">Carys Earned</div>
+        </div>`;
+
+      animateValue(document.getElementById('sum-matches'), 0, matches, 1000);
+      animateValue(document.getElementById('sum-wins'),    0, wins,    1000);
+      animateValue(document.getElementById('sum-rate'),    0, rate,    1200, '', '%');
+      animateValue(document.getElementById('sum-carys'),   0, carys,   1500, carysSign);
+    }
+
+    // ── Insights ───────────────────────────────────────────────────────────
+    // Computed from the player's FULL result set, not the current page, so the
+    // numbers do not change as you flick through pages or narrow a filter.
+    function renderInsights(userId) {
+      const rows = (DB.match_results || [])
+        .filter(r => String(r.player_id) === String(userId))
+        .slice()
+        .sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
+
+      const el = document.getElementById('insights-row');
+      if (!el) return;
+      if (!rows.length) { el.innerHTML = ''; return; }
+
+      const resultOf = r => {
+        const v = (r.result || '').toLowerCase();
+        if (v === 'win' || v === 'loss' || v === 'draw') return v;
+        if (r.player_rank != null) return Number(r.player_rank) === 1 ? 'win' : 'loss';
+        return 'draw';
+      };
+
+      // Recent form — newest first, capped at 12 pills.
+      const form = rows.slice(0, 12).map(r => {
+        const res = resultOf(r);
+        const ch = res === 'win' ? 'W' : res === 'loss' ? 'L' : 'D';
+        const when = new Date(r.joined_at).toLocaleDateString();
+        return `<div class="form-pill form-${res}" title="${r.game_name || 'Match'} · ${when}">${ch}</div>`;
+      }).join('');
+
+      // Per-game record
+      const byGame = {};
+      rows.forEach(r => {
+        const g = DB.games.find(x => String(x.game_id || x.id) === String(r.game_id));
+        const name = (g && (g.game_name || g.title)) || ('Game ' + r.game_id);
+        const key = name;
+        // The games table stores the slug as `img`; getPlayerMatchHistory renames
+        // it to `game_image` on the rows it returns. Reading `game_image` off the
+        // games table itself is undefined, which silently fell back to a generic
+        // pad icon for every game.
+        if (!byGame[key]) byGame[key] = { n: 0, w: 0, img: (g && (g.img || g.game_image)) || '' };
+        byGame[key].n++;
+        if (resultOf(r) === 'win') byGame[key].w++;
+      });
+      const gameRows = Object.keys(byGame)
+        .sort((a, b) => byGame[b].n - byGame[a].n)
+        .slice(0, 5)
+        .map(name => {
+          const d = byGame[name];
+          const pct = Math.round(d.w / d.n * 100);
+          return `<div class="game-row">
+              <span>${GAME_EMOJI[d.img] || '🎮'}</span>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:.25rem">
+                  <span>${name}</span><span class="gr-num">${d.w}/${d.n}</span>
+                </div>
+                <div class="gr-bar"><i style="width:${pct}%"></i></div>
+              </div>
+              <span class="gr-num">${pct}%</span>
+            </div>`;
+        }).join('');
+
+      // Personal bests
+      const num = (r, k) => (r[k] == null ? null : Number(r[k]));
+      const bestOf = k => rows.reduce((m, r) => {
+        const v = num(r, k); return (v != null && v > m) ? v : m;
+      }, 0);
+      const bestDist  = bestOf('distance');
+      const bestScore = rows.reduce((m, r) => Math.max(m, num(r, 'game_score') || num(r, 'score') || 0), 0);
+      const bestCarys = bestOf('carys_earned');
+      const streak = (() => {
+        let s = 0;
+        for (const r of rows) { if (resultOf(r) === 'win') s++; else break; }
+        return s;
+      })();
+
+      el.innerHTML = `
+        <div class="ins-card">
+          <div class="ins-title">Recent Form — newest first</div>
+          <div class="form-strip">${form}</div>
+          <div class="sum-sub" style="margin-top:.7rem">
+            ${streak > 0 ? '🔥 ' + streak + ' win streak' : 'No active streak'}
+          </div>
+        </div>
+        <div class="ins-card">
+          <div class="ins-title">Record by Game</div>
+          ${gameRows || '<div class="sum-sub">No games yet</div>'}
+        </div>
+        <div class="ins-card">
+          <div class="ins-title">Personal Bests</div>
+          <div class="pb-row"><span>Furthest drive</span><b style="color:var(--accent-cyan)">${bestDist ? bestDist + 'm' : '—'}</b></div>
+          <div class="pb-row"><span>Highest score</span><b style="color:#ffd166">${bestScore || '—'}</b></div>
+          <div class="pb-row"><span>Best Carys haul</span><b style="color:var(--accent-green)">${bestCarys ? '+' + bestCarys : '—'}</b></div>
+          <div class="pb-row"><span>Matches played</span><b>${rows.length}</b></div>
+        </div>`;
+    }
+
+    // ── Inline match detail ────────────────────────────────────────────────
+    // Opens a match's stats underneath its own row. The row used to navigate to
+    // match-details.html, which threw away your scroll position, your page and
+    // your filters just to show a handful of numbers.
+    let _openSid = null;
+    function toggleDetails(sid, el) {
+      const existing = document.getElementById('detail-' + sid);
+      document.querySelectorAll('.detail-panel').forEach(p => p.remove());
+      document.querySelectorAll('.history-item.open').forEach(i => i.classList.remove('open'));
+      if (existing || _openSid === String(sid)) { _openSid = null; return; }
+      _openSid = String(sid);
+
+      const r = (DB.match_results || []).find(x =>
+        String(x.session_id) === String(sid) && String(x.player_id) === String(_userId))
+        || (DB.match_results || []).find(x => String(x.session_id) === String(sid));
+      if (!r) return;
+
+      const cell = (lbl, val, col) => val == null || val === '' ? '' :
+        `<div class="detail-cell"><div class="dc-lbl">${lbl}</div>
+         <div class="dc-val"${col ? ' style="color:' + col + '"' : ''}>${val}</div></div>`;
+
+      const sess = (DB.matches || []).find(m => String(m.match_id) === String(sid))
+                || (DB.sessions || []).find(s => String(s.session_id) === String(sid));
+      const cells = [
+        cell('Distance', r.distance != null ? r.distance + 'm' : null, 'var(--accent-cyan)'),
+        cell('Coins', r.coins, '#ffd166'),
+        cell('Diamonds', r.diamonds, '#7ec4ff'),
+        cell('Kills', r.kills, '#ff9d9d'),
+        cell('Game Score', r.game_score != null ? r.game_score : r.score),
+        cell('Carys', (r.carys_earned >= 0 ? '+' : '') + (r.carys_earned || 0), 'var(--accent-green)'),
+        cell('XP', r.xp_gained != null ? '+' + r.xp_gained : null),
+        cell('Rank', r.player_rank != null ? '#' + r.player_rank : null),
+        cell('Mode', sess && sess.mode ? sess.mode : null)
+      ].filter(Boolean).join('');
+
+      const panel = document.createElement('div');
+      panel.className = 'detail-panel';
+      panel.id = 'detail-' + sid;
+      panel.innerHTML = `
+        <div class="detail-grid">${cells}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+          <span class="sum-sub" style="margin:0">Session #${sid} · ${formatDate(r.joined_at)}</span>
+          <a class="btn btn-ghost" style="font-size:.78rem;padding:.35rem .8rem"
+             href="match-details.html?sid=${sid}">Open full report ↗</a>
+        </div>`;
+      el.classList.add('open');
+      el.parentNode.insertBefore(panel, el.nextSibling);
+    }
+
+    function formatDuration(seconds) {
+      if (!seconds) return 'Unknown';
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}m ${s}s`;
+    }
+
+    function renderList(historyData) {
+      const container = document.getElementById('history-container');
+      const results = historyData.data;
+
+      if (!results.length) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:4rem;color:var(--text-muted)">
+            <div style="font-size:3rem;margin-bottom:1rem">🎮</div>
+            <h3>No matches found</h3>
+            <p>Try adjusting your filters or go play some games!</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = results.map((r, index) => {
+        const resultType = r.result || 'loss';
+        const barCls = resultType + '-bar';
+        const badgeCls = resultType + '-badge';
+        const pcpCls = r.carys_earned >= 0 ? 'pcp-pos' : 'pcp-neg';
+        const emoji = GAME_EMOJI[r.game_image || ''] || '🎮';
+        
+        // Presentation moved onto the shared classes (.opp-title, .stat-chip,
+        // .row-meta, .rank-line) instead of inline rgba(255,255,255,…) greys, so
+        // these rows follow the same tokens as every other card on the site.
+        let opponentsHtml = '';
+        if (r.opponents && r.opponents.length > 0) {
+          opponentsHtml = `
+            <div class="opponents-list">
+              <div class="opp-title">Played with</div>
+              ${r.opponents.map(opp => `
+                <div class="opponent-badge">
+                  <div class="opponent-avatar">${opp.avatar}</div>
+                  <span>${opp.player_name}</span>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        let specificStats = '';
+        if (r.kills != null) specificStats += `<span class="stat-chip">🔪 ${r.kills} Kills</span>`;
+        if (r.distance != null) specificStats += `<span class="stat-chip">📍 ${r.distance}m</span>`;
+        if (r.score != null && r.distance == null && r.kills == null) specificStats += `<span class="stat-chip">🎯 Score ${r.score}</span>`;
+
+        return `
+    <div class="history-item ${barCls}" onclick="toggleDetails('${r.session_id}', this)" style="animation-delay: ${Math.min(index, 8) * 0.04}s">
+      <div class="game-icon-box">${emoji}</div>
+      <div class="history-info">
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+          <strong style="font-size:0.97rem;">${r.game_name}</strong>
+          <span class="result-badge ${badgeCls}">${resultType}</span>
+        </div>
+        <div class="row-meta" style="margin-top:0.3rem">
+          ${formatDate(r.joined_at)}${r.duration_seconds ? ' &nbsp;·&nbsp; ⏱️ ' + formatDuration(r.duration_seconds) : ''}
+        </div>
+      </div>
+
+      <!-- Per-game stats sit in their own column rather than stacked under the
+           title, so the row fills left-to-right instead of leaving a wide gap
+           between the name on the left and the reward on the right. -->
+      <div class="history-chips">${specificStats}</div>
+
+      ${opponentsHtml}
+
+      <div class="history-stats">
+        <div class="pcp-gain ${pcpCls}">${r.carys_earned >= 0 ? '+' : ''}${r.carys_earned || 0} Carys</div>
+        <div class="rank-line">RANK #${r.player_rank || '—'}</div>
+      </div>
+    </div>`;
+      }).join('');
+    }
+
+    function renderPagination(historyData) {
+      const container = document.getElementById('pagination-controls');
+      if (historyData.totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+      
+      let html = `<button class="page-btn" ${historyData.page === 1 ? 'disabled' : ''} onclick="goToPage(${historyData.page - 1})">Prev</button>`;
+      
+      for (let i = 1; i <= historyData.totalPages; i++) {
+        html += `<button class="page-btn ${historyData.page === i ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+      
+      html += `<button class="page-btn" ${historyData.page === historyData.totalPages ? 'disabled' : ''} onclick="goToPage(${historyData.page + 1})">Next</button>`;
+      
+      container.innerHTML = html;
+    }
+
+    function setResultFilter(type) {
+      _currentResultFilter = type;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(type === '' ? 'f-all' : 'f-' + type)?.classList.add('active');
+      _currentPage = 1;
+      fetchAndRender();
+    }
+    
+    function applyFilters() {
+      _currentPage = 1;
+      fetchAndRender();
+    }
+    
+    function goToPage(page) {
+      _currentPage = page;
+      fetchAndRender();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function viewDetails(sid) {
+      navigateTo(`match-details.html?sid=${sid}`);
+    }
+
+    function fetchAndRender() {
+      if (!_userId) return;
+      
+      const gameId = document.getElementById('gameFilter').value;
+      
+      // Get history
+      const history = DB.getPlayerMatchHistory(_userId, {
+        gameId: gameId || null,
+        result: _currentResultFilter || null,
+        page: _currentPage,
+        limit: 15
+      });
+      
+      // Get stats (independent of result filter, but affected by game filter)
+      const stats = DB.getPlayerStats(_userId, gameId || null);
+      
+      renderSummary(stats);
+      renderInsights(_userId);
+      renderList(history);
+      renderPagination(history);
+
+      // Say how many matches the current filter actually matched — otherwise
+      // a narrow filter just looks like a short list with no explanation.
+      const countEl = document.getElementById('filter-count');
+      if (countEl) {
+        const n = history.total ?? history.data?.length ?? 0;
+        countEl.textContent = n ? `${n} match${n === 1 ? '' : 'es'}` : '';
+      }
+      _openSid = null;   // a re-render drops any open panel, so drop the state too
+    }
+    
+    function populateGameFilter() {
+      const select = document.getElementById('gameFilter');
+      DB.games.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.game_id || g.id;
+        opt.textContent = g.game_name || g.title;
+        select.appendChild(opt);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = Auth.requireAuth(['player']);
+      if (!session) return;
+      
+      _userId = session.userId;
+      buildNavbar('player', 'match-history');
+      
+      populateGameFilter();
+      fetchAndRender();
+    });
+  </script>
+</body>
+
+</html>

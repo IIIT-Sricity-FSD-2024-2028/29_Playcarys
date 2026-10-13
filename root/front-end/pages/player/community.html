@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Community</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* ─── Hero banner (dashboard "featured" motif, compressed) ─── */
+.cm-hero {
+  position:relative; overflow:hidden; border-radius:var(--radius-xl);
+  background:linear-gradient(135deg,#0d1b35 0%,#120a24 50%,#0a1a0a 100%);
+  border:1px solid var(--border-primary); padding:1.75rem 2rem; margin-bottom:1.5rem;
+}
+.cm-hero-visual {
+  position:absolute; right:4%; top:50%; transform:translateY(-50%);
+  font-size:7rem; opacity:0.13; filter:blur(1px); pointer-events:none;
+  animation:cm-float 6s ease-in-out infinite;
+}
+@keyframes cm-float { 0%,100%{transform:translateY(-50%) rotate(-3deg)} 50%{transform:translateY(-56%) rotate(3deg)} }
+.cm-eyebrow {
+  font-size:0.68rem; text-transform:uppercase; letter-spacing:0.14em; font-weight:800;
+  color:var(--accent-cyan); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.5rem;
+}
+.cm-eyebrow-dot { width:6px; height:6px; border-radius:50%; background:var(--accent-cyan); animation:cm-pulse 2s infinite; }
+@keyframes cm-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
+.cm-hero h1 { font-family:'Orbitron',monospace; font-size:1.9rem; font-weight:900; margin:0 0 0.4rem; }
+.cm-hero p { color:rgba(255,255,255,0.6); font-size:0.87rem; margin:0; max-width:520px; line-height:1.55; }
+.cm-hero-stats { display:flex; gap:2rem; margin-top:1.35rem; flex-wrap:wrap; }
+.cm-stat-n { font-family:'Orbitron',monospace; font-size:1.5rem; font-weight:900; color:#fff; }
+.cm-stat-l { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-secondary); font-weight:700; }
+
+/* ─── Tabs ─── */
+/* Segmented control, matching the tournaments filter exactly */
+.cm-tabs {
+  display:inline-flex; gap:0.2rem; margin-bottom:0.5rem; flex-wrap:wrap;
+  background:var(--bg-card); border:1px solid var(--border-primary);
+  border-radius:99px; padding:0.25rem;
+}
+.cm-tab {
+  padding:0.42rem 1rem; border-radius:99px; font-size:0.8rem; font-weight:700;
+  color:var(--text-secondary); background:transparent; border:none;
+  cursor:pointer; transition:all .16s; display:flex; align-items:center; gap:0.4rem; white-space:nowrap;
+}
+.cm-tab:hover { color:var(--text-primary); background:rgba(255,255,255,0.04); }
+.cm-tab.active { background:linear-gradient(135deg,#00d4ff,#7c3aed); color:#fff; }
+.cm-tab .n { background:rgba(255,255,255,0.16); border-radius:99px; padding:0 0.38rem; font-size:0.68rem; font-weight:800; }
+
+/* Same reading width as the tournaments list, so the two pages line up. */
+.page-content { max-width:1120px; }
+
+/* ─── Section labels ─── */
+.sec-label {
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  margin:1.9rem 0 1rem; padding-bottom:0.6rem;
+  border-bottom:1px solid var(--border-primary);
+}
+.sec-label:first-child { margin-top:0; }
+.sec-label-title {
+  font-size:0.74rem; text-transform:uppercase; letter-spacing:0.13em; font-weight:900;
+  color:var(--text-secondary);
+}
+
+/* ─── Cards grid ─── */
+.cm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:1rem; align-items:stretch; }
+
+.cm-card {
+  background:var(--bg-card);
+  border:1px solid var(--border-primary);
+  border-left:3px solid var(--accent-cyan);
+  border-radius:var(--radius-lg); padding:1.15rem 1.25rem; cursor:pointer;
+  transition:border-color .18s, background .18s, transform .18s;
+  display:flex; flex-direction:column; gap:0.6rem;
+}
+.cm-card:hover { transform:translateY(-2px); background:var(--bg-secondary); border-color:var(--border-secondary); border-left-color:#22d3ee; }
+.cm-card.is-team { border-left-color:#f59e0b; cursor:default; }
+.cm-card.is-team:hover { transform:none; border-left-color:#fbbf24; }
+
+.cm-card-top { display:flex; align-items:center; gap:0.8rem; }
+.cm-avatar {
+  width:46px; height:46px; border-radius:var(--radius-md); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.05rem; font-weight:900; color:#fff;
+  background:linear-gradient(135deg,#00d4ff,#7c3aed);
+}
+.cm-avatar.team { background:linear-gradient(135deg,#f59e0b,#ef4444); }
+.cm-name { font-family:'Orbitron',monospace; font-weight:800; font-size:0.95rem; line-height:1.2; }
+.cm-sub { font-size:0.72rem; color:var(--text-secondary); margin-top:0.15rem; display:flex; gap:0.45rem; align-items:center; flex-wrap:wrap; }
+.cm-desc {
+  font-size:0.8rem; color:var(--text-secondary); margin:0; line-height:1.5;
+  overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; min-height:2.4em;
+}
+.cm-foot { display:flex; gap:1rem; font-size:0.73rem; color:var(--text-secondary); border-top:1px solid var(--border-primary); padding-top:0.65rem; margin-top:auto; flex-wrap:wrap; }
+
+.pill { font-size:0.63rem; font-weight:800; border-radius:99px; padding:0.13rem 0.55rem; white-space:nowrap; }
+.pill-public  { background:rgba(0,212,255,0.12); border:1px solid rgba(0,212,255,0.3); color:var(--accent-cyan); }
+.pill-private { background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.3); color:var(--accent-yellow); }
+.pill-owner   { background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); color:var(--accent-yellow); }
+.pill-officer { background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.4); color:#a78bfa; }
+.pill-cap     { background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); color:var(--accent-yellow); }
+.pill-ready   { background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); color:var(--accent-green); }
+
+/* Team roster chips */
+.roster { display:flex; flex-wrap:wrap; gap:0.3rem; }
+.chip {
+  display:inline-flex; align-items:center; gap:0.28rem; font-size:0.71rem;
+  background:var(--bg-secondary); border:1px solid var(--border-primary);
+  border-radius:99px; padding:0.16rem 0.55rem;
+}
+.chip .x { cursor:pointer; color:var(--accent-red); font-weight:900; opacity:0.7; }
+.chip .x:hover { opacity:1; }
+.link-on  { color:var(--accent-green); }
+.link-off { color:var(--text-secondary); opacity:0.45; }
+
+.cm-actions { display:flex; gap:0.45rem; flex-wrap:wrap; }
+.mini { border:none; border-radius:var(--radius-md); padding:0.4rem 0.8rem; font-size:0.74rem; font-weight:800; cursor:pointer; transition:all .16s; }
+.mini-primary { background:linear-gradient(135deg,var(--accent-purple),var(--accent-cyan)); color:#fff; }
+.mini-primary:hover { filter:brightness(1.12); }
+.mini-ghost { background:rgba(255,255,255,0.05); border:1px solid var(--border-primary); color:var(--text-secondary); }
+.mini-ghost:hover { background:rgba(255,255,255,0.1); color:var(--text-primary); }
+.mini-danger { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; }
+.mini-danger:hover { background:rgba(239,68,68,0.18); }
+
+.cm-empty {
+  grid-column:1/-1; text-align:center; padding:2.5rem 1rem;
+  background:var(--bg-card); border:1px dashed var(--border-primary);
+  border-radius:var(--radius-lg); color:var(--text-secondary); font-size:0.86rem;
+}
+.cm-empty .ico { font-size:2.1rem; display:block; margin-bottom:0.6rem; opacity:0.5; }
+.cm-empty .cta { margin-top:0.9rem; }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="cm-hero">
+    <div class="cm-hero-visual">🛡️</div>
+    <div class="cm-eyebrow"><span class="cm-eyebrow-dot"></span> Play together</div>
+    <h1>Community</h1>
+    <p>Groups are player-run clubs that host their own Community tournaments. Teams are the squads you enter into any team-based tournament.</p>
+    <div class="cm-hero-stats">
+      <div><div class="cm-stat-n" id="stat-groups">–</div><div class="cm-stat-l">My Groups</div></div>
+      <div><div class="cm-stat-n" id="stat-teams">–</div><div class="cm-stat-l">My Teams</div></div>
+      <div><div class="cm-stat-n" id="stat-tourn">–</div><div class="cm-stat-l">Community Events</div></div>
+    </div>
+  </div>
+
+  <div class="cm-tabs">
+    <div class="cm-tab active" data-tab="groups" onclick="setTab('groups')">🛡️ Groups <span class="n" id="tabn-groups">0</span></div>
+    <div class="cm-tab" data-tab="teams" onclick="setTab('teams')">⚔️ Teams <span class="n" id="tabn-teams">0</span></div>
+  </div>
+
+  <!-- ══ GROUPS TAB ══ -->
+  <div id="tab-groups">
+    <div class="sec-label">
+      <div class="sec-label-title">My Groups</div>
+      <button class="mini mini-primary" onclick="Modal.open('create-group-modal')">+ Create Group</button>
+    </div>
+    <div id="my-groups" class="cm-grid"></div>
+
+    <div class="sec-label"><div class="sec-label-title">Discover</div></div>
+    <div id="all-groups" class="cm-grid"></div>
+  </div>
+
+  <!-- ══ TEAMS TAB ══ -->
+  <div id="tab-teams" class="hidden">
+    <div class="sec-label">
+      <div class="sec-label-title">My Teams</div>
+      <button class="mini mini-primary" onclick="Modal.open('create-team-modal')">+ Create Team</button>
+    </div>
+    <div id="my-teams" class="cm-grid"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- CREATE GROUP -->
+<div class="modal-overlay" id="create-group-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><h3>Create a Group</h3><button class="modal-close" onclick="Modal.close('create-group-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Name <span class="required">*</span></label>
+        <input class="form-input" id="g-name" placeholder="e.g. Dragon Clan"/></div>
+      <div class="form-group"><label class="form-label">Description</label>
+        <textarea class="form-textarea" id="g-desc" placeholder="What's this group about?" style="min-height:80px"></textarea></div>
+      <div class="form-group"><label class="form-label">Visibility</label>
+        <select class="form-input" id="g-visibility">
+          <option value="public">🌐 Public — listed for anyone to find</option>
+          <option value="private">🔒 Private — hidden from browse</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Who can join?</label>
+        <select class="form-input" id="g-joinmode">
+          <option value="open">Open — instant join</option>
+          <option value="request">Request — owner/officers approve</option>
+          <option value="invite_only">Invite-only — no self-serve join</option>
+        </select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('create-group-modal')">Cancel</button>
+      <button class="btn btn-yellow" onclick="createGroup()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE TEAM -->
+<div class="modal-overlay" id="create-team-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3>Create a Team</h3><button class="modal-close" onclick="Modal.close('create-team-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Team Name <span class="required">*</span></label>
+        <input class="form-input" id="tm-name" placeholder="e.g. Phoenix Squad"/></div>
+      <p class="text-muted" style="font-size:0.78rem">You'll be the captain. Add teammates after creating it — a team can enter a tournament once its roster matches that tournament's required size.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('create-team-modal')">Cancel</button>
+      <button class="btn btn-yellow" onclick="createTeam()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MEMBER -->
+<div class="modal-overlay" id="add-member-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3>Add Teammate</h3><button class="modal-close" onclick="Modal.close('add-member-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Player</label>
+        <select class="form-input" id="am-player"></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('add-member-modal')">Cancel</button>
+      <button class="btn btn-yellow" onclick="confirmAddMember()">Add</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+function uid() { const s = Auth.getSession(); return parseInt(s.userId, 10); }
+let activeTeamId = null;
+let linkedMap = {};   // user_id -> linked external game accounts
+
+function setTab(name) {
+  document.querySelectorAll('.cm-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+  ['groups','teams'].forEach(t => document.getElementById('tab-'+t).classList.toggle('hidden', t !== name));
+  // Deep-linkable, so "Manage your teams →" from the tournament page can land
+  // directly on the Teams tab instead of the page's default.
+  history.replaceState(null, '', `?tab=${name}`);
+}
+
+/* ══ GROUPS ══ */
+function groupCard(g, mine) {
+  const isOwner   = Number(g.owner_id) === uid();
+  const isOfficer = (g.officer_ids || []).includes(uid());
+  const role = isOwner ? '<span class="pill pill-owner">👑 Owner</span>'
+             : isOfficer ? '<span class="pill pill-officer">⭐ Officer</span>' : '';
+  return `
+  <div class="cm-card" onclick="location.href='group-detail.html?id=${g.group_id}'">
+    <div class="cm-card-top">
+      <div class="cm-avatar">${(g.name||'?').slice(0,2).toUpperCase()}</div>
+      <div style="min-width:0">
+        <div class="cm-name">${g.name}</div>
+        <div class="cm-sub">
+          <span class="pill pill-${g.visibility}">${g.visibility === 'private' ? '🔒 Private' : '🌐 Public'}</span>
+          ${role}
+        </div>
+      </div>
+    </div>
+    <p class="cm-desc">${g.desc || 'No description yet.'}</p>
+    <div class="cm-foot">
+      <span>👥 ${g.member_count} member${g.member_count===1?'':'s'}</span>
+      <span>🏆 ${g.tournament_count} event${g.tournament_count===1?'':'s'}</span>
+    </div>
+  </div>`;
+}
+
+async function renderGroups() {
+  let all = [];
+  try { all = await API.get(`/groups?viewerId=${uid()}`); }
+  catch (e) { Toast.error('Could not load groups from the backend.'); }
+
+  const mine   = all.filter(g => g.member_ids.includes(uid()));
+  const others = all.filter(g => !g.member_ids.includes(uid()));
+
+  document.getElementById('my-groups').innerHTML = mine.length
+    ? mine.map(g => groupCard(g, true)).join('')
+    : `<div class="cm-empty"><span class="ico">🛡️</span>You haven't joined a group yet.
+         <div class="cta"><button class="mini mini-primary" onclick="Modal.open('create-group-modal')">Create your first group</button></div></div>`;
+
+  document.getElementById('all-groups').innerHTML = others.length
+    ? others.map(g => groupCard(g, false)).join('')
+    : `<div class="cm-empty"><span class="ico">🌐</span>No other public groups to discover right now.</div>`;
+
+  document.getElementById('stat-groups').textContent = mine.length;
+  document.getElementById('tabn-groups').textContent = mine.length;
+  document.getElementById('stat-tourn').textContent = mine.reduce((n,g) => n + (g.tournament_count||0), 0);
+}
+
+async function createGroup() {
+  const name = document.getElementById('g-name').value.trim();
+  if (!name) { Toast.error('Give your group a name.'); return; }
+  try {
+    const g = await API.post('/groups', {
+      name,
+      desc: document.getElementById('g-desc').value.trim(),
+      owner_id: uid(),
+      visibility: document.getElementById('g-visibility').value,
+      join_mode: document.getElementById('g-joinmode').value,
+    });
+    Modal.close('create-group-modal');
+    Toast.success(`${g.name} created! 🛡️`);
+    location.href = `group-detail.html?id=${g.group_id}`;
+  } catch (e) { Toast.error(e.message || 'Could not create the group.'); }
+}
+
+/* ══ TEAMS ══ */
+function teamCard(t) {
+  const isCaptain = Number(t.captain_id) === uid();
+  const capName = t.members.find(m => Number(m.user_id) === Number(t.captain_id))?.user_name || '?';
+  const linkedCount = t.members.filter(m => (linkedMap[m.user_id] || []).length).length;
+
+  const roster = t.members.map(m => {
+    const links = linkedMap[m.user_id] || [];
+    const title = links.length ? links.map(l => `${l.platform_label}: ${l.in_game_name}`).join(', ')
+                               : 'No linked game account';
+    return `<span class="chip">${m.avatar || '??'} ${m.user_name}
+      <span class="${links.length ? 'link-on' : 'link-off'}" title="${title}">🔗</span>
+      ${isCaptain && Number(m.user_id) !== Number(t.captain_id)
+        ? `<span class="x" onclick="event.stopPropagation();removeMember(${t.team_id},${m.user_id})">✕</span>` : ''}
+    </span>`;
+  }).join('');
+
+  return `
+  <div class="cm-card is-team">
+    <div class="cm-card-top">
+      <div class="cm-avatar team">${(t.name||'?').slice(0,2).toUpperCase()}</div>
+      <div style="min-width:0">
+        <div class="cm-name">${t.name}</div>
+        <div class="cm-sub">
+          ${isCaptain ? '<span class="pill pill-cap">⭐ You captain</span>' : `<span>Captain: ${capName}</span>`}
+          <span class="pill pill-ready">${t.members.length} member${t.members.length===1?'':'s'}</span>
+        </div>
+      </div>
+    </div>
+    <div class="roster">${roster}</div>
+    <div class="cm-foot"><span>🔗 ${linkedCount}/${t.members.length} linked a game account</span></div>
+    ${isCaptain ? `
+    <div class="cm-actions">
+      <button class="mini mini-ghost" onclick="openAddMember(${t.team_id})">+ Add Teammate</button>
+      <button class="mini mini-danger" onclick="deleteTeam(${t.team_id})">Delete</button>
+    </div>` : ''}
+  </div>`;
+}
+
+async function loadLinkedMap(teamRows) {
+  const ids = [...new Set(teamRows.flatMap(t => t.members.map(m => m.user_id)))];
+  const pairs = await Promise.all(ids.map(async id => {
+    try { return [id, await API.get(`/linked-accounts/player/${id}`)]; }
+    catch (e) { return [id, []]; }
+  }));
+  linkedMap = Object.fromEntries(pairs);
+}
+
+async function renderTeams() {
+  let mine = [];
+  try { mine = await API.get(`/teams?playerId=${uid()}`); }
+  catch (e) { Toast.error('Could not load teams from the backend.'); }
+
+  await loadLinkedMap(mine);
+  document.getElementById('my-teams').innerHTML = mine.length
+    ? mine.map(teamCard).join('')
+    : `<div class="cm-empty"><span class="ico">⚔️</span>You're not on a team yet. Teams are how you enter team-based tournaments.
+         <div class="cta"><button class="mini mini-primary" onclick="Modal.open('create-team-modal')">Create your first team</button></div></div>`;
+
+  document.getElementById('stat-teams').textContent = mine.length;
+  document.getElementById('tabn-teams').textContent = mine.length;
+}
+
+async function createTeam() {
+  const name = document.getElementById('tm-name').value.trim();
+  if (!name) { Toast.error('Give your team a name.'); return; }
+  try {
+    await API.post('/teams', { name, captain_id: uid() });
+    Modal.close('create-team-modal');
+    document.getElementById('tm-name').value = '';
+    Toast.success(`${name} created! ⚔️`);
+    renderTeams();
+  } catch (e) { Toast.error(e.message || 'Could not create the team.'); }
+}
+
+function openAddMember(teamId) {
+  activeTeamId = teamId;
+  const sel = document.getElementById('am-player');
+  sel.innerHTML = DB.users
+    .filter(u => (u.role_id === 4 || u.role === 'player') && Number(u.user_id) !== uid())
+    .map(u => `<option value="${u.user_id}">${u.user_name}</option>`).join('');
+  Modal.open('add-member-modal');
+}
+
+async function confirmAddMember() {
+  const userId = parseInt(document.getElementById('am-player').value, 10);
+  try {
+    await API.post(`/teams/${activeTeamId}/members?requesterId=${uid()}`, { user_id: userId });
+    Modal.close('add-member-modal');
+    Toast.success('Teammate added.');
+    renderTeams();
+  } catch (e) { Toast.error(e.message); }
+}
+
+async function removeMember(teamId, userId) {
+  try { await API.del(`/teams/${teamId}/members/${userId}?requesterId=${uid()}`); Toast.info('Removed.'); renderTeams(); }
+  catch (e) { Toast.error(e.message); }
+}
+
+async function deleteTeam(teamId) {
+  confirmAction('Delete Team', 'Delete this team? This cannot be undone.', async () => {
+    try { await API.del(`/teams/${teamId}?requesterId=${uid()}`); Toast.info('Team deleted.'); renderTeams(); }
+    catch (e) { Toast.error(e.message); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['player']);
+  if (!session) return;
+  buildNavbar('player','community');
+  const wanted = new URLSearchParams(location.search).get('tab');
+  if (wanted === 'teams') setTab('teams');
+  renderGroups();
+  renderTeams();
+});
+</script>
+</body>
+</html>

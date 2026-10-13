@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Game Catalog</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script src="../../js/game-launch.js"></script>
+<style>
+.fav-btn{position:absolute;top:.6rem;right:.6rem;background:rgba(0,0,0,.5);border:none;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;transition:all var(--trans-fast)}
+.fav-btn:hover{background:rgba(236,72,153,.3)}
+.fav-btn.active{color:#ec4899}
+.genre-badge{position:absolute;top:.6rem;left:.6rem;background:rgba(0,0,0,.65);color:#fff;font-size:.7rem;font-weight:600;padding:.2rem .5rem;border-radius:99px}
+.game-card-img-wrap{position:relative}
+.qp-btn{display:inline-flex;align-items:center;gap:.35rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:1px solid rgba(16,185,129,.5);border-radius:var(--radius-md);padding:.45rem .9rem;font-size:.78rem;font-weight:700;cursor:pointer;transition:all var(--trans-fast);white-space:nowrap}
+.qp-btn:hover{box-shadow:0 0 18px rgba(16,185,129,.45);transform:translateY(-1px)}
+.qp-btn.dim{background:rgba(255,255,255,.05);border:1px solid var(--border-primary);color:var(--text-muted);cursor:default}
+.qp-btn.dim:hover{transform:none;box-shadow:none}
+/* Tooltips are rendered by Tooltip (js/utils.js) into a fixed-position element
+   on <body>. The old ::before bubble was painted inside .game-card-actions,
+   which has a transform + z-index and therefore its own stacking context, so
+   it kept disappearing behind the next card. */
+.past-row{display:flex;align-items:center;gap:.75rem;padding:.6rem .9rem;border-radius:var(--radius-md);background:var(--bg-secondary);border:1px solid var(--border-primary);margin-bottom:.45rem}
+.soon-banner{position:absolute;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:1.2rem;letter-spacing:0.1em;pointer-events:none;z-index:2;text-shadow:0 0 10px rgba(0,0,0,1)}
+.card-soon{opacity:0.8;filter:grayscale(0.4)}
+.card-soon:hover{opacity:1;filter:grayscale(0)}
+/* Quick Play modal and live-room banner styles removed with their markup. */
+@keyframes pulse-green{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+
+<div class="page-content" id="catalog-view">
+
+  <!-- The "you are currently in a room" banner lived here, with Go-to-My-Room
+       and Leave. Removed with the rooms — see the note by updateBanner below. -->
+
+  <div class="page-header-row mb-2">
+    <div>
+      <h1>Game Catalog</h1>
+      <p class="text-muted">Browse games — press Play Now to start, or tap a game to see its details and achievements</p>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="fav-btn" onclick="toggleFavView()">♥ Favourites (<span id="fav-count">0</span>)</button>
+  </div>
+  <div class="filter-bar">
+    <div class="search-wrap" style="flex:1;max-width:400px">
+      <span class="search-icon">🔍</span>
+      <input class="form-input" id="search-input" placeholder="Search games or genre…" oninput="applyFilters()"/>
+    </div>
+
+    <select class="form-select" id="genre-filter" onchange="applyFilters()" style="width:160px">
+      <option value="">All Genres</option>
+    </select>
+    <select class="form-select" id="sort-filter" onchange="applyFilters()" style="width:160px">
+      <option value="rating">Top Rated</option>
+      <option value="views">Most Viewed</option>
+      <option value="newest">Newest</option>
+    </select>
+  </div>
+
+  <div id="games-grid"></div>
+
+  <!-- Upcoming Games Section -->
+  <div id="upcoming-section" style="margin-top:3rem">
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem">
+      <div style="width:4px;height:28px;background:linear-gradient(180deg,var(--accent-purple),var(--accent-cyan));border-radius:99px"></div>
+      <div>
+        <h2 style="margin:0;font-size:1.2rem;font-family:'Orbitron',monospace;color:#fff">🚀 Upcoming Games</h2>
+        <p style="margin:0;font-size:0.78rem;color:var(--text-secondary)">Games in development — coming to PlayCarys soon</p>
+      </div>
+    </div>
+    <div id="upcoming-grid"></div>
+  </div>
+</div>
+
+<div class="page-content hidden" id="detail-view">
+  <div class="back-btn" onclick="showCatalog()">← Back to Catalog</div>
+  <div id="detail-content"></div>
+</div>
+
+</div>
+
+<div id="toast-container"></div>
+<script>
+let showingFavs=false;
+
+// navigate() provided globally by utils.js (includes CSS fade transition)
+function getUID(){const s=Auth.getSession();return s ? String(s.userId) : 'u7';}
+
+// REMOVED: getMyLive().
+//
+// It answered "which room is this player currently sitting in", and its only
+// purpose was the occupancy lock — "You're already in a session. Leave first."
+// That is a rule about rooms: you can only occupy one seat at a time. Playing a
+// game is not something you have to leave before playing another, so both the
+// lookup and the lock are gone.
+//
+// Presence still knows what someone is playing, via DB.liveMatchOf().
+
+function getFavs(){ return (DB.favorites[getUID()] || []).map(String); }
+function isFav(id){ return getFavs().includes(String(id)); }
+
+
+function toggleFav(id, e){
+  e?.stopPropagation();
+  const sid = String(id);
+  let f = getFavs();
+  if(f.includes(sid)) f = f.filter(x => x !== sid);
+  else f.push(sid);
+  DB.favorites[getUID()] = f;
+  DB.save();
+  updateFavCount();
+  if(typeof applyFilters === 'function') applyFilters();
+}
+
+/** Can this game be launched? Delegates to the shared resolver so that
+ *  publisher-submitted games (uploaded bundle or self-hosted URL) count too —
+ *  this used to be a hardcoded ['7','8'] list, which is why every submitted
+ *  game showed "Coming Soon" no matter what the publisher uploaded. */
+function hasEngine(gameId) {
+  if (window.GameLaunch) return GameLaunch.hasEngine(gameId);
+  return ['7', '8'].includes(String(gameId).replace('g', '')); // fallback if the script failed to load
+}
+
+/**
+ * A game card offers exactly one action: Play Now.
+ *
+ * It used to offer three different pairs of buttons depending on how the game
+ * did multiplayer — "⚡ Quick" and "🎮 Lobby" for chess, "🌐 Play Online" for
+ * games with their own lobby, "▶ Play Now" for solo. The player was being asked
+ * to understand the platform's internal matchmaking architecture before they
+ * could press play.
+ *
+ * They should not have to. A single-player game starts; a multiplayer game
+ * opens and finds its own opponents. Either way the answer to "how do I play
+ * this" is the same button.
+ *
+ * data-probe stays on self-hosted games: one whose server is down must not
+ * present itself as playable.
+ */
+function cardActionsFor(g) {
+  const gid  = String(g.id);
+  const mode = window.GameLaunch ? GameLaunch.multiplayerMode(gid) : 'solo';
+  const btn  = 'flex:1;font-size:0.72rem;padding:0.5rem 0.2rem';
+  const probe = mode === 'self' ? ` data-probe="${gid}"` : '';
+
+  return `
+    <button class="btn btn-primary btn-sm"${probe} onclick="launchSinglePlayer('${gid}',event)"
+      data-tip="Play ${g.title}" style="${btn}">▶ Play Now</button>`;
+}
+
+/**
+ * The detail view offers the same single Play Now, plus the genuinely different
+ * OFFLINE modes where a game has them.
+ *
+ * "Browse Sessions" is gone with the rooms. vs-AI and local 2-player stay:
+ * those are not alternative routes into the same game, they are different games
+ * to play — one against the computer, one with someone next to you.
+ */
+function detailActionsFor(g) {
+  const gid  = String(g.id);
+  const offline = (window.GameLaunch && GameLaunch.BUILTIN[gid] && GameLaunch.BUILTIN[gid].supportsAi) ? `
+      <button class="btn btn-ghost" onclick="window.location.href='../../games/chess/index.html?mode=ai'"
+        data-tip="Play offline against the computer">🤖 Play vs AI</button>
+      <button class="btn btn-ghost" onclick="window.location.href='../../games/chess/index.html?mode=2p'"
+        data-tip="Play offline with a friend on the same screen">👥 Local 2-Player</button>` : '';
+
+  return `
+    <button class="btn btn-primary" onclick="launchSinglePlayer('${gid}',event)"
+      data-tip="Start playing">▶ Play Now</button>${offline}`;
+}
+
+/**
+ * Mark self-hosted games whose server is not answering.
+ *
+ * Runs after every render, never blocks it: the cards paint immediately and a
+ * game only changes to "Server offline" if its probe actually fails. Hosted and
+ * builtin games resolve true without a request, so this costs one round trip
+ * per self-hosted listing and nothing at all for the rest.
+ */
+function probeSelfHostedGames() {
+  if (!window.GameLaunch) return;
+  document.querySelectorAll('button[data-probe]').forEach(btn => {
+    const gid = btn.getAttribute('data-probe');
+    GameLaunch.probe(gid).then(alive => {
+      if (alive) return;
+      btn.textContent = '⛔ Server offline';
+      btn.disabled = true;
+      btn.style.opacity = '0.55';
+      btn.style.cursor = 'not-allowed';
+      btn.setAttribute(
+        'data-tip',
+        "This game runs on its own server, which is not responding right now."
+      );
+    });
+  });
+}
+
+function updateFavCount(){
+  const fc = document.getElementById('fav-count');
+  if(fc) fc.textContent = getFavs().length;
+}
+function toggleFavView(){
+  showingFavs = !showingFavs;
+  const btn = document.getElementById('fav-btn');
+  if(showingFavs){
+    btn.textContent = '← Back to Games';
+  } else {
+    btn.innerHTML = `♥ Favourites (<span id="fav-count">${getFavs().length}</span>)`;
+  }
+  applyFilters();
+  updateFavCount();
+}
+
+
+function applyFilters(){
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const genre = document.getElementById('genre-filter').value;
+  const sort = document.getElementById('sort-filter').value;
+
+  // ── Available games (approved + enabled) ──
+  let games = DB.games.filter(g => g.status === 'approved' && g.enabled);
+  if(showingFavs) games = games.filter(g => getFavs().includes(String(g.id)));
+  if(q) games = games.filter(g => (g.title||'').toLowerCase().includes(q) || (g.genre||'').toLowerCase().includes(q) || (g.desc||'').toLowerCase().includes(q));
+  if(genre) games = games.filter(g => g.genre === genre);
+
+  if(sort==='rating') games.sort((a,b) => b.rating - a.rating);
+  else if(sort==='views') games.sort((a,b) => b.views - a.views);
+  else if(sort==='newest') games.sort((a,b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+
+  renderGames(games);
+  probeSelfHostedGames();
+
+  // ── Upcoming games — only show when not in favs view & no search active ──
+  const upcomingSection = document.getElementById('upcoming-section');
+  if(showingFavs || q || genre){
+    if(upcomingSection) upcomingSection.style.display = 'none';
+  } else {
+    // "Coming Soon" means NOT YET APPROVED — a game still being reviewed.
+    //
+    // This used to be `!(approved && enabled)`, which also swept up every game
+    // that WAS approved and has since been taken offline. Delisting a live game
+    // therefore advertised it as "In Development", which is the opposite of
+    // true: it shipped, and it was pulled. An approved-but-disabled listing is
+    // simply not shown.
+    if(upcomingSection) upcomingSection.style.display = '';
+    const upcoming = DB.games.filter(g => g.status !== 'approved');
+    renderUpcomingGames(upcoming);
+  }
+}
+
+function renderGames(games){
+  const grid = document.getElementById('games-grid');
+  if(!games.length){
+    grid.innerHTML = `<div class="empty-state"><div class="icon">🎮</div><h3>${showingFavs?'No favourites yet':'No games found'}</h3><p>${showingFavs?'Add games to favourites to see them here':'Try adjusting your filters'}</p></div>`;
+    return;
+  }
+
+  const renderCard = (g, i) => {
+    const isSoon = !hasEngine(g.id);
+    return `
+    <div class="game-card ${isSoon ? 'card-soon' : ''}" onclick="viewGame('${g.id}')">
+      <div class="game-card-img-wrap">
+        ${getGameIconHTML(g, i, '100%', 'position:absolute;inset:0')}
+        <div class="genre-badge">${g.genre}</div>
+        <button class="fav-btn${isFav(g.id)?' active':''}" onclick="toggleFav('${g.id}',event)">${isFav(g.id)?'♥':'♡'}</button>
+      </div>
+      <div class="game-card-body">
+        <div class="game-card-title">${g.title}</div>
+        <div class="game-card-desc">${g.desc}</div>
+        <div class="game-card-meta">
+          <span>👥 ${g.players}</span>
+          <span style="color:var(--accent-yellow)">⭐ ${g.rating || '—'}</span>
+        </div>
+        <div class="game-card-actions" onclick="event.stopPropagation()">
+          ${isSoon ? `
+            <button class="btn btn-ghost btn-sm" style="flex:1;pointer-events:none;opacity:0.6">⏳ Coming Soon</button>
+          ` : cardActionsFor(g)}
+        </div>
+      </div>
+    </div>`;
+  };
+
+  grid.innerHTML = `<div class="cards-grid-4">${games.map((g,i) => renderCard(g,i)).join('')}</div>`;
+}
+
+function renderUpcomingGames(games){
+  const grid = document.getElementById('upcoming-grid');
+  if(!grid) return;
+  if(!games.length){
+    grid.innerHTML = '';
+    return;
+  }
+  const prefix = getPathPrefix();
+  grid.innerHTML = `<div class="cards-grid-4">${games.map((g, i) => {
+    const imgKey = g.img || '';
+    const imgSrc = GAME_ASSETS.IMG_MAP[imgKey] ? prefix + GAME_ASSETS.IMG_MAP[imgKey] : null;
+    const emoji = (GAME_ASSETS.EMOJI_MAP[imgKey] || '🎮');
+    const bg = GAME_ASSETS.COLORS[i % GAME_ASSETS.COLORS.length];
+    const heroBg = imgSrc
+      ? `background:url('${imgSrc}') center/cover no-repeat`
+      : `background:${bg}`;
+    return `
+    <div style="border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-card);border:1px solid var(--border-primary);opacity:0.85;position:relative;transition:all .25s;cursor:default"
+         onmouseover="this.style.opacity='1';this.style.borderColor='rgba(139,92,246,0.5)'"
+         onmouseout="this.style.opacity='0.85';this.style.borderColor='var(--border-primary)'">
+      <div style="height:130px;${heroBg};display:flex;align-items:center;justify-content:center;font-size:3.5rem;position:relative">
+        ${!imgSrc ? emoji : ''}
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.35)"></div>
+        <div style="position:absolute;top:0.5rem;left:0.5rem;background:rgba(139,92,246,0.8);color:#fff;font-size:0.62rem;font-weight:800;padding:0.2rem 0.55rem;border-radius:99px;letter-spacing:0.08em">COMING SOON</div>
+        <div style="position:absolute;top:0.5rem;right:0.5rem;background:rgba(0,0,0,0.5);color:var(--text-secondary);font-size:0.62rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:99px">${g.genre || g.game_type}</div>
+      </div>
+      <div style="padding:0.85rem 0.9rem">
+        <div style="font-weight:800;font-size:0.92rem;margin-bottom:0.3rem;color:#fff">${g.title || g.game_name}</div>
+        <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.4;margin-bottom:0.75rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${g.desc}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.7rem;color:var(--text-muted)">
+          <span>👥 ${g.players}</span>
+          <span style="background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.25);border-radius:99px;padding:0.15rem 0.6rem">In Development</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK PLAY — REMOVED (~290 lines)
+//
+// This was the platform's own matchmaking: a localStorage queue, a per-tab id,
+// a polling loop, a socket fallback, a modal with four states, and
+// _buildQPSession() which wrote a room row plus two player_session rows before
+// redirecting both players into the game with ?sid=&color=.
+//
+// Every part of it existed to seat two people in a PlayCarys room so that chess
+// could then be told who was playing. Chess now does its own pairing, inside
+// its own UI, using the same socket service this code was calling anyway — so
+// the queue, the room, the junction rows and the redirect all had nothing left
+// to do. See ChessMatch in games/chess/index.html.
+//
+// A game that runs its own multiplayer never needed this at all: it was being
+// asked to cross our lobby to reach its own.
+// ═══════════════════════════════════════════════════════════════
+
+
+function viewGame(id){
+  const g=DB.games.find(g=>g.id===id);
+  if(!g)return;
+  const uid=getUID();
+  // `live` and `past` (open rooms for this game, and rooms you had been in)
+  // are gone with the room sections that rendered them.
+  const tourns=DB.tournaments.filter(t=>t.gameId===id&&t.status!=='completed');
+  const idx=parseInt(g.id.replace('g',''),10)||0;
+
+  document.getElementById('detail-content').innerHTML=`
+    <div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1.5rem">
+      ${getGameIconHTML(g, idx, '88px')}
+      <div style="flex:1;min-width:200px">
+        <h1 style="font-size:1.8rem;margin-bottom:.3rem">${g.title}</h1>
+        <p style="color:var(--text-secondary);margin-bottom:.75rem">${g.desc}</p>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">
+          <span class="tag">${g.genre}</span>
+          <span class="badge badge-active">👥 ${g.players}</span>
+          <span style="color:var(--accent-yellow)">⭐ ${g.rating}</span>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-secondary)">By ${g.publisher} · ${(g.views/1000).toFixed(1)}K views</p>
+        <div style="display:flex;gap:.75rem;margin-top:1rem;flex-wrap:wrap">
+          ${detailActionsFor(g)}
+          <button class="btn ${isFav(g.id)?'btn-purple':'btn-ghost'}" onclick="toggleFav('${g.id}',event);applyFilters()">${isFav(g.id)?'♥ Favourited':'♡ Favourite'}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievements — what you have unlocked, and what is still there to earn.
+         This is where the Live Sessions list, Your Past Sessions and the
+         Create-New-Room prompt used to be. Those described the platform's
+         plumbing; this describes the player's progress in the game, which is
+         what the game's own page should be about. Filled asynchronously by
+         renderAchievements() below. -->
+    <div id="game-achievements" class="mb-2"></div>
+
+    ${tourns.length?`
+    <div class="card">
+      <h3 class="mb-2">🏆 Related Tournaments</h3>
+      ${tourns.map(t=>`
+        <div class="list-item" style="padding:.7rem 1rem">
+          <div class="list-item-info">
+            <span style="font-weight:600">${t.name}</span>
+            <div class="text-xs text-muted">Starts ${formatDate(t.startDate)} · ${t.participants}/${t.maxParticipants} · Prize: ${t.prize}</div>
+          </div>
+          ${badgeHTML(t.status)}
+          <button class="btn btn-purple btn-sm" onclick="navigate('tournaments')">View</button>
+        </div>`).join('')}
+    </div>`:''}
+    
+    <div id="game-reviews-wrapper" style="margin-top: 1.5rem;"></div>`;
+
+  document.getElementById('catalog-view').classList.add('hidden');
+  document.getElementById('detail-view').classList.remove('hidden');
+
+  if (typeof renderReviews === 'function') renderReviews(g.id);
+  renderAchievements(g.id);
+}
+
+/**
+ * Achievements for one game — unlocked AND still locked.
+ *
+ * Calls GET /games/:id/achievements?viewerId=, which already returns exactly
+ * this shape (including masking the description of secret achievements the
+ * viewer has not earned) and which, until now, had NO callers at all. The data
+ * has been sitting there ready; nothing ever asked for it.
+ */
+async function renderAchievements(gameId) {
+  const box = document.getElementById('game-achievements');
+  if (!box) return;
+  const uid = getUID();
+
+  let list = [];
+  try {
+    const res = await fetch(`/api/v1/games/${encodeURIComponent(String(gameId).replace(/^g/,''))}/achievements?viewerId=${encodeURIComponent(uid)}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    list = await res.json();
+  } catch (e) {
+    // A game with no achievements is the normal case, not an error worth
+    // shouting about — say nothing rather than show a broken panel.
+    box.innerHTML = '';
+    return;
+  }
+
+  if (!Array.isArray(list) || !list.length) { box.innerHTML = ''; return; }
+
+  const earned = list.filter(a => a.unlocked).length;
+  box.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem">
+        <h3 style="margin:0">🏅 Achievements</h3>
+        <span style="font-size:.78rem;color:var(--text-secondary)">${earned} of ${list.length} unlocked</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.6rem">
+        ${list.map(a => {
+          const got = !!a.unlocked;
+          return `
+          <div style="display:flex;gap:.65rem;align-items:flex-start;padding:.7rem .8rem;border-radius:var(--radius-md);
+                      background:${got ? 'rgba(16,185,129,.08)' : 'var(--bg-secondary)'};
+                      border:1px solid ${got ? 'rgba(16,185,129,.3)' : 'var(--border-primary)'};
+                      opacity:${got ? '1' : '.72'}">
+            <div style="font-size:1.5rem;line-height:1;filter:${got ? 'none' : 'grayscale(1)'}">${a.icon || '🏅'}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.85rem;font-weight:700;display:flex;align-items:center;gap:.35rem">
+                ${a.name || 'Achievement'} ${got ? '<span style="color:var(--accent-green);font-size:.7rem">✓</span>' : ''}
+              </div>
+              <div style="font-size:.75rem;color:var(--text-secondary);line-height:1.35">${a.description || ''}</div>
+              <div style="font-size:.7rem;color:var(--accent-yellow);margin-top:.25rem">
+                ${a.carys_reward ? `+${a.carys_reward} Carys` : ''}${a.xp_reward ? ` · +${a.xp_reward} XP` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function showCatalog(){
+  document.getElementById('catalog-view').classList.remove('hidden');
+  document.getElementById('detail-view').classList.add('hidden');
+}
+
+// REMOVED: updateBanner / leaveMySession / goToMySession.
+//
+// These drove the "You are currently in <room>" banner at the top of the
+// catalogue, with Leave and Go-to-My-Room buttons. All three are room
+// operations: leaving a lobby you are seated in, or navigating back to the one
+// you host. There is no seat to leave now — you either open a game or you do
+// not — so the banner and its handlers are gone with the rooms.
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const s=Auth.requireAuth(['player', 'guest']);
+  if(!s)return;
+  const user = DB.users.find(u => String(u.id || u.user_id) === String(s.userId));
+  if (user && user.status === 'suspended') {
+      document.querySelector('.page-wrapper').innerHTML = `
+        <div style="text-align:center;padding:4rem 1rem">
+          <div style="font-size:3rem;margin-bottom:1rem">⏸</div>
+          <h2>Account Suspended</h2>
+          <p style="color:var(--text-secondary);max-width:400px;margin:0.5rem auto">Your account is currently suspended. You cannot access the game catalog, but you can still access your messages via the menu to contact support.</p>
+        </div>`;
+      buildNavbar(s.role,'games'); 
+      return;
+  }
+  buildNavbar(s.role,'games');
+
+  // Populate genre dropdown dynamically now that DB is loaded
+  const genreSel = document.getElementById('genre-filter');
+  if (genreSel) {
+    GAME_ASSETS.GENRES.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g;
+      opt.textContent = g;
+      genreSel.appendChild(opt);
+    });
+  }
+
+  updateFavCount();
+  applyFilters();
+
+  // Re-render when the catalogue actually changes.
+  //
+  // The grid was painted once, at DOMContentLoaded, from whatever DB.games held
+  // at that instant. A game approved after this tab loaded — or one that
+  // arrived in the boot hydrate a moment later — simply never appeared, and the
+  // player had to reload to discover it. Measured: five newly approved games
+  // sat in DB.games, passed the filter, and rendered zero cards until
+  // applyFilters() was called by hand.
+  //
+  // PlayCarysLive.pull() re-dispatches a synthetic 'storage' event after every
+  // merge (it is the same bridge join-session and room-lobby already use to see
+  // cross-device changes), so listening here costs nothing and keeps the shelf
+  // honest without polling.
+  let lastSignature = '';
+  const catalogueSignature = () => (DB.games || [])
+    .filter(g => g.status === 'approved' && g.enabled)
+    .map(g => g.id).join(',');
+  lastSignature = catalogueSignature();
+
+  const refreshIfChanged = () => {
+    const now = catalogueSignature();
+    if (now === lastSignature) return;
+    lastSignature = now;
+    applyFilters();
+  };
+
+  window.addEventListener('storage', refreshIfChanged);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshIfChanged(); });
+});
+function launchSinglePlayer(gameId, e) {
+  e?.stopPropagation();
+
+  // Intercept un-implemented games
+  if (!hasEngine(gameId)) {
+    Toast.info("Coming Soon! 🚀 This game engine is currently being integrated.");
+    return;
+  }
+
+  const uid = getUID();
+  const g = DB.games.find(x => String(x.id||x.game_id) === String(gameId));
+  if (!g) return;
+
+  // Start a MATCH, not a room.
+  //
+  // The old code built a session row here: a name ("Hill Climbing (Solo)"), a
+  // host, a seat count, a privacy setting and a member list — a lobby, created
+  // for a player who is about to play on their own. It also had to decide up
+  // front whether the game runs its own lobby, purely so it could pick a
+  // plausible-looking maxPlayers for a room nobody would ever see.
+  //
+  // None of that describes what happens when someone presses Play. A match row
+  // records the play itself, and who took part is written per player into
+  // match_results when the result arrives.
+  //
+  // The "you're already in a session, leave first" guard is gone with it: that
+  // was an occupancy lock on a room. Playing a game is not something you have
+  // to leave before playing another.
+  // A game that brings its own matchmaking is NOT handed a match up front.
+  //
+  // Pressing Play on chess used to create a platform match and pass it along as
+  // ?sid=. Chess reads a sid as "your match is already decided", so it skipped
+  // its own menu and dropped the player straight onto a competitive board,
+  // waiting for an opponent nobody had been paired with. It also left an
+  // in-progress match row behind on every single press, which presence then
+  // reported as "Playing Chess Pro" indefinitely.
+  //
+  // The flow-corrections document is explicit about this: for a multiplayer
+  // game, pressing Play "will just open the chess UI, and then he can do
+  // whatever he wants inside the chess, because the chess itself can matchmake".
+  // So we open it and get out of the way — chess records its own match at the
+  // moment two players are actually paired.
+  //
+  // Single-player games still get one, because there is nothing to pair and the
+  // play begins immediately.
+  const mode = window.GameLaunch ? GameLaunch.multiplayerMode(g.game_id || g.id) : 'solo';
+  const opts = mode === 'solo'
+    ? { sid: DB.startMatch(g.game_id || g.id, { created_by: uid }) }
+    : {};
+
+  // Resolve through GameLaunch rather than guessing the folder from g.img —
+  // that only ever worked because the two builtin games happen to have an img
+  // key matching their folder name, and would 404 for any submitted game.
+  if (!GameLaunch.launch(g.game_id || g.id, opts)) {
+    Toast.error(GameLaunch.unplayableReason(g.game_id || g.id));
+  }
+}
+
+function renderReviews(gameId) {
+  const wrapper = document.getElementById('game-reviews-wrapper');
+  if (!wrapper) return;
+  const uid = getUID();
+  const reviews = (DB.reviews || []).filter(r => String(r.gameId) === String(gameId)).sort((a,b) => new Date(b.date) - new Date(a.date));
+  
+  // You may review a game you have PLAYED.
+  //
+  // The second half of this test used to say "...or you were once a member of a
+  // room for it", which let someone join a lobby, never start, leave, and still
+  // post a review. Recording a match result is the evidence that a game was
+  // actually played, and it is the same evidence match history uses.
+  const hasPlayed = DB.match_results.some(r => String(r.player_id) === String(uid) && String(r.game_id) === String(gameId)) ||
+                    (DB.matches || []).some(m => String(m.game_id) === String(gameId) &&
+                      Array.isArray(m.participants) && m.participants.some(p => String(p) === String(uid)));
+  const hasReviewed = reviews.some(r => String(r.playerId) === String(uid));
+
+  let html = `<div class="card"><h3 class="mb-2">⭐ Player Reviews</h3>`;
+  
+  if (reviews.length > 0) {
+    const avgRating = (reviews.reduce((s,r) => s + r.rating, 0) / reviews.length).toFixed(1);
+    html += `<div style="font-size:2rem; font-weight:800; color:var(--accent-yellow); margin-bottom:1rem">${avgRating} <span style="font-size:1rem;color:var(--text-secondary)">/ 5.0 (${reviews.length} reviews)</span></div>`;
+    html += reviews.map(r => {
+      const u = DB.users.find(u => String(u.id || u.user_id) === String(r.playerId));
+      const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+      return `<div style="padding:1rem 0; border-bottom:1px solid var(--border-primary);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.4rem">
+          <div style="font-weight:600; display:flex; align-items:center; gap:0.5rem">
+            ${u ? `<div class="avatar avatar-sm">${u.avatar || u.username.substring(0,2).toUpperCase()}</div> ${u.username || u.user_name}` : 'Player'}
+          </div>
+          <div style="color:var(--accent-yellow); font-size:1.1rem">${stars}</div>
+        </div>
+        <p style="color:var(--text-secondary); font-size:0.85rem">${r.comment}</p>
+        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.4rem">${formatDate(r.date)}</div>
+      </div>`;
+    }).join('');
+  } else {
+    html += `<p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem">No reviews yet. Be the first to share your thoughts!</p>`;
+  }
+
+  if (hasPlayed && !hasReviewed) {
+    html += `
+      <div style="margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid var(--border-primary)">
+        <h4 style="margin-bottom:0.5rem">Write a Review</h4>
+        <div style="display:flex; gap:0.3rem; margin-bottom:0.75rem" id="star-selector">
+           ${[1,2,3,4,5].map(i => `<span style="cursor:pointer; font-size:1.5rem; color:var(--text-muted); padding:0 0.1rem; line-height:1" onclick="selectRating(${i})" id="star-${i}">☆</span>`).join('')}
+        </div>
+        <input type="hidden" id="new-rating" value="0">
+        <textarea id="new-review-comment" class="form-textarea mb-1" placeholder="What did you think of the game?"></textarea>
+        <button class="btn btn-primary" onclick="submitReview('${gameId}')">Submit Review</button>
+      </div>
+    `;
+  } else if (!hasPlayed) {
+    html += `<div style="margin-top:1rem; padding:0.75rem; background:rgba(255,255,255,0.05); border-radius:var(--radius-md); font-size:0.8rem; color:var(--text-secondary); text-align:center">You need to play this game at least once before you can leave a review.</div>`;
+  } else if (hasReviewed) {
+    html += `<div style="margin-top:1rem; padding:0.75rem; background:rgba(16,185,129,0.1); color:var(--accent-green); border-radius:var(--radius-md); font-size:0.8rem; text-align:center; font-weight:600">You have already reviewed this game.</div>`;
+  }
+  
+  html += `</div>`;
+  wrapper.innerHTML = html;
+}
+
+window.selectRating = function(rating) {
+  document.getElementById('new-rating').value = rating;
+  for(let i=1; i<=5; i++) {
+    const s = document.getElementById('star-'+i);
+    if(i<=rating) { s.innerHTML='★'; s.style.color='var(--accent-yellow)'; }
+    else { s.innerHTML='☆'; s.style.color='var(--text-muted)'; }
+  }
+}
+
+window.submitReview = function(gameId) {
+  const rating = parseInt(document.getElementById('new-rating').value, 10);
+  const comment = document.getElementById('new-review-comment').value.trim();
+  if (rating === 0) { Toast.error('Please select a star rating.'); return; }
+  if (comment.length < 5) { Toast.error('Please provide a comment.'); return; }
+  
+  if (!DB.reviews) DB.reviews = [];
+  DB.reviews.push({
+    id: Date.now(),
+    gameId: String(gameId),
+    playerId: String(getUID()),
+    rating: rating,
+    comment: comment,
+    date: new Date().toISOString()
+  });
+  
+  const gReviews = DB.reviews.filter(r => String(r.gameId) === String(gameId));
+  const avg = gReviews.reduce((s,r) => s + r.rating, 0) / gReviews.length;
+  const gameInfo = DB.games.find(g => String(g.id || g.game_id) === String(gameId));
+  if (gameInfo) {
+      gameInfo.rating = parseFloat(avg.toFixed(1));
+  }
+  
+  DB.save();
+  Toast.success('Review submitted successfully!');
+  renderReviews(gameId);
+}
+</script>
+</body>
+</html>
+

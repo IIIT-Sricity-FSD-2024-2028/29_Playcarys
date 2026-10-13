@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlayCarys — Tournament Wiring Spec</title>
+<style>
+:root{--ink:#12161f;--ink2:#39404f;--mute:#6b7385;--line:#e2e6ee;--panel:#f7f9fc;
+--red:#b3261e;--redbg:#fdf2f1;--amber:#8a5a00;--amberbg:#fff8e8;
+--green:#0f6b45;--greenbg:#eefaf4;--blue:#1a4f8a;--bluebg:#eef4fb;}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font:16px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:52px 28px 110px}
+h1{font-size:2.35rem;line-height:1.13;letter-spacing:-.022em;margin:0 0 12px;font-weight:700}
+h2{font-size:1.42rem;letter-spacing:-.015em;margin:58px 0 6px;font-weight:650;padding-top:24px;border-top:2px solid var(--ink)}
+h3{font-size:1.08rem;margin:30px 0 8px;font-weight:650}
+h4{font-size:.94rem;margin:20px 0 6px;font-weight:650;color:var(--ink2)}
+p{margin:0 0 14px} ul,ol{margin:0 0 16px;padding-left:22px} li{margin:0 0 7px}
+.eyebrow{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);font-weight:700;margin-bottom:10px}
+.sub{font-size:1.1rem;color:var(--ink2);margin-bottom:24px;line-height:1.5}
+.meta{font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;margin-bottom:40px}
+table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:13.8px}
+th{text-align:left;background:var(--ink);color:#fff;padding:9px 11px;font-weight:600;font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;vertical-align:bottom}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--panel)}
+.box{border-left:4px solid;padding:14px 18px;margin:20px 0;border-radius:0 4px 4px 0;font-size:14.5px}
+.box p:last-child{margin-bottom:0}
+.box .lbl{font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:5px}
+.danger{border-color:var(--red);background:var(--redbg)} .danger .lbl{color:var(--red)}
+.warn{border-color:var(--amber);background:var(--amberbg)} .warn .lbl{color:var(--amber)}
+.good{border-color:var(--green);background:var(--greenbg)} .good .lbl{color:var(--green)}
+.info{border-color:var(--blue);background:var(--bluebg)} .info .lbl{color:var(--blue)}
+code{font:12.6px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);padding:1px 5px;border-radius:3px;border:1px solid var(--line)}
+pre{background:#12161f;color:#e6e9ef;padding:15px 17px;border-radius:5px;overflow-x:auto;font:12.5px/1.62 ui-monospace,SFMono-Regular,Menlo,monospace;margin:14px 0 20px}
+pre .c{color:#7f8a9e} pre .k{color:#7fd6a0} pre .s{color:#f0b67f} pre .r{color:#ff8f85}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;white-space:nowrap}
+.t-new{background:#d1fae5;color:#065f46} .t-chg{background:#fef3c7;color:#92400e}
+.t-del{background:#fee2e2;color:#991b1b} .t-keep{background:#e5e7eb;color:#374151}
+.small{font-size:13.2px;color:var(--mute)}
+@media(max-width:640px){h1{font-size:1.85rem}.wrap{padding:32px 17px 70px}table{font-size:12.3px}td,th{padding:7px 8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="eyebrow">PlayCarys · Implementation Spec</div>
+<h1>Wiring up tournaments</h1>
+<p class="sub">Free entry, sponsor-funded prizes, three formats gated by what the game can actually
+report. Surgical changes only — everything else in the platform stays exactly as it is.</p>
+
+<div class="meta">
+15 AUGUST 2026 · AGAINST THE UPLOADED WORKING TREE<br>
+5 tournaments / 15 player_tournament rows / 0 tournament_matches / 0 tournament_results<br>
+CHANGES: 1 table altered · 4 tables added · 0 tables removed
+</div>
+
+<h2>01 · The one rule everything else hangs off</h2>
+
+<div class="box danger">
+<span class="lbl">Never build an entry fee field</span>
+<p>Not "disabled". Not "nullable, default 0". <b>Do not create the column.</b> A field that does not
+exist cannot be set by a future you at 2am, cannot be set by a compromised admin account, and cannot be
+set by a well-meaning contributor who thinks it would be a nice feature.</p>
+<p>Under the Promotion and Regulation of Online Gaming Act, 2025, a tournament becomes a banned
+<i>online money game</i> the moment a user pays a fee or stake in expectation of winning. Section 9(1):
+up to 3 years and ₹1 crore. The schema is your enforcement mechanism — <b>make the illegal state
+unrepresentable.</b></p>
+</div>
+
+<p>Everything below follows from that one decision. Prizes come from sponsors. Entry is always free.
+Your rake is <b>zero, forever</b> — you make money from the sponsor, the venue subscription and the
+organisation licence, not from the players.</p>
+
+<h2>02 · The eligibility gate — read this before anything else</h2>
+
+<p>You asked to flood the catalogue with games. That is the right move, but it collides with tournaments
+in a way that is not obvious, so here is the finding plainly:</p>
+
+<div class="box warn">
+<span class="lbl">No embed network can give you a score</span>
+<p>I checked every major one. <b>GameDistribution</b>'s SDK exposes only <code>SDK_READY</code>,
+<code>SDK_GAME_START</code>, <code>SDK_GAME_PAUSE</code> and ad events — no score, no postMessage to the
+parent. <b>GamePix</b> has a <code>ping()</code> score method, but it transmits to GamePix's own backend,
+not to you. <b>Playgama</b>, <b>CrazyGames</b>, <b>Y8</b> and <b>Gamezop</b> are all the same story —
+scores live with them. CrazyGames actively blocks embedding with Sitelock.</p>
+<p>The only exception is <b>Google GameSnacks Partner SDK</b>, which does expose <code>score.onChange()</code>
+and <code>game.onGameOver()</code> to the embedding partner — but it is a gated Google partnership, not
+self-serve.</p>
+<p><b>So: you cannot run a tournament on an embedded game.</b> Not "it would be hard" — the data
+physically does not cross the iframe boundary.</p>
+</div>
+
+<h3>The two-layer catalogue</h3>
+<table>
+<thead><tr><th>Layer</th><th>Source</th><th>Volume</th><th>Can do</th><th>Cannot do</th></tr></thead>
+<tbody>
+<tr><td><b>Layer 1 — Embeds</b></td><td>GameDistribution feed, GamePix feed</td>
+<td><b>200–500</b> in an afternoon</td><td>Browse, play, "Play Now", catalogue depth, ad revenue share</td>
+<td><b>Tournaments. Achievements. Carys. Leaderboards.</b> No score crosses the frame</td></tr>
+<tr><td><b>Layer 2 — Self-hosted</b></td><td>Open-source MIT/BSD/Apache/CC0 games with your SDK wired in</td>
+<td><b>20–40</b>, hand-integrated</td><td><b>Everything.</b> Tournaments, achievements, Carys, verified scores</td>
+<td>Nothing — you control the code</td></tr>
+</tbody>
+</table>
+
+<p>Add one boolean to <code>games</code> and the whole problem disappears:</p>
+
+<pre><span class="c">// games table — new fields</span>
+delivery_kind:         <span class="s">'embed' | 'builtin' | 'hosted'</span>
+tournament_eligible:   <span class="k">boolean</span>   <span class="c">// true ONLY when the game reports via PlayCarys SDK</span>
+achievements_eligible: <span class="k">boolean</span>   <span class="c">// same gate</span>
+carys_eligible:        <span class="k">boolean</span>   <span class="c">// same gate — cannot verify play, cannot pay</span>
+embed_url:             <span class="k">text</span>      <span class="c">// null for self-hosted</span>
+catalogue_source:      <span class="s">'self' | 'gamedistribution' | 'gamepix'</span>
+external_id:           <span class="k">text</span>      <span class="c">// the network's game id, for dedupe</span></pre>
+
+<div class="box good">
+<span class="lbl">What this buys you in the UI</span>
+<p>The tournament creation screen's game picker filters on <code>tournament_eligible = true</code>. A
+café owner never sees a game they cannot run a tournament on, so they never hit a dead end. Meanwhile
+the catalogue shows all 500 games and looks like a real platform. <b>Both things are true at once and
+neither lies to anyone.</b></p>
+</div>
+
+<h2>03 · Schema changes</h2>
+
+<h3><code>tournaments</code> — altered <span class="tag t-chg">CHANGE</span></h3>
+<table>
+<thead><tr><th>Field</th><th>Action</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><code>prize</code> <span class="small">VARCHAR "$5000"</span></td><td><span class="tag t-del">DROP</span></td>
+<td>A string cannot be split 60/25/10, cannot be summed, cannot be reported to a sponsor</td></tr>
+<tr><td><code>org_id</code></td><td><span class="tag t-new">ADD</span> FK → organisations</td>
+<td>The monetisation unit. Every tournament belongs to someone who might pay</td></tr>
+<tr><td><code>format</code></td><td><span class="tag t-new">ADD</span> <code>'score_attack'|'ladder'|'bracket'</code></td>
+<td>See §04. Determines everything about how it runs</td></tr>
+<tr><td><code>entry_type</code></td><td><span class="tag t-new">ADD</span> <code>'free'</code> — single-value enum</td>
+<td><b>Deliberately an enum with one member.</b> It documents the constraint in the schema and makes a
+future "paid" option a visible migration, not a quiet update</td></tr>
+<tr><td><code>sponsor_id</code></td><td><span class="tag t-new">ADD</span> FK → sponsors, nullable</td>
+<td>Null = no prize, play for ranking and Carys only. That is a perfectly good tournament</td></tr>
+<tr><td><code>prize_pool_minor</code></td><td><span class="tag t-new">ADD</span> BIGINT, default 0</td>
+<td><b>Paise, integer.</b> Never float — 4.99 has no exact binary representation</td></tr>
+<tr><td><code>prize_currency</code></td><td><span class="tag t-new">ADD</span> CHAR(3) default <code>'INR'</code></td>
+<td>Your seeded data is in USD. Your players are in India</td></tr>
+<tr><td><code>prize_kind</code></td><td><span class="tag t-new">ADD</span> <code>'cash'|'goods'|'carys'|'none'</code></td>
+<td>Goods (a keyboard, a hoodie) are easier than cash — no TDS, no bank details from students</td></tr>
+<tr><td><code>prize_fulfilment</code></td><td><span class="tag t-new">ADD</span> <code>'sponsor_direct'|'platform'</code> default <code>'sponsor_direct'</code></td>
+<td><b>The most important default in this document.</b> See the box below</td></tr>
+<tr><td><code>result_metric</code></td><td><span class="tag t-new">ADD</span> <code>'score_high'|'score_low'|'distance'|'wins'</code></td>
+<td>What actually ranks players. Hill Climbing is <code>distance</code>, Chess is <code>wins</code></td></tr>
+<tr><td><code>state_namespace</code></td><td><span class="tag t-new">ADD</span> text</td>
+<td>Fresh-state isolation for fairness. See §05</td></tr>
+<tr><td><code>visibility</code></td><td><span class="tag t-new">ADD</span> <code>'public'|'org'|'invite'</code></td>
+<td>A college wants their league private to their students</td></tr>
+<tr><td><code>min_age</code></td><td><span class="tag t-new">ADD</span> INT default 13</td>
+<td>Age-gating is a 2026 Rules obligation regardless of registration</td></tr>
+<tr><td>everything else</td><td><span class="tag t-keep">KEEP</span></td>
+<td><code>tournament_id</code>, <code>game_id</code>, <code>tournament_name</code>, <code>desc</code>,
+<code>participants</code>, <code>maxParticipants</code>, <code>status</code>, <code>start_date</code>,
+<code>end_date</code>, <code>regClose</code> all stay exactly as they are</td></tr>
+</tbody>
+</table>
+
+<div class="box danger">
+<span class="lbl">Why sponsor_direct is the default</span>
+<p><b>YaLLa Esports was liquidated in 2025 owing roughly $700,000 in unpaid prize money across eight
+tournaments</b>, including a $200,000 prize from a 2024 LAN that was never paid. They collected sponsor
+money, spent it, and could not pay winners.</p>
+<p>If the sponsor pays the winner directly, three things go away at once: you never hold money that is
+not yours, you have no <b>Section 194BA</b> obligation to deduct 30% TDS on winnings, and an unpaid
+prize is the sponsor's reputational problem rather than your legal one. <b>Only move to
+<code>'platform'</code> fulfilment when a sponsor insists and you have the money in your account
+first.</b></p>
+</div>
+
+<h3><code>sponsors</code> — new <span class="tag t-new">NEW</span></h3>
+<pre>sponsor_id        PK
+org_id            FK → organisations   <span class="c">// who sold this sponsorship</span>
+name              text                 <span class="c">// "Vijayawada Gaming Cafe" / "KRAFTON India"</span>
+logo_url          text
+contact_name      text
+contact_email     text
+contact_phone     text
+tier              <span class="s">'title' | 'presenting' | 'partner'</span>
+contracted_minor  BIGINT               <span class="c">// what they agreed to pay YOU, paise</span>
+paid_minor        BIGINT default 0     <span class="c">// what has actually landed</span>
+created_at        timestamptz</pre>
+
+<h3><code>prize_distribution</code> — new <span class="tag t-new">NEW</span></h3>
+<pre>tournament_id  FK
+rank_from      INT    <span class="c">// 1</span>
+rank_to        INT    <span class="c">// 1        (use 4..8 for "quarter-finalists get X")</span>
+amount_minor   BIGINT <span class="c">// 500000  = ₹5,000</span>
+description    text   <span class="c">// "₹5,000 + Sponsor merch"</span>
+PRIMARY KEY (tournament_id, rank_from)</pre>
+<p class="small">Prize pool is now <b>derived</b>: <code>SUM(amount_minor)</code>. Your existing
+<code>buildPrizeBreakdown()</code> bug — it printed the whole pool for all three tiers — disappears,
+because the breakdown becomes data rather than a hardcoded formula.</p>
+
+<h3><code>tournament_entries</code> — new <span class="tag t-new">NEW</span>, replaces nothing</h3>
+<pre>tournament_id  FK
+player_id      FK
+registered_at  timestamptz
+seed           INT NULL          <span class="c">// bracket only</span>
+best_score     BIGINT NULL       <span class="c">// score_attack: running best</span>
+attempts       INT default 0     <span class="c">// score_attack: how many runs used</span>
+points         INT default 0     <span class="c">// ladder: accumulated</span>
+final_rank     INT NULL
+status         <span class="s">'registered' | 'active' | 'eliminated' | 'completed' | 'disqualified'</span>
+PRIMARY KEY (tournament_id, player_id)</pre>
+<p class="small">Your existing <code>player_tournament</code> junction already holds the first two
+columns. <b>Extend it rather than replacing it</b> — same table, more fields, no migration of the 15
+existing rows.</p>
+
+<h3><code>organisations</code> — new <span class="tag t-new">NEW</span>, minimal</h3>
+<pre>org_id       PK
+name         text          <span class="c">// "IIIT Sricity Esports"</span>
+slug         text UNIQUE   <span class="c">// iiits  -> iiits.playcarys.com later</span>
+type         <span class="s">'college' | 'cafe' | 'community' | 'brand' | 'platform'</span>
+logo_url     text
+owner_id     FK → users
+plan         <span class="s">'free' | 'venue' | 'campus'</span>
+created_at   timestamptz
+
+org_members(org_id, user_id, role <span class="s">'owner'|'organiser'|'moderator'</span>)</pre>
+<div class="box info">
+<span class="lbl">Keep this small on purpose</span>
+<p>Do not build billing, seats, custom domains or usage limits yet. <b>Two tables and a role column.</b>
+Its only job right now is to answer "who ran this tournament" — which is the question every sponsor
+report and every future invoice starts from. Everything a free player does stays exactly as it is today.</p>
+</div>
+
+<h2>04 · Three formats, and which game gets which</h2>
+
+<table>
+<thead><tr><th>Format</th><th>Works when</th><th>How it runs</th><th>Your games</th></tr></thead>
+<tbody>
+<tr><td><b><code>score_attack</code></b><br><span class="small">BUILD THIS FIRST</span></td>
+<td>Single-player, self-hosted, reports a score</td>
+<td>Window opens. Everyone plays up to N attempts. Best score ranks. No pairing, no bracket, no
+scheduling. <b>Runs itself</b></td><td>Hill Climbing, 2048, Hextris, Reflex Clicker</td></tr>
+<tr><td><b><code>ladder</code></b></td><td>Multiplayer where the publisher runs matchmaking</td>
+<td>Window opens. Players just play normal matches. Win = 3 pts, draw = 1. Ranked at close.
+<b>Needs no pairing control at all</b></td><td>Any multiplayer game that reports a result</td></tr>
+<tr><td><b><code>bracket</code></b></td><td><b>Only</b> when PlayCarys controls matchmaking</td>
+<td>Your existing seeded fold algorithm, BYEs, <code>parentMatchId</code>. Unchanged</td>
+<td>Built-in Chess only, today</td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">The trap in your current bracket code</span>
+<p><code>generateBracket()</code> assumes <b>you</b> decide who plays whom. But you removed rooms for
+multiplayer — the publisher's game does its own matchmaking now. So for any publisher-run multiplayer
+game, <b>you cannot tell it "put these two specific people against each other"</b>, and a knockout
+bracket cannot advance.</p>
+<p><b>Gate it:</b> the bracket option only appears when <code>game.delivery_kind = 'builtin'</code>.
+For everything else, offer <code>ladder</code>. The code you wrote is correct — it just needs to stop
+being offered where it cannot work.</p>
+</div>
+
+<h3>The format picker, in code</h3>
+<pre><span class="k">function</span> availableFormats(game) {
+  <span class="c">// R-TRN-9: no tournament on a game that cannot report a result</span>
+  <span class="k">if</span> (!game.tournament_eligible) <span class="k">return</span> [];
+
+  <span class="k">if</span> (game.game_mode === <span class="s">'single'</span>) <span class="k">return</span> [<span class="s">'score_attack'</span>];
+
+  <span class="c">// multiplayer</span>
+  <span class="k">return</span> game.delivery_kind === <span class="s">'builtin'</span>
+    ? [<span class="s">'bracket'</span>, <span class="s">'ladder'</span>]   <span class="c">// we control pairing</span>
+    : [<span class="s">'ladder'</span>];               <span class="c">// publisher controls pairing</span>
+}</pre>
+
+<h2>05 · Fair play — the fresh-state namespace</h2>
+
+<p>Your instinct was right and it costs one string. A tournament run must not inherit the upgrades a
+player has been grinding for a month, or you are ranking spending time, not skill.</p>
+
+<pre><span class="c">// normal play</span>
+state:{player_id}:{game_id}:main
+
+<span class="c">// tournament play — thrown away when the tournament closes</span>
+state:{player_id}:{game_id}:t{tournament_id}</pre>
+
+<p>Same storage system, one extra key segment. On tournament entry the namespace is empty, so the game
+boots fresh. <b>You do not need a second copy of the game, and you do not need to modify the game
+code</b> — only the key your SDK hands it.</p>
+
+<h4>SDK surface for a tournament run</h4>
+<pre>PlayCarys.init(apiKey, gameId)
+  → PLAYCARYS_INIT_ACK { player, gameId, <span class="k">tournamentId</span>, <span class="k">stateNamespace</span> }
+
+PlayCarys.loadState()          <span class="c">// reads the namespaced blob (empty in a tournament)</span>
+PlayCarys.saveState(blob)      <span class="c">// writes to the namespaced blob</span>
+PlayCarys.reportStat(k, v)     <span class="c">// declared keys only — distance_m, score, flips</span>
+PlayCarys.submitResult({ outcome, score, stats })
+  → server: verify tournamentId is open, player is registered, attempts &lt; max
+  → write tournament_entries.best_score <span class="k">if</span> better
+  → recompute leaderboard rank</pre>
+
+<div class="box danger">
+<span class="lbl">The cheating problem you have not solved yet</span>
+<p>For a self-hosted single-player game there is no publisher server, so <b>the score comes from the
+player's own browser</b>. Your hosted bundles run same-origin — your own scan rules
+<code>PC-SESSION-READ</code> and <code>PC-STORAGE-ACCESS</code> exist because of exactly this. A player
+with devtools can call <code>submitResult({score: 999999})</code>.</p>
+<p>Three cheap mitigations, in order of value:</p>
+<ul>
+<li><b>Sanity ceiling per game.</b> Store <code>max_plausible_score</code> on the game row. Anything
+above it is flagged, not awarded. One integer, catches almost everything.</li>
+<li><b>Hold the top 3 for review before prizes.</b> A tournament has a close date anyway — use it. Manual
+review of three runs is minutes of work and it is what makes the leaderboard credible.</li>
+<li><b>Never award PC/Carys from an unverified single-player score.</b> XP freely; hard currency only
+from reviewed tournament placement.</li>
+</ul>
+</div>
+
+<h2>06 · New rules, in your R- style</h2>
+<table>
+<thead><tr><th>Rule</th><th>Statement</th></tr></thead>
+<tbody>
+<tr><td><b>R-TRN-9</b></td><td>A tournament may only be created on a game with
+<code>tournament_eligible = true</code>. Embedded games are never eligible.</td></tr>
+<tr><td><b>R-TRN-10</b></td><td><code>entry_type</code> is always <code>'free'</code>. There is no entry
+fee, deposit, stake or buy-in — in cash, in Carys, or in any other form.</td></tr>
+<tr><td><b>R-TRN-11</b></td><td>A prize pool &gt; 0 requires a <code>sponsor_id</code>. Prizes are never
+funded from player contributions.</td></tr>
+<tr><td><b>R-TRN-12</b></td><td><code>SUM(prize_distribution.amount_minor)</code> must equal
+<code>prize_pool_minor</code>. Enforced on save, not on display.</td></tr>
+<tr><td><b>R-TRN-13</b></td><td><code>bracket</code> format requires
+<code>game.delivery_kind = 'builtin'</code>. Otherwise only <code>ladder</code> is offered.</td></tr>
+<tr><td><b>R-TRN-14</b></td><td>Every tournament run uses a tournament-scoped state namespace. Main-save
+state is never readable from inside a tournament run.</td></tr>
+<tr><td><b>R-TRN-15</b></td><td>A score above the game's <code>max_plausible_score</code> is recorded
+but flagged, and does not rank until a human clears it.</td></tr>
+<tr><td><b>R-TRN-16</b></td><td>A tournament with <code>prize_kind != 'none'</code> cannot move to
+<code>completed</code> until every <code>prize_distribution</code> row has a recorded winner.</td></tr>
+<tr><td><b>R-TRN-17</b></td><td>Players below <code>min_age</code> cannot register. Default 13.</td></tr>
+<tr><td><b>R-TRN-18</b></td><td>Tournament records are never deleted. A cancelled tournament keeps its
+entries and results as history.</td></tr>
+</tbody>
+</table>
+
+<h2>07 · The sponsor report — this is the product</h2>
+
+<div class="box good">
+<span class="lbl">The thing you are actually selling</span>
+<p>A sponsor is not buying a bracket. They are buying <b>proof that they reached students</b>. You
+already collect every number needed for this and display none of them. <b>Build this page and you have
+something to charge ₹1,50,000 for. Skip it and you have a free bracket tool.</b></p>
+</div>
+
+<table>
+<thead><tr><th>Metric</th><th>Source — you already have this</th></tr></thead>
+<tbody>
+<tr><td>Registered participants</td><td><code>COUNT(tournament_entries)</code></td></tr>
+<tr><td>Players who actually played</td><td><code>COUNT WHERE attempts &gt; 0</code> — <b>always report both;
+the gap is honest and sponsors respect it</b></td></tr>
+<tr><td>Colleges / venues reached</td><td><code>COUNT(DISTINCT org_id)</code> across entrants</td></tr>
+<tr><td>Total matches / runs played</td><td><code>SUM(attempts)</code> or <code>match_results</code></td></tr>
+<tr><td>Total play time</td><td><code>player_profiles.play_time</code> delta over the window</td></tr>
+<tr><td>Peak concurrent players</td><td>Session telemetry during the window</td></tr>
+<tr><td>Chat messages in the tournament room</td><td>Tournament chat — a genuine engagement signal</td></tr>
+<tr><td>Return rate</td><td>Entrants who also entered the previous tournament</td></tr>
+<tr><td>Geographic spread</td><td>Org city / college location</td></tr>
+<tr><td>Top 10 leaderboard with names + colleges</td><td><code>tournament_entries</code> — <b>the screenshot
+they put in their own internal deck</b></td></tr>
+</tbody>
+</table>
+
+<p class="small"><b>Format it as one page, export as PDF, send within 24 hours of the tournament
+closing.</b> Speed matters more than polish — a report that arrives while the marketing manager still
+remembers the event is worth more than a beautiful one that arrives in a fortnight.</p>
+
+<h2>08 · Build order</h2>
+<table>
+<thead><tr><th>#</th><th>Step</th><th>Effort</th><th>Why here</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Add the game gate fields; set <code>tournament_eligible = true</code> on Chess, Hill
+Climbing, 2048, Hextris, Reflex Clicker only</td><td>1 hr</td>
+<td>Nothing else is safe to build until embeds are fenced off</td></tr>
+<tr><td>2</td><td>Run the importer. 200 games</td><td>1 hr</td>
+<td>Catalogue looks real. Independent of everything else</td></tr>
+<tr><td>3</td><td>Drop <code>prize</code>, add the new <code>tournaments</code> columns, add
+<code>prize_distribution</code></td><td>2 hr</td><td>Data model before UI, always</td></tr>
+<tr><td>4</td><td><b><code>score_attack</code> end to end</b> on Hill Climbing: register → play with
+fresh namespace → submit → leaderboard</td><td>1–2 days</td>
+<td><b>The whole thing in miniature.</b> One format, one game, no pairing, no scheduling</td></tr>
+<tr><td>5</td><td>Tournament chat (you already have session chat — reuse it, scoped to tournament_id)</td>
+<td>2 hr</td><td>Cheap, and it is half of why a tournament feels like an event</td></tr>
+<tr><td>6</td><td><code>organisations</code> + <code>org_members</code>, <code>org_id</code> on tournaments</td>
+<td>1 day</td><td>Now every tournament has an owner you could one day invoice</td></tr>
+<tr><td>7</td><td><code>sponsors</code> + the sponsor report page</td><td>1–2 days</td>
+<td><b>This is the sellable artefact.</b> Do not skip it</td></tr>
+<tr><td>8</td><td>Gate <code>bracket</code> to builtin; add <code>ladder</code></td><td>1 day</td>
+<td>Multiplayer tournaments, without pretending you control pairing</td></tr>
+<tr><td>9</td><td><code>max_plausible_score</code> + top-3 review hold</td><td>3 hr</td>
+<td>Before the first tournament with a real prize. Not before</td></tr>
+<tr><td>10</td><td>Run one real free tournament at your own college</td><td>1 evening</td>
+<td><b>The actual point of all of the above</b></td></tr>
+</tbody>
+</table>
+
+<div class="box info">
+<span class="lbl">What NOT to build in this pass</span>
+<p>Bracket seeding UI. Automated prize payouts. Tournament templates. Recurring seasons. Spectator mode.
+Live brackets with websockets. Swiss pairing. Group stages. Team tournaments. <b>Every one of these is
+a real feature and none of them is why nobody has paid you yet.</b></p>
+</div>
+
+<h2>09 · Games — where to actually get them</h2>
+
+<h3>Layer 1 — embed feeds, both verified working today</h3>
+<table>
+<thead><tr><th>Network</th><th>Catalogue</th><th>Your share</th><th>Feed</th></tr></thead>
+<tbody>
+<tr><td><b>GameDistribution</b></td><td>19,000+</td><td><b>50%</b> of net revenue</td>
+<td><b>Public, no auth.</b> <code>catalog.api.gamedistribution.com/api/v2.0/rss/All/?format=json&amp;amount=100&amp;page=1</code>
+— confirmed live, returns Title/Md5/Description/Url/Asset/Category/Tag</td></tr>
+<tr><td><b>GamePix</b></td><td>~13,500 in feed</td><td><b>45%</b></td>
+<td><code>feeds.gamepix.com/v2/json?sid=YOUR_SID&amp;pagination=96&amp;page=1&amp;order=quality</code>
+— needs a free site ID from partners.gamepix.com</td></tr>
+<tr><td>GameMonetize</td><td>Thousands</td><td>45%, Net-30</td>
+<td><code>gamemonetize.com/rssfeed.php?format=json&amp;amount=100</code></td></tr>
+<tr><td>Gamezop <span class="small">(India-based)</span></td><td>Not disclosed</td><td>Negotiated</td>
+<td>Auth-gated. Worth an email — they are Indian and understand your market</td></tr>
+</tbody>
+</table>
+
+<h3>Layer 2 — self-hostable, tournament-capable</h3>
+<p><b>Only MIT / BSD / Apache-2.0 / CC0 / Unlicense.</b> Avoid GPL and especially AGPL — AGPL triggers on
+network use, so wiring your SDK into an AGPL game and serving it could oblige you to publish your
+modifications.</p>
+
+<table>
+<thead><tr><th>Game</th><th>Repo</th><th>Licence</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td><b>mini-browser-games</b></td><td><code>wangzifan396-wzf/mini-browser-games</code></td><td><b>MIT</b></td>
+<td><b>111 single-file, zero-dependency games in one repo.</b> Start here — this alone gets you most of the way</td></tr>
+<tr><td>Attogram Games</td><td><code>attogram/games</code></td><td>MIT builder</td>
+<td>32 curated. <b>Each game keeps its own licence — check individually</b></td></tr>
+<tr><td>GDevelop Examples</td><td><code>GDevelopApp/GDevelop-examples</code></td><td><b>MIT</b></td>
+<td>200+ HTML5-exportable templates</td></tr>
+<tr><td><b>Classic Pool Game</b></td><td><code>henshmi/Classic-Pool-Game</code></td><td><b>MIT</b></td>
+<td>Your billiards game. AI + 2-player, clean-named, safe to ship</td></tr>
+<tr><td><b>Carrom (Carrimboard)</b></td><td><code>bibhuticoder/carrimboard</code></td><td><b>MIT</b></td>
+<td>Fouls and scoring incomplete — you would finish it. <b>Also your best differentiator</b></td></tr>
+<tr><td>Ludo (React)</td><td><code>chukwumaijem/ludo-game</code></td><td><b>MIT</b></td><td>Call it "Ludo", never "Ludo King"</td></tr>
+<tr><td>Chess (Garbochess-JS)</td><td><code>attogram/chess</code></td><td><b>MIT</b></td><td>Alongside your builtin</td></tr>
+<tr><td>Checkers engine</td><td><code>shubhendusaurabh/draughts.js</code></td><td>MIT</td><td>Needs a UI</td></tr>
+<tr><td>2048 · HexGL · Astray</td><td><code>gabrielecirulli/2048</code> · <code>BKcore/HexGL</code> · <code>wwwtyro/Astray</code></td>
+<td>MIT · MIT · Unlicense</td><td>You already ship two of these</td></tr>
+<tr><td>A Dark Room</td><td><code>doublespeakgames/adarkroom</code></td><td>MPL-2.0</td><td>File-level copyleft, workable</td></tr>
+<tr><td>Asteroids · NS-SHAFT · Underrun</td><td><code>dmcinnes/HTML5-Asteroids</code> · <code>iPel/NS-SHAFT</code> · <code>phoboslab/underrun</code></td>
+<td>MIT · Apache-2.0 · MIT</td><td>Good score_attack candidates</td></tr>
+<tr><td><span class="tag t-del">AVOID</span> Hextris, tailuge/billiards, LibreLudo, lichess</td>
+<td>—</td><td>GPL-3.0 / AGPL-3.0</td><td>Copyleft. <b>Hextris is already in your catalogue under GPL — check what you are obliged to publish</b></td></tr>
+</tbody>
+</table>
+
+<h3>The licensing traps that catch everyone</h3>
+<div class="box danger">
+<span class="lbl">An MIT licence does not clear someone else's trademark</span>
+<ul>
+<li><code>he-is-talha/html-css-javascript-games</code> is MIT — and contains <b>Candy Crush, Pac-Man,
+Flappy Bird, Tetris and Doodle Jump clones</b>. The MIT grant is worthless against King, Bandai Namco or
+The Tetris Company. <b>Cherry-pick from this repo; do not bulk-import it.</b></li>
+<li><code>platzhersh/pacman-canvas</code> is CC0 — <b>Pac-Man is still a Bandai Namco trademark.</b> CC0
+waives the author's rights only.</li>
+<li><b>"8 Ball Pool" is Miniclip's brand.</b> Eight-ball itself is public domain — build the game, call
+it "Pool" or "Cue Club", never "8 Ball Pool".</li>
+<li><b>"Ludo King" is a Gametion trademark application in India</b> (App. 3443368, Class 28). Plain
+"Ludo" is fine. <b>"Carrom Pool" is Miniclip's</b> — plain "Carrom" is fine.</li>
+<li><b>No LICENSE file means all rights reserved</b>, not "free to use". "It's on GitHub" is not a
+licence.</li>
+<li><b>Never rip a game from another portal and self-host it.</b> That is straightforward copyright
+infringement under ss.14 and 51 of the Copyright Act 1957, and the "game archive" repos on GitHub are
+openly redistributing infringing copies.</li>
+</ul>
+</div>
+
+<div class="box warn">
+<span class="lbl">Two blocklists are built into the importer</span>
+<p>It skips trademark-risky titles (Tetris, Pac-Man, 8 Ball Pool, Ludo King, Carrom Pool…) and
+<b>hard-blocks anything gambling-adjacent</b> — casino, slots, poker, rummy, teen patti, andar bahar,
+satta. That second list is not squeamishness: under the 2025 Act, hosting those is the offence you spent
+this whole document avoiding. Note it blocks <i>"Teen Patti Gold"</i> and <i>"Rummy Circle"</i> while
+allowing <i>"Carrom Board"</i> and <i>"Pool Master"</i>.</p>
+</div>
+
+<h2>10 · What stays exactly as it is</h2>
+<p>You asked to keep everything normal. Explicitly untouched by this spec:</p>
+<ul>
+<li>Auth, roles, RolesGuard, tokens, device handoff, presence</li>
+<li>The publisher upload → scan → review → approve pipeline, and
+<code>approved_bundle_hash</code> binding</li>
+<li>Moderation, reports, bans, the audit trail</li>
+<li>Friends, chat, notifications, the drawer</li>
+<li>Match history, <code>match_results</code>, the Carys economy and tier system</li>
+<li>Achievements — the table you built is already the right shape</li>
+<li>The bracket algorithm itself. It is correct; it is only being <i>gated</i>, not changed</li>
+<li>Every existing page, route and button not named above</li>
+</ul>
+
+<hr style="border:0;border-top:1px solid var(--line);margin:36px 0">
+<p class="small"><b>Sources.</b> Promotion and Regulation of Online Gaming Act, 2025 (MeitY) and Rules,
+2026 (PIB) · Income Tax Act s.194BA · GameDistribution catalog API and SDK wiki (feed verified live,
+15 Aug 2026) · GamePix Partners feed and SDK docs · Playgama Bridge, CrazyGames Sitelock, Y8, Gamezop
+and GameSnacks Partner SDK documentation · GitHub repository licences as declared at time of writing ·
+Ludo King trademark application 3443368 · HLTV on the YaLLa Esports liquidation.</p>
+<p class="small"><b>Not legal advice.</b> Before running a tournament with a cash prize, have an Indian
+gaming-practice lawyer read your specific mechanic — and re-verify every open-source licence yourself
+before shipping, because licences change.</p>
+
+</div>
+</body>
+</html>

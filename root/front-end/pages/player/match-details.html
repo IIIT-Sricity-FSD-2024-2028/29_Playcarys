@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Match Details</title>
+<!-- Chess libs — loaded only when needed -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+<script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+  .details-grid { display:grid; grid-template-columns:1fr 320px; gap:2rem; }
+  @media(max-width:860px){ .details-grid { grid-template-columns:1fr; } }
+
+  #myBoard { width:100%; max-width:480px; margin:0 auto; }
+
+  .moves-log {
+    background:var(--bg-secondary); border-radius:var(--radius-lg);
+    overflow:hidden; display:flex; flex-direction:column; max-height:480px;
+    border: 1px solid var(--border-primary);
+  }
+  .moves-log-head {
+    padding:0.75rem 1rem; background:var(--bg-card);
+    border-bottom:1px solid var(--border-primary);
+    font-weight:800; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em;
+  }
+  .moves-body { overflow-y:auto; flex:1; }
+  .move-pair { display:flex; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .move-num  { padding:0.5rem 0.75rem; font-size:0.75rem; color:var(--text-muted); width:36px; flex-shrink:0; background:rgba(0,0,0,0.2); }
+  .move-cell {
+    padding:0.5rem 0.75rem; flex:1; font-family:monospace; font-size:0.88rem;
+    cursor:pointer; transition:background 0.12s;
+  }
+  .move-cell:hover { background:rgba(255,255,255,0.05); }
+  .move-cell.active { background:var(--accent-cyan); color:#000; font-weight:800; border-radius:4px; }
+
+  .stat-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; }
+  .stat-row:last-child { margin-bottom:0; }
+
+  .result-big {
+    font-family:'Orbitron', monospace; font-size:2.5rem; font-weight:900;
+    margin-bottom:0.25rem; line-height:1;
+  }
+  .win-color  { color: var(--accent-green); }
+  .loss-color { color: var(--accent-red); }
+  .draw-color { color: var(--accent-yellow); }
+
+  /* Hill Climbing specific */
+  .hc-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1rem; margin-top:1rem;
+  }
+  .hc-stat {
+    background: rgba(255,255,255,0.04); border:1px solid var(--border-primary);
+    border-radius: var(--radius-md); padding: 1rem; text-align:center;
+  }
+  .hc-stat-val { font-family:'Orbitron',monospace; font-size:1.5rem; font-weight:900; }
+  .hc-stat-lbl { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-top:0.2rem; }
+
+  .ctrl-bar { display:flex; justify-content:center; gap:0.5rem; margin-top:1.25rem; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div style="margin-bottom:1.5rem;">
+    <button class="btn btn-ghost" onclick="history.back()">❮ Back to History</button>
+  </div>
+
+  <div class="page-header-row mb-3" style="align-items:flex-start;">
+    <div>
+      <div id="match-eyebrow" style="font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.4rem;"></div>
+      <h1 id="match-title" style="margin:0;">Loading Match...</h1>
+      <p class="text-muted" id="match-subtitle" style="margin-top:0.25rem;"></p>
+    </div>
+    <div id="match-result-badge"></div>
+  </div>
+
+  <div class="details-grid" id="details-grid">
+    <!-- Filled dynamically -->
+  </div>
+
+</div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<!-- Presence badges offer a Spectate action; the resolver owns which games support one. -->
+<script src="../../js/game-launch.js"></script>
+<script>
+let board = null;
+let chessGame = null;
+let moves = [];
+let currentIdx = -1;
+
+const GAME_EMOJI = {
+  call_of_duty:'🔫', deadshot:'🎯', carrom:'🎲', horror_escape:'👻',
+  f1_2022:'🏎️', pubg_lite:'🪂', chess:'♟️', hill_climbing:'🚙', candy_crush:'🍬'
+};
+
+function calcPCP(result, gameId) {
+  const base = result === 'win' ? 100 : result === 'draw' ? 25 : 15;
+  const multi = gameId == 7 ? 1.5 : gameId == 8 ? 1.1 : 1.0;
+  const sign  = result === 'win' ? 1 : result === 'draw' ? 1 : -1;
+  return sign * Math.round(base * multi);
+}
+
+function render() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const sid = urlParams.get('sid');
+  if (!sid) { document.getElementById('match-title').textContent = 'No session ID'; return; }
+
+  const session = Auth.getSession();
+  const uid = parseInt(session?.userId, 10);
+
+  // Find MY result for this session
+  const result = DB.match_results.find(r => String(r.session_id) === String(sid) && String(r.player_id) === String(uid))
+              || DB.match_results.find(r => String(r.session_id) === String(sid)); // fallback
+  const sess   = (DB.matches || []).find(m => String(m.match_id) === String(sid))
+              || (DB.sessions || []).find(s => String(s.session_id) === String(sid));
+
+  if (!result && !sess) {
+    document.getElementById('match-title').textContent = 'Match not found';
+    return;
+  }
+
+  const gameId   = result?.game_id || sess?.game_id || 0;
+  const gameInfo = DB.games.find(g => String(g.game_id || g.id) === String(gameId));
+  const gameName = gameInfo ? (gameInfo.game_name || gameInfo.title) : 'Match';
+  const emoji    = GAME_EMOJI[gameInfo?.img || ''] || '🎮';
+
+  const resultType = (result?.result || (result?.player_rank === 1 ? 'win' : result?.player_rank > 1 ? 'loss' : 'draw') || 'unknown').toLowerCase();
+  const pcp        = (result?.score != null) ? result.score : calcPCP(resultType, gameId);
+  const xp         = resultType === 'win' ? 150 : resultType === 'draw' ? 75 : 25;
+  const eloDelta   = resultType === 'win' ? '+25' : resultType === 'draw' ? '+5' : '-25';
+  const duration   = sess?.duration ? `${sess.duration} min` : '—';
+
+  // Page header
+  document.getElementById('match-eyebrow').textContent = `${gameName}  ·  ${sess?.mode?.toUpperCase() || 'MATCH'}`;
+  document.getElementById('match-title').textContent   = sess?.name || gameName;
+  document.getElementById('match-subtitle').textContent = `${formatDate(result?.joined_at || sess?.start_time)}  ·  Session #${sid}`;
+
+  const rColor = resultType === 'win' ? 'win-color' : resultType === 'draw' ? 'draw-color' : 'loss-color';
+  document.getElementById('match-result-badge').innerHTML = `
+    <div class="result-big ${rColor}">${resultType.toUpperCase()}</div>
+    <div style="font-size:0.75rem;color:var(--text-muted);text-align:right;">Rank #${result?.player_rank || 1}</div>
+  `;
+
+  // ── Chess: show board replay ──────────────────────────────────
+  if (gameId == 7) {
+    renderChessDetails(result, pcp, xp, eloDelta, duration, emoji);
+  }
+  // ── Hill Climbing: show distance stats ───────────────────────
+  else if (gameId == 8) {
+    renderHillStats(result, pcp, xp, eloDelta, duration, emoji, uid);
+  }
+  // ── Generic ──────────────────────────────────────────────────
+  else {
+    renderGeneric(result, sess, gameInfo, pcp, xp, eloDelta, duration, emoji);
+  }
+}
+
+function renderChessDetails(result, pcp, xp, eloDelta, duration, emoji) {
+  moves = result?.moves || ["e4","e5","Nf3","Nc6","Bb5"];
+
+  document.getElementById('details-grid').innerHTML = `
+    <div class="card" style="text-align:center">
+      <div id="myBoard"></div>
+      <div class="ctrl-bar">
+        <button class="btn btn-ghost" onclick="jumpTo('start')">⏮ Start</button>
+        <button class="btn btn-primary" onclick="jumpTo('prev')">◀ Prev</button>
+        <button class="btn btn-primary" onclick="jumpTo('next')">Next ▶</button>
+        <button class="btn btn-ghost" onclick="jumpTo('end')">End ⏭</button>
+      </div>
+      <div style="margin-top:0.75rem;font-size:0.78rem;color:var(--text-muted)">
+        ${moves.length} moves recorded &nbsp;·&nbsp; Playing as ${result?.color === 'w' ? '⬜ White' : '♟️ Black'}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+      <div class="card">
+        <h4 class="mb-2">🏆 Performance</h4>
+        <div class="stat-row"><span class="text-muted">PCP Awarded</span><strong class="text-cyan">+${pcp}</strong></div>
+        <div class="stat-row"><span class="text-muted">XP Gained</span><strong class="text-cyan">+${xp}</strong></div>
+        <div class="stat-row"><span class="text-muted">ELO Delta</span><strong style="color:${eloDelta.startsWith('+') ? 'var(--accent-green)' : 'var(--accent-red)'}">${eloDelta}</strong></div>
+        <div class="stat-row"><span class="text-muted">Duration</span><strong>${duration}</strong></div>
+      </div>
+      <div class="moves-log">
+        <div class="moves-log-head">📋 Move List</div>
+        <div class="moves-body" id="moves-list"></div>
+      </div>
+    </div>`;
+
+  // Init board
+  chessGame = new Chess();
+  board = Chessboard('myBoard', {
+    position: 'start',
+    draggable: false,
+    orientation: result?.color === 'b' ? 'black' : 'white',
+    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+  });
+
+  renderMoveList();
+}
+
+function renderHillStats(result, pcp, xp, eloDelta, duration, emoji, uid) {
+  const dist     = result?.distance || result?.score || 0;
+  const coins    = result?.coins || 0;
+  const diamonds = result?.diamonds || 0;
+
+  const highlight = (DB.highlights || []).find(h => String(h.userId) === String(uid) && String(h.gameId) === '8' && h.distance === dist);
+  const highlightImg = highlight ? `<div style="margin-top:1rem; border:1px solid var(--border-primary); border-radius:var(--radius-md); overflow:hidden;"><img src="${highlight.img}" style="width:100%; display:block;" alt="Highlight" /></div>` : '';
+
+  document.getElementById('details-grid').innerHTML = `
+    <div class="card" style="text-align:center;">
+      <div style="font-size:5rem;margin-bottom:1rem;">${emoji}</div>
+      <h2 style="font-family:'Orbitron',monospace;color:var(--accent-cyan);">${dist}m</h2>
+      <p class="text-muted">Distance achieved this run</p>
+      ${highlightImg}
+      <div class="hc-stat-grid">
+        <div class="hc-stat">
+          <div class="hc-stat-val" style="color:var(--accent-yellow);">${coins}</div>
+          <div class="hc-stat-lbl">🪙 Coins</div>
+        </div>
+        <div class="hc-stat">
+          <div class="hc-stat-val" style="color:var(--accent-cyan);">${diamonds}</div>
+          <div class="hc-stat-lbl">💎 Diamonds</div>
+        </div>
+        <div class="hc-stat">
+          <div class="hc-stat-val" style="color:var(--accent-green);">+${pcp}</div>
+          <div class="hc-stat-lbl">PCP Earned</div>
+        </div>
+        <div class="hc-stat">
+          <div class="hc-stat-val" style="color:var(--accent-cyan);">+${xp}</div>
+          <div class="hc-stat-lbl">XP Gained</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h4 class="mb-2">🏆 Performance</h4>
+      <div class="stat-row"><span class="text-muted">PCP Awarded</span><strong class="text-cyan">+${pcp}</strong></div>
+      <div class="stat-row"><span class="text-muted">XP Gained</span><strong class="text-cyan">+${xp}</strong></div>
+      <div class="stat-row"><span class="text-muted">ELO Delta</span>
+        <strong style="color:${eloDelta.startsWith('+') ? 'var(--accent-green)' : 'var(--accent-red)'}">${eloDelta}</strong>
+      </div>
+      <div class="stat-row"><span class="text-muted">Duration</span><strong>${duration}</strong></div>
+      <hr style="border:none;border-top:1px solid var(--border-primary);margin:1rem 0;">
+      <div class="stat-row"><span class="text-muted">Score</span><strong>${result?.score || dist * 5}</strong></div>
+      <div class="stat-row"><span class="text-muted">Coins × 5</span><strong style="color:var(--accent-yellow)">${coins * 5}</strong></div>
+      <div class="stat-row"><span class="text-muted">Diamonds × 50</span><strong style="color:var(--accent-cyan)">${diamonds * 50}</strong></div>
+    </div>`;
+}
+
+function renderGeneric(result, sess, gameInfo, pcp, xp, eloDelta, duration, emoji) {
+  document.getElementById('details-grid').innerHTML = `
+    <div class="card" style="text-align:center; padding:3rem;">
+      <div style="font-size:5rem;margin-bottom:1rem;">${emoji}</div>
+      <h3>${gameInfo?.game_name || 'Match'}</h3>
+      <p class="text-muted">Score: ${result?.score || '—'}</p>
+    </div>
+    <div class="card">
+      <h4 class="mb-2">🏆 Performance</h4>
+      <div class="stat-row"><span class="text-muted">PCP Awarded</span><strong class="text-cyan">+${pcp}</strong></div>
+      <div class="stat-row"><span class="text-muted">XP Gained</span><strong class="text-cyan">+${xp}</strong></div>
+      <div class="stat-row"><span class="text-muted">ELO Delta</span>
+        <strong style="color:${eloDelta.startsWith('+') ? 'var(--accent-green)' : 'var(--accent-red)'}">${eloDelta}</strong>
+      </div>
+      <div class="stat-row"><span class="text-muted">Duration</span><strong>${duration}</strong></div>
+      <div class="stat-row"><span class="text-muted">Rank</span><strong>#${result?.player_rank || 1}</strong></div>
+    </div>`;
+}
+
+function renderMoveList() {
+  const list = document.getElementById('moves-list');
+  if (!list) return;
+
+  let html = '';
+  for (let i = 0; i < moves.length; i += 2) {
+    const w = moves[i]   || '';
+    const b = moves[i+1] || '';
+    const wi = i, bi = i + 1;
+    html += `<div class="move-pair">
+      <div class="move-num">${Math.floor(i/2)+1}</div>
+      <div class="move-cell ${currentIdx === wi ? 'active' : ''}" id="move-${wi}" onclick="jumpToIndex(${wi})">${w}</div>
+      ${b ? `<div class="move-cell ${currentIdx === bi ? 'active' : ''}" id="move-${bi}" onclick="jumpToIndex(${bi})">${b}</div>` : '<div class="move-cell"></div>'}
+    </div>`;
+  }
+  list.innerHTML = html;
+
+  // Scroll to active
+  const el = document.getElementById(`move-${currentIdx}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function jumpToIndex(idx) {
+  if (!chessGame) return;
+  currentIdx = idx;
+  chessGame = new Chess();
+  for (let i = 0; i <= idx; i++) {
+    try { chessGame.move(moves[i]); } catch(e) {}
+  }
+  if (board) board.position(chessGame.fen());
+  renderMoveList();
+}
+
+function jumpTo(dir) {
+  if (dir === 'start')  { currentIdx = -1; chessGame = new Chess(); if(board) board.position('start'); renderMoveList(); return; }
+  if (dir === 'end')    jumpToIndex(moves.length - 1);
+  if (dir === 'prev')   jumpToIndex(Math.max(-1, currentIdx - 1));
+  if (dir === 'next')   jumpToIndex(Math.min(moves.length - 1, currentIdx + 1));
+}
+
+// navigate() provided globally by utils.js
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['player']);
+  if (!session) return;
+  buildNavbar('player', 'profile');
+  render();
+});
+</script>
+</body>
+</html>
+

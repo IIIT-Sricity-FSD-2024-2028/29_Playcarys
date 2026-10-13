@@ -1,0 +1,24 @@
+#main {
+    width: 1026px;
+    padding: 2%;
+    /* margin: 2%; */
+    margin-left: 0%;
+    /* left: 10%; */
+    /* transform: translateX(25%); */
+}
+
+#main h2 {
+    text-align: center;
+    background-color: black;
+    color: rgb(20, 200, 20);
+    padding: 2%;
+    font-size: 200%;
+}
+
+#canvas {
+    padding: 10px;
+    border-color: black;
+    border: 1%;
+    background-color: black;
+    border-style: solid;
+}

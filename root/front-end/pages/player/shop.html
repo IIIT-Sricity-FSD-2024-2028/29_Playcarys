@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Shop</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* ── Shop ──────────────────────────────────────────────── */
+
+/* Balance banner */
+/* ── Avatar stage ─────────────────────────────────────────────
+   The figure sits above the grid, so a purchase is visibly worn rather
+   than only flipping a card to "Equipped". */
+.shop-3d {
+  position: absolute; top: .5rem; left: .5rem;
+  font-size: .58rem; font-weight: 700; letter-spacing: .04em;
+  padding: .12rem .34rem; border-radius: 4px;
+  background: rgba(0,212,255,.16); color: #00d4ff;
+  border: 1px solid rgba(0,212,255,.4);
+}
+.sub-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding: .85rem 1.1rem; margin-bottom: 1rem;
+  border: 1px solid rgba(124,58,237,.35); border-radius: var(--radius-lg, 14px);
+  background: linear-gradient(100deg, rgba(124,58,237,.14), rgba(0,212,255,.07));
+}
+.sub-banner.active { border-color: rgba(16,185,129,.35);
+  background: linear-gradient(100deg, rgba(16,185,129,.12), rgba(0,212,255,.05)); }
+.sub-banner-main { display: flex; align-items: center; gap: .85rem; min-width: 0; }
+.sub-badge {
+  flex: none; font-size: .62rem; font-weight: 800; letter-spacing: .08em;
+  padding: .3rem .5rem; border-radius: 6px;
+  background: rgba(124,58,237,.28); color: #c4b5fd;
+  border: 1px solid rgba(124,58,237,.45);
+}
+.sub-banner.active .sub-badge {
+  background: rgba(16,185,129,.22); color: #6ee7b7; border-color: rgba(16,185,129,.4);
+}
+.sub-banner-title { font-size: .88rem; font-weight: 700; color: var(--text-primary, #e9edf7); }
+.sub-banner-sub { font-size: .72rem; color: var(--text-secondary, #8b96ad); margin-top: .1rem; }
+@media (max-width: 640px) { .sub-banner { justify-content: center; text-align: center; } }
+
+.shop-avatar-bar {
+  display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+  padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  border-radius: var(--radius-lg, 14px);
+  background: var(--surface-1, rgba(255,255,255,.02));
+}
+.shop-avatar-copy { flex: 1 1 18rem; min-width: 16rem; }
+.avatar-slot-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+.avatar-slot {
+  font-size: .68rem; padding: .3rem .6rem; border-radius: 999px;
+  border: 1px solid var(--border, rgba(255,255,255,.1));
+  color: var(--text-muted, #8b96ad); white-space: nowrap;
+}
+.avatar-slot.filled {
+  border-color: rgba(0,212,255,.45); color: var(--text, #e6ecf7);
+  background: rgba(0,212,255,.08);
+}
+@media (max-width: 640px) {
+  .shop-avatar-bar { justify-content: center; text-align: center; }
+  .avatar-slot-row { justify-content: center; }
+}
+.shop-balance {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;
+  background:linear-gradient(135deg, rgba(0,212,255,0.08), rgba(124,58,237,0.08));
+  border:1px solid var(--border-primary); border-radius:var(--radius-lg);
+  padding:1.1rem 1.4rem; margin-bottom:1.5rem;
+}
+.shop-balance-val { font-family:'Orbitron',monospace; font-size:2rem; font-weight:900; color:var(--accent-cyan); line-height:1; }
+.shop-balance-lbl { font-size:0.65rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin-top:0.25rem; }
+.shop-balance-worth { font-size:0.75rem; color:var(--text-secondary); margin-top:0.35rem; }
+
+/* Tabs */
+.shop-tabs { display:flex; gap:0.4rem; margin-bottom:1.4rem; flex-wrap:wrap; }
+.shop-tab {
+  padding:0.45rem 1.1rem; border-radius:var(--radius-md);
+  font-size:0.8rem; font-weight:600; cursor:pointer;
+  border:1px solid var(--border-primary); color:var(--text-secondary);
+  background:transparent; transition:all 0.15s;
+}
+.shop-tab:hover { border-color:rgba(0,212,255,0.3); color:var(--text-primary); }
+.shop-tab.active { background:rgba(0,212,255,0.1); border-color:var(--accent-cyan); color:var(--accent-cyan); }
+
+/* Item grid */
+.shop-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:1rem; }
+.shop-card {
+  background:var(--bg-card); border:1px solid var(--border-primary);
+  border-radius:var(--radius-lg); overflow:hidden;
+  display:flex; flex-direction:column; transition:border-color 0.15s, transform 0.15s;
+}
+.shop-card:hover { border-color:rgba(0,212,255,0.35); transform:translateY(-2px); }
+.shop-card.owned { border-color:rgba(16,185,129,0.4); }
+.shop-preview { height:96px; position:relative; }
+.shop-preview-emoji { display:flex; align-items:center; justify-content:center; height:100%; font-size:2.6rem; }
+.shop-rarity {
+  position:absolute; top:0.5rem; right:0.5rem;
+  font-size:0.55rem; font-weight:900; text-transform:uppercase; letter-spacing:0.07em;
+  padding:0.15rem 0.45rem; border-radius:99px; background:rgba(0,0,0,0.55); color:#fff;
+}
+.shop-body { padding:0.85rem 1rem 1rem; display:flex; flex-direction:column; flex:1; gap:0.5rem; }
+.shop-name { font-weight:700; font-size:0.92rem; }
+.shop-desc { font-size:0.72rem; color:var(--text-secondary); line-height:1.45; flex:1; }
+.shop-prices { display:flex; gap:0.5rem; align-items:center; font-size:0.78rem; }
+.shop-price-carys { color:var(--accent-cyan); font-weight:700; }
+.shop-price-inr { color:var(--text-secondary); }
+.shop-actions { display:flex; gap:0.4rem; }
+.shop-actions .btn { flex:1; }
+.shop-owned-tag {
+  font-size:0.7rem; font-weight:700; color:var(--accent-green,#10b981);
+  display:flex; align-items:center; gap:0.3rem;
+}
+
+/* Plans */
+.plan-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; }
+.plan-card {
+  background:var(--bg-card); border:1px solid var(--border-primary);
+  border-radius:var(--radius-lg); padding:1.4rem; display:flex; flex-direction:column; gap:0.9rem;
+}
+.plan-card.current { border-color:var(--accent-cyan); box-shadow:0 0 0 1px rgba(0,212,255,0.25); }
+.plan-price { font-family:'Orbitron',monospace; font-size:1.9rem; font-weight:900; }
+.plan-price small { font-size:0.7rem; font-weight:600; color:var(--text-secondary); font-family:inherit; }
+.plan-stipend {
+  background:rgba(0,212,255,0.08); border:1px solid rgba(0,212,255,0.25);
+  border-radius:var(--radius-md); padding:0.6rem 0.8rem; font-size:0.78rem;
+}
+.plan-features { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:0.4rem; }
+.plan-features li { font-size:0.78rem; color:var(--text-secondary); display:flex; gap:0.45rem; }
+.plan-features li::before { content:'✓'; color:var(--accent-cyan); font-weight:900; }
+
+.shop-empty { text-align:center; padding:3rem 1rem; color:var(--text-secondary); }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="page-header-row mb-2">
+    <div style="display:flex;align-items:center;gap:1rem">
+      <button class="btn btn-ghost" onclick="navigateTo('dashboard.html')" style="padding:0.5rem">❮ Dashboard</button>
+      <div>
+        <h1 style="margin-bottom:0">🛍️ Shop</h1>
+        <p class="text-muted" style="margin-top:0.25rem">Spend the Carys you have earned, or pay in rupees</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shop-balance">
+    <div>
+      <div class="shop-balance-val" id="bal-carys">—</div>
+      <div class="shop-balance-lbl">Your Carys</div>
+      <div class="shop-balance-worth" id="bal-worth"></div>
+    </div>
+    <div style="text-align:right">
+      <div class="text-muted" style="font-size:0.72rem;max-width:24rem;line-height:1.5">
+        Carys are earned by playing. Every match pays out, and the rate is set by the
+        platform — not by the game you played.
+      </div>
+    </div>
+  </div>
+
+  <!-- The figure everything is worn on. Cosmetics used to be sold with
+       nothing to put them on, so a purchase changed a card and nothing else. -->
+  <div class="shop-avatar-bar">
+    <div id="avatar-stage"></div>
+    <div class="shop-avatar-copy">
+      <h3 style="margin:0 0 .35rem">Your character</h3>
+      <p class="text-muted" style="margin:0 0 .75rem;font-size:.8rem;line-height:1.55">
+        Everything you equip shows up here. Outfits, headgear and auras are worn
+        on the figure; themes, frames and name effects decorate around it.
+      </p>
+      <div id="avatar-slots" class="avatar-slot-row"></div>
+    </div>
+  </div>
+
+  <!-- Membership was the 15th of 15 tabs, wrapped onto a second row in the
+       far corner. Adding the seven avatar categories pushed the only paid
+       subscription on the platform somewhere nobody would look. It gets its
+       own slot above the tabs instead. -->
+  <div id="sub-banner"></div>
+
+  <div class="shop-tabs" id="shop-tabs"></div>
+  <div id="shop-body"></div>
+
+</div>
+</div>
+
+<div id="toast-container"></div>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script src="../../js/avatar-model.js"></script>
+<script src="../../js/avatar-3d.js"></script>
+<script>
+let CATALOGUE = null;
+let activeTab = 'all';
+
+/** Categories are data-driven — a new cosmetic category needs no code change here. */
+function categories() {
+  if (!CATALOGUE) return [];
+  return [...new Set(CATALOGUE.items.map(i => i.category))].sort();
+}
+
+function labelFor(cat) {
+  return cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+const RARITY_COLOR = {
+  common: '#6b7a99', rare: '#00d4ff', epic: '#7c3aed', legendary: '#f59e0b'
+};
+
+async function load() {
+  const uid = Auth.getSession().userId;
+  try {
+    CATALOGUE = await API.get('/economy/catalogue?viewerId=' + encodeURIComponent(uid));
+  } catch (err) {
+    document.getElementById('shop-body').innerHTML =
+      `<div class="shop-empty">Could not load the shop. ${err.message}</div>`;
+    return;
+  }
+  render();
+}
+
+function render() {
+  if (!CATALOGUE) return;
+
+  document.getElementById('bal-carys').textContent = Money.formatCarys(CATALOGUE.balance_carys);
+  // The rupee figure is what the balance is WORTH, not a price — labelled so
+  // nobody reads it as something they can withdraw.
+  const worthPaise = CATALOGUE.balance_carys * 10; // PAISE_PER_CARYS
+  document.getElementById('bal-worth').textContent = 'about ' + Money.formatINR(worthPaise) + ' of value';
+
+  const tabs = [
+    { id: 'all', label: 'All Items' },
+    ...categories().map(c => ({ id: c, label: labelFor(c) })),
+    { id: 'owned', label: 'Owned' },
+    { id: 'plans', label: 'Membership' }
+  ];
+  document.getElementById('shop-tabs').innerHTML = tabs.map(t =>
+    `<button class="shop-tab ${activeTab === t.id ? 'active' : ''}" onclick="setTab('${t.id}')">${t.label}</button>`
+  ).join('');
+
+  document.getElementById('shop-body').innerHTML =
+    activeTab === 'plans' ? renderPlans() : renderItems();
+
+  renderAvatar();
+  renderSubBanner();
+}
+
+/**
+ * Paint the character from whatever is equipped.
+ *
+ * Reads the same catalogue the grid renders from, so the figure and the cards
+ * can never disagree about what is worn — the previous arrangement had the
+ * card say "Equipped" with nothing anywhere showing it.
+ */
+function renderAvatar() {
+  if (!CATALOGUE || !window.AvatarModel) return;
+  var equipped = (CATALOGUE.items || []).filter(function (i) { return i.is_equipped; });
+
+  // Prefer the real model. Avatar3D falls back to the flat rig itself when
+  // there is no base body GLB, no WebGL, or a load fails, so this is not a
+  // branch the shop has to make.
+  //
+  // Torn down before each re-render: every mount creates a WebGL context and
+  // browsers cap them near 16, so equipping a dozen items would otherwise
+  // exhaust them and leave the stage blank.
+  if (window.Avatar3D) {
+    Avatar3D.unmount("avatar-stage");
+    Avatar3D.mount("avatar-stage", {
+      equipped: equipped,
+      name: (Auth.getSession() || {}).username || "",
+      size: 210,
+      autoRotate: true,
+      // Still, neutral pose. The shop is for judging how something looks on
+      // you, and a figure mid-kick makes that harder rather than livelier.
+      animate: false
+    });
+  } else {
+    AvatarModel.mount("avatar-stage", {
+      equipped: equipped,
+      name: (Auth.getSession() || {}).username || "",
+      size: 210
+    });
+  }
+
+  // One chip per wearable slot, so it is obvious which are still empty —
+  // an empty slot is the shop telling you what it can sell you.
+  var bySlot = {};
+  equipped.forEach(function (i) { if (i.slot) bySlot[i.slot] = i; });
+  document.getElementById("avatar-slots").innerHTML = AvatarModel.slots().map(function (sl) {
+    var it = bySlot[sl];
+    return '<span class="avatar-slot ' + (it ? "filled" : "") + '">' +
+           '<b>' + labelFor(sl) + '</b>' +
+           (it ? " · " + it.name : " · empty") + "</span>";
+  }).join("");
+}
+/**
+ * The membership prompt.
+ *
+ * Shows what a subscription is worth to someone who does not have one, and what
+ * they already have if they do — rather than making them find a tab.
+ */
+function renderSubBanner() {
+  const el = document.getElementById('sub-banner');
+  if (!el || !CATALOGUE) return;
+
+  const sub = CATALOGUE.subscription;
+
+  if (sub) {
+    const plan = (CATALOGUE.plans || []).find(p => p.id === sub.tier);
+    const renews = sub.expires_at
+      ? new Date(sub.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+      : '—';
+    el.innerHTML = `
+      <div class="sub-banner active">
+        <div class="sub-banner-main">
+          <div class="sub-badge">${(plan?.name || sub.tier).toUpperCase()}</div>
+          <div>
+            <div class="sub-banner-title">You are a member</div>
+            <div class="sub-banner-sub">
+              ${Money.formatCarys(plan?.stipend_carys || 0)} Carys a month · renews ${renews}
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="setTab('plans')">Manage</button>
+      </div>`;
+    return;
+  }
+
+  // Lead with the number, because the stipend is the part that pays for itself:
+  // ₹399 buys 500 Carys, and the shop right beside it prices Carys, so the
+  // comparison is one a player can actually make.
+  const cheapest = (CATALOGUE.plans || [])
+    .slice()
+    .sort((a, b) => a.price_paise - b.price_paise)[0];
+  if (!cheapest) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div class="sub-banner">
+      <div class="sub-banner-main">
+        <div class="sub-badge">PRO</div>
+        <div>
+          <div class="sub-banner-title">
+            ${Money.formatCarys(cheapest.stipend_carys)} Carys every month,
+            from ${cheapest.price_display}
+          </div>
+          <div class="sub-banner-sub">
+            Lower platform cut on tournaments you run · private invite-only brackets
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="setTab('plans')">See plans</button>
+    </div>`;
+}
+
+function setTab(id) { activeTab = id; render(); }
+
+function renderItems() {
+  let items = CATALOGUE.items;
+  if (activeTab === 'owned') items = items.filter(i => i.owned);
+  else if (activeTab !== 'all') items = items.filter(i => i.category === activeTab);
+
+  if (!items.length) {
+    return `<div class="shop-empty">Nothing here yet.</div>`;
+  }
+
+  return `<div class="shop-grid">${items.map(cardFor).join('')}</div>`;
+}
+
+function cardFor(i) {
+  // `preview` is either a CSS gradient or a single emoji, depending on the item.
+  const isGradient = /gradient|#|rgb/i.test(i.preview || '');
+  const rarityColor = RARITY_COLOR[i.rarity] || '#6b7a99';
+  const badge = `<span class="shop-rarity" style="color:${rarityColor}">${i.rarity}</span>`;
+  const worn = i.model_url
+    ? `<span class="shop-3d" title="Rendered in 3D on your character">3D</span>`
+    : '';
+
+  const preview = isGradient
+    ? `<div class="shop-preview" style="background:${i.preview}">${badge}${worn}</div>`
+    : `<div class="shop-preview" style="background:var(--bg-secondary,#12172150)">
+         ${badge}${worn}<div class="shop-preview-emoji">${i.preview || '🎁'}</div>
+       </div>`;
+
+  const actions = i.owned
+    ? (i.is_equipped
+        ? `<div class="shop-actions">
+             <div class="shop-owned-tag">✓ Equipped</div>
+             ${i.slot === 'body' ? '' :
+               `<button class="btn btn-ghost btn-sm" onclick="unequip(${i.id})">Remove</button>`}
+           </div>`
+        : `<div class="shop-actions">
+             <button class="btn btn-ghost btn-sm" onclick="equip(${i.id})">Equip</button>
+           </div>`)
+    : `<div class="shop-actions">
+         ${i.price_carys != null
+            ? `<button class="btn btn-primary btn-sm" onclick="buy(${i.id},'carys')">${Money.formatCarys(i.price_carys)} Carys</button>`
+            : ''}
+         <button class="btn btn-ghost btn-sm" onclick="buy(${i.id},'inr')">${i.price_display}</button>
+       </div>`;
+
+  return `
+    <div class="shop-card ${i.owned ? 'owned' : ''}">
+      ${preview}
+      <div class="shop-body">
+        <div class="shop-name">${i.name}</div>
+        <div class="shop-desc">${i.description || ''}</div>
+        ${actions}
+      </div>
+    </div>`;
+}
+
+function renderPlans() {
+  const current = CATALOGUE.subscription;
+  return `<div class="plan-grid">${CATALOGUE.plans.map(p => {
+    const isCurrent = current && current.tier === p.id;
+    return `
+      <div class="plan-card ${isCurrent ? 'current' : ''}">
+        <div>
+          <div style="font-weight:800;font-size:1.05rem">${p.name}</div>
+          <div class="plan-price">${p.price_display}<small> / ${p.interval}</small></div>
+        </div>
+        <div class="plan-stipend">
+          <strong style="color:var(--accent-cyan)">${Money.formatCarys(p.stipend_carys)} Carys</strong>
+          credited every month — the subscription renews because the currency renews.
+        </div>
+        <ul class="plan-features">${(p.features || []).map(f => `<li>${f}</li>`).join('')}</ul>
+        ${isCurrent
+          ? `<button class="btn btn-ghost btn-sm" onclick="claimStipend()">Claim this month's Carys</button>`
+          : `<button class="btn btn-primary btn-sm" onclick="subscribe('${p.id}')">Subscribe</button>`}
+      </div>`;
+  }).join('')}</div>`;
+}
+
+async function buy(itemId, currency) {
+  const uid = Auth.getSession().userId;
+  const item = CATALOGUE.items.find(i => i.id === itemId);
+  const price = currency === 'carys'
+    ? Money.formatCarys(item.price_carys) + ' Carys'
+    : item.price_display;
+  // A native confirm could not show the item, the currency, or what the
+  // purchase leaves behind — which is the one number a player actually wants
+  // before spending.
+  const payingCarys = currency === 'carys';
+  const after = payingCarys ? CATALOGUE.balance_carys - item.price_carys : null;
+  const rows = [['Price', price]];
+  if (payingCarys) {
+    rows.push(['Your balance', Money.formatCarys(CATALOGUE.balance_carys) + ' Carys']);
+    rows.push(['After this', Money.formatCarys(after) + ' Carys']);
+  }
+  if (item.slot) rows.push(['Worn on', labelFor(item.slot)]);
+
+  const ok = await Confirm.show({
+    title: 'Buy ' + item.name + '?',
+    message: item.description || '',
+    art: item.preview,
+    rows,
+    confirmText: payingCarys ? 'Spend ' + Money.formatCarys(item.price_carys) + ' Carys' : 'Pay ' + price,
+    tone: payingCarys && after < 0 ? 'danger' : 'primary'
+  });
+  if (!ok) return;
+
+  try {
+    // An idempotency key per attempt, so a double-click cannot charge twice.
+    const res = await API.post('/economy/purchase', {
+      user_id: Number(uid),
+      item_id: itemId,
+      currency,
+      idempotency_key: `${uid}-${itemId}-${currency}-${Date.now()}`
+    });
+    // A mystery box pays out something other than itself, so a toast saying
+    // "Bought Mystery Emote Box" would hide the only interesting part.
+    if (res.was_mystery) {
+      await load();
+      await Confirm.show({
+        title: 'You got ' + res.item.name + '!',
+        message: res.item.description || '',
+        art: res.item.preview,
+        rows: [
+          ['Rarity', String(res.item.rarity || '').toUpperCase()],
+          ['You paid', res.charged],
+          ['Balance', Money.formatCarys(CATALOGUE.balance_carys) + ' Carys'],
+        ],
+        confirmText: 'Nice',
+        cancelText: 'Close'
+      });
+    } else {
+      Toast.show(`Bought ${item.name} for ${res.charged}`, 'success');
+      await load();
+    }
+  } catch (err) {
+    Toast.show(err.message, 'error');
+  }
+}
+
+async function equip(itemId) {
+  try {
+    await API.post('/economy/equip', { user_id: Number(Auth.getSession().userId), item_id: itemId });
+    Toast.show('Equipped', 'success');
+    await load();
+  } catch (err) {
+    Toast.show(err.message, 'error');
+  }
+}
+
+async function unequip(itemId) {
+  try {
+    await API.post('/economy/unequip', { user_id: Number(Auth.getSession().userId), item_id: itemId });
+    Toast.show('Removed', 'success');
+    await load();
+  } catch (err) {
+    Toast.show(err.message, 'error');
+  }
+}
+
+async function subscribe(planId) {
+  const plan = CATALOGUE.plans.find(p => p.id === planId);
+  const ok = await Confirm.show({
+    title: 'Subscribe to ' + plan.name + '?',
+    message: 'Renews every ' + plan.interval + '. Cancel any time.',
+    art: '⭐',
+    rows: [
+      ['Price', plan.price_display + ' / ' + plan.interval],
+      ['Carys each month', Money.formatCarys(plan.stipend_carys)],
+    ],
+    confirmText: 'Subscribe'
+  });
+  if (!ok) return;
+  try {
+    const res = await API.post('/economy/subscribe', {
+      user_id: Number(Auth.getSession().userId), plan_id: planId
+    });
+    Toast.show(`Subscribed — ${Money.formatCarys(res.stipend_carys)} Carys credited`, 'success');
+    await load();
+  } catch (err) {
+    Toast.show(err.message, 'error');
+  }
+}
+
+async function claimStipend() {
+  try {
+    const res = await API.post('/economy/claim-stipend', { user_id: Number(Auth.getSession().userId) });
+    Toast.show(`${Money.formatCarys(res.stipend_carys)} Carys credited`, 'success');
+    await load();
+  } catch (err) {
+    Toast.show(err.message, 'error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['player']);
+  if (!session) return;
+  buildNavbar(session.role, 'shop');
+  load();
+});
+</script>
+</body>
+</html>

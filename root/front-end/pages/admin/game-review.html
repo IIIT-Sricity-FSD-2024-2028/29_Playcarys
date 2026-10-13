@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Review Build</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    /* ── verdict banner ── */
+    .verdict{display:flex;align-items:center;gap:1rem;padding:1.1rem 1.25rem;border-radius:var(--radius-md);border:1px solid;margin-bottom:1.25rem}
+    .verdict .vi{font-size:2rem;line-height:1}
+    .verdict h3{margin:0 0 .2rem;font-family:'Orbitron',monospace;font-size:1rem}
+    .verdict p{margin:0;font-size:.84rem;line-height:1.5}
+    .v-pass{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.35);color:var(--accent-green)}
+    .v-warn{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.35);color:var(--accent-yellow)}
+    .v-fail{background:rgba(239,68,68,.09);border-color:rgba(239,68,68,.4);color:var(--accent-red)}
+    .v-none{background:rgba(107,122,153,.08);border-color:var(--border-primary);color:var(--text-secondary)}
+    .verdict p{color:var(--text-secondary)}
+
+    /* ── layout ── */
+    .rv-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:1.25rem;align-items:start}
+    @media(max-width:1100px){.rv-grid{grid-template-columns:1fr}}
+
+    /* ── findings ── */
+    .finding{border:1px solid var(--border-primary);border-left-width:3px;border-radius:var(--radius-sm);padding:.7rem .85rem;margin-bottom:.6rem;background:var(--bg-input)}
+    .f-critical{border-left-color:var(--accent-red)}
+    .f-high{border-left-color:var(--accent-yellow)}
+    .f-medium{border-left-color:var(--accent-purple)}
+    .f-low,.f-info{border-left-color:var(--text-muted)}
+    .f-head{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem}
+    .f-sev{font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:.1rem .4rem;border-radius:4px}
+    .s-critical{background:rgba(239,68,68,.18);color:#fca5a5}
+    .s-high{background:rgba(245,158,11,.16);color:#fcd34d}
+    .s-medium{background:rgba(124,58,237,.18);color:#c4b5fd}
+    .s-low,.s-info{background:rgba(107,122,153,.15);color:var(--text-secondary)}
+    .f-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.7rem;color:var(--accent-cyan)}
+    .f-loc{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--text-secondary);margin-left:auto}
+    .f-msg{font-size:.82rem;color:var(--text-primary);line-height:1.5}
+    .f-snip{margin-top:.4rem;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--text-secondary);background:var(--bg-primary);border-radius:4px;padding:.4rem .55rem;overflow-x:auto;white-space:pre}
+
+    /* ── manifest ── */
+    .files{max-height:340px;overflow:auto;border:1px solid var(--border-primary);border-radius:var(--radius-sm)}
+    .files table{width:100%;border-collapse:collapse;font-size:.76rem}
+    .files th{position:sticky;top:0;background:var(--bg-secondary);text-align:left;padding:.45rem .6rem;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);border-bottom:1px solid var(--border-primary)}
+    .files td{padding:.35rem .6rem;border-bottom:1px solid rgba(30,35,54,.5);font-family:ui-monospace,Menlo,Consolas,monospace}
+    .files td.n{color:var(--text-secondary);text-align:right;white-space:nowrap}
+    .files td.h{color:var(--text-muted);font-size:.68rem}
+
+    .kv{display:flex;justify-content:space-between;gap:1rem;padding:.4rem 0;border-bottom:1px solid rgba(30,35,54,.6);font-size:.82rem}
+    .kv:last-child{border-bottom:0}
+    .kv span:first-child{color:var(--text-secondary)}
+    .kv span:last-child{text-align:right;word-break:break-all}
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem}
+    .origin{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;background:var(--bg-input);border:1px solid var(--border-primary);border-radius:4px;padding:.15rem .45rem;margin:.15rem .2rem .15rem 0;color:var(--accent-yellow)}
+    .sec-title{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin:0 0 .6rem;font-weight:700}
+
+    /* ── sandbox preview ── */
+    .preview{position:relative;background:#000;border:1px solid var(--border-primary);border-radius:var(--radius-sm);overflow:hidden;aspect-ratio:16/10}
+    .preview iframe{width:100%;height:100%;border:0;display:block}
+    .preview .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;text-align:center;padding:1.5rem;background:var(--bg-input)}
+    .preview .ph p{font-size:.78rem;color:var(--text-secondary);max-width:320px;line-height:1.5;margin:0}
+
+    .hist{font-size:.78rem;padding:.5rem 0;border-bottom:1px solid rgba(30,35,54,.6)}
+    .hist:last-child{border-bottom:0}
+    .hist .when{color:var(--text-muted);font-size:.7rem}
+    .hidden{display:none!important}
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <div class="page-header" style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <h1 id="h-title">Review Build</h1>
+          <p class="text-muted" id="h-sub">Loading submission…</p>
+        </div>
+        <button class="btn btn-ghost" onclick="navigate('approvals')">← Back to Approvals</button>
+      </div>
+
+      <div id="load-state" class="card" style="text-align:center;padding:2.5rem">
+        <p class="text-muted">Fetching the submitted build…</p>
+      </div>
+
+      <div id="review-body" class="hidden">
+        <div id="verdict-banner"></div>
+        <div id="revoked-banner"></div>
+
+        <div class="rv-grid">
+          <!-- ── LEFT: the evidence ── -->
+          <div>
+            <div class="card mb-2">
+              <h3 class="mb-2">🔍 Scan Findings <span class="text-muted" style="font-size:.8rem;font-weight:400" id="find-count"></span></h3>
+              <div id="findings"></div>
+            </div>
+
+            <!-- Achievements the publisher has PROPOSED for this game.
+                 They pay real Carys, so they are reviewed here alongside the
+                 build rather than going live because the publisher said so. -->
+            <div class="card mb-2">
+              <h3 class="mb-2">🏅 Proposed Achievements <span class="text-muted" style="font-size:.8rem;font-weight:400" id="ach-count"></span></h3>
+              <div id="ach-budget" style="font-size:.78rem;color:var(--text-secondary);margin-bottom:.6rem"></div>
+              <div id="ach-list"></div>
+            </div>
+
+            <div class="card mb-2">
+              <h3 class="mb-2">▶ Sandbox Preview</h3>
+              <p style="font-size:.8rem;color:var(--text-secondary);margin:0 0 .75rem">
+                The build runs here with no access to your session — scripts only, in an opaque
+                origin. Play it briefly: does it look like the game the listing describes?
+              </p>
+              <div class="preview" id="preview-wrap">
+                <div class="ph" id="preview-ph">
+                  <div style="font-size:2rem;opacity:.5">🎮</div>
+                  <p id="preview-ph-msg">Load the build to try it.</p>
+                  <button class="btn btn-outline btn-sm" id="preview-btn" onclick="loadPreview()">Load build in sandbox</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 class="mb-2">📁 Files <span class="text-muted" style="font-size:.8rem;font-weight:400" id="file-count"></span></h3>
+              <div class="files" id="manifest"></div>
+            </div>
+          </div>
+
+          <!-- ── RIGHT: the facts and the decision ── -->
+          <div>
+            <div class="card mb-2">
+              <p class="sec-title">Submission</p>
+              <div id="meta"></div>
+            </div>
+
+            <div class="card mb-2">
+              <p class="sec-title">Delivery</p>
+              <div id="delivery"></div>
+              <div id="origins-wrap" class="hidden" style="margin-top:.75rem">
+                <p class="sec-title" style="margin-bottom:.35rem">Third-party origins referenced</p>
+                <div id="origins"></div>
+              </div>
+            </div>
+
+            <div class="card mb-2" id="history-card">
+              <p class="sec-title">Review history</p>
+              <div id="history"></div>
+            </div>
+
+            <div class="card">
+              <p class="sec-title">Decision</p>
+              <div id="blockers"></div>
+              <div class="form-group">
+                <label class="form-label" for="note">Reviewer note</label>
+                <textarea class="form-input" id="note" rows="4"
+                  placeholder="Required when rejecting. The publisher sees this text — tell them what to fix."
+                  style="resize:vertical;font-family:inherit"></textarea>
+                <span class="form-error" id="note-err" style="display:block;margin-top:.35rem"></span>
+              </div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button class="btn btn-green" id="btn-approve" onclick="decide('approved')">✓ Approve &amp; Publish</button>
+                <button class="btn btn-red" id="btn-reject" onclick="decide('rejected')">✕ Reject</button>
+                <button class="btn btn-ghost btn-sm" id="btn-rescan" onclick="rescan()">↻ Re-scan</button>
+              </div>
+              <p style="font-size:.74rem;color:var(--text-muted);margin:.75rem 0 0;line-height:1.5" id="decision-hint"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    /* ============================================================
+     *  Admin build-review console.
+     *
+     *  The old flow approved a game from a modal showing its title,
+     *  genre and description — nothing about the code that would be
+     *  served to players. This page is the artefact review: what the
+     *  scanner found and where, every file and its hash, the origins
+     *  the build reaches out to, and the build itself running in a
+     *  sandbox that cannot touch the reviewer's session.
+     *
+     *  Everything shown here comes from GET /games/:id/review, which
+     *  is admin-only. The decision goes back through
+     *  PATCH /games/:id/approve, so the server-side rules (scan must
+     *  exist, a failed scan needs a superuser, approval binds to the
+     *  build hash) apply even if this page is bypassed.
+     * ============================================================ */
+
+    var gameId  = new URLSearchParams(location.search).get('gameId');
+    var session = null;
+    var data    = null;   // full /review payload
+    var busy    = false;
+
+    function qs(id) { return document.getElementById(id); }
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function kb(n) {
+      if (n == null) return '—';
+      if (n < 1024) return n + ' B';
+      if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+      return (n / 1024 / 1024).toFixed(2) + ' MB';
+    }
+
+    /* Admin-only endpoints. The role header is what the backend guard reads;
+       it is also why this page must never be reachable by a player. */
+    function apiHeaders(json) {
+      // The signed token is the real authorisation — the backend no longer
+      // grants admin/superuser on the strength of the `role` header alone,
+      // because any caller could write it. The header stays for compatibility
+      // with routes that have not been migrated.
+      var h = Object.assign({ 'role': session.role }, Auth.apiAuthHeaders());
+      if (json) h['Content-Type'] = 'application/json';
+      return h;
+    }
+
+    async function load() {
+      qs('load-state').classList.remove('hidden');
+      qs('review-body').classList.add('hidden');
+      try {
+        var res = await fetch(window.PC_API + '/games/' + gameId + '/review', { headers: apiHeaders(false) });
+        if (!res.ok) {
+          var msg = res.status === 404 ? 'That game does not exist on the server.' : ('Server said ' + res.status);
+          try { var b = await res.json(); msg = b.message || msg; } catch (e) {}
+          throw new Error(msg);
+        }
+        data = await res.json();
+      } catch (err) {
+        qs('load-state').innerHTML =
+          '<p style="color:var(--accent-red)">Could not load this submission.</p>' +
+          '<p class="text-muted" style="font-size:.82rem">' + esc(err.message) + '</p>' +
+          '<p class="text-muted" style="font-size:.82rem">The review console reads from the backend — ' +
+          'it cannot fall back to local storage, because the scan report only exists server-side.</p>' +
+          '<button class="btn btn-outline mt-2" onclick="load()">Retry</button>';
+        return;
+      }
+      render();
+    }
+
+    function render() {
+      var g = data.game || {};
+      var scan = data.scan;
+
+      qs('h-title').textContent = g.game_name || 'Untitled game';
+      qs('h-sub').innerHTML =
+        'Submitted by <strong>' + esc(data.publisher ? data.publisher.user_name : 'Unknown') + '</strong>' +
+        (g.submittedDate ? ' on ' + esc(g.submittedDate) : '') +
+        ' · ' + badgeHTML(g.game_approval_status || 'pending');
+
+      renderVerdict(scan, g);
+      renderRevoked(g);
+      renderFindings(scan);
+      renderManifest(scan);
+      renderMeta(g);
+      renderDelivery(g, scan);
+      renderHistory();
+      renderDecision(g, scan);
+      renderAchievements(g);
+      resetPreview();
+
+      qs('load-state').classList.add('hidden');
+      qs('review-body').classList.remove('hidden');
+    }
+
+    /**
+     * Achievements this publisher has proposed for this game.
+     *
+     * Shown with what they are worth and what the game has already committed,
+     * because approving one is a spending decision: the per-achievement cap
+     * stops "999,999 Carys", and the per-game lifetime budget stops forty
+     * reasonable-looking achievements adding up to the same thing.
+     */
+    function renderAchievements(g) {
+      var listEl = qs('ach-list');
+      var countEl = qs('ach-count');
+      var budgetEl = qs('ach-budget');
+      if (!listEl) return;
+      var gid = g.game_id || g.id;
+
+      fetch(window.PC_API + '/games/' + gid + '/achievements?includeUnapproved=true', {
+        headers: adminHeaders()
+      })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) {
+          var pending = rows.filter(function (a) { return (a.status || 'approved') === 'pending'; });
+          var approved = rows.filter(function (a) { return (a.status || 'approved') === 'approved'; });
+
+          var committedCarys = approved.reduce(function (s, a) { return s + (a.carys_reward || 0); }, 0);
+          var budget = g.achievement_budget_carys != null ? g.achievement_budget_carys : 2000;
+          budgetEl.textContent = 'Committed ' + committedCarys + ' of ' + budget +
+            ' Carys across ' + approved.length + ' approved achievement' + (approved.length === 1 ? '' : 's') + '.';
+
+          countEl.textContent = pending.length ? '(' + pending.length + ' awaiting you)' : '(none pending)';
+
+          if (!rows.length) {
+            listEl.innerHTML = '<p class="text-muted" style="font-size:.82rem;margin:0">' +
+              'This publisher has not proposed any achievements.</p>';
+            return;
+          }
+
+          listEl.innerHTML = rows.map(function (a) {
+            var st = a.status || 'approved';
+            var isPending = st === 'pending';
+            var colour = st === 'approved' ? 'var(--accent-green)'
+                       : st === 'rejected' ? 'var(--accent-red)' : 'var(--accent-yellow)';
+            return '' +
+              '<div style="display:flex;gap:.6rem;align-items:flex-start;padding:.55rem .6rem;margin-bottom:.4rem;' +
+              '            border:1px solid var(--border-primary);border-radius:var(--radius-md);background:var(--bg-secondary)">' +
+              '  <div style="font-size:1.3rem;line-height:1">' + esc(a.icon || '🏅') + '</div>' +
+              '  <div style="flex:1;min-width:0">' +
+              '    <div style="font-size:.85rem;font-weight:700">' + esc(a.name) +
+              '      <span style="font-size:.65rem;color:' + colour + ';text-transform:uppercase;margin-left:.35rem">' + esc(st) + '</span></div>' +
+              '    <div style="font-size:.75rem;color:var(--text-secondary)">' + esc(a.description || '') + '</div>' +
+              '    <div style="font-size:.7rem;color:var(--accent-yellow);margin-top:.2rem">' +
+              '      code <code>' + esc(a.code) + '</code> · +' + (a.carys_reward || 0) + ' Carys' +
+              (a.xp_reward ? ' · +' + a.xp_reward + ' XP' : '') +
+              (a.title_awarded ? ' · title “' + esc(a.title_awarded) + '”' : '') +
+              (a.secret ? ' · secret' : '') +
+              '    </div>' +
+              '  </div>' +
+              (isPending
+                ? '  <div style="display:flex;flex-direction:column;gap:.25rem">' +
+                  '    <button class="btn btn-primary btn-sm" style="font-size:.68rem;padding:.15rem .5rem" onclick="reviewAchievement(' + a.achievement_id + ',\'approve\')">Approve</button>' +
+                  '    <button class="btn btn-ghost btn-sm" style="font-size:.68rem;padding:.15rem .5rem;color:var(--accent-red)" onclick="reviewAchievement(' + a.achievement_id + ',\'reject\')">Reject</button>' +
+                  '  </div>'
+                : '') +
+              '</div>';
+          }).join('');
+        })
+        .catch(function () {
+          listEl.innerHTML = '<p class="text-muted" style="font-size:.82rem;margin:0">Could not load achievements.</p>';
+        });
+    }
+
+    /** Headers carrying the admin's signed token, which the guard requires. */
+    function adminHeaders() {
+      var h = { 'Content-Type': 'application/json' };
+      try {
+        var s = Auth.getSession();
+        if (s && s.role) h['role'] = s.role;
+        var tok = localStorage.getItem('playcarys_api_token');
+        if (tok) h['Authorization'] = 'Bearer ' + tok;
+      } catch (e) {}
+      return h;
+    }
+
+    window.reviewAchievement = function (id, decision) {
+      var s = Auth.getSession();
+      fetch(window.PC_API + '/achievements/' + id + '/review', {
+        method: 'PATCH',
+        headers: adminHeaders(),
+        body: JSON.stringify({ reviewer_id: parseInt(s.userId, 10), decision: decision })
+      })
+        .then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (body) {
+            if (!r.ok) throw new Error(body.message || ('Failed (' + r.status + ')'));
+            return body;
+          });
+        })
+        .then(function (body) {
+          Toast.success(body.message || 'Done.');
+          render();
+        })
+        .catch(function (e) {
+          // The budget refusal arrives here, and it names the actual numbers —
+          // showing it verbatim is more use than "something went wrong".
+          Toast.error(e.message);
+        });
+    };
+
+    function renderVerdict(scan, g) {
+      var el = qs('verdict-banner');
+      if (!scan) {
+        var why = g.hosting_type === 'selfhosted'
+          ? 'This is a self-hosted game — we do not hold its files, so there is nothing to scan. ' +
+            'Open the URL below and judge it yourself, and remember the publisher can change what it serves at any time.'
+          : 'No scan on file for this build. Run a re-scan before deciding.';
+        el.innerHTML = '<div class="verdict v-none"><div class="vi">○</div><div>' +
+          '<h3>Not scanned</h3><p>' + esc(why) + '</p></div></div>';
+        return;
+      }
+      var s = scan.summary || {};
+      var map = {
+        pass: ['v-pass', '✓', 'Scan passed',
+               'Nothing suspicious found in the build\'s source. Still play it in the sandbox — a scanner cannot tell whether this is the game the listing claims.'],
+        warn: ['v-warn', '!', 'Needs your judgement',
+               'The build does things a normal game might also do. Read each finding below and decide whether it fits what this game is supposed to be.'],
+        fail: ['v-fail', '✕', 'Scan failed',
+               'Something here has no legitimate use in a game bundle. This cannot be approved by an admin — reject it, or escalate if you believe the finding is wrong.']
+      };
+      var m = map[scan.verdict] || map.warn;
+      var counts = ['critical', 'high', 'medium', 'low']
+        .filter(function (k) { return s[k]; })
+        .map(function (k) { return s[k] + ' ' + k; })
+        .join(' · ') || 'no findings';
+      el.innerHTML =
+        '<div class="verdict ' + m[0] + '"><div class="vi">' + m[1] + '</div><div>' +
+        '<h3>' + m[2] + ' — ' + esc(counts) + '</h3>' +
+        '<p>' + esc(m[3]) + '</p></div></div>';
+    }
+
+    /* A listing that was live and got pulled back is a different situation from
+       a first submission, and the admin should not have to infer that. */
+    function renderRevoked(g) {
+      var el = qs('revoked-banner');
+      var reason = data.review_required_reason;
+      if (!reason) { el.innerHTML = ''; return; }
+      el.innerHTML =
+        '<div class="verdict v-warn" style="background:rgba(245,158,11,.05)"><div class="vi">↺</div><div>' +
+        '<h3>Back in the queue</h3><p>' + esc(reason) +
+        ' It was taken offline automatically and stays offline until this review is decided.</p></div></div>';
+    }
+
+    function renderFindings(scan) {
+      var el = qs('findings');
+      if (!scan) { el.innerHTML = '<p class="text-muted" style="font-size:.85rem">Nothing to show — this build has not been scanned.</p>'; qs('find-count').textContent = ''; return; }
+      var f = scan.findings || [];
+      qs('find-count').textContent = f.length ? '(' + f.length + ')' : '';
+      if (!f.length) {
+        el.innerHTML = '<p style="font-size:.85rem;color:var(--text-secondary)">No findings. The build\'s source contains none of the patterns we look for.</p>';
+        return;
+      }
+      el.innerHTML = f.map(function (x) {
+        return '<div class="finding f-' + esc(x.severity) + '">' +
+          '<div class="f-head">' +
+            '<span class="f-sev s-' + esc(x.severity) + '">' + esc(x.severity) + '</span>' +
+            '<span class="f-code">' + esc(x.code) + '</span>' +
+            '<span class="f-loc">' + esc(x.file) + (x.line ? ':' + x.line : '') + '</span>' +
+          '</div>' +
+          '<div class="f-msg">' + esc(x.message) + '</div>' +
+          (x.snippet ? '<div class="f-snip">' + esc(x.snippet) + '</div>' : '') +
+        '</div>';
+      }).join('') + (scan.truncated
+        ? '<p class="text-muted" style="font-size:.78rem;margin-top:.5rem">⚠ ' + esc(scan.truncated) + '</p>'
+        : '');
+    }
+
+    /**
+     * The file list is fetched on demand, not read off the game row.
+     *
+     * It used to arrive inside /db-export — which every visitor loads on every
+     * page — at 86.7 KB for a single game, 65% of the entire payload, for a
+     * table only this page renders. It now lives behind
+     * GET /games/:id/scan-manifest, staff-only.
+     */
+    function renderManifest(scan) {
+      var el = qs('manifest');
+      var expected = (scan && (scan.manifest_file_count != null ? scan.manifest_file_count : (scan.manifest || []).length)) || 0;
+      qs('file-count').textContent = expected ? '(' + expected + ')' : '';
+      if (!expected) { el.innerHTML = '<p class="text-muted" style="font-size:.85rem;padding:.75rem">No file list available.</p>'; return; }
+
+      el.innerHTML = '<p class="text-muted" style="font-size:.85rem;padding:.75rem">Loading ' + expected + ' files…</p>';
+      fetch(window.PC_API + '/games/' + encodeURIComponent(gameId) + '/scan-manifest', {
+        headers: apiHeaders(false)
+      })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (data) { paintManifest(el, data.manifest || []); })
+        .catch(function () {
+          el.innerHTML = '<p class="text-muted" style="font-size:.85rem;padding:.75rem">Could not load the file list.</p>';
+        });
+    }
+
+    function paintManifest(el, files) {
+      if (!files.length) { el.innerHTML = '<p class="text-muted" style="font-size:.85rem;padding:.75rem">No file list available.</p>'; return; }
+      el.innerHTML =
+        '<table><thead><tr><th>Path</th><th style="text-align:right">Size</th><th>SHA-256</th></tr></thead><tbody>' +
+        files.map(function (f) {
+          return '<tr><td>' + esc(f.path) + '</td><td class="n">' + kb(f.bytes) + '</td>' +
+                 '<td class="h">' + esc(String(f.sha256 || '').slice(0, 16)) + '…</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+
+    function renderMeta(g) {
+      var pub = data.publisher;
+      qs('meta').innerHTML =
+        row('Game', esc(g.game_name)) +
+        row('Genre', esc(g.game_type)) +
+        row('Players', esc(g.players)) +
+        row('Publisher', esc(pub ? pub.user_name : 'Unknown') +
+            (pub && pub.status !== 'active' ? ' <span class="badge badge-banned">' + esc(pub.status) + '</span>' : '')) +
+        row('Contact', esc(pub ? pub.email : '—')) +
+        row('Submitted', esc(g.submittedDate || '—')) +
+        '<div style="margin-top:.75rem"><p class="sec-title" style="margin-bottom:.3rem">Description</p>' +
+        '<p style="font-size:.82rem;color:var(--text-secondary);line-height:1.6;margin:0">' + esc(g.desc || '—') + '</p></div>';
+    }
+
+    function renderDelivery(g, scan) {
+      var rows = row('Model', g.hosting_type === 'selfhosted' ? '🔧 Self-hosted' : '🏠 PlayCarys hosted');
+      if (g.hosting_type === 'selfhosted') {
+        rows += row('Game URL', '<span class="mono">' + esc(g.game_url || '—') + '</span>');
+        rows += row('Webhook', '<span class="mono">' + esc(g.webhook_url || '—') + '</span>');
+      } else {
+        rows += row('Path', '<span class="mono">' + esc(g.play_path || 'not uploaded') + '</span>');
+        rows += row('Uploaded', esc(g.bundle_uploaded_at ? formatDate(g.bundle_uploaded_at.slice(0, 10)) : '—'));
+        rows += row('Size', kb(g.bundle_size));
+        rows += row('Build hash', '<span class="mono">' + esc(String(g.bundle_hash || '—').slice(0, 24)) + '…</span>');
+      }
+      if (data.changed_since_approved) {
+        rows += row('Previously approved',
+          '<span class="mono">' + esc(String(data.changed_since_approved.previous_bundle_hash).slice(0, 24)) + '…</span>' +
+          '<br><span style="color:var(--accent-yellow);font-size:.76rem">Different build — this one is unreviewed</span>');
+      }
+      qs('delivery').innerHTML = rows;
+
+      var origins = (scan && scan.external_origins) || [];
+      if (origins.length) {
+        qs('origins-wrap').classList.remove('hidden');
+        qs('origins').innerHTML = origins.map(function (o) { return '<span class="origin">' + esc(o) + '</span>'; }).join('');
+      } else {
+        qs('origins-wrap').classList.add('hidden');
+      }
+    }
+
+    function renderHistory() {
+      var h = data.history || [];
+      if (!h.length) {
+        qs('history').innerHTML = '<p class="text-muted" style="font-size:.82rem">First submission — no prior decisions.</p>';
+        return;
+      }
+      qs('history').innerHTML = h.map(function (r) {
+        return '<div class="hist">' +
+          badgeHTML(r.decision) + ' by <strong>' + esc(r.reviewer_name) + '</strong>' +
+          (r.override ? ' <span class="badge badge-rejected">override</span>' : '') +
+          '<div class="when">' + esc(String(r.decided_at).replace('T', ' ').slice(0, 16)) +
+          (r.bundle_hash ? ' · build ' + esc(r.bundle_hash.slice(0, 10)) : '') + '</div>' +
+          (r.note ? '<div style="color:var(--text-secondary);margin-top:.2rem">' + esc(r.note) + '</div>' : '') +
+        '</div>';
+      }).join('');
+    }
+
+    function renderDecision(g, scan) {
+      var blockers = data.blockers || [];
+      var isSuper  = session.role === 'superuser';
+      var failed   = scan && scan.verdict === 'fail';
+      var decided  = g.game_approval_status !== 'pending';
+
+      var el = qs('blockers');
+      if (decided) {
+        el.innerHTML = '<div class="finding f-low" style="margin-bottom:.75rem"><div class="f-msg">' +
+          'This listing is already <strong>' + esc(g.game_approval_status) + '</strong>. ' +
+          'It re-enters the queue automatically if the publisher changes the build or the URL.</div></div>';
+      } else if (blockers.length) {
+        el.innerHTML = blockers.map(function (b) {
+          return '<div class="finding f-' + (failed ? 'critical' : 'high') + '" style="margin-bottom:.5rem">' +
+                 '<div class="f-msg">' + esc(b) + '</div></div>';
+        }).join('');
+      } else {
+        el.innerHTML = '';
+      }
+
+      // A failed scan is not an admin's call — the server enforces this too.
+      var canApprove = !decided && (!failed || isSuper) &&
+                       !blockers.some(function (b) { return b.indexOf('no uploaded build') >= 0 || b.indexOf('never been scanned') >= 0 || b.indexOf('stale') >= 0 || b.indexOf('No build') >= 0 || b.indexOf('No game URL') >= 0; });
+
+      qs('btn-approve').disabled = !canApprove;
+      qs('btn-reject').disabled  = decided;
+      qs('btn-rescan').classList.toggle('hidden', g.hosting_type === 'selfhosted' || !g.play_path);
+
+      qs('decision-hint').innerHTML = decided
+        ? ''
+        : failed && !isSuper
+          ? 'This build failed its scan. Approval is blocked for admins — reject it, or ask a superuser to review the finding.'
+          : failed && isSuper
+            ? 'Superuser override: approving a failed scan requires a note justifying it, and the override is recorded permanently.'
+            : 'Approval binds to this exact build (' + esc(String(g.bundle_hash || 'self-hosted URL').slice(0, 12)) +
+              '). If the publisher uploads a different one, the listing comes straight back here.';
+    }
+
+    function row(k, v) {
+      return '<div class="kv"><span>' + k + '</span><span>' + v + '</span></div>';
+    }
+
+    /* ── sandbox preview ───────────────────────────────────────
+       Deliberately NOT the same embedding the player gets. Hosted builds are
+       served same-origin for players (a known limitation noted in play.html),
+       but a reviewer is the one person who must be able to open a build that
+       may be hostile. `sandbox` without allow-same-origin puts it in an opaque
+       origin: scripts run, storage and our DOM are unreachable.              */
+    function resetPreview() {
+      var g = data.game || {};
+      var wrap = qs('preview-wrap');
+      wrap.innerHTML = '<div class="ph" id="preview-ph">' +
+        '<div style="font-size:2rem;opacity:.5">🎮</div>' +
+        '<p id="preview-ph-msg"></p>' +
+        '<button class="btn btn-outline btn-sm" id="preview-btn" onclick="loadPreview()">Load build in sandbox</button>' +
+        '</div>';
+      var msg = qs('preview-ph-msg');
+      var btn = qs('preview-btn');
+      if (g.hosting_type === 'selfhosted') {
+        msg.textContent = g.game_url
+          ? 'Loads ' + g.game_url + ' from the publisher\'s own server. What you see now is not necessarily what players get later.'
+          : 'No URL provided yet.';
+        btn.classList.toggle('hidden', !g.game_url);
+      } else if (!g.play_path) {
+        msg.textContent = 'No build has been uploaded for this listing.';
+        btn.classList.add('hidden');
+      } else {
+        msg.textContent = 'Runs in an isolated frame with no access to your admin session.';
+      }
+    }
+
+    function loadPreview() {
+      var g = data.game || {};
+      var url = g.hosting_type === 'selfhosted'
+        ? g.game_url
+        : '../../' + String(g.play_path).replace(/^\/+/, '') + '/index.html?review=1';
+      if (!url) return;
+
+      var frame = document.createElement('iframe');
+      frame.setAttribute('sandbox', 'allow-scripts allow-pointer-lock');
+      frame.setAttribute('referrerpolicy', 'no-referrer');
+      frame.src = url;
+      qs('preview-wrap').innerHTML = '';
+      qs('preview-wrap').appendChild(frame);
+    }
+
+    /* ── actions ──────────────────────────────────────────── */
+    async function rescan() {
+      if (busy) return;
+      busy = true;
+      Toast.info('Re-scanning the installed build…');
+      try {
+        var res = await fetch(window.PC_API + '/games/' + gameId + '/rescan', {
+          method: 'POST', headers: apiHeaders(true)
+        });
+        if (!res.ok) { var b = await res.json().catch(function () { return {}; }); throw new Error(b.message || res.statusText); }
+        Toast.success('Scan complete.');
+        await load();
+      } catch (err) {
+        Toast.error('Re-scan failed: ' + err.message);
+      } finally { busy = false; }
+    }
+
+    async function decide(decision) {
+      if (busy) return;
+      var g = data.game || {};
+      var note = qs('note').value.trim();
+      var failed = data.scan && data.scan.verdict === 'fail';
+      var isSuper = session.role === 'superuser';
+
+      if (decision === 'rejected' && !note) {
+        qs('note-err').textContent = 'Say what is wrong — this text is what the publisher receives.';
+        qs('note-err').classList.add('show');
+        qs('note').focus();
+        return;
+      }
+      if (decision === 'approved' && failed && isSuper && !note) {
+        qs('note-err').textContent = 'Overriding a failed scan requires a written justification.';
+        qs('note-err').classList.add('show');
+        qs('note').focus();
+        return;
+      }
+      qs('note-err').textContent = '';
+      qs('note-err').classList.remove('show');
+
+      var confirmMsg = decision === 'approved'
+        ? 'Publish "' + (g.game_name || 'this game') + '" to players? Approval applies to the build you just reviewed — a different upload returns it here.'
+        : 'Reject "' + (g.game_name || 'this game') + '"? The publisher is notified with your note.';
+
+      confirmAction(decision === 'approved' ? 'Approve Build' : 'Reject Build', confirmMsg, async function () {
+        busy = true;
+        var body = {
+          game_approval_status: decision,
+          reviewer_id: parseInt(session.userId, 10)
+        };
+        if (decision === 'approved' && failed && isSuper) body.override_note = note;
+        else if (note) body.note = note;
+
+        try {
+          var res = await fetch(window.PC_API + '/games/' + gameId + '/approve', {
+            method: 'PATCH', headers: apiHeaders(true), body: JSON.stringify(body)
+          });
+          if (!res.ok) {
+            var b = await res.json().catch(function () { return {}; });
+            throw new Error(b.message || ('Server said ' + res.status));
+          }
+          var updated = await res.json();
+
+          // Mirror the server's decision into the local store so the rest of the
+          // admin UI agrees immediately. The server stays authoritative: db-import
+          // will not accept a client-side approval state for a reviewed game.
+          syncLocal(updated, decision, note);
+
+          Toast.success(decision === 'approved' ? 'Build approved and published.' : 'Build rejected.');
+          setTimeout(function () { navigate('approvals'); }, 1100);
+        } catch (err) {
+          Toast.error('Decision not saved: ' + err.message);
+          busy = false;
+        }
+      }, decision === 'approved' ? 'primary' : 'danger');
+    }
+
+    function syncLocal(updated, decision, note) {
+      try {
+        var local = DB.games.find(function (x) { return String(x.game_id) === String(gameId); });
+        if (local) {
+          local.game_approval_status = decision;
+          local.game_status = decision === 'approved' ? 'enabled' : 'disabled';
+          if (updated && updated.approved_bundle_hash) local.approved_bundle_hash = updated.approved_bundle_hash;
+          local.review_note = note || '';
+        }
+        DB.activityLog.unshift({
+          type: 'approval',
+          msg: (data.game.game_name || 'A game') + ' ' + decision + ' after build review',
+          time: 'just now'
+        });
+
+        var pubName = data.publisher ? data.publisher.user_name : null;
+        if (pubName && typeof dispatchUserNotification !== 'undefined') {
+          dispatchUserNotification(pubName, session.role, session.username,
+            'has <b>' + decision + '</b> your build for <b>' + (data.game.game_name || 'your game') + '</b>.' +
+            (note ? '<br><i>' + note + '</i>' : ''));
+        }
+        if (typeof dispatchRoleNotification !== 'undefined' && session.role !== 'superuser') {
+          dispatchRoleNotification('superuser', session.role, session.username,
+            decision + ' the build for ' + (data.game.game_name || 'a game'));
+        }
+        DB.save();
+      } catch (e) {
+        console.warn('[PlayCarys] Local mirror of the review decision failed', e);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      session = Auth.requireAuth(['admin', 'superuser']);
+      if (!session) return;
+      buildNavbar('admin', 'approvals');
+      if (!gameId) {
+        qs('load-state').innerHTML = '<p class="text-muted">No game selected. Open a submission from the Approvals queue.</p>';
+        return;
+      }
+      load();
+    });
+  </script>
+</body>
+
+</html>

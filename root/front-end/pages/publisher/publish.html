@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Publish Game</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* ── Publish Page ─────────────────────────────────── */
+.publish-shell {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* ── Step Progress Bar ─────────────────────────────── */
+.step-rail {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2.5rem;
+  gap: 0;
+}
+.step-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  position: relative;
+  flex: 1;
+}
+.step-node:last-child { flex: 0; }
+.step-circle {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.82rem; font-weight: 800;
+  border: 2px solid var(--border-primary);
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  transition: all var(--trans-med);
+  z-index: 2;
+  position: relative;
+}
+.step-node.active .step-circle {
+  background: linear-gradient(135deg,#00d4ff,#7c3aed);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(0,212,255,0.5);
+}
+.step-node.done .step-circle {
+  background: var(--accent-green);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(16,185,129,0.4);
+}
+.step-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.step-node.active .step-label { color: var(--accent-cyan); }
+.step-node.done .step-label { color: var(--accent-green); }
+.step-line {
+  flex: 1;
+  height: 2px;
+  background: var(--border-primary);
+  margin-bottom: 1.35rem;
+  transition: background var(--trans-med);
+  position: relative;
+}
+.step-line.done { background: var(--accent-green); }
+
+/* ── Hosting Mode Cards ────────────────────────────── */
+.host-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+@media(max-width:600px){ .host-mode-grid { grid-template-columns: 1fr; } }
+
+.host-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem;
+  cursor: pointer;
+  transition: all var(--trans-med);
+  position: relative;
+  overflow: hidden;
+}
+.host-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--trans-med);
+  pointer-events: none;
+}
+.host-card.hosted::before {
+  background: radial-gradient(ellipse at top left, rgba(0,212,255,0.07), transparent 65%);
+}
+.host-card.selfhosted::before {
+  background: radial-gradient(ellipse at top left, rgba(245,158,11,0.07), transparent 65%);
+}
+.host-card:hover::before { opacity: 1; }
+.host-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-glow);
+}
+.host-card.selected.hosted {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 30px rgba(0,212,255,0.2), inset 0 0 30px rgba(0,212,255,0.04);
+  background: rgba(0,212,255,0.04);
+}
+.host-card.selected.selfhosted {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 30px rgba(245,158,11,0.2), inset 0 0 30px rgba(245,158,11,0.04);
+  background: rgba(245,158,11,0.04);
+}
+.host-card-check {
+  position: absolute;
+  top: 1rem; right: 1rem;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem;
+  transition: all var(--trans-fast);
+}
+.host-card.selected.hosted .host-card-check {
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  color: #000;
+}
+.host-card.selected.selfhosted .host-card-check {
+  background: var(--accent-yellow);
+  border-color: var(--accent-yellow);
+  color: #000;
+}
+.host-icon {
+  font-size: 2.8rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+.host-card-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+}
+.host-card.hosted .host-card-title { color: var(--accent-cyan); }
+.host-card.selfhosted .host-card-title { color: var(--accent-yellow); }
+
+.host-card-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+}
+.host-feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.host-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.host-feature .check { font-size: 0.7rem; }
+.host-card.hosted .host-feature .check { color: var(--accent-cyan); }
+.host-card.selfhosted .host-feature .check { color: var(--accent-yellow); }
+.host-card.hosted .host-feature { color: rgba(240,244,255,0.75); }
+.host-card.selfhosted .host-feature { color: rgba(240,244,255,0.75); }
+
+/* ── Publish Form Sections ─────────────────────────── */
+.pub-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.pub-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--gradient-brand);
+}
+
+/* ── Genre Grid ────────────────────────────────────── */
+.genre-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+@media(max-width:560px){ .genre-grid { grid-template-columns: repeat(3,1fr); } }
+.genre-chip {
+  padding: 0.55rem 0.4rem;
+  text-align: center;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: all var(--trans-fast);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.genre-chip:hover { border-color: rgba(0,212,255,0.35); color: var(--text-primary); background: rgba(0,212,255,0.05); }
+.genre-chip.selected {
+  background: rgba(0,212,255,0.12);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 12px rgba(0,212,255,0.15);
+}
+
+/* ── Thumbnail Picker ─────────────────────────────── */
+.thumb-preview {
+  width: 100%; height: 160px;
+  background: var(--bg-input);
+  border: 2px dashed var(--border-primary);
+  border-radius: var(--radius-lg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.5rem; cursor: pointer;
+  transition: all var(--trans-fast);
+  overflow: hidden;
+  position: relative;
+}
+.thumb-preview:hover { border-color: var(--accent-cyan); box-shadow: 0 0 20px rgba(0,212,255,0.1); }
+.thumb-preview span { font-size: 3rem; }
+.thumb-preview p { font-size: 0.8rem; color: var(--text-secondary); }
+.thumb-preview .upload-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,212,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity var(--trans-fast);
+  font-size: 0.85rem; color: var(--accent-cyan); font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+.thumb-preview:hover .upload-overlay { opacity: 1; }
+
+/* ── Review Summary Card ───────────────────────────── */
+.review-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.review-game-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-primary);
+  margin-bottom: 1rem;
+}
+
+/* ── Navigation Buttons ───────────────────────────── */
+.pub-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  gap: 0.75rem;
+}
+
+/* ── API Key Display ──────────────────────────────── */
+.api-block {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.8rem;
+  color: var(--accent-yellow);
+  letter-spacing: 0.08em;
+  text-align: center;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+}
+.api-block:hover { border-color: rgba(245,158,11,0.5); box-shadow: 0 0 12px rgba(245,158,11,0.1); }
+.api-block .copy-hint { font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem; font-family: 'Inter', sans-serif; letter-spacing: 0; }
+
+.selfhost-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media(max-width:560px){ .selfhost-form-grid { grid-template-columns: 1fr; } }
+
+/* ── Page header ──────────────────────────────────── */
+.pub-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  padding-top: 0.5rem;
+}
+.pub-header h1 {
+  font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.pub-header p { color: var(--text-secondary); margin-top: 0.5rem; }
+
+.form-fields { display: flex; flex-direction: column; gap: 1.25rem; }
+.form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media(max-width:560px){ .form-2col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+<div class="publish-shell">
+
+  <!-- Header -->
+  <div class="pub-header">
+    <h1>Publish Your Game</h1>
+    <p>List your game on PlayCarys and reach thousands of players</p>
+  </div>
+
+  <!-- Step Rail -->
+  <div class="step-rail" id="step-rail"></div>
+
+  <!-- ══ STEP 0: Hosting Mode ══════════════════════════ -->
+  <div id="step-0">
+    <div class="pub-section">
+      <h3 style="margin-bottom:0.3rem">🚀 Choose Hosting Model</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0">Select how you want to deploy your game on PlayCarys</p>
+
+      <div class="host-mode-grid">
+
+        <!-- Option A: Hosted -->
+        <div class="host-card hosted" id="hcard-hosted" onclick="selectHosting('hosted')">
+          <div class="host-card-check" id="hcheck-hosted">✓</div>
+          <span class="host-icon">🏠</span>
+          <div class="host-card-title">Host on PlayCarys</div>
+          <div class="host-card-desc">We handle servers, scaling, and infrastructure. Upload your game files and go live in minutes.</div>
+          <div class="host-feature-list">
+            <div class="host-feature"><span class="check">✦</span> Zero server setup</div>
+            <div class="host-feature"><span class="check">✦</span> Auto leaderboards & profiles</div>
+            <div class="host-feature"><span class="check">✦</span> Built-in ad revenue share</div>
+            <div class="host-feature"><span class="check">✦</span> Free SSL & CDN</div>
+            <div class="host-feature"><span class="check">✦</span> Analytics dashboard</div>
+          </div>
+        </div>
+
+        <!-- Option B: Self-Hosted -->
+        <div class="host-card selfhosted" id="hcard-selfhosted" onclick="selectHosting('selfhosted')">
+          <div class="host-card-check" id="hcheck-selfhosted">✓</div>
+          <span class="host-icon">🔧</span>
+          <div class="host-card-title">Self-Host with API</div>
+          <div class="host-card-desc">Host your game on your own servers and connect to PlayCarys via our SDK & API for players, scores and more.</div>
+          <div class="host-feature-list">
+            <div class="host-feature"><span class="check">✦</span> Full infrastructure control</div>
+            <div class="host-feature"><span class="check">✦</span> PlayCarys API access</div>
+            <div class="host-feature"><span class="check">✦</span> SDK for auth & leaderboards</div>
+            <div class="host-feature"><span class="check">✦</span> Webhook support</div>
+            <div class="host-feature"><span class="check">✦</span> Enterprise SLA available</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-nav">
+      <div></div>
+      <button class="btn btn-primary btn-lg" onclick="nextStep(0)" id="btn-step0-next" disabled>Next — Basic Info →</button>
+    </div>
+  </div>
+
+  <!-- ══ STEP 1: Basic Info ════════════════════════════ -->
+  <div id="step-1" class="hidden">
+    <div class="pub-section">
+      <h3 style="margin-bottom:0.3rem">📋 Basic Information</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem">Tell players what your game is about</p>
+      <div class="form-fields">
+        <div class="form-group">
+          <label class="form-label">Game Title <span class="required">*</span></label>
+          <input class="form-input" id="f-title" placeholder="Enter game title (3–60 characters)"/>
+          <span class="form-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description <span class="required">*</span></label>
+          <textarea class="form-textarea" id="f-desc" placeholder="Describe your game (20–500 characters)…" style="min-height:110px"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="form-error"></span>
+            <span class="form-hint" id="desc-count">0 / 500</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Genre <span class="required">*</span></label>
+          <div class="genre-grid" id="genre-grid"></div>
+          <span class="form-error" id="genre-error" style="margin-top:0.35rem"></span>
+        </div>
+      </div>
+    </div>
+    <div class="pub-nav">
+      <button class="btn btn-ghost" onclick="prevStep(1)">← Back</button>
+      <button class="btn btn-primary btn-lg" onclick="nextStep(1)">Next — Game Details →</button>
+    </div>
+  </div>
+
+  <!-- ══ STEP 2: Game Details ══════════════════════════ -->
+  <div id="step-2" class="hidden">
+    <div class="pub-section">
+      <h3 style="margin-bottom:0.3rem">⚙️ Game Details</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem">Configure game settings and visuals</p>
+      <div class="form-fields">
+        <div class="form-2col">
+          <div class="form-group">
+            <label class="form-label">Min Players <span class="required">*</span></label>
+            <input class="form-input" id="f-min" type="number" min="1" max="100" placeholder="e.g. 1"/>
+            <span class="form-error"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Players <span class="required">*</span></label>
+            <input class="form-input" id="f-max" type="number" min="1" max="1000" placeholder="e.g. 64"/>
+            <span class="form-error"></span>
+          </div>
+        </div>
+        <div class="form-2col">
+          <div class="form-group">
+            <label class="form-label">Game Mode</label>
+            <select class="form-select" id="f-mode">
+              <option value="Multiplayer">Multiplayer</option>
+              <option value="Battle Royale">Battle Royale</option>
+              <option value="Co-op">Co-op</option>
+              <option value="Competitive">Competitive</option>
+              <option value="Single Player">Single Player</option>
+              <option value="Casual">Casual</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Age Rating</label>
+            <select class="form-select" id="f-age">
+              <option value="Everyone">Everyone (E)</option>
+              <option value="Teen">Teen (T)</option>
+              <option value="Mature" selected>Mature (M)</option>
+              <option value="Adults Only">Adults Only (AO)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tournament Format <span style="font-size:0.72rem;color:var(--text-muted)">(optional)</span></label>
+          <select class="form-select" id="f-tournamentformat">
+            <option value="0">Not Supported</option>
+            <option value="2">1v1 (2 players per match)</option>
+            <option value="4">Free-for-all (4 players per match)</option>
+            <option value="8">Free-for-all (8 players per match)</option>
+          </select>
+          <span class="form-hint">Enables Bracket Tree Room logic when players select "Tournament" mode in your game lobbies.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Game Thumbnail <span class="required">*</span></label>
+          <div style="display:flex;gap:1.5rem;align-items:center">
+            <div id="img-preview" style="width:120px;height:120px;border-radius:var(--radius-md);border:1px solid var(--border-primary);display:flex;align-items:center;justify-content:center;background:var(--bg-secondary);overflow:hidden;position:relative;flex-shrink:0;">
+              <span id="preview-placeholder" style="font-size:3rem">🖼️</span>
+            </div>
+            <div style="flex:1">
+              <input type="file" id="f-thumbnail-file" accept="image/*" style="display:none" onchange="handleThumbnailUpload(this)"/>
+              <button class="btn btn-outline" onclick="document.getElementById('f-thumbnail-file').click()">Select Image File</button>
+              <p style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.6rem;line-height:1.4">Upload a high-quality JPG, PNG, or WebP.<br/>Optimal resolution: 500x500px.</p>
+              <span class="form-error" id="thumb-error" style="display:block;margin-top:0.4rem"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ── Economy ─────────────────────────────────────────── -->
+      <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: var(--radius-md);">
+        <h4 style="margin-bottom: 0.4rem; font-size: 0.85rem; color: var(--accent-cyan);">💡 Carys Points &amp; Match Rules</h4>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 0.6rem;">
+          By default PlayCarys awards points from the match outcome (win / draw / loss). Your game can set its own
+          figure instead by passing <code>carys_earned</code> and <code>xp_gained</code> when it reports a result
+          through the SDK:
+        </p>
+        <pre style="font-size:0.72rem;background:rgba(0,0,0,0.35);border:1px solid var(--border-primary);border-radius:var(--radius-sm);padding:0.6rem 0.75rem;margin:0 0 0.6rem;overflow-x:auto"><code>PlayCarys.submitResult({ outcome: 'win', score: 4242, carys_earned: 80 });</code></pre>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.55; margin: 0;">
+          Use the SDK — <code>DB.recordMatchResult()</code> is internal to the platform and is not reachable from a
+          game. Whatever your game reports is capped by the ceiling you set below, so pick a number that reflects a
+          genuinely good run.
+        </p>
+      </div>
+
+      <div class="form-group" style="margin-top:1.25rem">
+        <label class="form-label">Max Carys per match <span class="required">*</span></label>
+        <input class="form-input" id="f-maxcarys" type="number" min="0" max="1000" value="200"/>
+        <span class="form-hint">The most a single match of your game may award one player (0–1000). Reviewed before your game goes live.</span>
+        <span class="form-error"></span>
+      </div>
+
+      <!-- ── Achievements (optional) ──────────────────────────── -->
+      <div style="margin-top:1.5rem;padding:1rem;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-md)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:0.5rem">
+          <h4 style="font-size:0.85rem;color:var(--accent-purple)">🏅 Achievements <span style="font-weight:500;color:var(--text-muted)">(optional)</span></h4>
+          <button class="btn btn-outline btn-sm" type="button" onclick="addAchievementRow()">+ Add</button>
+        </div>
+        <p style="font-size:0.75rem;color:var(--text-secondary);line-height:1.55;margin:0 0 0.75rem">
+          Declare them here and unlock them from your game by <em>code</em> — the platform grants the reward and the
+          title, once per player:
+        </p>
+        <pre style="font-size:0.72rem;background:rgba(0,0,0,0.35);border:1px solid var(--border-primary);border-radius:var(--radius-sm);padding:0.6rem 0.75rem;margin:0 0 0.85rem;overflow-x:auto"><code>PlayCarys.unlockAchievement('first_win');</code></pre>
+        <div id="ach-rows"></div>
+        <div id="ach-empty" style="font-size:0.78rem;color:var(--text-muted);text-align:center;padding:0.75rem 0">
+          No achievements yet — your game will still work fine without them.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Hosted extras (shown only when hosted selected) -->
+    <div class="pub-section" id="hosted-extra" style="display:none; border-color:rgba(0,212,255,0.3);">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">📦</span>
+        <div>
+          <h3 style="color:var(--accent-cyan)">Game Logic Upload</h3>
+          <p style="font-size:0.82rem;color:var(--text-secondary)">Upload your game's HTML5/JS assets in a single .zip archive</p>
+        </div>
+      </div>
+      <div class="form-fields">
+        <div class="form-group">
+          <label class="form-label">Game Assets (ZIP) <span class="required">*</span></label>
+          <div style="border:1px dashed var(--border-primary);border-radius:var(--radius-md);padding:1.5rem;text-align:center;background:rgba(255,255,255,0.02)">
+            <input type="file" id="f-gamefile" accept=".zip" style="display:none" onchange="handleGameZipUpload(this)"/>
+            <button class="btn btn-outline" onclick="document.getElementById('f-gamefile').click(); return false;">Select .ZIP File</button>
+            <div id="file-name-display" style="font-size:0.85rem;color:var(--accent-cyan);margin-top:0.75rem;font-weight:600">No file selected</div>
+            <span class="form-error" id="file-error" style="display:block;margin-top:0.4rem"></span>
+          </div>
+          <span class="form-hint" style="display:block;text-align:center;margin-top:0.5rem">Root folder must contain index.html. Max 50MB.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Self-Host extras (shown only when selfhosted selected) -->
+    <div class="pub-section" id="selfhost-extra" style="display:none; border-color:rgba(245,158,11,0.3);">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">🔧</span>
+        <div>
+          <h3 style="color:var(--accent-yellow)">Self-Host Configuration</h3>
+          <p style="font-size:0.82rem;color:var(--text-secondary)">Provide your server URLs so PlayCarys can link players to your game</p>
+        </div>
+      </div>
+      <div class="form-fields">
+        <div class="form-group">
+          <label class="form-label">Game URL <span class="required">*</span></label>
+          <input class="form-input" id="f-gameurl" placeholder="https://yourgame.com/play"/>
+          <span class="form-hint">The direct URL where players will be sent to play your game</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Webhook URL <span style="font-size:0.72rem;color:var(--text-muted)">(optional)</span></label>
+          <input class="form-input" id="f-webhook" placeholder="https://yourgame.com/api/webhooks/playcarys"/>
+          <span class="form-hint">We'll POST events (player joins, score updates) to this URL</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Your PlayCarys API Key</label>
+          <div class="api-block" onclick="copyApiKey()">
+            <div id="api-key-display">pk_live_••••••••••••••••••••</div>
+            <div class="copy-hint">Click to copy your API key</div>
+          </div>
+          <span class="form-hint">Use this key in the PlayCarys SDK to authenticate your server</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-nav">
+      <button class="btn btn-ghost" onclick="prevStep(2)">← Back</button>
+      <button class="btn btn-primary btn-lg" onclick="nextStep(2)">Review & Submit →</button>
+    </div>
+  </div>
+
+  <!-- ══ STEP 3: Review & Submit ════════════════════════ -->
+  <div id="step-3" class="hidden">
+    <div class="pub-section">
+      <h3 style="margin-bottom:1.25rem">📋 Review Your Submission</h3>
+      <div id="review-content"></div>
+    </div>
+    <div class="alert alert-info" style="margin-bottom:1rem">
+      ℹ️ Your game will be reviewed by our admin team before going live. This typically takes 1–3 business days.
+    </div>
+    <div class="pub-nav">
+      <button class="btn btn-ghost" onclick="prevStep(3)">← Back</button>
+      <button class="btn btn-green btn-lg" onclick="submitGame()">⬆️ Submit for Review</button>
+    </div>
+  </div>
+
+</div><!-- /shell -->
+</div>
+</div>
+
+<!-- Thumbnail Modal Removed -->
+
+<div id="toast-container"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// navigate() provided globally by utils.js (includes CSS fade transition)
+
+const ASSET_THEMES = Object.keys(GAME_ASSETS.IMG_MAP);
+let selectedGenre  = '';
+let selectedImgKey = '';
+let hostingMode    = '';  // 'hosted' | 'selfhosted'
+let currentStep    = 0;
+let isZipValid     = false;
+
+const STEPS = ['Hosting Mode', 'Basic Info', 'Game Details', 'Review & Submit'];
+
+/* ── Step Rail ─────────────────────────────── */
+function renderRail() {
+  const rail = document.getElementById('step-rail');
+  rail.innerHTML = STEPS.map((label, i) => {
+    const cls = i < currentStep ? 'done' : i === currentStep ? 'active' : '';
+    const lineClass = i < currentStep ? 'done' : '';
+    const circle = i < currentStep ? '✓' : (i + 1);
+    const line = i < STEPS.length - 1
+      ? `<div class="step-line ${lineClass}"></div>` : '';
+    return `<div class="step-node ${cls}">
+      <div class="step-circle">${circle}</div>
+      <div class="step-label">${label}</div>
+    </div>${line}`;
+  }).join('');
+}
+
+/* ── Hosting Selection ────────────────────── */
+function selectHosting(mode) {
+  hostingMode = mode;
+  document.getElementById('hcard-hosted').classList.toggle('selected', mode === 'hosted');
+  document.getElementById('hcard-selfhosted').classList.toggle('selected', mode === 'selfhosted');
+  const btn = document.getElementById('btn-step0-next');
+  btn.disabled = false;
+  btn.textContent = mode === 'hosted' ? 'Next — Basic Info →' : 'Next — Basic Info →';
+}
+
+/* ── Show/Hide Steps ─────────────────────── */
+function showStep(n) {
+  STEPS.forEach((_, i) => {
+    const el = document.getElementById('step-' + i);
+    if (el) el.classList.toggle('hidden', i !== n);
+  });
+  currentStep = n;
+  renderRail();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Show contextual extra sections in step 2
+  const selfExtra = document.getElementById('selfhost-extra');
+  if (selfExtra) selfExtra.style.display = (n === 2 && hostingMode === 'selfhosted') ? 'block' : 'none';
+  const hostedExtra = document.getElementById('hosted-extra');
+  if (hostedExtra) hostedExtra.style.display = (n === 2 && hostingMode === 'hosted') ? 'block' : 'none';
+}
+
+/* ── Next / Prev ─────────────────────────── */
+function nextStep(from) {
+  if (from === 0) {
+    if (!hostingMode) return Toast.warning('Please select a hosting option first');
+    showStep(1);
+    return;
+  }
+  if (from === 1) {
+    const tEl = document.getElementById('f-title');
+    const dEl = document.getElementById('f-desc');
+    const gErr = document.getElementById('genre-error');
+    const valid = Validate.form([
+      { el:tEl, rules:[{type:'required'},{type:'minLen',n:3,msg:'Min 3 characters'},{type:'maxLen',n:60,msg:'Max 60 characters'}] },
+      { el:dEl, rules:[{type:'required'},{type:'minLen',n:20,msg:'Min 20 characters'},{type:'maxLen',n:500,msg:'Max 500 characters'}] }
+    ]);
+    if (!selectedGenre) { gErr.textContent='Please select a genre'; gErr.classList.add('show'); return; }
+    else { gErr.textContent=''; gErr.classList.remove('show'); }
+    if (!valid) return;
+    showStep(2);
+    return;
+  }
+  if (from === 2) {
+    const minEl = document.getElementById('f-min');
+    const maxEl = document.getElementById('f-max');
+    const valid = Validate.form([
+      { el:minEl, rules:[{type:'required'},{type:'numeric'},{type:'positive'},{type:'custom',fn:v=>v>=1&&v<=100,msg:'1–100'}] },
+      { el:maxEl, rules:[{type:'required'},{type:'numeric'},{type:'positive'},{type:'custom',fn:v=>v>=1&&v<=1000,msg:'1–1000'}] }
+    ]);
+    if (!valid) return;
+    if (parseInt(minEl.value) > parseInt(maxEl.value)) {
+      Validate.field(maxEl,[{type:'custom',fn:()=>false,msg:'Max must be ≥ min'}]);
+      return;
+    }
+    if (hostingMode === 'selfhosted') {
+      const urlEl = document.getElementById('f-gameurl');
+      if (!urlEl.value.trim()) { urlEl.classList.add('error'); Toast.warning('Game URL is required for self-hosted games'); return; }
+    } else if (hostingMode === 'hosted') {
+      const fileEl = document.getElementById('f-gamefile');
+      const errEl = document.getElementById('file-error');
+      if (!fileEl || !fileEl.files.length || !isZipValid) {
+         errEl.textContent = 'Please upload your game assets (.zip) before submitting.';
+         errEl.classList.add('show');
+         return;
+      } else {
+         errEl.textContent = '';
+         errEl.classList.remove('show');
+      }
+    }
+    const tErr = document.getElementById('thumb-error');
+    if (!selectedImgKey) {
+      tErr.textContent = 'Please upload a game thumbnail before continuing.';
+      tErr.classList.add('show');
+      return;
+    } else {
+      tErr.textContent = '';
+      tErr.classList.remove('show');
+    }
+    buildReview();
+    showStep(3);
+    return;
+  }
+}
+function prevStep(from) { showStep(from - 1); }
+
+function buildReview() {
+  const title = document.getElementById('f-title').value;
+  const desc  = document.getElementById('f-desc').value;
+  const min   = document.getElementById('f-min').value;
+  const max   = document.getElementById('f-max').value;
+  const mode  = document.getElementById('f-mode').value;
+  const age   = document.getElementById('f-age').value;
+  const tFmt  = parseInt(document.getElementById('f-tournamentformat').value, 10);
+  const url   = document.getElementById('f-gameurl')?.value || '';
+  const hostBadge = hostingMode === 'hosted'
+    ? `<span style="font-size:.72rem;background:rgba(0,212,255,.12);color:var(--accent-cyan);border:1px solid rgba(0,212,255,.3);border-radius:99px;padding:.15rem .55rem;font-weight:700;">🏠 Hosted</span>`
+    : `<span style="font-size:.72rem;background:rgba(245,158,11,.12);color:var(--accent-yellow);border:1px solid rgba(245,158,11,.3);border-radius:99px;padding:.15rem .55rem;font-weight:700;">🔧 Self-Hosted</span>`;
+
+  document.getElementById('review-content').innerHTML = `
+    <div class="review-game-header">
+      ${getGameIconHTML({title, img: selectedImgKey}, 0, '80px')}
+      <div>
+        <div style="font-family:'Orbitron',monospace;font-size:1.15rem;font-weight:800;margin-bottom:0.4rem">${title}</div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+          <span class="tag">${selectedGenre}</span>
+          ${badgeHTML('pending')}
+          ${hostBadge}
+        </div>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Description</label><span style="font-size:0.82rem;white-space:normal">${desc}</span></div>
+      <div class="detail-field"><label>Players</label><span>${min} – ${max}</span></div>
+      <div class="detail-field"><label>Game Mode</label><span>${mode}</span></div>
+      <div class="detail-field"><label>Tournament</label><span>${tFmt > 0 ? tFmt + ' players/match' : 'Not Supported'}</span></div>
+      <div class="detail-field"><label>Age Rating</label><span>${age}</span></div>
+      <div class="detail-field"><label>Max Carys / match</label><span>${document.getElementById('f-maxcarys').value || 0}</span></div>
+      <div class="detail-field"><label>Achievements</label><span>${(function(){
+        var list = collectAchievements();
+        return list.length ? list.map(function(a){ return (a.icon||'🏆') + ' ' + a.name + ' (' + a.carys_reward + ')'; }).join(', ') : 'None';
+      })()}</span></div>
+      <div class="detail-field"><label>Hosting</label><span>${hostingMode === 'hosted' ? '🏠 PlayCarys Hosted' : '🔧 Self-Hosted'}</span></div>
+      ${url ? `<div class="detail-field"><label>Game URL</label><span style="font-size:0.8rem;word-break:break-all">${url}</span></div>` : ''}
+    </div>`;
+}
+
+/* ── Submit ──────────────────────────────────────────────────
+   Two delivery models are supported here:
+
+     hosted     — the .zip is POSTed to /games/:id/bundle, where the
+                  backend unpacks it under front-end/games/<slug>/ and
+                  writes play_path back onto the game record.
+     selfhosted — no upload; we store the publisher's own URL and the
+                  player-side wrapper embeds it in an iframe.
+
+   The upload has to happen *after* DB.save() resolves, because the
+   backend can only accept a bundle for a game it already knows about,
+   and the game only reaches the backend via the db-import sync.       */
+async function submitGame() {
+  const session = Auth.getSession();
+  const pubUserId = parseInt(session.userId, 10);
+  const titleVal = document.getElementById('f-title').value.trim();
+  const newGameId = DB.games.length > 0 ? Math.max(...DB.games.map(g => parseInt(g.game_id, 10) || 0)) + 1 : 1;
+
+  const titleExists = DB.games.some(g =>
+    String(g.game_name || g.title || '').trim().toLowerCase() === titleVal.toLowerCase()
+  );
+  if (titleExists) {
+    Toast.error('A game with this title already exists.');
+    return;
+  }
+
+  // Checked before anything is created, so a typo in an achievement row does
+  // not leave a half-published game behind.
+  if (!validateAchievements()) return;
+
+  const maxCarys = Math.max(0, Math.min(1000, parseInt(document.getElementById('f-maxcarys').value, 10) || 0));
+
+  const newGame = {
+    game_id: newGameId,
+    game_name: titleVal,
+    desc: document.getElementById('f-desc').value,
+    game_type: selectedGenre,
+    players: `${document.getElementById('f-min').value}-${document.getElementById('f-max').value}`,
+    tournamentFormat: parseInt(document.getElementById('f-tournamentformat').value, 10),
+    game_publisher: pubUserId,
+    game_approval_status: 'pending',
+    game_status: 'disabled',
+    hostingType: hostingMode,
+    // Written in both naming styles on purpose: existing pages (mygames.html)
+    // read the camelCase keys, while the NestJS store and GameLaunch resolver
+    // use snake_case. Keeping both avoids a rename sweep across the frontend.
+    hosting_type: hostingMode,
+    gameUrl: hostingMode === 'selfhosted' ? document.getElementById('f-gameurl').value : null,
+    game_url: hostingMode === 'selfhosted' ? document.getElementById('f-gameurl').value : null,
+    webhookUrl: hostingMode === 'selfhosted' ? document.getElementById('f-webhook').value : null,
+    webhook_url: hostingMode === 'selfhosted' ? document.getElementById('f-webhook').value : null,
+    img: selectedImgKey,
+    // The payout ceiling an admin reviews and the server clamps to.
+    max_carys_per_match: maxCarys,
+    sessions: 0, rating: 0, views: 0,
+    submittedDate: new Date().toISOString().slice(0,10)
+  };
+
+  DB.games.push(newGame);
+  DB.activityLog.unshift({ type: 'approval', msg: `${newGame.game_name} submitted for approval`, time: 'just now' });
+
+  if (typeof dispatchRoleNotification !== 'undefined') {
+    dispatchRoleNotification('admin', session.role, session.username, `submitted a new game for review: <b>${newGame.game_name}</b>.`);
+    if (session.role !== 'superuser') {
+      dispatchRoleNotification('superuser', session.role, session.username, `submitted a new game for review: <b>${newGame.game_name}</b>.`);
+    }
+  }
+
+  // Wait for the record to reach the backend before uploading the build —
+  // /games/:id/bundle rejects an id it has never seen.
+  try { await DB.save(); } catch (e) { /* offline: localStorage still has it */ }
+
+  if (hostingMode === 'hosted') {
+    const uploaded = await uploadBundle(newGameId, pubUserId);
+    if (!uploaded) {
+      // The listing exists but has no playable build. Say so plainly rather
+      // than claiming success — the publisher can retry from My Games.
+      Toast.warning('Game listed, but the build upload failed. You can re-upload it from My Games.');
+      setTimeout(() => navigate('mygames'), 2200);
+      return;
+    }
+    newGame.play_path = uploaded.play_path;
+    newGame.playPath  = uploaded.play_path;
+    DB.save();
+  }
+
+  // Achievements are created against the game record, so they go last. A
+  // failure here does not invalidate the submission — the game is listed and
+  // the publisher is told exactly which rows to re-add from My Games.
+  const ach = await submitAchievements(newGameId, pubUserId);
+  if (ach.failed.length) {
+    console.warn('[PlayCarys] Some achievements were rejected:', ach.failed);
+    Toast.warning('Game submitted, but ' + ach.failed.length + ' achievement(s) were rejected: ' + ach.failed[0]);
+  } else if (ach.created) {
+    Toast.success('Game submitted with ' + ach.created + ' achievement(s)! 🎮');
+    setTimeout(() => navigate('mygames'), 1400);
+    return;
+  }
+
+  Toast.success('Game submitted for review! 🎮');
+  setTimeout(() => navigate('mygames'), 1200);
+}
+
+/**
+ * POST the staged .zip to the backend, which validates and unpacks it.
+ * Returns the updated game record, or null on any failure.
+ */
+async function uploadBundle(gameId, publisherId) {
+  const fileEl = document.getElementById('f-gamefile');
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  if (!file) {
+    Toast.error('No game archive selected.');
+    return null;
+  }
+
+  const form = new FormData();
+  form.append('bundle', file);
+  form.append('publisher_id', String(publisherId));
+
+  Toast.info('Uploading game build… this can take a moment.');
+
+  try {
+    const res = await fetch(window.PC_API + '/games/' + gameId + '/bundle', {
+      method: 'POST',
+      // no Content-Type: the browser sets the multipart boundary itself
+      headers: Object.assign({ 'role': 'publisher' }, Auth.apiAuthHeaders()),
+      body: form
+    });
+
+    if (!res.ok) {
+      let msg = res.statusText;
+      try { const body = await res.json(); msg = body.message || msg; } catch (e) {}
+      console.error('[PlayCarys] Bundle upload rejected:', res.status, msg);
+      Toast.error('Upload failed: ' + msg);
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('[PlayCarys] Bundle upload error:', err);
+    Toast.error('Could not reach the server to upload your build.');
+    return null;
+  }
+}
+
+/* ── Achievements editor ──────────────────────────────────────
+   Rows are plain DOM rather than a data model: the list is short, only ever
+   read on submit, and keeping it in the DOM means no second source of truth
+   to drift. */
+let achRowSeq = 0;
+
+function addAchievementRow(preset) {
+  const wrap = document.getElementById('ach-rows');
+  const id = 'ach-' + (++achRowSeq);
+  const p = preset || {};
+  const row = document.createElement('div');
+  row.className = 'ach-row';
+  row.id = id;
+  row.style.cssText = 'border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:0.85rem;margin-bottom:0.65rem;background:rgba(255,255,255,0.02)';
+  row.innerHTML = `
+    <div style="display:grid;grid-template-columns:1.1fr 1.6fr 70px;gap:0.5rem;margin-bottom:0.5rem">
+      <input class="form-input ach-code" placeholder="first_win" value="${p.code || ''}" title="Code your game unlocks by"/>
+      <input class="form-input ach-name" placeholder="First Blood" value="${p.name || ''}" title="Shown to players"/>
+      <input class="form-input ach-icon" placeholder="🏆" maxlength="4" value="${p.icon || ''}" title="Emoji"/>
+    </div>
+    <input class="form-input ach-desc" placeholder="Win your first match." value="${p.description || ''}" style="margin-bottom:0.5rem"/>
+    <div style="display:grid;grid-template-columns:110px 1.4fr auto auto;gap:0.5rem;align-items:center">
+      <input class="form-input ach-reward" type="number" min="0" max="500" value="${p.carys_reward != null ? p.carys_reward : 25}" title="Carys granted once (max 500)"/>
+      <input class="form-input ach-title" placeholder="Title (optional)" value="${p.title_awarded || ''}" title="Title the player can display"/>
+      <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;color:var(--text-secondary);white-space:nowrap">
+        <input type="checkbox" class="ach-secret" ${p.secret ? 'checked' : ''}/> Secret
+      </label>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="removeAchievementRow('${id}')">✕</button>
+    </div>`;
+  wrap.appendChild(row);
+  document.getElementById('ach-empty').style.display = 'none';
+}
+
+function removeAchievementRow(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+  const any = document.querySelectorAll('#ach-rows .ach-row').length > 0;
+  document.getElementById('ach-empty').style.display = any ? 'none' : 'block';
+}
+
+/** Read the editor into plain objects, skipping rows the publisher left blank. */
+function collectAchievements() {
+  return Array.from(document.querySelectorAll('#ach-rows .ach-row')).map(function (row) {
+    const val = (sel) => (row.querySelector(sel)?.value || '').trim();
+    return {
+      code: val('.ach-code').toLowerCase(),
+      name: val('.ach-name'),
+      description: val('.ach-desc'),
+      icon: val('.ach-icon') || '🏆',
+      carys_reward: Math.max(0, Math.min(500, parseInt(val('.ach-reward'), 10) || 0)),
+      title_awarded: val('.ach-title') || undefined,
+      secret: !!row.querySelector('.ach-secret')?.checked
+    };
+  }).filter(function (a) { return a.code && a.name; });
+}
+
+/**
+ * Validate before submit, so a bad row is reported next to the field rather
+ * than as a server error after the game has already been created.
+ */
+function validateAchievements() {
+  const rows = Array.from(document.querySelectorAll('#ach-rows .ach-row'));
+  const seen = new Set();
+  for (const row of rows) {
+    const codeEl = row.querySelector('.ach-code');
+    const nameEl = row.querySelector('.ach-name');
+    const code = (codeEl.value || '').trim().toLowerCase();
+    const name = (nameEl.value || '').trim();
+    if (!code && !name) continue;                       // untouched row, ignored
+    if (!/^[a-z0-9][a-z0-9_-]*$/.test(code)) {
+      Toast.error('Achievement code "' + (code || '(blank)') + '" must be lowercase letters, numbers, _ or -');
+      codeEl.focus(); return false;
+    }
+    if (!name) { Toast.error('Achievement "' + code + '" needs a name.'); nameEl.focus(); return false; }
+    if (seen.has(code)) { Toast.error('Duplicate achievement code: ' + code); codeEl.focus(); return false; }
+    seen.add(code);
+  }
+  return true;
+}
+
+/** POST each achievement after the game exists. Reports partial failures. */
+async function submitAchievements(gameId, publisherId) {
+  const list = collectAchievements();
+  if (!list.length) return { created: 0, failed: [] };
+
+  let created = 0;
+  const failed = [];
+  for (const a of list) {
+    try {
+      const res = await fetch(window.PC_API + '/games/' + gameId + '/achievements', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json', 'role': 'publisher' }, Auth.apiAuthHeaders()),
+        body: JSON.stringify(Object.assign({}, a, { publisher_id: publisherId }))
+      });
+      if (res.ok) created++;
+      else {
+        let msg = res.status;
+        try { const b = await res.json(); msg = b.message || msg; } catch (e) {}
+        failed.push(a.code + ': ' + msg);
+      }
+    } catch (err) {
+      failed.push(a.code + ': could not reach the server');
+    }
+  }
+  return { created, failed };
+}
+
+/* ── Upload Handler ──────────────────────── */
+function handleThumbnailUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    selectedImgKey = e.target.result;
+    document.getElementById('img-preview').innerHTML = `<img src="${selectedImgKey}" style="width:100%;height:100%;object-fit:cover;"/>`;
+    document.getElementById('thumb-error').textContent = '';
+    document.getElementById('thumb-error').classList.remove('show');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function handleGameZipUpload(input) {
+  const file = input.files[0];
+  const display = document.getElementById('file-name-display');
+  const errEl = document.getElementById('file-error');
+  
+  if (!file) {
+    display.textContent = 'No file selected';
+    isZipValid = false;
+    return;
+  }
+  
+  display.textContent = 'Validating ' + file.name + '...';
+  errEl.classList.remove('show');
+  
+  try {
+    const zip = await JSZip.loadAsync(file);
+    let hasIndexHtml = false;
+    let hasSuspiciousFile = false;
+    
+    zip.forEach(function (relativePath, zipEntry) {
+      if (relativePath.toLowerCase().endsWith('index.html')) hasIndexHtml = true;
+      
+      const suspiciousExts = ['.exe', '.bat', '.cmd', '.sh', '.dll', '.msi', '.vbs', '.php'];
+      const dotIndex = relativePath.lastIndexOf('.');
+      if (dotIndex !== -1) {
+        const ext = relativePath.toLowerCase().substring(dotIndex);
+        if (suspiciousExts.includes(ext)) hasSuspiciousFile = true;
+      }
+    });
+
+    if (hasSuspiciousFile) {
+      display.textContent = file.name;
+      errEl.textContent = 'Error: Security warning! ZIP contains suspicious executable files (.exe, .bat, etc).';
+      errEl.classList.add('show');
+      input.value = ''; // clear
+      isZipValid = false;
+      return;
+    }
+    
+    if (!hasIndexHtml) {
+      display.textContent = file.name;
+      errEl.textContent = 'Error: No index.html found. The ZIP must contain an HTML5 game entry point.';
+      errEl.classList.add('show');
+      input.value = ''; // clear
+      isZipValid = false;
+      return;
+    }
+
+    display.textContent = file.name + ' (Verified HTML5 Game ✅)';
+    isZipValid = true;
+  } catch (err) {
+    display.textContent = file.name;
+    errEl.textContent = 'Error: Invalid ZIP archive. Could not parse contents.';
+    errEl.classList.add('show');
+    input.value = '';
+    isZipValid = false;
+  }
+}
+
+function copyApiKey() {
+  const key = 'pk_live_' + Math.random().toString(36).substr(2, 20).toUpperCase();
+  navigator.clipboard.writeText(key).catch(() => {});
+  Toast.success('API key copied to clipboard!');
+}
+
+/* ── Genre Grid ──────────────────────────── */
+function selectGenre(g) {
+  selectedGenre = g;
+  document.querySelectorAll('.genre-chip').forEach(c => c.classList.toggle('selected', c.textContent === g));
+  document.getElementById('genre-error').textContent = '';
+  document.getElementById('genre-error').classList.remove('show');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['publisher']);
+  if (!session) return;
+  buildNavbar('publisher', 'publish');
+
+  document.getElementById('genre-grid').innerHTML = GAME_ASSETS.GENRES.map(g =>
+    `<div class="genre-chip" onclick="selectGenre('${g}')">${g}</div>`
+  ).join('');
+
+  document.getElementById('f-desc').addEventListener('input', function() {
+    document.getElementById('desc-count').textContent = `${this.value.length} / 500`;
+  });
+
+  renderRail();
+});
+</script>
+</body>
+</html>
+

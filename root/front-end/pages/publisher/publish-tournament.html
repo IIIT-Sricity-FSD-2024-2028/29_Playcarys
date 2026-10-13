@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Tournament Hub</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* ── Tournament Hub Premium ──────────────────────────── */
+
+.pub-shell { max-width: 800px; margin: 0 auto; }
+
+/* ── Step Rail (reused from publish.html style) ─────── */
+.step-rail {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 2.5rem;
+}
+.step-node {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 0.4rem;
+  flex: 1; position: relative;
+}
+.step-node:last-child { flex: 0; }
+.step-circle {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.82rem; font-weight: 800;
+  border: 2px solid var(--border-primary);
+  color: var(--text-secondary); background: var(--bg-card);
+  transition: all var(--trans-med); z-index: 2;
+}
+.step-node.active .step-circle {
+  background: linear-gradient(135deg,#00d4ff,#7c3aed);
+  border-color: transparent; color: #fff;
+  box-shadow: 0 0 20px rgba(0,212,255,0.5);
+}
+.step-node.done .step-circle {
+  background: var(--accent-green); border-color: transparent;
+  color: #fff; box-shadow: 0 0 16px rgba(16,185,129,0.4);
+}
+.step-label {
+  font-size: 0.7rem; color: var(--text-secondary);
+  white-space: nowrap; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.step-node.active .step-label { color: var(--accent-cyan); }
+.step-node.done .step-label { color: var(--accent-green); }
+.step-line {
+  flex: 1; height: 2px; background: var(--border-primary);
+  margin-bottom: 1.35rem; transition: background var(--trans-med);
+}
+.step-line.done { background: var(--accent-green); }
+
+/* ── Pub Section ─────────────────────────────────────── */
+.pub-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  position: relative; overflow: hidden;
+}
+.pub-section::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #f59e0b, #7c3aed);
+}
+.pub-nav {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-top: 1.5rem; gap: 0.75rem;
+}
+
+/* ── Game Select Grid ────────────────────────────────── */
+.game-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px,1fr));
+  gap: 1rem; margin-top: 1rem;
+}
+.game-opt {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1rem;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center; gap: 0.6rem;
+  position: relative; overflow: hidden;
+}
+.game-opt:hover { border-color: rgba(245,158,11,0.4); transform: translateY(-2px); background: rgba(245,158,11,0.04); }
+.game-opt.selected {
+  background: rgba(245,158,11,0.08);
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 20px rgba(245,158,11,0.15);
+}
+.game-opt.selected::after {
+  content: '✓';
+  position: absolute; top: 0.4rem; right: 0.4rem;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent-yellow); color: #000;
+  font-size: 0.7rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.game-opt-name { font-weight: 700; font-size: 0.85rem; line-height: 1.2; color: var(--text-primary); }
+
+/* ── Type / Visibility toggles ───────────────────────── */
+.toggle-row { display:flex; gap:0.9rem; margin-top:0.75rem; }
+.toggle-opt {
+  flex:1; background:var(--bg-secondary); border:2px solid var(--border-primary);
+  border-radius:var(--radius-lg); padding:1.1rem 1rem; cursor:pointer;
+  transition:all var(--trans-fast); text-align:center;
+}
+.toggle-opt:hover { border-color:rgba(245,158,11,0.4); }
+.toggle-opt.selected { background:rgba(245,158,11,0.08); border-color:var(--accent-yellow); }
+.toggle-opt .t-icon { font-size:1.6rem; margin-bottom:0.35rem; }
+.toggle-opt .t-title { font-weight:700; font-size:0.88rem; }
+.toggle-opt .t-sub { font-size:0.72rem; color:var(--text-secondary); margin-top:0.2rem; }
+
+/* ── Multi-game stage builder ────────────────────────── */
+.stage-row {
+  background:var(--bg-secondary); border:1px solid var(--border-primary);
+  border-radius:var(--radius-lg); padding:1rem; margin-bottom:0.75rem;
+  display:flex; align-items:flex-start; gap:0.75rem;
+}
+.stage-order-badge {
+  width:28px; height:28px; border-radius:50%; background:var(--accent-purple); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem;
+  flex-shrink:0; margin-top:0.3rem;
+}
+.stage-fields { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; }
+.stage-fields.score-fields { grid-template-columns:1fr 1fr 1fr; }
+.stage-remove { color:var(--accent-red); cursor:pointer; font-size:1.1rem; flex-shrink:0; margin-top:0.3rem; }
+.invite-code-box {
+  background:rgba(245,158,11,0.08); border:1px solid var(--accent-yellow); border-radius:var(--radius-md);
+  padding:0.9rem 1.1rem; margin-top:1rem; font-size:0.85rem;
+}
+
+/* ── Tournament List Items ───────────────────────────── */
+.tourn-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  transition: all var(--trans-med);
+  position: relative; overflow: hidden;
+}
+.tourn-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg,#f59e0b,#7c3aed);
+  transform: scaleY(0); transition: transform var(--trans-med);
+}
+.tourn-card:hover { border-color: rgba(245,158,11,0.25); box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+.tourn-card:hover::before { transform: scaleY(1); }
+.tourn-info { flex: 1; min-width: 0; }
+.tourn-title { font-family:'Orbitron',monospace; font-size:0.95rem; font-weight:700; margin-bottom:0.4rem; }
+.tourn-meta { display:flex; align-items:center; gap:0.65rem; flex-wrap:wrap; font-size:0.78rem; color:var(--text-secondary); }
+.tourn-actions { display:flex; align-items:center; gap:0.5rem; flex-shrink:0; }
+
+/* Form grid */
+.form-2col { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media(max-width:560px){ .form-2col { grid-template-columns:1fr; } }
+.form-fields { display:flex; flex-direction:column; gap:1.25rem; }
+
+/* Page header */
+.pub-header { text-align:center; margin-bottom:2.5rem; }
+.pub-header h1 {
+  background: linear-gradient(135deg,#f59e0b,#7c3aed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Back row */
+.back-row {
+  display:flex; align-items:center; gap:0.5rem;
+  color:var(--text-secondary); font-size:0.85rem; font-weight:600;
+  cursor:pointer; margin-bottom:1.5rem; width:fit-content;
+  padding:0.4rem 0.75rem; border-radius:var(--radius-md);
+  transition:all var(--trans-fast);
+}
+.back-row:hover { color:var(--accent-yellow); background:rgba(245,158,11,0.06); }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+
+<!-- ══ LIST VIEW ════════════════════════════════════════ -->
+<div class="page-content" id="list-view">
+  <div class="page-header-row mb-3">
+    <div>
+      <h1>Tournament Hub</h1>
+      <p class="text-muted">Manage your competitive series, leagues and events</p>
+    </div>
+    <button class="btn btn-yellow btn-lg" onclick="showEditor()">🏆 Publish New Tournament</button>
+  </div>
+  <div id="tournaments-list" style="display:flex;flex-direction:column;gap:0.9rem"></div>
+</div>
+
+  <!-- ══ MANAGEMENT VIEW ═════════════════════════════════════ -->
+  <div class="page-content hidden" id="mgmt-view">
+    <div class="back-row" onclick="showList()">← Back to Hub</div>
+    <div id="mgmt-header"></div>
+    <div id="mgmt-controls" class="pub-section"></div>
+    <div id="mgmt-bracket" class="pub-section">
+      <h3 class="mb-2">🎯 Bracket Management</h3>
+      <div id="mgmt-matches" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+    </div>
+  </div>
+
+  <!-- ══ MULTI-GAME FEST MANAGEMENT VIEW (backend-driven) ═══ -->
+  <div class="page-content hidden" id="mgmt-multi-view">
+    <div class="back-row" onclick="showList()">← Back to Hub</div>
+    <div id="mgmt-multi-header"></div>
+    <div class="pub-section">
+      <h3 class="mb-2">🏅 Stages</h3>
+      <div id="mgmt-multi-stages" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+    </div>
+    <div class="pub-section">
+      <h3 class="mb-2">🏆 Overall Leaderboard</h3>
+      <div id="mgmt-multi-leaderboard" style="display:flex;flex-direction:column;gap:0.4rem"></div>
+    </div>
+  </div>
+
+  <!-- ══ EDITOR VIEW ════════════════════════════════════════ -->
+<div class="page-content hidden" id="editor-view">
+  <div class="back-row" onclick="showList()">← Cancel & Back to Hub</div>
+
+  <div class="pub-shell">
+    <div class="pub-header">
+      <h1 id="editor-title">Publish Tournament</h1>
+      <p class="text-muted" id="editor-sub">Configure your rules and schedule</p>
+    </div>
+
+    <div class="step-rail" id="step-rail"></div>
+
+    <input type="hidden" id="edit-id"/>
+
+    <!-- ── Step 1: Type & Visibility ──────────────────── -->
+    <div id="step-1">
+      <div class="pub-section">
+        <h3 style="margin-bottom:0.3rem">🧭 Tournament Type</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0">Single-game leagues run entirely on this page, as before. Multi-game fests span several of your games and post live to PlayCarys' real tournament engine.</p>
+        <div class="toggle-row">
+          <div class="toggle-opt selected" id="type-single" onclick="selectType('single')">
+            <div class="t-icon">🎮</div>
+            <div class="t-title">Single-Game</div>
+            <div class="t-sub">One game, bracket or score board</div>
+          </div>
+          <div class="toggle-opt" id="type-multi" onclick="selectType('multi')">
+            <div class="t-icon">🏅</div>
+            <div class="t-title">Multi-Game Fest</div>
+            <div class="t-sub">Several games, combined into one leaderboard</div>
+          </div>
+        </div>
+        <h3 style="margin:1.5rem 0 0.3rem">👁️ Visibility</h3>
+        <div class="toggle-row">
+          <div class="toggle-opt selected" id="vis-public" onclick="selectVisibility('public')">
+            <div class="t-icon">🌐</div>
+            <div class="t-title">Public</div>
+            <div class="t-sub">Anyone can find and join it</div>
+          </div>
+          <div class="toggle-opt" id="vis-private" onclick="selectVisibility('private')">
+            <div class="t-icon">🔒</div>
+            <div class="t-title">Private / Invite-Only</div>
+            <div class="t-sub">Hidden from browse; needs an invite code</div>
+          </div>
+        </div>
+      </div>
+      <div class="pub-nav">
+        <div></div>
+        <button class="btn btn-primary btn-lg" onclick="nextStep(1)">Next — Select Game(s) →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Select Game(s) ─────────────────────── -->
+    <div id="step-2" class="hidden">
+      <div class="pub-section" id="single-game-section">
+        <h3 style="margin-bottom:0.3rem">🎮 Select Game</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0">Pick one of your approved games for this tournament</p>
+        <div class="game-select-grid" id="game-list"></div>
+        <span class="form-error" id="game-error" style="margin-top:0.75rem;display:block"></span>
+      </div>
+      <div class="pub-section hidden" id="multi-game-section">
+        <h3 style="margin-bottom:0.3rem">🏅 Build the Stage Order</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem">Each stage is one of your games. Players earn points per stage (by finishing position); the overall winner has the highest total across all stages.</p>
+        <div id="stage-list"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addStageRow()">+ Add Stage</button>
+        <span class="form-error" id="stage-error" style="margin-top:0.75rem;display:block"></span>
+      </div>
+      <div class="pub-nav">
+        <button class="btn btn-ghost" onclick="prevStep(2)">← Back</button>
+        <button class="btn btn-primary btn-lg" onclick="nextStep(2)">Next — League Details →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 3: Details ────────────────────────────── -->
+    <div id="step-3" class="hidden">
+      <div class="pub-section">
+        <h3 style="margin-bottom:0.3rem">🏆 League Details</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem">Name your event and set the prize pool</p>
+        <div class="form-fields">
+          <div class="form-group">
+            <label class="form-label">Tournament Name <span class="required">*</span></label>
+            <input class="form-input" id="t-name" placeholder="e.g. Winter Grandmaster Open"/>
+            <span class="form-error"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rules & Description <span class="required">*</span></label>
+            <textarea class="form-textarea" id="t-desc" placeholder="Explain the scoring, format and professional rules…" style="min-height:110px"></textarea>
+            <span class="form-error"></span>
+          </div>
+          <div class="form-2col">
+            <div class="form-group">
+              <label class="form-label">Prize Pool <span class="required">*</span></label>
+              <input class="form-input" id="t-prize" placeholder="e.g. ₹50,000 or $5,000"/>
+              <span class="form-error"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Players <span class="required">*</span></label>
+              <input class="form-input" id="t-max" type="number" placeholder="e.g. 32"/>
+              <span class="form-error"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pub-nav">
+        <button class="btn btn-ghost" onclick="prevStep(3)">← Back</button>
+        <button class="btn btn-primary btn-lg" onclick="nextStep(3)">Next — Schedule →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 4: Schedule ───────────────────────────── -->
+    <div id="step-4" class="hidden">
+      <div class="pub-section">
+        <h3 style="margin-bottom:0.3rem">📅 Scheduling</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem">Set your registration deadline and tournament window</p>
+        <div class="form-fields">
+          <div class="form-group">
+            <label class="form-label">Registration Deadline <span class="required">*</span></label>
+            <input class="form-input" id="t-regclose" type="date"/>
+            <span class="form-error"></span>
+          </div>
+          <div class="form-2col">
+            <div class="form-group">
+              <label class="form-label">Start Date <span class="required">*</span></label>
+              <input class="form-input" id="t-start" type="date"/>
+              <span class="form-error"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Date <span class="required">*</span></label>
+              <input class="form-input" id="t-end" type="date"/>
+              <span class="form-error"></span>
+            </div>
+          </div>
+        </div>
+        <div class="invite-code-box hidden" id="invite-code-preview">
+          🔒 This is a private tournament. A join code will be generated on publish, shown to you on the next screen — share it with whoever you want to invite.
+        </div>
+      </div>
+      <div class="pub-nav">
+        <button class="btn btn-ghost" onclick="prevStep(4)">← Back</button>
+        <button class="btn btn-green btn-lg" onclick="submitTournament()" id="submit-btn">🏆 Publish Tournament</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /page-wrapper -->
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// navigate() provided globally by utils.js
+
+let selectedGameId = '';
+let currentStep = 1;
+let selectedType = 'single';       // 'single' | 'multi'
+let selectedVisibility = 'public'; // 'public' | 'private'
+let stages = [];                   // multi-game stage rows: {game_id, format, metric, direction, points_weight}
+let stageSeq = 0;
+const STEPS = ['Type', 'Select Game(s)', 'League Details', 'Schedule'];
+
+/* ── Type / Visibility toggles ───────────── */
+function selectType(t) {
+  selectedType = t;
+  document.getElementById('type-single').classList.toggle('selected', t === 'single');
+  document.getElementById('type-multi').classList.toggle('selected', t === 'multi');
+  document.getElementById('single-game-section').classList.toggle('hidden', t !== 'single');
+  document.getElementById('multi-game-section').classList.toggle('hidden', t !== 'multi');
+  if (t === 'multi' && !stages.length) addStageRow();
+}
+function selectVisibility(v) {
+  selectedVisibility = v;
+  document.getElementById('vis-public').classList.toggle('selected', v === 'public');
+  document.getElementById('vis-private').classList.toggle('selected', v === 'private');
+  document.getElementById('invite-code-preview').classList.toggle('hidden', v !== 'private');
+}
+
+/* ── Multi-game stage builder ────────────── */
+function myApprovedGames() {
+  const session = Auth.getSession();
+  const uid = parseInt(session.userId, 10);
+  return DB.games.filter(g => parseInt(g.game_publisher, 10) === uid && g.game_approval_status === 'approved');
+}
+function addStageRow() {
+  const games = myApprovedGames();
+  if (!games.length) { Toast.error('You need at least one approved game to build stages.'); return; }
+  stageSeq += 1;
+  stages.push({ rowId: stageSeq, game_id: String(games[0].id), format: 'score', metric: 'score', direction: 'high', metric_label: 'Score', points_weight: 1 });
+  renderStages();
+}
+function removeStageRow(rowId) {
+  stages = stages.filter(s => s.rowId !== rowId);
+  renderStages();
+}
+function updateStage(rowId, field, value) {
+  const s = stages.find(x => x.rowId === rowId);
+  if (!s) return;
+  s[field] = field === 'points_weight' ? (parseFloat(value) || 1) : value;
+  if (field === 'format') renderStages(); // toggles score-only fields
+}
+function renderStages() {
+  const games = myApprovedGames();
+  const list = document.getElementById('stage-list');
+  list.innerHTML = stages.map((s, i) => {
+    const gameOpts = games.map(g => `<option value="${g.id}" ${String(g.id) === s.game_id ? 'selected' : ''}>${g.game_name}</option>`).join('');
+    const scoreFields = s.format === 'score' ? `
+      <div class="form-group"><label class="form-label" style="font-size:0.72rem">Metric Label</label>
+        <input class="form-input" value="${s.metric_label || ''}" onchange="updateStage(${s.rowId},'metric_label',this.value)"/></div>
+      <div class="form-group"><label class="form-label" style="font-size:0.72rem">Direction</label>
+        <select class="form-input" onchange="updateStage(${s.rowId},'direction',this.value)">
+          <option value="high" ${s.direction==='high'?'selected':''}>Higher is better</option>
+          <option value="low" ${s.direction==='low'?'selected':''}>Lower is better</option>
+        </select></div>` : '';
+    return `
+    <div class="stage-row">
+      <div class="stage-order-badge">${i + 1}</div>
+      <div class="stage-fields ${s.format === 'score' ? 'score-fields' : ''}">
+        <div class="form-group"><label class="form-label" style="font-size:0.72rem">Game</label>
+          <select class="form-input" onchange="updateStage(${s.rowId},'game_id',this.value)">${gameOpts}</select></div>
+        <div class="form-group"><label class="form-label" style="font-size:0.72rem">Format</label>
+          <select class="form-input" onchange="updateStage(${s.rowId},'format',this.value)">
+            <option value="score" ${s.format==='score'?'selected':''}>Score board</option>
+            <option value="bracket" ${s.format==='bracket'?'selected':''}>Knockout bracket</option>
+          </select></div>
+        ${scoreFields}
+        <div class="form-group"><label class="form-label" style="font-size:0.72rem">Points Weight</label>
+          <input class="form-input" type="number" step="0.1" min="0.1" value="${s.points_weight}" onchange="updateStage(${s.rowId},'points_weight',this.value)"/></div>
+      </div>
+      <div class="stage-remove" onclick="removeStageRow(${s.rowId})" title="Remove stage">✕</div>
+    </div>`;
+  }).join('') || `<div class="text-muted" style="padding:0.5rem 0">No stages yet — add at least two.</div>`;
+}
+
+
+/* ── Step Rail ─────────────────────────── */
+function renderRail() {
+  const rail = document.getElementById('step-rail');
+  if (!rail) return;
+  rail.innerHTML = STEPS.map((label, i) => {
+    const cls = i < currentStep - 1 ? 'done' : i === currentStep - 1 ? 'active' : '';
+    const lineClass = i < currentStep - 1 ? 'done' : '';
+    const circle = i < currentStep - 1 ? '✓' : (i + 1);
+    const line = i < STEPS.length - 1 ? `<div class="step-line ${lineClass}"></div>` : '';
+    return `<div class="step-node ${cls}">
+      <div class="step-circle">${circle}</div>
+      <div class="step-label">${label}</div>
+    </div>${line}`;
+  }).join('');
+}
+
+const ALL_VIEWS = ['list-view','editor-view','mgmt-view','mgmt-multi-view'];
+function showView(id) {
+  if (document.startViewTransition) {
+    document.startViewTransition(() => {
+      ALL_VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+    });
+  } else {
+    ALL_VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+  }
+}
+
+/* ── Multi-game fest management (backend-driven) ─────────── */
+async function showMgmtMulti(id) {
+  let t, stages, overall;
+  try {
+    [t, stages, overall] = await Promise.all([
+      API.get(`/tournaments/${id}`),
+      API.get(`/tournaments/${id}/stages`),
+      API.get(`/tournaments/${id}/overall-leaderboard`),
+    ]);
+  } catch (e) {
+    Toast.error(e.message || 'Could not load this fest from the backend.');
+    return;
+  }
+
+  document.getElementById('mgmt-multi-header').innerHTML = `
+    <div class="page-header">
+      <h1>Management: ${t.tournament_name}</h1>
+      <p class="text-muted">${badgeHTML(t.status)} · Multi-Game Fest · ${t.visibility === 'private' ? `🔒 Private — invite code <b>${t.invite_code}</b>` : '🌐 Public'}</p>
+    </div>`;
+
+  const session = Auth.getSession();
+  const uid = parseInt(session.userId, 10);
+
+  document.getElementById('mgmt-multi-stages').innerHTML = stages.map(s => {
+    const gname = (DB.games.find(g => String(g.game_id || g.id) === String(s.game_id)) || {}).game_name || `Game #${s.game_id}`;
+    let action = '';
+    if (s.status === 'pending') {
+      action = `<button class="btn btn-yellow btn-sm" onclick="startStage(${t.tournament_id},${s.tournament_game_id})">🚀 Start Stage</button>`;
+    } else if (s.status === 'active' && s.format === 'score') {
+      action = `<button class="btn btn-purple btn-sm" onclick="completeStage(${t.tournament_id},${s.tournament_game_id})">✅ Close Stage</button>`;
+    } else if (s.status === 'active') {
+      action = `<span class="badge badge-warning">Bracket in progress</span>`;
+    } else {
+      action = `<span class="badge badge-success">Completed</span>`;
+    }
+    return `
+    <div class="tourn-card" style="padding:1rem">
+      <div class="stage-order-badge">${s.stage_order}</div>
+      <div class="tourn-info">
+        <div class="tourn-title">${gname}</div>
+        <div class="tourn-meta">
+          <span>${s.format === 'score' ? `📊 Score (${s.metric_label || s.metric})` : '🎯 Bracket'}</span>
+          <span>⚖️ Weight ${s.points_weight}</span>
+          ${badgeHTML(s.status)}
+        </div>
+      </div>
+      <div>${action}</div>
+    </div>`;
+  }).join('') || `<div class="text-center text-muted p-3">No stages found.</div>`;
+
+  document.getElementById('mgmt-multi-leaderboard').innerHTML = `
+    <div class="text-muted text-sm" style="margin-bottom:0.5rem">${overall.stages_completed}/${overall.stages_total} stages completed ${overall.complete ? '— final standings' : '— provisional'}</div>
+    ${(overall.standings || []).map(r => `
+      <div class="tourn-card" style="padding:0.7rem 1rem">
+        <div style="font-weight:800;width:2rem">#${r.rank}</div>
+        <div class="tourn-info"><div class="tourn-title" style="margin-bottom:0">${r.player_name}</div></div>
+        <div style="font-weight:700;color:var(--accent-yellow)">${r.points} pts</div>
+      </div>`).join('') || `<div class="text-center text-muted p-3">No entrants yet.</div>`}
+  `;
+
+  window.__mgmtMultiOrganizer = t.organizer;
+  showView('mgmt-multi-view');
+}
+
+async function startStage(tournamentId, stageId) {
+  const session = Auth.getSession();
+  try {
+    await API.post(`/tournaments/${tournamentId}/stages/${stageId}/start`, { organizer_id: parseInt(session.userId, 10) });
+    Toast.success('Stage started!');
+    showMgmtMulti(tournamentId);
+  } catch (e) { Toast.error(e.message || 'Could not start the stage.'); }
+}
+
+async function completeStage(tournamentId, stageId) {
+  const session = Auth.getSession();
+  confirmAction('Close Stage', 'Close this stage and lock in its standings?', async () => {
+    try {
+      await API.post(`/tournaments/${tournamentId}/stages/${stageId}/complete`, { organizer_id: parseInt(session.userId, 10) });
+      Toast.success('Stage closed!');
+      showMgmtMulti(tournamentId);
+    } catch (e) { Toast.error(e.message || 'Could not close the stage.'); }
+  }, 'primary');
+}
+
+function showMgmt(id) {
+  const t = DB.tournaments.find(x => String(x.tournament_id) === String(id));
+  if (!t) return;
+  
+  const g = DB.games.find(gx => String(gx.game_id || gx.id) === String(t.game_id));
+  document.getElementById('mgmt-header').innerHTML = `
+    <div class="page-header">
+      <h1>Management: ${t.tournament_name || t.name}</h1>
+      <p class="text-muted">Status: ${badgeHTML(t.status)} · Game: ${g?.game_name || 'Chess'}</p>
+    </div>`;
+
+  const ctrl = document.getElementById('mgmt-controls');
+  if (t.status === 'upcoming') {
+    ctrl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3>Ready to start?</h3>
+          <p class="text-secondary text-sm">Once started, registration closes and the bracket is generated.</p>
+        </div>
+        <button class="btn btn-yellow btn-lg" onclick="startTournament('${t.tournament_id}')">🚀 Start Tournament Now</button>
+      </div>`;
+  } else {
+    ctrl.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3>Tournament Level: Round ${t.currentRound || 1}</h3>
+          <p class="text-secondary text-sm">Manage live matches and resolve disputes below.</p>
+        </div>
+        <div style="display:flex;gap:0.5rem">
+           ${t.status === 'completed' ? `<span class="badge badge-success">Completed</span>` : `<button class="btn btn-purple btn-sm" onclick="advanceRnd('${t.tournament_id}')">Advance Next Round</button>`}
+           <button class="btn btn-ghost btn-sm" onclick="Toast.info('Downloading match logs...')">📝 Export Results</button>
+        </div>
+      </div>`;
+  }
+
+  renderMgmtMatches(id);
+  showView('mgmt-view');
+}
+
+function renderMgmtMatches(tid) {
+  const matches = DB.tournament_matches.filter(m => String(m.tournamentId) === String(tid));
+  const container = document.getElementById('mgmt-matches');
+  
+  if (!matches.length) {
+    container.innerHTML = `<div class="text-center p-3 text-muted">Bracket not yet generated. Start the tournament to see matches.</div>`;
+    return;
+  }
+
+  container.innerHTML = matches.map(m => {
+    const p1 = DB.users.find(u => String(u.id) === String(m.player1))?.user_name || m.player1 || 'TBD';
+    const p2 = DB.users.find(u => String(u.id) === String(m.player2))?.user_name || m.player2 || 'TBD';
+    const isLive = m.status !== 'completed' && m.player1 && m.player2 && m.player1 !== 'BYE' && m.player2 !== 'BYE';
+    
+    return `
+    <div class="tourn-card" style="padding:1rem">
+      <div style="flex:1">
+        <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.3rem">${m.match_id} · Round ${m.round} ${m.status === 'disputed' ? '<span class="badge badge-error">DISPUTED</span>' : m.status === 'pending' ? '<span class="badge badge-warning">PENDING</span>' : ''}</div>
+        <div style="display:flex;align-items:center;gap:1.5rem">
+          <div style="font-weight:700;${m.winnerId && String(m.winnerId) === String(m.player1) ? 'color:var(--accent-green)' : ''}">${p1}</div>
+          <div style="color:var(--text-muted)">vs</div>
+          <div style="font-weight:700;${m.winnerId && String(m.winnerId) === String(m.player2) ? 'color:var(--accent-green)' : ''}">${p2}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.4rem">
+        ${m.status === 'completed' ? `<span style="color:var(--accent-green);font-size:0.8rem;font-weight:700">Winner: ${String(m.winnerId) === String(m.player1) ? p1 : p2}</span>` : ''}
+        ${isLive ? `<button class="btn btn-primary btn-sm" onclick="forceWinner('${m.match_id}', '${m.player1}', '${p1}')">🏆 Win P1</button>
+                     <button class="btn btn-primary btn-sm" onclick="forceWinner('${m.match_id}', '${m.player2}', '${p2}')">🏆 Win P2</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function startTournament(id) {
+  confirmAction('Start Tournament', 'This will generate the bracket and close registration. Continue?', () => {
+    try {
+      DB.generateBracket(id);
+      Toast.success('Tournament Started! Bracket generated.');
+      showMgmt(id);
+    } catch (e) {
+      Toast.error(e.message);
+    }
+  });
+}
+
+// "Advance Next Round" button. Every match in the current round must have a
+// winner before the bracket can move on — DB.advanceMatch() already feeds each
+// winner into its parent match, so this only has to validate and bump the round.
+function advanceRnd(tid) {
+  const t = DB.tournaments.find(x => String(x.tournament_id) === String(tid));
+  if (!t) { Toast.error('Tournament not found.'); return; }
+
+  const matches = DB.tournament_matches.filter(m => String(m.tournamentId) === String(tid));
+  if (!matches.length) { Toast.warning('No bracket yet — start the tournament first.'); return; }
+
+  const round = t.currentRound || 1;
+  const thisRound = matches.filter(m => Number(m.round) === Number(round));
+  if (!thisRound.length) { Toast.warning(`Round ${round} has no matches.`); return; }
+
+  const pending = thisRound.filter(m => m.status !== 'completed');
+  if (pending.length) {
+    Toast.warning(`${pending.length} match${pending.length > 1 ? 'es' : ''} in Round ${round} still need a winner.`);
+    return;
+  }
+
+  const nextRound = matches.filter(m => Number(m.round) === Number(round) + 1);
+  if (!nextRound.length) {
+    // No further round exists — the bracket is finished.
+    t.status = 'completed';
+    DB.save();
+    Toast.success('Final round complete — tournament finished!');
+    showMgmt(tid);
+    return;
+  }
+
+  confirmAction('Advance Round', `Close Round ${round} and open Round ${round + 1}?`, () => {
+    t.currentRound = round + 1;
+    DB.save();
+    Toast.success(`Round ${round + 1} is now live.`);
+    showMgmt(tid);
+  }, 'primary');
+}
+
+function forceWinner(mid, wid, wname) {
+  const m = DB.tournament_matches.find(x => x.match_id === mid);
+  if (!m) return;
+  confirmAction('Manual Override', `Declare ${wname || wid} the winner of this match?`, () => {
+    DB.advanceMatch(mid, wid, wid === m.player1 ? 1 : 0, wid === m.player2 ? 1 : 0);
+    Toast.success('Match result recorded!');
+    showMgmt(m.tournamentId);
+  });
+}
+
+function showEditor(id = null) {
+  document.getElementById('edit-id').value = id || '';
+  document.getElementById('editor-title').textContent = id ? 'Edit Tournament' : 'Publish Tournament';
+  document.getElementById('submit-btn').textContent = id ? '💾 Save Changes' : '🏆 Publish Tournament';
+
+  selectedType = 'single';
+  selectedVisibility = 'public';
+  stages = [];
+  selectType('single');
+  selectVisibility('public');
+
+  if (!id) {
+    selectedGameId = '';
+    ['t-name','t-desc','t-prize','t-regclose','t-start','t-end'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('t-max').value = '32';
+  } else {
+    // Editing is only supported for local (single-game, legacy) tournaments —
+    // multi-game tournaments live on the backend and are edited via stages, not this form.
+    const t = DB.tournaments.find(x => String(x.tournament_id) === String(id));
+    if (t) {
+      selectedGameId = String(t.game_id);
+      document.getElementById('t-name').value   = t.tournament_name || t.name;
+      document.getElementById('t-desc').value   = t.desc;
+      document.getElementById('t-prize').value  = t.prize;
+      document.getElementById('t-max').value    = t.maxParticipants;
+      document.getElementById('t-regclose').value = t.regClose;
+      document.getElementById('t-start').value  = t.start_date || t.startDate;
+      document.getElementById('t-end').value    = t.end_date;
+    }
+  }
+
+  currentStep = 1;
+  [1,2,3,4].forEach(i => document.getElementById('step-'+i).classList.toggle('hidden', i !== 1));
+  renderRail();
+  renderGamesSelection();
+  showView('editor-view');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showList() { renderTournaments(); showView('list-view'); }
+
+/* Backend multi-game fests organized by the current user. The legacy list
+   (DB.tournaments) has no organizer-scoped backend query, so we fetch every
+   tournament visible to the organizer (includePrivate=true) and filter client-side. */
+async function fetchMyFests(uid) {
+  try {
+    const all = await API.get('/tournaments?includePrivate=true');
+    return all.filter(t => t.type === 'multi' && String(t.organizer) === String(uid));
+  } catch (e) {
+    console.warn('[Tournament Hub] Could not reach backend for multi-game fests:', e.message);
+    return [];
+  }
+}
+
+/* ── Next / Prev ─────────────────────── */
+function nextStep(n) {
+  if (n === 2) {
+    if (selectedType === 'single' && !selectedGameId) {
+      document.getElementById('game-error').textContent = 'Please select a game to continue';
+      document.getElementById('game-error').classList.add('show');
+      return;
+    }
+    if (selectedType === 'multi') {
+      if (stages.length < 2) {
+        document.getElementById('stage-error').textContent = 'A multi-game fest needs at least 2 stages';
+        return;
+      }
+      document.getElementById('stage-error').textContent = '';
+    }
+  }
+  if (n === 3) {
+    const valid = Validate.form([
+      { el: document.getElementById('t-name'),  rules: [{type:'required'}] },
+      { el: document.getElementById('t-desc'),  rules: [{type:'required'}] },
+      { el: document.getElementById('t-prize'), rules: [{type:'required'}] }
+    ]);
+    if (!valid) return;
+  }
+  currentStep = n + 1;
+  [1,2,3,4].forEach(i => document.getElementById('step-'+i).classList.toggle('hidden', i !== currentStep));
+  renderRail();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function prevStep(n) {
+  currentStep = n - 1;
+  [1,2,3,4].forEach(i => document.getElementById('step-'+i).classList.toggle('hidden', i !== currentStep));
+  renderRail();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Submit ──────────────────────────── */
+async function submitTournament() {
+  if (selectedType === 'single' && !selectedGameId) { Toast.error('You must select a game in Step 2'); return; }
+  if (selectedType === 'multi' && stages.length < 2) { Toast.error('Add at least 2 stages in Step 2'); return; }
+
+  const vName = document.getElementById('t-name').value.trim();
+  const vDesc = document.getElementById('t-desc').value.trim();
+  const vPrize = document.getElementById('t-prize').value.trim();
+  if (!vName || !vDesc || !vPrize) { Toast.error('All details in Step 3 are required'); return; }
+
+  const vReg = document.getElementById('t-regclose').value;
+  const vStart = document.getElementById('t-start').value;
+  const vEnd = document.getElementById('t-end').value;
+  if (!vReg || !vStart || !vEnd) { Toast.error('All dates are required'); return; }
+  if (new Date(vStart) > new Date(vEnd)) {
+    Toast.error('Start date cannot be after the end date.'); return;
+  }
+  if (new Date(vReg) > new Date(vStart)) {
+    Toast.error('Registration deadline must be before or on the start date.'); return;
+  }
+
+  const editId = document.getElementById('edit-id').value;
+  const session = Auth.getSession();
+  const uid = parseInt(session.userId, 10);
+
+  // Multi-game fests are a backend concept (TournamentGame stages, points leaderboard) —
+  // they are created on the real tournament API, not pushed into the local DB.
+  if (selectedType === 'multi' && !editId) {
+    const payload = {
+      organizer: uid,
+      organizer_role: 'publisher',
+      type: 'multi',
+      visibility: selectedVisibility,
+      tournament_name: vName,
+      desc: vDesc,
+      prize: vPrize,
+      maxParticipants: parseInt(document.getElementById('t-max').value, 10) || 32,
+      start_date: vStart, end_date: vEnd, regClose: vReg,
+      games: stages.map((s, i) => ({
+        game_id: parseInt(s.game_id, 10),
+        stage_order: i + 1,
+        format: s.format,
+        metric: s.format === 'score' ? (s.metric || 'score') : undefined,
+        direction: s.format === 'score' ? (s.direction || 'high') : undefined,
+        metric_label: s.format === 'score' ? (s.metric_label || 'Score') : undefined,
+        points_weight: s.points_weight || 1,
+      })),
+    };
+    try {
+      const created = await API.post('/tournaments', payload);
+      Toast.success('Multi-game fest published! 🏅');
+      if (selectedVisibility === 'private' && created?.invite_code) {
+        confirmAction('Invite Code', `Share this code with the players you want to invite:\n\n${created.invite_code}`, () => {}, 'primary');
+      }
+    } catch (e) {
+      Toast.error(e.message || 'Could not publish tournament — is the backend running?');
+      return;
+    }
+    showList();
+    return;
+  }
+
+  // Single-game: unchanged legacy local-DB flow.
+  if (editId) {
+    const t = DB.tournaments.find(x => String(x.tournament_id) === String(editId));
+    if (t) {
+      t.tournament_name = document.getElementById('t-name').value;
+      t.desc = document.getElementById('t-desc').value;
+      t.prize = document.getElementById('t-prize').value;
+      t.maxParticipants = parseInt(document.getElementById('t-max').value, 10) || 32;
+      t.regClose = vReg; t.start_date = vStart; t.end_date = vEnd;
+      t.game_id = parseInt(selectedGameId, 10);
+      Toast.success('Tournament updated! ✅');
+    }
+  } else {
+    const newId = DB.tournaments.length ? Math.max(...DB.tournaments.map(t => t.tournament_id)) + 1 : 1;
+    DB.tournaments.push({
+      tournament_id: newId,
+      game_id: parseInt(selectedGameId, 10),
+      tournament_name: document.getElementById('t-name').value,
+      desc: document.getElementById('t-desc').value,
+      prize: document.getElementById('t-prize').value,
+      maxParticipants: parseInt(document.getElementById('t-max').value, 10) || 32,
+      participants: 0, status: 'upcoming',
+      start_date: vStart, end_date: vEnd, regClose: vReg,
+      organizer: uid
+    });
+    Toast.success('Tournament published! 🏆');
+  }
+  DB.save();
+  showList();
+}
+
+/* ── Game Selection ──────────────────── */
+function renderGamesSelection() {
+  const session = Auth.getSession();
+  const uid = parseInt(session.userId, 10);
+  const myGames = DB.games.filter(g => parseInt(g.game_publisher, 10) === uid && g.game_approval_status === 'approved');
+  const gl = document.getElementById('game-list');
+
+  if (!myGames.length) {
+    gl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text-secondary)">
+      <div style="font-size:2rem;margin-bottom:0.5rem">🎮</div>
+      <p>No approved games yet.</p>
+    </div>`;
+    return;
+  }
+
+  gl.innerHTML = myGames.map((g, i) => `
+    <div class="game-opt ${String(g.id) === selectedGameId ? 'selected' : ''}" id="gopt-${g.id}" onclick="selectGame('${g.id}')">
+      ${getGameIconHTML(g, i, '50px', 'height:55px;border-radius:var(--radius-sm);margin-bottom:0.3rem')}
+      <div class="game-opt-name">${g.game_name}</div>
+    </div>`).join('');
+}
+
+function selectGame(id) {
+  selectedGameId = id;
+  document.querySelectorAll('.game-opt').forEach(el => el.classList.remove('selected'));
+  document.getElementById('gopt-'+id)?.classList.add('selected');
+  document.getElementById('game-error').textContent = '';
+  document.getElementById('game-error').classList.remove('show');
+}
+
+/* ── Tournament List ─────────────────── */
+async function renderTournaments() {
+  const session = Auth.getSession();
+  const uid = parseInt(session.userId, 10);
+  // Multi-game fests sync down into DB.tournaments too (db.js pulls the whole
+  // backend table), but they're rendered from the dedicated fest fetch below
+  // — with their real stage/invite-code data — so exclude them here to avoid
+  // showing every fest twice.
+  const myTourns = DB.tournaments.filter(t => String(t.organizer) === String(uid) && t.type !== 'multi');
+  const list = document.getElementById('tournaments-list');
+
+  // Show what we have locally right away, then fold in backend fests once fetched.
+  const localCardsHTML = myTourns.map((t) => {
+    const g = DB.games.find(gx => String(gx.game_id || gx.id) === String(t.game_id));
+    return `
+    <div class="tourn-card">
+      <div style="font-size:2.2rem;opacity:0.8">🏆</div>
+      <div class="tourn-info">
+        <div class="tourn-title">${t.tournament_name || t.name}</div>
+        <div class="tourn-meta">
+          <span>🎮 ${g ? g.game_name : 'Unknown'}</span>
+          <span>👥 ${t.participants}/${t.maxParticipants}</span>
+          <span style="color:var(--accent-yellow)">💰 ${t.prize}</span>
+          <span>📅 ${formatDate(t.start_date || t.startDate)}</span>
+          ${badgeHTML(t.status)}
+        </div>
+      </div>
+      <div class="tourn-actions">
+        <button class="btn btn-purple btn-sm" onclick="showMgmt('${t.tournament_id}')">⚙️ Manage</button>
+        <button class="btn btn-ghost btn-sm" onclick="showEditor('${t.tournament_id}')">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="deleteTourn('${t.tournament_id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (!myTourns.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="icon">🏆</div>
+      <h3>No tournaments yet</h3>
+      <p>Organize your first competitive series now</p>
+      <button class="btn btn-yellow mt-2" onclick="showEditor()">Publish Tournament</button>
+    </div>`;
+  } else {
+    list.innerHTML = localCardsHTML;
+  }
+
+  const fests = await fetchMyFests(uid);
+  if (!fests.length) return;
+
+  const festCardsHTML = fests.map(t => `
+    <div class="tourn-card">
+      <div style="font-size:2.2rem;opacity:0.8">🏅</div>
+      <div class="tourn-info">
+        <div class="tourn-title">${t.tournament_name}</div>
+        <div class="tourn-meta">
+          <span>🏅 ${(t.stage_games || []).map(s => s.game_name).join(' → ')}</span>
+          <span>👥 ${t.participants}/${t.maxParticipants}</span>
+          <span style="color:var(--accent-yellow)">💰 ${t.prize}</span>
+          <span>📅 ${formatDate(t.start_date)}</span>
+          ${t.visibility === 'private' ? '<span>🔒 Private</span>' : ''}
+          ${badgeHTML(t.status)}
+        </div>
+      </div>
+      <div class="tourn-actions">
+        <button class="btn btn-purple btn-sm" onclick="showMgmtMulti(${t.tournament_id})">⚙️ Manage</button>
+      </div>
+    </div>`).join('');
+
+  list.innerHTML = (myTourns.length ? localCardsHTML : '') + festCardsHTML;
+}
+
+function deleteTourn(id) {
+  const tournament = DB.tournaments.find(x => String(x.tournament_id) === String(id));
+  if (!tournament) return;
+  confirmAction('Delete Tournament', 'Permanently delete this tournament and all its matches? This cannot be undone.', () => {
+    // Tombstone this ID so hydration doesn't recreate it if it was a default seed tournament
+    if (!DB.deleted_tournaments) DB.deleted_tournaments = [];
+    if (!DB.deleted_tournaments.includes(String(id))) DB.deleted_tournaments.push(String(id));
+
+    // Delete the tournament (in-place to preserve compatibility wrappers)
+    const tIdx = DB.tournaments.findIndex(x => String(x.tournament_id) === String(id));
+    if (tIdx !== -1) DB.tournaments.splice(tIdx, 1);
+    
+    // Cascade delete: remove all matches for this tournament
+    if (DB.tournament_matches) {
+      for (let i = DB.tournament_matches.length - 1; i >= 0; i--) {
+        if (String(DB.tournament_matches[i].tournamentId) === String(id)) DB.tournament_matches.splice(i, 1);
+      }
+    }
+    // Cascade delete: remove all player registrations
+    if (DB.player_tournament) {
+      for (let i = DB.player_tournament.length - 1; i >= 0; i--) {
+        if (String(DB.player_tournament[i].tournament_id) === String(id)) DB.player_tournament.splice(i, 1);
+      }
+    }
+    DB.save();
+    renderTournaments();
+    Toast.success('Tournament successfully deleted');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['publisher']);
+  if (!session) return;
+  buildNavbar('publisher','publish-tournament');
+  showList();
+});
+</script>
+</body>
+</html>
+
+
+
+

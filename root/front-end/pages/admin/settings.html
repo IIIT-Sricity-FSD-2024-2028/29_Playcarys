@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — System Settings</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="page-header">
+    <h1>System Settings</h1>
+    <p class="text-muted">Configure platform-wide settings</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+    <!-- Platform Settings -->
+    <div class="card">
+      <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem">🌐 Platform Settings <span style="font-size:0.75rem;color:var(--text-secondary);font-family:Inter">General platform configuration</span></h3>
+      <div class="form-group mb-2">
+        <label class="form-label">Platform Name</label>
+        <input class="form-input" id="platform-name" value="PlayCarys" style="max-width:340px"/>
+        <span class="form-hint" id="platform-name-hint">The name displayed across the platform</span>
+        <span class="form-error"></span>
+      </div>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Maintenance Mode</h4>
+          <p>Temporarily disable platform access</p>
+        </div>
+        <div class="toggle" id="toggle-maintenance"></div>
+      </div>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Registration</h4>
+          <p>Allow new user registrations</p>
+        </div>
+        <div class="toggle" id="toggle-registration"></div>
+      </div>
+    </div>
+
+    <!-- Security Settings -->
+    <div class="card">
+      <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem">🛡️ Security Settings <span style="font-size:0.75rem;color:var(--text-secondary);font-family:Inter">Security and privacy controls</span></h3>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Two-Factor Authentication</h4>
+          <p>Require 2FA for all admin accounts</p>
+        </div>
+        <div class="toggle" id="toggle-2fa"></div>
+      </div>
+      <div class="form-group" style="padding:0.75rem 0;border-bottom:1px solid var(--border-primary)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h4 style="font-size:0.9rem;font-weight:500">Session Timeout</h4>
+            <p style="font-size:0.78rem;color:var(--text-secondary)">Auto-logout after inactivity (minutes)</p>
+          </div>
+          <input class="form-input" id="session-timeout" type="number" min="5" max="240" style="width:90px;text-align:center"/>
+        </div>
+        <span class="form-error"></span>
+      </div>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Password Requirements</h4>
+          <p>Enforce strong passwords</p>
+        </div>
+        <div class="toggle" id="toggle-passwords"></div>
+      </div>
+    </div>
+
+    <!-- Notification Settings -->
+    <div class="card">
+      <h3 style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem">🔔 Notification Settings <span style="font-size:0.75rem;color:var(--text-secondary);font-family:Inter">Configure system notifications</span></h3>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Email Notifications</h4>
+          <p>Send email alerts to admins</p>
+        </div>
+        <div class="toggle" id="toggle-email"></div>
+      </div>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Report Notifications</h4>
+          <p>Alert moderators of new reports</p>
+        </div>
+        <div class="toggle" id="toggle-reports"></div>
+      </div>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Approval Notifications</h4>
+          <p>Notify publishers of game approvals</p>
+        </div>
+        <div class="toggle" id="toggle-approvals"></div>
+      </div>
+    </div>
+
+    <!-- Tournament Settings -->
+    <div class="card">
+      <h3 style="margin-bottom:1.5rem">🏆 Tournament Settings</h3>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Auto-start Tournaments</h4>
+          <p>Automatically start when participant cap is reached</p>
+        </div>
+        <div class="toggle on" id="toggle-autostart"></div>
+      </div>
+      <div class="toggle-wrap">
+        <div class="toggle-info">
+          <h4>Prize Pool Enabled</h4>
+          <p>Allow tournaments to have prize pools</p>
+        </div>
+        <div class="toggle on" id="toggle-prizes"></div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div style="display:flex;gap:1rem;justify-content:flex-end">
+      <button class="btn btn-red" onclick="resetDefaults()">↺ Reset to Defaults</button>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 Save Changes</button>
+    </div>
+
+  </div>
+</div>
+</div>
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// navigate() provided globally by utils.js
+
+function initToggles() {
+  const s = DB.settings;
+  document.getElementById('platform-name').value = s.platformName;
+
+  // The platform's own name is not an admin-level setting.
+  //
+  // It appears on every page, in every email the platform sends, and it is what
+  // a player believes they signed up to. One careless edit rebrands the product
+  // for everyone. Admins run the platform day to day; they do not rename it.
+  //
+  // Disabled rather than hidden, so an admin can see the setting and why it is
+  // not theirs instead of wondering where it went.
+  if ((Auth.getSession() || {}).role !== 'superuser') {
+    const nameInput = document.getElementById('platform-name');
+    nameInput.disabled = true;
+    nameInput.style.opacity = '.55';
+    nameInput.style.cursor = 'not-allowed';
+    nameInput.title = 'Only a superuser can rename the platform';
+    document.getElementById('platform-name-hint').textContent =
+      'Superuser only — this name appears platform-wide, so renaming it is not an admin action.';
+  }
+  document.getElementById('session-timeout').value = s.sessionTimeout;
+  makeToggle(document.getElementById('toggle-maintenance'), s.maintenanceMode, v => { DB.settings.maintenanceMode = v; DB.save(); });
+  makeToggle(document.getElementById('toggle-registration'), s.registrationOpen, v => { DB.settings.registrationOpen = v; DB.save(); });
+  makeToggle(document.getElementById('toggle-2fa'), s.twoFactorAuth, v => { DB.settings.twoFactorAuth = v; DB.save(); });
+  makeToggle(document.getElementById('toggle-passwords'), s.strongPasswords, v => { DB.settings.strongPasswords = v; DB.save(); });
+  makeToggle(document.getElementById('toggle-email'), s.emailNotifications, v => { DB.settings.emailNotifications = v; DB.save(); });
+  makeToggle(document.getElementById('toggle-reports'), s.reportNotifications, v => { DB.settings.reportNotifications = v; DB.save(); });
+  makeToggle(document.getElementById('toggle-approvals'), s.approvalNotifications, v => { DB.settings.approvalNotifications = v; DB.save(); });
+}
+
+function saveSettings() {
+  const nameEl = document.getElementById('platform-name');
+  const timeEl = document.getElementById('session-timeout');
+  const valid = Validate.form([
+    { el: nameEl, rules:[{type:'required',msg:'Platform name is required'},{type:'minLen',n:2,msg:'Min 2 characters'}] },
+    { el: timeEl, rules:[{type:'required'},{type:'numeric'},{type:'positive'},{type:'custom',fn:v=>v>=5&&v<=240,msg:'Must be between 5 and 240 minutes'}] }
+  ]);
+  if (!valid) return;
+  // Belt and braces: the input is disabled above, but the save path must not
+  // depend on that. A disabled field is a UI convenience, not a permission.
+  if ((Auth.getSession() || {}).role === 'superuser') {
+    DB.settings.platformName = nameEl.value.trim();
+  }
+  DB.settings.sessionTimeout = parseInt(timeEl.value);
+  DB.save();
+  Toast.success('Settings saved successfully!');
+}
+
+function resetDefaults() {
+  confirmAction('Reset Settings', 'Reset all settings to default values?', () => {
+    Object.assign(DB.settings, (Auth.getSession() || {}).role === 'superuser' ? { platformName:'PlayCarys' } : {}, { maintenanceMode:false, registrationOpen:true, twoFactorAuth:true, sessionTimeout:30, strongPasswords:true, emailNotifications:true, reportNotifications:true, approvalNotifications:true });
+    DB.save();
+    initToggles();
+    Toast.info('Settings reset to defaults');
+  }, 'danger');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['admin','superuser']);
+  if (!session) return;
+  buildNavbar('admin','settings');
+  initToggles();
+});
+</script>
+</body>
+</html>
+

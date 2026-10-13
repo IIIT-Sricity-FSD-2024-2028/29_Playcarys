@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Play</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+html,body{height:100%;margin:0;background:var(--bg-primary,#07090f);color:var(--text-primary,#e8ecf5);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;overflow:hidden}
+.wrap{display:flex;flex-direction:column;height:100vh}
+
+/* ─── top bar ─── */
+.bar{display:flex;align-items:center;gap:1rem;padding:.6rem 1rem;background:var(--bg-secondary,#0d111c);border-bottom:1px solid var(--border-primary,#1e2740);flex-shrink:0;z-index:5}
+.bar-title{font-family:'Orbitron',monospace;font-weight:800;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-sub{font-size:.72rem;color:var(--text-secondary,#8b96ad)}
+.chip{display:inline-flex;align-items:center;gap:.3rem;font-size:.68rem;font-weight:700;border-radius:99px;padding:.15rem .55rem;white-space:nowrap}
+.chip-hosted{background:rgba(0,212,255,.12);color:var(--accent-cyan,#00d4ff);border:1px solid rgba(0,212,255,.3)}
+.chip-self{background:rgba(245,158,11,.12);color:var(--accent-yellow,#f59e0b);border:1px solid rgba(245,158,11,.3)}
+.spacer{flex:1}
+.b{cursor:pointer;border-radius:8px;padding:.4rem .8rem;font-size:.78rem;font-weight:600;border:1px solid var(--border-primary,#1e2740);background:transparent;color:var(--text-secondary,#8b96ad);transition:.15s}
+.b:hover{color:#fff;background:rgba(255,255,255,.06)}
+.b-exit:hover{background:rgba(239,68,68,.14);color:#f87171;border-color:rgba(239,68,68,.4)}
+
+/* ─── stage ─── */
+.stage{flex:1;position:relative;background:#000;min-height:0}
+iframe{width:100%;height:100%;border:0;display:block;background:#000}
+
+/* ─── overlays ─── */
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;text-align:center;padding:2rem;background:var(--bg-primary,#07090f)}
+.ov h2{font-family:'Orbitron',monospace;font-size:1.15rem;margin:0}
+.ov p{max-width:460px;color:var(--text-secondary,#8b96ad);font-size:.85rem;line-height:1.6;margin:0}
+.spin{width:38px;height:38px;border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent-cyan,#00d4ff);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div style="min-width:0">
+      <div class="bar-title" id="g-title">Loading…</div>
+      <div class="bar-sub" id="g-sub">Preparing your session</div>
+    </div>
+    <span class="chip hidden" id="g-chip"></span>
+    <div class="spacer"></div>
+    <button class="b" id="btn-full" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    <button class="b b-exit" onclick="exitGame()">✕ Exit</button>
+  </div>
+
+  <div class="stage">
+    <div class="ov" id="ov-load"><div class="spin"></div><h2>Loading game…</h2><p id="load-sub"></p></div>
+    <div class="ov hidden" id="ov-err"><h2 id="err-title">Can't start this game</h2><p id="err-msg"></p><button class="b" onclick="exitGame()">← Back to Games</button></div>
+    <iframe id="frame" class="hidden"
+            allow="fullscreen; gamepad; autoplay; pointer-lock; xr-spatial-tracking"
+            referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </div>
+</div>
+
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script src="../../js/game-launch.js"></script>
+<script>
+/* ============================================================
+ *  Wrapper host for publisher-submitted games.
+ *
+ *  This is the counterpart to js/playcarys-sdk.js, which games
+ *  include on their side. The SDK was written but never had a
+ *  host to talk to — every launch path was a full-page redirect,
+ *  so postMessage had no parent listening. This page is that host.
+ *
+ *  Builtin games (chess, hill_climbing) deliberately do NOT come
+ *  through here: they include db.js directly and navigate at the
+ *  top level, and that path already works. GameLaunch.launch()
+ *  keeps sending them straight to their own index.html.
+ * ============================================================ */
+
+/* Fallback payout ceiling for a game that never declared one. Mirrors
+   DEFAULT_CARYS_CAP in back-end/src/app.controller.ts — the server clamps to
+   the same number, so the two must move together. */
+var DEFAULT_CARYS_CAP = 500;
+
+var params    = new URLSearchParams(location.search);
+var gameId    = params.get('gameId');
+var sessionId = params.get('sid') || null;
+var resolved  = null;
+var acked     = false;
+
+function qs(id){ return document.getElementById(id); }
+
+function fail(title, msg){
+  qs('ov-load').classList.add('hidden');
+  qs('ov-err').classList.remove('hidden');
+  qs('err-title').textContent = title;
+  qs('err-msg').textContent = msg;
+  qs('g-title').textContent = 'Unavailable';
+  qs('g-sub').textContent = '';
+}
+
+/**
+ * Mark this play session finished.
+ *
+ * Nothing used to do this. play.html created a session row, recorded the match
+ * result into it, and then simply navigated away — so the row sat at
+ * 'in-progress' forever. Every page that lists live sessions tests
+ * `status !== 'completed'`, so those corpses kept appearing as joinable games:
+ * 34 of them had accumulated by 2026-08-14.
+ *
+ * Safe to call twice — the second call finds it already completed and does
+ * nothing, so both the result path and the exit path can use it.
+ */
+function closeSession(reason){
+  try {
+    if (typeof DB === 'undefined' || !DB.sessions) return;
+    var id = (typeof sessionId !== 'undefined' && sessionId) ? sessionId : null;
+    if (!id) return;
+    var s = DB.sessions.find(function (x) {
+      return String(x.session_id) === String(id) || String(x.id) === String(id);
+    });
+    if (!s) return;
+    if (DB.isSessionOver && DB.isSessionOver(s)) return;
+    s.status = 'completed';
+    s.ended_at = new Date().toISOString();
+    DB.save();
+    console.log('[PlayCarys] session ' + id + ' closed (' + reason + ')');
+  } catch (e) {
+    // Closing a session must never block the player from leaving the page.
+    console.warn('[PlayCarys] could not close session', e);
+  }
+}
+
+function exitGame(){ closeSession('exit'); location.href = 'games.html'; }
+
+// Closing the tab is just as much an exit as pressing the button.
+window.addEventListener('pagehide', function(){ closeSession('pagehide'); });
+
+function toggleFullscreen(){
+  var el = qs('frame');
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (el.requestFullscreen) el.requestFullscreen();
+}
+
+function boot(){
+  if (typeof requireAuth === 'function') requireAuth(['player','superuser']);
+
+  if (!gameId) return fail('No game selected', 'This page needs a ?gameId= parameter.');
+  if (!window.GameLaunch) return fail('Launcher unavailable', 'game-launch.js failed to load.');
+
+  resolved = GameLaunch.resolve(gameId, {
+    sid:   sessionId,
+    mode:  params.get('mode') || '',
+    color: params.get('color') || '',
+    tournamentId: params.get('tournamentId') || ''
+  });
+
+  if (!resolved) {
+    return fail('This game has no playable build yet',
+                GameLaunch.unplayableReason(gameId));
+  }
+  if (!resolved.embeddable) {
+    // A builtin slipped through — honour its native launch path.
+    location.replace(resolved.url);
+    return;
+  }
+
+  var game = resolved.game || {};
+  var name = game.game_name || game.title || 'Game';
+  qs('g-title').textContent = name;
+  qs('g-sub').textContent = sessionId ? ('Session ' + sessionId) : 'Single player';
+  qs('load-sub').textContent = resolved.kind === 'selfhosted'
+    ? 'Connecting to ' + resolved.origin
+    : 'Loading assets…';
+
+  var chip = qs('g-chip');
+  chip.classList.remove('hidden');
+  if (resolved.kind === 'hosted'){ chip.className = 'chip chip-hosted'; chip.textContent = '🏠 Hosted'; }
+  else { chip.className = 'chip chip-self'; chip.textContent = '🔧 Self-Hosted'; }
+
+  var frame = qs('frame');
+
+  /* ── Every game runs on the games origin, never on ours ──────────────
+   *
+   * This used to load hosted and builtin bundles from OUR origin with
+   * sandbox="allow-same-origin", which is not a sandbox at all: the game ran
+   * as us and could read localStorage — where playcarys_session and
+   * playcarys_api_token live. Any publisher could have harvested a session
+   * token from every player who opened their game.
+   *
+   * dev-server.js now serves the same files on a second port. The browser
+   * treats it as a different origin, so `allow-same-origin` now means "keep
+   * your OWN origin" — the game gets a real, working storage area (2048 and
+   * HexGL still save best times) that simply is not ours.
+   *
+   * Self-hosted builds already live on somebody else's origin, so they were
+   * fine; they keep the identical attribute set.
+   */
+  frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock allow-downloads');
+
+  var playUrl = resolved.url;
+  try {
+    var u = new URL(resolved.url, location.href);
+    // Keyed on the HOST, not on resolved.kind.
+    //
+    // A "self-hosted" listing is only safe because it lives somewhere else —
+    // but nothing stops a publisher pointing game_url back at US. Game 26 in
+    // the live data does exactly that (http://localhost:8080/games/...), and a
+    // kind-based check waved it straight through onto our origin with
+    // allow-same-origin. Whether the URL is ours is the only question that
+    // matters here.
+    if (u.host === location.host) {
+      u.port = (window.PC_GAMES_PORT || 8081);
+      playUrl = u.href;
+      // The SDK bridge below rejects any message whose ev.origin does not match
+      // resolved.origin, and replies to that same origin. Moving the frame
+      // without moving this would silently drop every result the game submits.
+      resolved.origin = u.origin;
+    }
+  } catch (e) { /* unparseable — fall back to serving it from here */ }
+
+  var loaded = false;
+  var watchdog = null;
+
+  frame.onload = function(){
+    loaded = true;
+    if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+    qs('ov-load').classList.add('hidden');
+    frame.classList.remove('hidden');
+  };
+  frame.onerror = function(){
+    fail('Game failed to load', 'The build at ' + playUrl + ' could not be opened.');
+  };
+  frame.src = playUrl;
+
+  // A build that never loads (bad URL, blocked by X-Frame-Options) would
+  // otherwise leave the player staring at a spinner forever.
+  //
+  // Tracks an explicit `loaded` flag rather than the frame's hidden class:
+  // a game that pulls a slow third-party font (Hextris fetches Google Fonts
+  // and Font Awesome) delays the load event well past this timeout, and the
+  // class check then declared a perfectly healthy, already-visible game
+  // broken — covering it with an error panel the player could not dismiss.
+  watchdog = setTimeout(function(){
+    if (loaded) return;
+    fail('Game did not load',
+         resolved.kind === 'selfhosted'
+           ? 'The publisher\'s server did not respond, or it refuses to be embedded (X-Frame-Options).'
+           : 'The uploaded build did not start. Its index.html may be broken.');
+  }, 30000);
+}
+
+/* ── SDK bridge ─────────────────────────────────────────────
+   Protocol mirrors js/playcarys-sdk.js:
+     game → host : PLAYCARYS_INIT_REQ, PLAYCARYS_SUBMIT_RESULT, PLAYCARYS_REQ_STATE,
+                   PLAYCARYS_UNLOCK_ACHIEVEMENT, PLAYCARYS_SAVE, PLAYCARYS_LOAD
+     host → game : PLAYCARYS_INIT_ACK, PLAYCARYS_STATE, PLAYCARYS_SAVED, PLAYCARYS_LOADED
+
+     Replies carry back the requestId they answer, so the SDK can match an
+     answer to the question that asked it. Without that the SDK could only ever
+     be told things, never ask — which is why getSessionState() was dead. */
+window.addEventListener('message', function(ev){
+  if (!resolved) return;
+
+  // Only the frame we launched may drive platform state. Without this any
+  // open tab could postMessage a win into the leaderboard.
+  var frame = qs('frame');
+  if (ev.source !== frame.contentWindow) return;
+  if (resolved.origin && ev.origin !== resolved.origin && ev.origin !== 'null') return;
+
+  var data = ev.data;
+  if (!data || typeof data !== 'object') return;
+
+  var reply = function(payload){ frame.contentWindow.postMessage(payload, resolved.origin || '*'); };
+  var session = (typeof Auth !== 'undefined' && Auth.getSession) ? Auth.getSession() : null;
+
+  switch (data.type) {
+    case 'PLAYCARYS_INIT_REQ':
+      acked = true;
+      reply({
+        type: 'PLAYCARYS_INIT_ACK',
+        sessionId: sessionId,
+        gameId: gameId,
+        player: session ? { id: String(session.userId), name: session.username } : null
+      });
+      break;
+
+    case 'PLAYCARYS_REQ_STATE':
+      reply({
+        type: 'PLAYCARYS_STATE',
+        requestId: data.requestId,
+        sessionId: sessionId,
+        gameId: gameId,
+        player: session ? { id: String(session.userId), name: session.username } : null
+      });
+      break;
+
+    case 'PLAYCARYS_SUBMIT_RESULT':
+      submitResult(data.result || {});
+      break;
+
+    case 'PLAYCARYS_UNLOCK_ACHIEVEMENT':
+      unlockAchievement(data.code);
+      break;
+
+    // ── Per-game save storage ──────────────────────────────────
+    //
+    // Note which gameId is used: OURS, from the platform, never data.gameId
+    // from the frame. A game that could name the game id could read and
+    // overwrite another game's save for the same player.
+    case 'PLAYCARYS_SAVE':
+      saveGameState(data.requestId, data.data);
+      break;
+
+    case 'PLAYCARYS_LOAD':
+      loadGameState(data.requestId);
+      break;
+  }
+});
+
+/** Numeric game id for the API, from the platform's own resolution. */
+function numericGameId() {
+  return parseInt(String(gameId).replace('g', ''), 10);
+}
+
+function saveGameState(requestId, payload) {
+  var frame = qs('frame');
+  var send = function (msg) {
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.postMessage(msg, (resolved && resolved.origin) || '*');
+    }
+  };
+  if (!session_guard()) {
+    send({ type: 'PLAYCARYS_SAVED', requestId: requestId, error: 'Not signed in — nothing was saved.' });
+    return;
+  }
+  var session = Auth.getSession();
+
+  fetch(window.PC_API + '/games/' + numericGameId() + '/save', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: parseInt(session.userId, 10), data: payload })
+  }).then(function (res) {
+    return res.json().catch(function () { return {}; }).then(function (body) {
+      if (!res.ok) {
+        // The 64 KB refusal has to reach the game, or it carries on believing
+        // it saved. Silent failure here is how a player loses their progress
+        // and nobody finds out until they come back.
+        send({ type: 'PLAYCARYS_SAVED', requestId: requestId, error: body.message || ('Save failed (' + res.status + ')') });
+        return;
+      }
+      send({ type: 'PLAYCARYS_SAVED', requestId: requestId, bytes: body.bytes });
+    });
+  }).catch(function (e) {
+    send({ type: 'PLAYCARYS_SAVED', requestId: requestId, error: e.message || 'Save failed.' });
+  });
+}
+
+function loadGameState(requestId) {
+  var frame = qs('frame');
+  var send = function (msg) {
+    if (frame && frame.contentWindow) {
+      frame.contentWindow.postMessage(msg, (resolved && resolved.origin) || '*');
+    }
+  };
+  if (!session_guard()) {
+    send({ type: 'PLAYCARYS_LOADED', requestId: requestId, data: null });
+    return;
+  }
+  var session = Auth.getSession();
+
+  fetch(window.PC_API + '/games/' + numericGameId() + '/save?userId=' + parseInt(session.userId, 10))
+    .then(function (res) { return res.json(); })
+    .then(function (body) {
+      send({ type: 'PLAYCARYS_LOADED', requestId: requestId, data: body ? body.data : null });
+    })
+    .catch(function () {
+      // A game that cannot reach its save should start fresh rather than hang.
+      send({ type: 'PLAYCARYS_LOADED', requestId: requestId, data: null });
+    });
+}
+
+/**
+ * Ask the server to record an achievement.
+ *
+ * The game sends a CODE and nothing else — the reward, the title and the
+ * once-per-player rule all live server-side, so a build cannot pay itself.
+ * An undeclared code is a publisher mistake, not a player-facing failure, so
+ * it is logged rather than shown as an error mid-game.
+ */
+function unlockAchievement(code) {
+  if (!session_guard() || !code) return;
+  var session = Auth.getSession();
+
+  fetch(window.PC_API + '/achievements/unlock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      game_id: parseInt(String(gameId).replace('g', ''), 10),
+      user_id: parseInt(session.userId, 10),
+      code: String(code),
+      session_id: sessionId || undefined
+    })
+  }).then(function(res){
+    if (!res.ok) {
+      return res.json().catch(function(){ return {}; }).then(function(body){
+        console.warn('[PlayCarys] Achievement "' + code + '" rejected:', body.message || res.status);
+      });
+    }
+    return res.json().then(function(result){
+      if (!result.unlocked) return;   // already earned — stay silent
+      var a = result.achievement || {};
+      var msg = (a.icon || '🏆') + '  ' + (a.name || 'Achievement unlocked');
+      if (result.carys_granted) msg += '  +' + result.carys_granted + ' Carys';
+      if (typeof Toast !== 'undefined') Toast.success(msg);
+      if (result.title_awarded && typeof Toast !== 'undefined') {
+        Toast.info('New title earned: ' + result.title_awarded);
+      }
+      // Keep the client's copy in step so the profile reflects it without a reload.
+      try {
+        var prof = DB.player_profiles.find(function(p){ return String(p.user_id) === String(session.userId); });
+        if (prof && result.carys_total != null) prof.carys_points = result.carys_total;
+      } catch (e) {}
+    });
+  }).catch(function(err){
+    console.warn('[PlayCarys] Could not record achievement:', err && err.message);
+  });
+}
+
+/**
+ * Persist a match result reported by the game. The economy fields are
+ * passed through to DB.recordMatchResult's extraData, which is the
+ * documented override hook shown to publishers on the publish page.
+ */
+function submitResult(result){
+  if (!session_guard()) return;
+  var session = Auth.getSession();
+  var sid = sessionId || ('SOLO' + Date.now());
+
+  var outcome = String(result.outcome || result.result || 'completed').toLowerCase();
+  if (['win','loss','draw','completed'].indexOf(outcome) === -1) outcome = 'completed';
+
+  // Clamp the payout to what this game declared it may award.
+  //
+  // A game names its own carys_earned, and nothing used to bound it — a
+  // published build could hand itself 999,999 a match and own the leaderboard.
+  // The server clamps this too (db-import is the authoritative gate); doing it
+  // here as well means the player's own screen never shows a number that is
+  // about to be silently reduced.
+  var declaredCap = (resolved.game && Number(resolved.game.max_carys_per_match));
+  var cap = (isFinite(declaredCap) && declaredCap >= 0) ? declaredCap : DEFAULT_CARYS_CAP;
+  var claimed = Number(result.carys_earned);
+  var carys = result.carys_earned;
+  if (isFinite(claimed)) {
+    carys = Math.max(0, Math.min(cap, Math.floor(claimed)));
+    if (claimed > cap) {
+      console.warn('[PlayCarys] carys_earned ' + claimed + ' exceeds this game\'s cap of ' + cap + ' — clamped.');
+    }
+  }
+
+  try {
+    DB.recordMatchResult(
+      sid,
+      parseInt(session.userId, 10),
+      parseInt(String(gameId).replace('g',''), 10),
+      outcome,
+      typeof result.score === 'number' ? result.score : null,
+      {
+        carys_earned: carys,
+        xp_gained:    result.xp_gained,
+        elo_delta:    result.elo_delta
+      }
+    );
+    DB.save();
+    // The match is over, so the session is too. Without this the row stayed
+    // 'in-progress' and the finished game kept advertising itself as live.
+    closeSession('result recorded');
+    qs('g-sub').textContent = 'Result recorded — ' + outcome;
+    if (typeof Toast !== 'undefined') Toast.success('Match result saved!');
+  } catch (e) {
+    console.error('[PlayCarys] Failed to record result', e);
+    if (typeof Toast !== 'undefined') Toast.error('Could not save your match result.');
+  }
+}
+
+function session_guard(){
+  if (typeof Auth === 'undefined' || !Auth.getSession || !Auth.getSession()) {
+    console.warn('[PlayCarys] No session — result discarded');
+    return false;
+  }
+  return true;
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>

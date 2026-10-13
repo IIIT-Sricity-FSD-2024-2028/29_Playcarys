@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Superuser Dashboard</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    /* ── Platform books & staffing ─────────────────────────── */
+    .pf-loading { font-size: 0.82rem; color: var(--text-secondary); padding: 0.5rem 0; }
+    .pf-note { font-size: 0.66rem; color: var(--text-secondary); }
+    .pf-headline {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+      padding-bottom: 0.75rem; margin-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-primary);
+    }
+    .pf-big { font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+    .pf-in { color: var(--accent-green, #10b981); }
+    .pf-out { color: var(--accent-cyan, #00d4ff); }
+    .pf-cap {
+      font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text-secondary); margin-top: 0.15rem;
+    }
+    .pf-rows { display: flex; flex-direction: column; }
+    .pf-row {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+      padding: 0.32rem 0; font-size: 0.78rem; color: var(--text-secondary);
+    }
+    .pf-row + .pf-row { border-top: 1px solid rgba(255,255,255,0.04); }
+    .pf-row b { color: var(--text-primary); font-size: 0.82rem; }
+    /* Money the platform keeps, and money it owes, are the two lines a
+       superuser looks for — so they are the only two that carry colour. */
+    .pf-row b.strong { color: var(--accent-green, #10b981); }
+    .pf-row b.warn { color: var(--accent-yellow, #f59e0b); }
+    .pf-foot {
+      font-size: 0.66rem; color: var(--text-muted, #6b7280);
+      margin-top: 0.6rem; padding-top: 0.5rem;
+      border-top: 1px solid var(--border-primary); line-height: 1.5;
+    }
+    .pf-ratios { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+    .pf-ratio {
+      padding: 0.6rem 0.7rem; border-radius: 10px;
+      border: 1px solid var(--border-primary); background: rgba(255,255,255,0.02);
+    }
+    .pf-ratio-big {
+      font-family: 'Orbitron', monospace; font-size: 1.05rem; font-weight: 800;
+      color: var(--accent-cyan, #00d4ff); line-height: 1.1;
+    }
+    .pf-sub { font-size: 0.66rem; color: var(--text-muted, #6b7280); margin-top: 0.2rem; }
+    @media (max-width: 560px) { .pf-ratios, .pf-headline { grid-template-columns: 1fr; } }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <!-- Header -->
+      <div class="page-header">
+        <h1>Superuser Dashboard</h1>
+        <p>Platform books, staffing and oversight</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid stats-grid-4" id="stats-grid"></div>
+
+      <!-- Distribution & Overview -->
+      <div class="cards-grid-2 full-width-mobile mt-3" id="overview-section"></div>
+
+      <!-- ── Platform books & staffing ──────────────────────────
+           The only view of the business as a whole. Every other money screen
+           on this platform is scoped to one publisher or one player, so the
+           30% the platform keeps was computed per payout and never summed. -->
+      <div class="cards-grid-2 full-width-mobile mt-3" id="platform-section">
+        <div class="card">
+          <div class="flex items-center justify-between mb-2">
+            <h3>💰 Money</h3>
+            <span class="pf-note" id="pf-basis"></span>
+          </div>
+          <div id="pf-money" class="pf-loading">Loading…</div>
+        </div>
+
+        <div class="card">
+          <div class="flex items-center justify-between mb-2">
+            <h3>🧑‍💼 Staffing &amp; Coverage</h3>
+            <span class="pf-note">mods scale with players · admins with games</span>
+          </div>
+          <div id="pf-staff" class="pf-loading">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card mt-3">
+        <div class="flex items-center justify-between mb-2">
+          <h3>Recent Activity</h3>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('../admin/approvals')">View Approvals →</button>
+        </div>
+        <div id="activity-list"></div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="section-cards mt-3" id="quick-actions"></div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    // navigate() provided globally by utils.js
+
+    function render() {
+      const stats = getPlatformStats();
+
+      // Stats grid
+      document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="label">Total Users</div><div class="value text-cyan">${stats.totalUsers}</div><div class="icon">👥</div></div>
+    <div class="stat-card"><div class="label">Active Games</div><div class="value text-green">${stats.activeGames}</div><div class="icon">🎮</div></div>
+    <div class="stat-card"><div class="label">Pending Approvals</div><div class="value text-yellow">${stats.pendingGames}</div><div class="icon">✅</div></div>
+    <div class="stat-card"><div class="label">Moderators</div><div class="value text-purple">${stats.moderators}</div><div class="icon">🛡️</div></div>
+  `;
+
+      // Overview
+      document.getElementById('overview-section').innerHTML = `
+    <div class="card">
+      <h3 class="mb-2">User Distribution</h3>
+      ${[
+          ['Players', stats.players, stats.totalUsers, 'var(--accent-cyan)'],
+          ['Publishers', stats.publishers, stats.totalUsers, 'var(--accent-green)'],
+          ['Moderators', stats.moderators, stats.totalUsers, 'var(--accent-purple)'],
+          ['Admins', stats.admins, stats.totalUsers, 'var(--accent-yellow)']
+        ].map(([name, count, total, color]) => {
+          const pct = total ? Math.round(count / total * 100) : 0;
+          return `<div class="analytics-bar-row">
+          <div class="analytics-bar-label">${name}</div>
+          <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span style="min-width:56px;text-align:right;font-size:0.82rem;white-space:nowrap;flex-shrink:0">${count} <span style="color:var(--text-secondary)">${pct}%</span></span>
+        </div>`;
+        }).join('')}
+    </div>
+    <div class="card">
+      <h3 class="mb-2">Games Overview</h3>
+      ${[
+          ['Total Games', DB.games.length, 'var(--text-primary)'],
+          ['Approved', stats.approvedGames, 'var(--accent-green)'],
+          ['Pending Approval', stats.pendingGames, 'var(--accent-yellow)'],
+          ['Active', stats.activeGames, 'var(--accent-cyan)']
+        ].map(([label, val, color]) =>
+          `<div class="analytics-bar-row">
+          <div class="analytics-bar-label">${label}</div>
+          <div style="flex:1"></div>
+          <span style="font-size:1rem;font-weight:700;color:${color}">${val}</span>
+        </div>`
+        ).join('')}
+    </div>
+  `;
+
+      // Activity — real dated rows (getRecentActivity, db.js). Was the same
+      // five frozen seed strings the hub rendered.
+      const acts = getRecentActivity(8);
+      document.getElementById('activity-list').innerHTML = acts.length
+        ? acts.map(a => {
+          const icons = { publisher: '🟢', approval: '🟡', player: '🔵', tournament: '🏆', ban: '🔴' };
+          return `<div class="list-item" style="padding:0.7rem 1.25rem">
+      <span style="font-size:1.1rem">${icons[a.type] || '📌'}</span>
+      <div class="list-item-info">
+        <span style="font-size:0.875rem">${a.msg}</span>
+      </div>
+      <span class="text-sm text-muted" style="white-space:nowrap">${formatActivityTime(a.at)}</span>
+    </div>`;
+        }).join('')
+        : `<div class="empty-state" style="padding:1.5rem 0">
+             <div class="icon">🗒️</div>
+             <p>No recorded activity yet.</p>
+           </div>`;
+
+      // Quick actions
+      document.getElementById('quick-actions').innerHTML = `
+    <div class="section-card" style="border-color:rgba(245,158,11,0.35);background:linear-gradient(135deg,rgba(245,158,11,0.06),rgba(0,212,255,0.04))" onclick="navigate('hub')">
+      <div class="section-card-icon">👑</div>
+      <h3 style="color:var(--accent-yellow)">Control Hub</h3>
+      <p>Full control panel — analytics, audit log, tournament control, system commands</p>
+      <div class="section-card-badge"><span class="badge badge-admin">Full Access</span></div>
+    </div>
+    <div class="section-card" onclick="navigate('users')">
+      <div class="section-card-icon">👥</div>
+      <h3>Manage Users</h3>
+      <p>View, edit, and manage all user accounts and roles</p>
+      <div class="section-card-badge">${badgeHTML('active')}</div>
+    </div>
+    <div class="section-card" onclick="navigate('../admin/approvals')">
+      <div class="section-card-icon">✅</div>
+      <h3>Game Approvals</h3>
+      <p>Review and approve games submitted by publishers</p>
+      ${stats.pendingGames > 0 ? `<div class="section-card-badge"><span class="badge badge-pending">${stats.pendingGames} Pending</span></div>` : ''}
+    </div>
+    <div class="section-card" onclick="navigate('settings')">
+      <div class="section-card-icon">⚙️</div>
+      <h3>System Settings</h3>
+      <p>Configure platform-wide settings and preferences</p>
+    </div>
+  `;
+    }
+
+    function renderPlatform() {
+  
+    // ── Platform books & staffing ─────────────────────────────
+    //
+    // Superuser-only endpoint. The money tables (transactions, payouts,
+    // carys_ledger) are deliberately absent from /db-export — a client copy of
+    // the platform's finances is not something every visitor should hold — so
+    // this is fetched rather than computed from DB.
+    (async () => {
+      const moneyEl = document.getElementById('pf-money');
+      const staffEl = document.getElementById('pf-staff');
+      const basisEl = document.getElementById('pf-basis');
+      if (!moneyEl || !staffEl) return;
+  
+      let d;
+      try {
+        d = await API.get('/economy/platform');
+      } catch (e) {
+        moneyEl.innerHTML = '<div class="pf-loading">Could not load platform figures.</div>';
+        staffEl.innerHTML = '<div class="pf-loading">Could not load staffing figures.</div>';
+        return;
+      }
+  
+      const m = d.money, s = d.staffing;
+      if (basisEl) basisEl.textContent = m.inflow.transaction_count + ' completed transactions';
+  
+      // Inflow, outflow and what is owed — kept as three separate ideas because
+      // money held for a studio is not money the platform has earned.
+      moneyEl.innerHTML =
+        '<div class="pf-headline">' +
+          '<div><div class="pf-big pf-in">' + m.inflow.total_display + '</div>' +
+          '<div class="pf-cap">Total inflow</div></div>' +
+          '<div><div class="pf-big pf-out">' + m.outflow.paid_display + '</div>' +
+          '<div class="pf-cap">Paid out</div></div>' +
+        '</div>' +
+        '<div class="pf-rows">' +
+          pfRow('Subscriptions', inr(m.inflow.subscriptions_paise)) +
+          pfRow('Cosmetics', inr(m.inflow.cosmetics_paise)) +
+          pfRow('Tournament entries', inr(m.inflow.tournament_entries_paise)) +
+          pfRow('Retained by platform', m.retained_display, 'strong') +
+          pfRow('Owed to studios', m.liability.owed_to_studios_display, 'warn') +
+          pfRow('Carys float (' + m.liability.carys_outstanding.toLocaleString('en-IN') + ')',
+                m.liability.carys_value_display) +
+        '</div>' +
+        '<div class="pf-foot">Publisher share ' + m.share_pct + '% · minimum payout ' +
+          m.min_payout_display + ' · ' + m.outflow.payout_count + ' payout' +
+          (m.outflow.payout_count === 1 ? '' : 's') + ' recorded</div>';
+  
+      // Ratios, not raw counts. "How many staff per user" has no stable answer
+      // here: moderators are driven by player numbers and admins by catalogue
+      // size, so the two are quoted against different denominators.
+      staffEl.innerHTML =
+        '<div class="pf-ratios">' +
+          pfRatio('1 : ' + (s.players_per_moderator ?? '—'), 'players per moderator',
+                  s.moderators + ' moderator' + (s.moderators === 1 ? '' : 's') +
+                  ' · ' + s.players + ' players') +
+          pfRatio('1 : ' + (s.games_per_admin ?? '—'), 'games per admin',
+                  s.admins + ' admin' + (s.admins === 1 ? '' : 's') +
+                  ' · ' + s.games + ' games') +
+          pfRatio('1 : ' + (s.games_per_publisher ?? '—'), 'games per studio',
+                  s.publishers + ' studios') +
+          pfRatio('1 : ' + (s.moderators_per_admin ?? '—'), 'moderators per admin',
+                  'escalation path') +
+        '</div>' +
+        '<div class="pf-rows" style="margin-top:0.6rem">' +
+          pfRow('Approved games', s.approved_games + ' of ' + s.games) +
+          pfRow('Awaiting review', String(s.pending_games), s.pending_games ? 'warn' : '') +
+          pfRow('Superusers', String(s.superusers)) +
+        '</div>';
+  
+      function inr(p) { return '₹' + Math.round((p || 0) / 100).toLocaleString('en-IN'); }
+      function pfRow(label, value, kind) {
+        return '<div class="pf-row"><span>' + label + '</span>' +
+               '<b class="' + (kind || '') + '">' + value + '</b></div>';
+      }
+      function pfRatio(big, label, sub) {
+        return '<div class="pf-ratio"><div class="pf-ratio-big">' + big + '</div>' +
+               '<div class="pf-cap">' + label + '</div>' +
+               '<div class="pf-sub">' + sub + '</div></div>';
+      }
+    })();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['admin', 'superuser']);
+      if (!session) return;
+      buildNavbar(session.role, 'dashboard');
+      render();
+
+      // The books are superuser-only. This page also admits admins, and the
+      // endpoint refuses them — so the section is removed rather than left to
+      // render a permission error at someone who simply is not meant to see it.
+      if (session.role === 'superuser') {
+        renderPlatform();
+      } else {
+        const sec = document.getElementById('platform-section');
+        if (sec) sec.remove();
+      }
+    });
+  </script>
+</body>
+
+</html>
+

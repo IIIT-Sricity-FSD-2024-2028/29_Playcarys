@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Create Tournament</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+.pub-shell { max-width: 800px; margin: 0 auto; }
+.page-content { max-width:1120px; }
+
+.step-rail { display: flex; align-items: center; gap: 0; margin-bottom: 2.5rem; }
+.step-node { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex: 1; position: relative; }
+.step-node:last-child { flex: 0; }
+.step-circle {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.82rem; font-weight: 800;
+  border: 2px solid var(--border-primary);
+  color: var(--text-secondary); background: var(--bg-card);
+  transition: all var(--trans-med); z-index: 2;
+}
+.step-node.active .step-circle { background: linear-gradient(135deg,#00d4ff,#7c3aed); border-color: transparent; color: #fff; box-shadow: 0 0 20px rgba(0,212,255,0.5); }
+.step-node.done .step-circle { background: var(--accent-green); border-color: transparent; color: #fff; box-shadow: 0 0 16px rgba(16,185,129,0.4); }
+.step-label { font-size: 0.7rem; color: var(--text-secondary); white-space: nowrap; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.step-node.active .step-label { color: var(--accent-cyan); }
+.step-node.done .step-label { color: var(--accent-green); }
+.step-line { flex: 1; height: 2px; background: var(--border-primary); margin-bottom: 1.35rem; transition: background var(--trans-med); }
+.step-line.done { background: var(--accent-green); }
+
+.pub-section { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-xl); padding: 2rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+.pub-section::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #00d4ff, #7c3aed); }
+.pub-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; gap: 0.75rem; }
+
+.toggle-row { display:flex; gap:0.9rem; margin-top:0.75rem; }
+.toggle-opt { flex:1; background:var(--bg-secondary); border:2px solid var(--border-primary); border-radius:var(--radius-lg); padding:1.1rem 1rem; cursor:pointer; transition:all var(--trans-fast); text-align:center; }
+.toggle-opt:hover { border-color:rgba(0,212,255,0.4); }
+.toggle-opt.selected { background:rgba(0,212,255,0.08); border-color:var(--accent-cyan); }
+.toggle-opt.disabled { opacity:0.4; cursor:not-allowed; }
+.toggle-opt .t-icon { font-size:1.6rem; margin-bottom:0.35rem; }
+.toggle-opt .t-title { font-weight:700; font-size:0.88rem; }
+.toggle-opt .t-sub { font-size:0.72rem; color:var(--text-secondary); margin-top:0.2rem; }
+
+.game-select-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 0.85rem; margin-top: 1rem; }
+.game-opt { background: var(--bg-secondary); border: 2px solid var(--border-primary); border-radius: var(--radius-lg); padding: 1rem 0.8rem; cursor: pointer; transition: all var(--trans-fast); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.5rem; position: relative; overflow: hidden; }
+.game-opt:hover { border-color: rgba(0,212,255,0.4); transform: translateY(-2px); }
+.game-opt.selected { background: rgba(0,212,255,0.08); border-color: var(--accent-cyan); box-shadow: 0 0 20px rgba(0,212,255,0.15); }
+.game-opt.selected::after { content: '✓'; position: absolute; top: 0.4rem; right: 0.4rem; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-cyan); color: #000; font-size: 0.65rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.game-opt-name { font-weight: 700; font-size: 0.8rem; line-height: 1.2; color: var(--text-primary); }
+
+.stage-row { background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:var(--radius-lg); padding:1rem; margin-bottom:0.75rem; display:flex; align-items:flex-start; gap:0.75rem; }
+.stage-order-badge { width:28px; height:28px; border-radius:50%; background:var(--accent-purple); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem; flex-shrink:0; margin-top:0.3rem; }
+.stage-fields { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; }
+.stage-fields.score-fields { grid-template-columns:1fr 1fr 1fr; }
+.stage-remove { color:var(--accent-red); cursor:pointer; font-size:1.1rem; flex-shrink:0; margin-top:0.3rem; }
+
+.invite-code-box { background:rgba(0,212,255,0.08); border:1px solid var(--accent-cyan); border-radius:var(--radius-md); padding:0.9rem 1.1rem; margin-top:1rem; font-size:0.85rem; }
+.form-2col { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media(max-width:560px){ .form-2col { grid-template-columns:1fr; } }
+.form-fields { display:flex; flex-direction:column; gap:1.25rem; }
+.pub-header { text-align:center; margin-bottom:2.5rem; }
+.pub-header h1 { background: linear-gradient(135deg,#00d4ff,#7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.back-row { display:flex; align-items:center; gap:0.5rem; color:var(--text-secondary); font-size:0.85rem; font-weight:600; cursor:pointer; margin-bottom:1.5rem; width:fit-content; padding:0.4rem 0.75rem; border-radius:var(--radius-md); transition:all var(--trans-fast); }
+.back-row:hover { color:var(--accent-cyan); background:rgba(0,212,255,0.06); }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+
+<div class="page-content" id="editor-view">
+  <div class="back-row" onclick="window.location.href='tournaments.html'">← Cancel & Back to Tournaments</div>
+
+  <div class="pub-shell">
+    <div class="pub-header">
+      <h1>Create Tournament</h1>
+      <p class="text-muted">Organize a casual pickup, or run one for your Community group</p>
+    </div>
+
+    <div class="step-rail" id="step-rail"></div>
+
+    <!-- ── Step 1: Kind & Visibility ──────────────────── -->
+    <div id="step-1">
+      <div class="pub-section">
+        <h3 style="margin-bottom:0.3rem">🧭 What kind of tournament?</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0">Casual is a one-off pickup event anyone can join. Community belongs to one of your Groups — only its owner/officers can create one.</p>
+        <div class="toggle-row">
+          <div class="toggle-opt selected" id="kind-casual" onclick="selectKind('casual')">
+            <div class="t-icon">🎲</div>
+            <div class="t-title">Casual</div>
+            <div class="t-sub">Open pickup, anyone can join</div>
+          </div>
+          <div class="toggle-opt" id="kind-community" onclick="selectKind('community')">
+            <div class="t-icon">🛡️</div>
+            <div class="t-title">Community</div>
+            <div class="t-sub">Belongs to one of your Groups</div>
+          </div>
+        </div>
+        <div class="form-group hidden" id="group-picker-wrap" style="margin-top:1rem">
+          <label class="form-label">Which Group?</label>
+          <select class="form-input" id="group-picker"></select>
+          <span class="form-error" id="group-error"></span>
+        </div>
+
+        <h3 style="margin:1.5rem 0 0.3rem">👁️ Visibility</h3>
+        <div class="toggle-row">
+          <div class="toggle-opt selected" id="vis-public" onclick="selectVisibility('public')">
+            <div class="t-icon">🌐</div>
+            <div class="t-title">Public</div>
+            <div class="t-sub">Anyone can find and join it</div>
+          </div>
+          <div class="toggle-opt" id="vis-private" onclick="selectVisibility('private')">
+            <div class="t-icon">🔒</div>
+            <div class="t-title">Private / Invite-Only</div>
+            <div class="t-sub">Hidden from browse; needs an invite code</div>
+          </div>
+        </div>
+
+        <h3 style="margin:1.5rem 0 0.3rem">⚔️ Solo or Teams?</h3>
+        <div class="toggle-row">
+          <div class="toggle-opt selected" id="mode-solo" onclick="selectTeamMode(false)">
+            <div class="t-icon">🧍</div>
+            <div class="t-title">Solo</div>
+            <div class="t-sub">Individual players</div>
+          </div>
+          <div class="toggle-opt" id="mode-team" onclick="selectTeamMode(true)">
+            <div class="t-icon">👥</div>
+            <div class="t-title">Teams</div>
+            <div class="t-sub">Registered squads of a fixed size</div>
+          </div>
+        </div>
+        <div class="form-group hidden" id="team-size-wrap" style="margin-top:1rem;max-width:220px">
+          <label class="form-label">Team Size</label>
+          <input class="form-input" id="t-teamsize" type="number" min="2" value="2"/>
+        </div>
+      </div>
+      <div class="pub-nav">
+        <div></div>
+        <button class="btn btn-primary btn-lg" onclick="nextStep(1)">Next — Select Game(s) →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Select Game(s) ─────────────────────── -->
+    <div id="step-2" class="hidden">
+      <div class="pub-section" id="single-game-section">
+        <h3 style="margin-bottom:0.3rem">🎮 Select Game</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0">Any live game on the platform can be played casually</p>
+        <div class="game-select-grid" id="game-list"></div>
+        <span class="form-error" id="game-error" style="margin-top:0.75rem;display:block"></span>
+
+        <h3 style="margin:1.5rem 0 0.3rem">🏁 How is it decided?</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0" id="format-hint">Pick a game first — we'll suggest the right format.</p>
+        <div class="toggle-row">
+          <div class="toggle-opt" id="fmt-bracket" onclick="selectFormat('bracket')">
+            <div class="t-icon">🎯</div>
+            <div class="t-title">Knockout Bracket</div>
+            <div class="t-sub">Head-to-head rounds, winner advances</div>
+          </div>
+          <div class="toggle-opt" id="fmt-score" onclick="selectFormat('score')">
+            <div class="t-icon">📊</div>
+            <div class="t-title">Score Contest</div>
+            <div class="t-sub">Everyone plays, best score ranks</div>
+          </div>
+        </div>
+        <span class="form-error" id="format-error" style="margin-top:0.5rem;display:block"></span>
+      </div>
+      <div class="pub-section hidden" id="multi-game-section">
+        <h3 style="margin-bottom:0.3rem">🏅 Build the Stage Order</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem">Each stage is a different game. Players earn points per stage; the overall winner has the highest total.</p>
+        <div id="stage-list"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addStageRow()">+ Add Stage</button>
+        <span class="form-error" id="stage-error" style="margin-top:0.75rem;display:block"></span>
+      </div>
+      <div class="pub-section" style="padding:1rem 1.5rem">
+        <label style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;font-size:0.85rem">
+          <input type="checkbox" id="t-ismulti" onchange="toggleMulti(this.checked)"/> This is a multi-game fest (several games, combined leaderboard)
+        </label>
+      </div>
+      <div class="pub-nav">
+        <button class="btn btn-ghost" onclick="prevStep(2)">← Back</button>
+        <button class="btn btn-primary btn-lg" onclick="nextStep(2)">Next — Details →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 3: Details ────────────────────────────── -->
+    <div id="step-3" class="hidden">
+      <div class="pub-section">
+        <h3 style="margin-bottom:0.3rem">🏆 Details</h3>
+        <div class="form-fields">
+          <div class="form-group">
+            <label class="form-label">Tournament Name <span class="required">*</span></label>
+            <input class="form-input" id="t-name" placeholder="e.g. Friday Night Chess"/>
+            <span class="form-error"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description <span class="required">*</span></label>
+            <textarea class="form-textarea" id="t-desc" placeholder="Rules, format, anything players should know…" style="min-height:100px"></textarea>
+            <span class="form-error"></span>
+          </div>
+          <div class="form-2col">
+            <div class="form-group">
+              <label class="form-label">Prize <span class="required">*</span></label>
+              <input class="form-input" id="t-prize" placeholder="e.g. Bragging rights, or a real prize"/>
+              <span class="form-error"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Entrants <span class="required">*</span></label>
+              <input class="form-input" id="t-max" type="number" placeholder="e.g. 16"/>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pub-nav">
+        <button class="btn btn-ghost" onclick="prevStep(3)">← Back</button>
+        <button class="btn btn-primary btn-lg" onclick="nextStep(3)">Next — Schedule →</button>
+      </div>
+    </div>
+
+    <!-- ── Step 4: Schedule ───────────────────────────── -->
+    <div id="step-4" class="hidden">
+      <div class="pub-section">
+        <h3 style="margin-bottom:0.3rem">📅 Scheduling</h3>
+        <div class="form-fields">
+          <div class="form-group">
+            <label class="form-label">Registration Deadline <span class="required">*</span></label>
+            <input class="form-input" id="t-regclose" type="date"/>
+          </div>
+          <div class="form-2col">
+            <div class="form-group">
+              <label class="form-label">Start Date <span class="required">*</span></label>
+              <input class="form-input" id="t-start" type="date"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Date <span class="required">*</span></label>
+              <input class="form-input" id="t-end" type="date"/>
+            </div>
+          </div>
+        </div>
+        <div class="invite-code-box hidden" id="invite-code-preview">
+          🔒 This is a private tournament. A join code is generated on publish — share it with whoever you invite.
+        </div>
+      </div>
+      <div class="pub-nav">
+        <button class="btn btn-ghost" onclick="prevStep(4)">← Back</button>
+        <button class="btn btn-green btn-lg" onclick="submitTournament()" id="submit-btn">🏆 Create Tournament</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div>
+<div id="toast-container"></div>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+let currentStep = 1;
+let selectedKind = 'casual';       // 'casual' | 'community'
+let selectedGroupId = null;
+let selectedVisibility = 'public';
+let isTeamMode = false;
+let selectedGameId = '';
+let isMulti = false;
+// 'bracket' | 'score'. Derived from the chosen game's own game_mode — a 1v1
+// game like Chess is a knockout, a solo game like Hill Climbing is a score run.
+// This used to be hardcoded to 'score' for EVERY single-game tournament, so a
+// Chess tournament could never generate a bracket and Start always failed with
+// "this is a score contest — there is no bracket to generate".
+let selectedFormat = null;
+let formatTouched = false;
+let stages = [];
+let stageSeq = 0;
+const STEPS = ['Type', 'Select Game(s)', 'Details', 'Schedule'];
+
+function uid() { const s = Auth.getSession(); return parseInt(s.userId, 10); }
+
+/* ── Step Rail ─────────────────────────── */
+function renderRail() {
+  const rail = document.getElementById('step-rail');
+  rail.innerHTML = STEPS.map((label, i) => {
+    const cls = i < currentStep - 1 ? 'done' : i === currentStep - 1 ? 'active' : '';
+    const lineClass = i < currentStep - 1 ? 'done' : '';
+    const circle = i < currentStep - 1 ? '✓' : (i + 1);
+    const line = i < STEPS.length - 1 ? `<div class="step-line ${lineClass}"></div>` : '';
+    return `<div class="step-node ${cls}"><div class="step-circle">${circle}</div><div class="step-label">${label}</div></div>${line}`;
+  }).join('');
+}
+
+/* ── Kind / Visibility / Team toggles ─────────────── */
+async function selectKind(k) {
+  selectedKind = k;
+  document.getElementById('kind-casual').classList.toggle('selected', k === 'casual');
+  document.getElementById('kind-community').classList.toggle('selected', k === 'community');
+  const wrap = document.getElementById('group-picker-wrap');
+  wrap.classList.toggle('hidden', k !== 'community');
+  if (k === 'community') await loadMyGroupsForPicker();
+}
+
+async function loadMyGroupsForPicker() {
+  const sel = document.getElementById('group-picker');
+  sel.innerHTML = `<option>Loading…</option>`;
+  let mine = [];
+  try {
+    mine = await API.get(`/groups?playerId=${uid()}`);
+    mine = mine.filter(g => Number(g.owner_id) === uid() || (g.officer_ids || []).includes(uid()));
+  } catch (e) { mine = []; }
+
+  if (!mine.length) {
+    sel.innerHTML = `<option value="">No group you own or officer — create one first</option>`;
+    selectedGroupId = null;
+    return;
+  }
+  sel.innerHTML = mine.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
+  selectedGroupId = mine[0].group_id;
+  sel.onchange = () => { selectedGroupId = sel.value; };
+}
+
+function selectVisibility(v) {
+  selectedVisibility = v;
+  document.getElementById('vis-public').classList.toggle('selected', v === 'public');
+  document.getElementById('vis-private').classList.toggle('selected', v === 'private');
+  document.getElementById('invite-code-preview').classList.toggle('hidden', v !== 'private');
+}
+
+function selectTeamMode(team) {
+  isTeamMode = team;
+  document.getElementById('mode-solo').classList.toggle('selected', !team);
+  document.getElementById('mode-team').classList.toggle('selected', team);
+  document.getElementById('team-size-wrap').classList.toggle('hidden', !team);
+  // Switching to teams changes which formats even make sense, so re-derive.
+  formatTouched = false;
+  if (selectedGameId) applyDefaultFormat();
+}
+
+/* ── Games ──────────────────────────────── */
+function approvedGames() {
+  return DB.games.filter(g => g.game_approval_status === 'approved' && g.game_status === 'enabled');
+}
+
+function renderGamesSelection() {
+  const gl = document.getElementById('game-list');
+  const list = approvedGames();
+  gl.innerHTML = list.map((g, i) => `
+    <div class="game-opt ${String(g.id) === selectedGameId ? 'selected' : ''}" id="gopt-${g.id}" onclick="selectGame('${g.id}')">
+      ${getGameIconHTML(g, i, '42px', 'height:46px;border-radius:var(--radius-sm);margin-bottom:0.2rem')}
+      <div class="game-opt-name">${g.game_name}</div>
+    </div>`).join('');
+}
+function selectGame(id) {
+  selectedGameId = id;
+  document.querySelectorAll('.game-opt').forEach(el => el.classList.remove('selected'));
+  document.getElementById('gopt-'+id)?.classList.add('selected');
+  document.getElementById('game-error').textContent = '';
+  if (!formatTouched) applyDefaultFormat();
+}
+
+/** A multiplayer game is decided head-to-head; a solo game by best score. */
+function defaultFormatFor(gameId) {
+  if (isTeamMode) return 'bracket';   // teams always play each other
+  const g = DB.games.find(x => String(x.game_id || x.id) === String(gameId));
+  return g && g.game_mode === 'multi' ? 'bracket' : 'score';
+}
+
+function applyDefaultFormat() {
+  const g = DB.games.find(x => String(x.game_id || x.id) === String(selectedGameId));
+  setFormat(defaultFormatFor(selectedGameId));
+  const hint = document.getElementById('format-hint');
+  if (hint && g) {
+    hint.textContent = isTeamMode
+      ? 'Team tournaments are always a knockout bracket — teams play each other.'
+      : (g.game_mode === 'multi'
+          ? `${g.game_name} is head-to-head, so a bracket is the default. Change it if you want.`
+          : `${g.game_name} is a solo game, so a score contest is the default. Change it if you want.`);
+  }
+}
+
+function setFormat(f) {
+  selectedFormat = f;
+  document.getElementById('fmt-bracket').classList.toggle('selected', f === 'bracket');
+  document.getElementById('fmt-score').classList.toggle('selected', f === 'score');
+  // A team score contest has no meaningful shape here, so lock it out.
+  document.getElementById('fmt-score').classList.toggle('disabled', isTeamMode);
+  document.getElementById('format-error').textContent = '';
+}
+
+function selectFormat(f) {
+  if (isTeamMode && f === 'score') {
+    Toast.warning('Team tournaments are played as a knockout bracket.');
+    return;
+  }
+  formatTouched = true;
+  setFormat(f);
+}
+
+function toggleMulti(checked) {
+  isMulti = checked;
+  document.getElementById('single-game-section').classList.toggle('hidden', checked);
+  document.getElementById('multi-game-section').classList.toggle('hidden', !checked);
+  if (checked && !stages.length) { addStageRow(); addStageRow(); }
+}
+
+function addStageRow() {
+  const games = approvedGames();
+  if (!games.length) { Toast.error('No live games to build a stage from.'); return; }
+  stageSeq += 1;
+  stages.push({ rowId: stageSeq, game_id: String(games[0].id), format: 'score', metric: 'score', direction: 'high', metric_label: 'Score', points_weight: 1 });
+  renderStages();
+}
+function removeStageRow(rowId) { stages = stages.filter(s => s.rowId !== rowId); renderStages(); }
+function updateStage(rowId, field, value) {
+  const s = stages.find(x => x.rowId === rowId);
+  if (!s) return;
+  s[field] = field === 'points_weight' ? (parseFloat(value) || 1) : value;
+  if (field === 'format') renderStages();
+}
+function renderStages() {
+  const games = approvedGames();
+  const list = document.getElementById('stage-list');
+  list.innerHTML = stages.map((s, i) => {
+    const gameOpts = games.map(g => `<option value="${g.id}" ${String(g.id) === s.game_id ? 'selected' : ''}>${g.game_name}</option>`).join('');
+    const scoreFields = s.format === 'score' ? `
+      <div class="form-group"><label class="form-label" style="font-size:0.72rem">Metric Label</label>
+        <input class="form-input" value="${s.metric_label || ''}" onchange="updateStage(${s.rowId},'metric_label',this.value)"/></div>
+      <div class="form-group"><label class="form-label" style="font-size:0.72rem">Direction</label>
+        <select class="form-input" onchange="updateStage(${s.rowId},'direction',this.value)">
+          <option value="high" ${s.direction==='high'?'selected':''}>Higher is better</option>
+          <option value="low" ${s.direction==='low'?'selected':''}>Lower is better</option>
+        </select></div>` : '';
+    return `
+    <div class="stage-row">
+      <div class="stage-order-badge">${i + 1}</div>
+      <div class="stage-fields ${s.format === 'score' ? 'score-fields' : ''}">
+        <div class="form-group"><label class="form-label" style="font-size:0.72rem">Game</label>
+          <select class="form-input" onchange="updateStage(${s.rowId},'game_id',this.value)">${gameOpts}</select></div>
+        <div class="form-group"><label class="form-label" style="font-size:0.72rem">Format</label>
+          <select class="form-input" onchange="updateStage(${s.rowId},'format',this.value)">
+            <option value="score" ${s.format==='score'?'selected':''}>Score board</option>
+            <option value="bracket" ${s.format==='bracket'?'selected':''}>Knockout bracket</option>
+          </select></div>
+        ${scoreFields}
+        <div class="form-group"><label class="form-label" style="font-size:0.72rem">Points Weight</label>
+          <input class="form-input" type="number" step="0.1" min="0.1" value="${s.points_weight}" onchange="updateStage(${s.rowId},'points_weight',this.value)"/></div>
+      </div>
+      <div class="stage-remove" onclick="removeStageRow(${s.rowId})">✕</div>
+    </div>`;
+  }).join('') || `<div class="text-muted" style="padding:0.5rem 0">No stages yet — add at least two.</div>`;
+}
+
+/* ── Next / Prev ─────────────────────── */
+function nextStep(n) {
+  if (n === 1) {
+    if (selectedKind === 'community' && !selectedGroupId) {
+      document.getElementById('group-error').textContent = 'Pick a group you own or officer, or switch to Casual';
+      return;
+    }
+    document.getElementById('group-error').textContent = '';
+  }
+  if (n === 2) {
+    if (!isMulti && !selectedGameId) {
+      document.getElementById('game-error').textContent = 'Please select a game';
+      return;
+    }
+    if (!isMulti && !selectedFormat) {
+      document.getElementById('format-error').textContent = 'Pick how the tournament is decided';
+      return;
+    }
+    if (isMulti && stages.length < 2) {
+      document.getElementById('stage-error').textContent = 'A multi-game fest needs at least 2 stages';
+      return;
+    }
+  }
+  if (n === 3) {
+    const valid = Validate.form([
+      { el: document.getElementById('t-name'), rules: [{type:'required'}] },
+      { el: document.getElementById('t-desc'), rules: [{type:'required'}] },
+      { el: document.getElementById('t-prize'), rules: [{type:'required'}] },
+    ]);
+    if (!valid) return;
+  }
+  currentStep = n + 1;
+  [1,2,3,4].forEach(i => document.getElementById('step-'+i).classList.toggle('hidden', i !== currentStep));
+  renderRail();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function prevStep(n) {
+  currentStep = n - 1;
+  [1,2,3,4].forEach(i => document.getElementById('step-'+i).classList.toggle('hidden', i !== currentStep));
+  renderRail();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Submit ──────────────────────────── */
+async function submitTournament() {
+  const vName = document.getElementById('t-name').value.trim();
+  const vDesc = document.getElementById('t-desc').value.trim();
+  const vPrize = document.getElementById('t-prize').value.trim();
+  if (!vName || !vDesc || !vPrize) { Toast.error('All details in Step 3 are required'); return; }
+
+  const vReg = document.getElementById('t-regclose').value;
+  const vStart = document.getElementById('t-start').value;
+  const vEnd = document.getElementById('t-end').value;
+  if (!vReg || !vStart || !vEnd) { Toast.error('All dates are required'); return; }
+  if (new Date(vStart) > new Date(vEnd)) { Toast.error('Start date cannot be after the end date.'); return; }
+  if (new Date(vReg) > new Date(vStart)) { Toast.error('Registration deadline must be before or on the start date.'); return; }
+
+  const payload = {
+    organizer: uid(),
+    organizer_role: 'player',
+    visibility: selectedVisibility,
+    tournament_name: vName,
+    desc: vDesc,
+    prize: vPrize,
+    maxParticipants: parseInt(document.getElementById('t-max').value, 10) || 16,
+    start_date: vStart, end_date: vEnd, regClose: vReg,
+  };
+  if (selectedKind === 'community') payload.group_id = parseInt(selectedGroupId, 10);
+  if (isTeamMode) payload.team_size = parseInt(document.getElementById('t-teamsize').value, 10) || 2;
+
+  if (isMulti) {
+    payload.type = 'multi';
+    payload.games = stages.map((s, i) => ({
+      game_id: parseInt(s.game_id, 10),
+      stage_order: i + 1,
+      format: s.format,
+      metric: s.format === 'score' ? (s.metric || 'score') : undefined,
+      direction: s.format === 'score' ? (s.direction || 'high') : undefined,
+      metric_label: s.format === 'score' ? (s.metric_label || 'Score') : undefined,
+      points_weight: s.points_weight || 1,
+    }));
+  } else {
+    payload.game_id = parseInt(selectedGameId, 10);
+    payload.format = selectedFormat || defaultFormatFor(selectedGameId);
+    if (payload.format === 'score') {
+      // A score contest must declare WHAT it ranks, or the leaderboard has
+      // nothing to sort on and every entrant sits tied at zero.
+      payload.metric = 'score';
+      payload.direction = 'high';
+      payload.metric_label = 'Score';
+    }
+  }
+
+  try {
+    const created = await API.post('/tournaments', payload);
+    Toast.success('Tournament created! 🏆');
+    if (selectedVisibility === 'private' && created?.invite_code) {
+      confirmAction('Invite Code', `Share this code with whoever you want to invite:\n\n${created.invite_code}`, () => {}, 'primary');
+    }
+    setTimeout(() => { window.location.href = 'tournaments.html'; }, selectedVisibility === 'private' ? 1200 : 300);
+  } catch (e) {
+    Toast.error(e.message || 'Could not create tournament — is the backend running?');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['player']);
+  if (!session) return;
+  buildNavbar('player','tournaments');
+  renderRail();
+  renderGamesSelection();
+});
+</script>
+</body>
+</html>

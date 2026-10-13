@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Superuser Hub</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    .sa-hero {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(239, 68, 68, 0.06) 50%, rgba(124, 58, 237, 0.06) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: var(--radius-xl);
+      padding: 2rem 2.5rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sa-hero::before {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .sa-hero h1 {
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .sa-hero p {
+      color: var(--text-secondary);
+      margin-top: 0.35rem;
+      font-size: 0.95rem;
+    }
+
+    .sa-hero-badges {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.1rem 1.25rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform var(--trans-fast), border-color var(--trans-med), box-shadow var(--trans-med);
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--kc);
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--kc);
+      box-shadow: 0 0 24px color-mix(in srgb, var(--kc) 20%, transparent);
+    }
+
+    .kpi-card .kc-label {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .kpi-card .kc-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: var(--kc);
+      margin-top: 0.2rem;
+      line-height: 1;
+    }
+
+    .kpi-card .kc-sub {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-top: 0.2rem;
+    }
+
+    .kpi-card .kc-icon {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 2rem;
+      opacity: 0.1;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .quick-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      cursor: pointer;
+      transition: all var(--trans-med);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .quick-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--qc, var(--gradient-brand));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform var(--trans-med);
+    }
+
+    .quick-card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .quick-card:hover::after {
+      transform: scaleX(1);
+    }
+
+    .quick-card-icon {
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .quick-card h3 {
+      font-size: 0.9rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .quick-card p {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .feed-entry {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid rgba(30, 35, 54, 0.5);
+    }
+
+    .feed-entry:last-child {
+      border-bottom: none;
+    }
+
+    .feed-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .feed-msg {
+      flex: 1;
+      font-size: 0.855rem;
+    }
+
+    .feed-time {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .health-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0;
+    }
+
+    .health-label {
+      width: 120px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .health-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-input);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .health-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width var(--trans-slow);
+    }
+
+    .health-pct {
+      width: 38px;
+      text-align: right;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    @media(max-width:1100px) {
+      .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .quick-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media(max-width:768px) {
+      .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .quick-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <!-- Hero -->
+      <div class="sa-hero">
+        <h1><span style="font-size:2rem">⚡</span> Superuser Control Hub</h1>
+        <p>Highest-level platform authority — unrestricted access across all modules, users, and configurations.</p>
+        <div class="sa-hero-badges">
+          <span class="badge badge-superuser">⚡ Superuser</span>
+          <span class="badge badge-active">Full CRUD Access</span>
+          <span class="badge badge-approved">System Control</span>
+          <span class="badge badge-superuser">Admin Management</span>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <!-- Quick Navigation -->
+      <div class="quick-grid" id="quick-nav"></div>
+
+      <!-- Bottom: Feed + Health -->
+      <div class="bottom-grid">
+        <div class="card">
+          <div class="flex items-center justify-between mb-2">
+            <h3>⚡ Recent Activity</h3>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('reports')">All Reports →</button>
+          </div>
+          <div id="live-feed"></div>
+        </div>
+        <div class="card">
+          <h3 class="mb-2">📊 Platform Ratios</h3>
+          <div id="health-bars"></div>
+          <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border-primary)">
+            <div
+              style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">
+              System Status</div>
+            <div id="sys-status"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    // navigate() provided globally by utils.js
+
+    function render() {
+      const s = getPlatformStats();
+      // Matches in progress, and how many people are in them. Previously this
+      // counted every room ever created plus the length of each member list —
+      // nothing closed a room, so both were all-time totals wearing "active"
+      // and "online" labels.
+      const _live = (DB.matches || []).filter(m => m.status === 'in-progress');
+      const activeSessions = _live.length;
+      const totalOnline = _live.reduce(
+        (a, m) => a + (Array.isArray(m.participants) ? m.participants.length : 1), 0
+      );
+
+      // KPI grid
+      document.getElementById('kpi-grid').innerHTML = [
+        { label: 'Total Users', val: s.totalUsers, sub: `${s.players} players`, icon: '👥', c: 'var(--accent-cyan)' },
+        // `s.superusers + s.superusers` — admins were left out of the admin
+        // count and superusers were counted twice.
+        { label: 'Staff Accounts', val: s.admins + s.superusers + s.moderators, sub: `${s.admins} admin · ${s.moderators} mod`, icon: '👑', c: 'var(--accent-yellow)' },
+        { label: 'Active Games', val: s.activeGames, sub: `of ${s.totalGames} total`, icon: '🎮', c: 'var(--accent-green)' },
+        { label: 'Live Sessions', val: activeSessions, sub: `${totalOnline} online`, icon: '▶️', c: 'var(--accent-purple)' },
+        { label: 'Pending Reports', val: s.pendingReports, sub: `${s.activeBans} bans active`, icon: '⚠️', c: 'var(--accent-red)' },
+      ].map(k => `
+    <div class="kpi-card" style="--kc:${k.c}">
+      <div class="kc-label">${k.label}</div>
+      <div class="kc-val">${k.val}</div>
+      <div class="kc-sub">${k.sub}</div>
+      <div class="kc-icon">${k.icon}</div>
+    </div>`).join('');
+
+      // Quick nav cards
+      document.getElementById('quick-nav').innerHTML = [
+        { icon: '👥', title: 'All Users', desc: 'Manage every user across all roles — create, edit, ban, promote', page: 'users', c: 'rgba(0,212,255,0.3)' },
+        { icon: '🎮', title: 'Game Control', desc: 'Approve, reject, enable or remove any game on the platform', page: 'games', c: 'rgba(16,185,129,0.3)' },
+        { icon: '⚠️', title: 'Reports & Bans', desc: 'Override moderator actions, resolve reports, lift or apply bans', page: 'reports', c: 'rgba(239,68,68,0.3)' },
+        { icon: '👑', title: 'Admin Management', desc: 'Create, promote or demote Admin and Moderator accounts', page: 'admins', c: 'rgba(245,158,11,0.3)' },
+        { icon: '⚙️', title: 'System Settings', desc: 'Configure all global platform settings and feature toggles', page: 'settings', c: 'rgba(124,58,237,0.3)' },
+      ].map(q => `
+    <div class="quick-card" onclick="navigate('${q.page}')" style="--qc:${q.c}">
+      <div class="quick-card-icon">${q.icon}</div>
+      <div>
+        <h3>${q.title}</h3>
+        <p>${q.desc}</p>
+      </div>
+    </div>`).join('');
+
+      // Live feed — real dated rows now (see getRecentActivity in db.js); this
+      // used to be five seed strings that never changed.
+      const feed = getRecentActivity(7);
+      document.getElementById('live-feed').innerHTML = feed.length
+        ? feed.map(a => {
+          const colors = { publisher: 'var(--accent-green)', approval: 'var(--accent-yellow)', player: 'var(--accent-cyan)', tournament: 'var(--accent-purple)', ban: 'var(--accent-red)', system: 'var(--accent-yellow)' };
+          return `<div class="feed-entry">
+      <div class="feed-dot" style="background:${colors[a.type] || 'var(--accent-cyan)'}"></div>
+      <div class="feed-msg">${a.msg}</div>
+      <div class="feed-time">${formatActivityTime(a.at)}</div>
+    </div>`;
+        }).join('')
+        : `<div class="empty-state" style="padding:1.5rem 0">
+             <div class="icon">🗒️</div>
+             <p>No recorded activity yet.</p>
+           </div>`;
+
+      // Health bars
+      // Labels now say what each bar actually divides. "User Activity" was
+      // players ÷ all accounts — the player SHARE of the user table, which
+      // says nothing about whether anyone is active; likewise "Report Rate"
+      // measured open reports against the user count, mixing two unrelated
+      // totals. Same arithmetic, honest names, correct denominators.
+      const healths = [
+        ['Player Accounts', Math.round(s.players / Math.max(s.totalUsers, 1) * 100), 'var(--accent-cyan)'],
+        ['Catalogue Live', Math.round(s.activeGames / Math.max(s.totalGames, 1) * 100), 'var(--accent-green)'],
+        ['Reports Open', Math.round(s.pendingReports / Math.max(DB.reports.length, 1) * 100), 'var(--accent-yellow)'],
+        ['Players Banned', Math.round(s.activeBans / Math.max(s.players, 1) * 100), 'var(--accent-red)'],
+        ['Tournament Fill', Math.round(DB.tournaments.reduce((a, t) => a + t.participants, 0) / Math.max(DB.tournaments.reduce((a, t) => a + t.maxParticipants, 0), 1) * 100), 'var(--accent-purple)'],
+      ];
+      document.getElementById('health-bars').innerHTML = healths.map(([l, p, c]) => `
+    <div class="health-row">
+      <span class="health-label">${l}</span>
+      <div class="health-bar"><div class="health-fill" style="width:${p}%;background:${c}"></div></div>
+      <span class="health-pct" style="color:${c}">${p}%</span>
+    </div>`).join('');
+
+      // System status — measured, not asserted.
+      //
+      // This was a hardcoded list: API/Database/Auth permanently green,
+      // Matchmaking permanently amber, and a CDN that this project does not
+      // have. It would have shown all-green with the backend switched off.
+      // Now it reports the two things the page can actually observe — whether
+      // the API answers, and how much data came back — and nothing else.
+      renderSysStatus();
+    }
+
+    /**
+     * Two observable facts, each with the evidence next to it: a real timed
+     * request against the API root, and the row count actually hydrated into
+     * the client. A red dot here means the backend genuinely did not answer.
+     */
+    async function renderSysStatus() {
+      const host = document.getElementById('sys-status');
+      if (!host) return;
+      const dot = c => `<div style="width:8px;height:8px;border-radius:50%;background:${c};box-shadow:0 0 6px ${c}"></div>`;
+      const row = (name, detail, colour) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;padding:0.3rem 0;font-size:0.8rem">
+      <span style="color:var(--text-secondary)">${name}</span>
+      <span style="margin-left:auto;font-size:0.72rem;color:var(--text-muted,#6b7280)">${detail}</span>
+      ${dot(colour)}
+    </div>`;
+
+      const rows = (DB.users || []).length + (DB.games || []).length +
+        (DB.matches || []).length + (DB.notifications || []).length;
+
+      host.innerHTML = row('API server', 'checking…', 'var(--accent-yellow)') +
+        row('Data loaded', rows.toLocaleString('en-IN') + ' rows', rows ? 'var(--accent-green)' : 'var(--accent-red)');
+
+      const t0 = performance.now();
+      let detail, colour;
+      try {
+        const res = await fetch(API_BASE.replace(/\/api\/v1$/, '/api/v1'), { method: 'GET' });
+        const ms = Math.round(performance.now() - t0);
+        detail = res.ok ? ms + ' ms' : 'HTTP ' + res.status;
+        colour = res.ok ? 'var(--accent-green)' : 'var(--accent-yellow)';
+      } catch (e) {
+        detail = 'unreachable';
+        colour = 'var(--accent-red)';
+      }
+      host.innerHTML = row('API server', detail, colour) +
+        row('Data loaded', rows.toLocaleString('en-IN') + ' rows', rows ? 'var(--accent-green)' : 'var(--accent-red)');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['superuser']);
+      if (!session) return;
+      buildNavbar('superuser', 'hub');
+      render();
+    });
+  </script>
+</body>
+
+</html>
+

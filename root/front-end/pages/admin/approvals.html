@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Game Approvals</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <div class="page-header">
+        <h1>Game Approvals</h1>
+        <p class="text-muted">
+          Every submission is decided in the build review console — open one to see what the
+          scanner found and to try the game before it reaches players.
+        </p>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid stats-grid-3 mb-2">
+        <div class="stat-card">
+          <div class="label">Total Games</div>
+          <div class="value" id="s-total">0</div>
+          <div class="icon">🎮</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Pending</div>
+          <div class="value text-yellow" id="s-pending">0</div>
+          <div class="icon">⏳</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Approved</div>
+          <div class="value text-green" id="s-approved">0</div>
+          <div class="icon">✅</div>
+        </div>
+      </div>
+
+      <!-- Pending Approvals -->
+      <div class="card mb-2">
+        <h3 class="mb-2">⏳ Pending Approvals</h3>
+        <div id="pending-list"></div>
+      </div>
+
+      <!-- Recently Approved -->
+      <div>
+        <h2 class="mb-2">Recently Approved</h2>
+        <div class="cards-grid-3" id="approved-grid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    // navigate() provided globally by utils.js
+
+    function updateStats() {
+      document.getElementById('s-total').textContent = DB.games.length;
+      document.getElementById('s-pending').textContent = DB.games.filter(g => g.status === 'pending').length;
+      document.getElementById('s-approved').textContent = DB.games.filter(g => g.status === 'approved').length;
+    }
+
+    function renderPending() {
+      const list = document.getElementById('pending-list');
+      const pending = DB.games.filter(g => g.status === 'pending');
+      if (!pending.length) {
+        list.innerHTML = `<div style="text-align:center;padding:2rem">
+      <div style="font-size:3rem;opacity:0.4">✅</div>
+      <p style="color:var(--text-secondary);margin-top:0.5rem">All caught up! No pending game approvals.</p>
+    </div>`;
+        return;
+      }
+      list.innerHTML = pending.map(g => `
+    <div class="list-item">
+      ${getGameIconHTML(g, 0, '60px')}
+      <div class="list-item-info">
+        <div class="list-item-title">${g.title} ${badgeHTML('pending')} ${deliveryChip(g)} ${scanChip(g)}</div>
+        <div class="list-item-sub">${g.desc}</div>
+        <div class="list-item-sub">
+          <span class="tag">${g.genre}</span>
+          <span>👥 ${g.players}</span>
+          <span>By ${g.publisher}</span>
+          <span>📅 ${formatDate(g.submittedDate)}</span>
+        </div>
+        ${g.review_required_reason
+          ? `<div class="list-item-sub" style="color:var(--accent-yellow)">↺ Back in the queue — ${g.review_required_reason}</div>`
+          : ''}
+      </div>
+      <div class="list-item-actions">
+        <button class="btn btn-primary btn-sm" onclick="openReview('${g.id}')">🔍 Review Build</button>
+      </div>
+    </div>`).join('');
+    }
+
+    /* Approve/Reject deliberately do NOT live on this list any more.
+       A decision made from a row is a decision made without looking at the
+       build, which is exactly the gap this queue used to have — the buttons
+       were one click away from publishing arbitrary uploaded JS to players.
+       Everything now goes through the review console. */
+    function openReview(id) {
+      navigateTo(`game-review.html?gameId=${encodeURIComponent(id)}`);
+    }
+
+    /* Triage hints so the queue can be ordered without opening every entry. */
+    function scanChip(g) {
+      const verdict = g.scan && g.scan.verdict;
+      if (g.hosting_type === 'selfhosted' || g.hostingType === 'selfhosted') {
+        return `<span class="badge badge-pending" title="We do not hold this game's files">Not scannable</span>`;
+      }
+      if (!g.play_path && !g.playPath) {
+        return `<span class="badge badge-disabled" title="The publisher has not uploaded a build">No build</span>`;
+      }
+      if (!verdict) return `<span class="badge badge-pending">Unscanned</span>`;
+      const map = {
+        pass: ['badge-approved', 'Scan clean'],
+        warn: ['badge-pending', `${((g.scan.summary || {}).high || 0) + ((g.scan.summary || {}).medium || 0)} to check`],
+        fail: ['badge-rejected', 'Scan failed']
+      };
+      const [cls, label] = map[verdict] || map.warn;
+      return `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    function deliveryChip(g) {
+      const mode = g.hosting_type || g.hostingType;
+      if (mode === 'selfhosted') return `<span class="badge badge-waiting">🔧 Self-hosted</span>`;
+      if (mode === 'hosted') return `<span class="badge badge-active">🏠 Hosted</span>`;
+      return '';
+    }
+
+    function renderApproved() {
+      const approved = DB.games.filter(g => g.status === 'approved');
+      const colors = ['linear-gradient(135deg,#1a3a2a,#0d2a1a)', 'linear-gradient(135deg,#1a1a3a,#0d0d2a)', 'linear-gradient(135deg,#3a1a1a,#2a0d0d)', 'linear-gradient(135deg,#2a1a3a,#1a0d2a)', 'linear-gradient(135deg,#1a2a3a,#0d1a2a)', 'linear-gradient(135deg,#3a2a1a,#2a1a0d)'];
+      document.getElementById('approved-grid').innerHTML = approved.map((g, i) => `
+    <div class="game-card">
+      ${getGameIconHTML(g, i, '100%', 'height:140px;display:block;border-bottom:1px solid var(--border-primary);border-radius:0')}
+      <div class="game-card-body">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">${badgeHTML('approved')} ${g.enabled ? badgeHTML('enabled') : badgeHTML('disabled')}</div>
+        <div class="game-card-title mt-1">${g.title}</div>
+        <div class="game-card-meta"><span>By ${g.publisher}</span></div>
+      </div>
+    </div>`).join('');
+    }
+
+    /* approveGame()/rejectGame() used to live here and flipped g.status in
+       localStorage. That path is gone on purpose: it wrote an approval the
+       server never agreed to, and db-import now refuses a client-side approval
+       state for any game that has been through review. The review console
+       calls PATCH /games/:id/approve, which is the only way a listing goes
+       live. */
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['admin', 'superuser']);
+      if (!session) return;
+      buildNavbar('admin', 'approvals');
+      updateStats(); renderPending(); renderApproved();
+    });
+  </script>
+</body>
+
+</html>
+

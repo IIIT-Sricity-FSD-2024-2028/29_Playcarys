@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Group</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* Same reading width as Community and Tournaments, so the three line up. */
+.page-content { max-width:1120px; }
+
+.grp-hero {
+  background:linear-gradient(135deg,#0d1b35 0%,#120a24 50%,#0a1a0a 100%);
+  border:1px solid var(--border-primary); border-radius:var(--radius-xl);
+  padding:1.75rem 2rem; margin-bottom:1.5rem;
+  display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap;
+}
+.grp-hero-avatar { width:60px; height:60px; border-radius:var(--radius-lg); background:linear-gradient(135deg,#00d4ff,#7c3aed); display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:900; color:#fff; flex-shrink:0; }
+.g-tabs { display:flex; gap:0.4rem; border-bottom:1px solid var(--border-primary); margin-bottom:1.35rem; flex-wrap:wrap; }
+.g-tab { padding:0.65rem 1rem; font-size:0.82rem; font-weight:800; color:var(--text-secondary); cursor:pointer; border-bottom:2px solid transparent; transition:all .16s; letter-spacing:0.01em; }
+.g-tab:hover { color:var(--text-primary); }
+.g-tab.active { color:var(--accent-cyan); border-bottom-color:var(--accent-cyan); }
+.tab-content.hidden { display:none; }
+.member-row {
+  display:flex; align-items:center; gap:0.8rem; padding:0.7rem 1rem;
+  background:var(--bg-card); border:1px solid var(--border-primary);
+  border-left:3px solid var(--accent-purple);
+  border-radius:var(--radius-md); margin-bottom:0.5rem;
+  transition:border-color .16s, background .16s;
+}
+.member-row:hover { background:var(--bg-secondary); border-color:var(--border-secondary); border-left-color:#a78bfa; }
+.member-avatar { width:34px; height:34px; border-radius:50%; background:var(--accent-purple); color:#fff; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800; flex-shrink:0; }
+.chat-box { height:340px; overflow-y:auto; background:var(--bg-secondary); border-radius:var(--radius-md); padding:0.75rem; display:flex; flex-direction:column; gap:0.5rem; margin-bottom:0.75rem; }
+.chat-msg { max-width:75%; padding:0.5rem 0.75rem; border-radius:var(--radius-md); font-size:0.83rem; background:var(--bg-card); align-self:flex-start; }
+.chat-msg.mine { align-self:flex-end; background:rgba(0,212,255,0.12); }
+.chat-msg .who { font-size:0.68rem; color:var(--text-secondary); margin-bottom:0.15rem; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+  <div class="back-btn" onclick="window.location.href='community.html'">← Back to Community</div>
+  <div id="hero"></div>
+
+  <div class="g-tabs">
+    <div class="g-tab active" data-tab="roster" onclick="setTab('roster')">👥 Roster</div>
+    <div class="g-tab" data-tab="chat" onclick="setTab('chat')">💬 Chat</div>
+    <div class="g-tab" data-tab="tournaments" onclick="setTab('tournaments')">🏆 Tournaments</div>
+    <div class="g-tab hidden" id="requests-tab" data-tab="requests" onclick="setTab('requests')">📥 Join Requests</div>
+  </div>
+
+  <div id="tab-roster" class="tab-content"></div>
+  <div id="tab-chat" class="tab-content hidden"></div>
+  <div id="tab-tournaments" class="tab-content hidden"></div>
+  <div id="tab-requests" class="tab-content hidden"></div>
+</div>
+</div>
+<div id="toast-container"></div>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+function uid() { const s = Auth.getSession(); return parseInt(s.userId, 10); }
+const groupId = parseInt(new URLSearchParams(location.search).get('id'), 10);
+let group = null;
+
+function isStaff() { return group && (Number(group.owner_id) === uid() || (group.officer_ids||[]).includes(uid())); }
+function isMember() { return group && (group.member_ids||[]).includes(uid()); }
+
+async function loadGroup() {
+  try { group = await API.get(`/groups/${groupId}`); }
+  catch (e) { Toast.error('Group not found.'); return; }
+  renderHero();
+  document.getElementById('requests-tab').classList.toggle('hidden', !isStaff());
+  renderRoster();
+}
+
+function renderHero() {
+  const joinBtn = isMember()
+    ? (Number(group.owner_id) === uid()
+        ? '<span class="badge badge-warning">👑 You own this group</span>'
+        : `<button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="leaveGroup()">Leave Group</button>`)
+    : `<button class="btn btn-yellow btn-sm" onclick="joinGroup()">${group.join_mode === 'request' ? '📥 Request to Join' : group.join_mode === 'invite_only' ? '🔒 Invite Only' : '✅ Join Group'}</button>`;
+  const joinDisabled = !isMember() && group.join_mode === 'invite_only' ? 'disabled' : '';
+
+  document.getElementById('hero').innerHTML = `
+    <div class="grp-hero">
+      <div class="grp-hero-avatar">${(group.name||'?').slice(0,2).toUpperCase()}</div>
+      <div style="flex:1;min-width:200px">
+        <h1 style="margin-bottom:0.2rem">${group.name}</h1>
+        <p class="text-muted" style="margin:0">${group.desc || 'No description yet.'}</p>
+        <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.4rem">👥 ${group.member_count} member${group.member_count === 1 ? '' : 's'} · 🏆 ${group.tournament_count} tournament${group.tournament_count === 1 ? '' : 's'} · ${group.visibility === 'private' ? '🔒 Private' : '🌐 Public'}</div>
+      </div>
+      <div ${joinDisabled}>${joinBtn}</div>
+    </div>`;
+}
+
+function setTab(name) {
+  document.querySelectorAll('.g-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+  ['roster','chat','tournaments','requests'].forEach(t => document.getElementById('tab-'+t).classList.toggle('hidden', t !== name));
+  if (name === 'chat') renderChat();
+  if (name === 'tournaments') renderTournaments();
+  if (name === 'requests') renderRequests();
+}
+
+function renderRoster() {
+  document.getElementById('tab-roster').innerHTML = group.members.map(m => `
+    <div class="member-row">
+      <div class="member-avatar">${m.avatar || '??'}</div>
+      <div style="flex:1">
+        <div style="font-weight:700">${m.user_name}</div>
+        <div style="font-size:0.72rem;color:var(--text-secondary);text-transform:capitalize">${m.role === 'owner' ? '👑 Owner' : m.role === 'officer' ? '⭐ Officer' : 'Member'}</div>
+      </div>
+      ${Number(group.owner_id) === uid() && m.role !== 'owner' ? `
+        <div style="display:flex;gap:0.4rem">
+          ${m.role !== 'officer'
+            ? `<button class="btn btn-ghost btn-sm" onclick="promote(${m.user_id})">Make Officer</button>`
+            : `<button class="btn btn-ghost btn-sm" onclick="demote(${m.user_id})">Remove Officer</button>`}
+          <button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="kick(${m.user_id})">Remove</button>
+        </div>` : ''}
+    </div>`).join('');
+}
+
+async function promote(userId) {
+  try { group = await API.post(`/groups/${groupId}/officers/${userId}?requesterId=${uid()}`); Toast.success('Promoted to officer.'); renderRoster(); }
+  catch (e) { Toast.error(e.message); }
+}
+async function demote(userId) {
+  try { await API.del(`/groups/${groupId}/officers/${userId}?requesterId=${uid()}`); await loadGroup(); Toast.info('Officer removed.'); }
+  catch (e) { Toast.error(e.message); }
+}
+async function kick(userId) {
+  confirmAction('Remove Member', 'Remove this member from the group?', async () => {
+    try { await API.del(`/groups/${groupId}/members/${userId}?requesterId=${uid()}`); await loadGroup(); Toast.info('Member removed.'); }
+    catch (e) { Toast.error(e.message); }
+  });
+}
+async function joinGroup() {
+  try {
+    const res = await API.post(`/groups/${groupId}/join?userId=${uid()}`);
+    Toast.success(res.message);
+    await loadGroup();
+  } catch (e) { Toast.error(e.message); }
+}
+async function leaveGroup() {
+  confirmAction('Leave Group', `Leave ${group.name}?`, async () => {
+    try { await API.post(`/groups/${groupId}/leave?userId=${uid()}`); Toast.info('Left the group.'); await loadGroup(); }
+    catch (e) { Toast.error(e.message); }
+  });
+}
+
+// ── Chat ──────────────────────────────
+async function renderChat() {
+  const box = document.getElementById('tab-chat');
+  if (!isMember()) { box.innerHTML = `<div class="text-muted" style="padding:1rem">Join the group to see and post in its chat.</div>`; return; }
+  box.innerHTML = `<div class="chat-box" id="chat-log"></div>
+    <div style="display:flex;gap:0.5rem">
+      <input class="form-input" id="chat-input" placeholder="Message the group…" onkeydown="if(event.key==='Enter')sendChat()"/>
+      <button class="btn btn-yellow" onclick="sendChat()">Send</button>
+    </div>`;
+  await refreshChat();
+}
+async function refreshChat() {
+  let rows = [];
+  try { rows = await API.get(`/groups/${groupId}/chat`); } catch (e) { rows = []; }
+  const log = document.getElementById('chat-log');
+  if (!log) return;
+  log.innerHTML = rows.map(m => `
+    <div class="chat-msg ${Number(m.from_user) === uid() ? 'mine' : ''}">
+      <div class="who">${m.from_name}</div>${m.body}
+    </div>`).join('') || `<div class="text-muted" style="padding:1rem;text-align:center">No messages yet — say hi!</div>`;
+  log.scrollTop = log.scrollHeight;
+}
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const body = input.value.trim();
+  if (!body) return;
+  input.value = '';
+  try { await API.post(`/groups/${groupId}/chat`, { from_user: uid(), body }); await refreshChat(); }
+  catch (e) { Toast.error(e.message); }
+}
+
+// ── Community tournaments ─────────────
+async function renderTournaments() {
+  let list = [];
+  try { list = await API.get(`/groups/${groupId}/tournaments`); } catch (e) { list = []; }
+  const createBtn = isStaff()
+    ? `<button class="btn btn-yellow btn-sm" onclick="window.location.href='create-tournament.html'">+ New Community Tournament</button>`
+    : '';
+  document.getElementById('tab-tournaments').innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">${createBtn}</div>
+    ${list.length ? list.map(t => `
+      <div class="member-row" style="cursor:pointer" onclick="window.location.href='tournaments.html'">
+        <div style="flex:1">
+          <div style="font-weight:700">${t.tournament_name}</div>
+          <div style="font-size:0.75rem;color:var(--text-secondary)">${badgeHTML(t.status)} · 👥 ${t.participants}/${t.maxParticipants}</div>
+        </div>
+      </div>`).join('') : `<div class="text-muted" style="padding:1rem">No Community tournaments yet.${isStaff() ? ' Create one above.' : ''}</div>`}`;
+}
+
+// ── Join requests (staff only) ────────
+async function renderRequests() {
+  if (!isStaff()) return;
+  let reqs = [];
+  try { reqs = await API.get(`/groups/${groupId}/requests?requesterId=${uid()}`); } catch (e) { reqs = []; }
+  document.getElementById('tab-requests').innerHTML = reqs.length ? reqs.map(r => `
+    <div class="member-row">
+      <div style="flex:1"><div style="font-weight:700">${r.user_name}</div><div style="font-size:0.72rem;color:var(--text-secondary)">Requested ${formatDate(r.created_at)}</div></div>
+      <div style="display:flex;gap:0.4rem">
+        <button class="btn btn-green btn-sm" onclick="respondRequest(${r.id},true)">Accept</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="respondRequest(${r.id},false)">Decline</button>
+      </div>
+    </div>`).join('') : `<div class="text-muted" style="padding:1rem">No pending requests.</div>`;
+}
+async function respondRequest(id, accept) {
+  try {
+    await API.post(`/groups/${groupId}/requests/${id}/${accept ? 'accept' : 'reject'}?requesterId=${uid()}`);
+    Toast.success(accept ? 'Accepted.' : 'Declined.');
+    await loadGroup(); renderRequests();
+  } catch (e) { Toast.error(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['player']);
+  if (!session) return;
+  if (!groupId) { Toast.error('No group specified.'); return; }
+  buildNavbar('player','community');
+  loadGroup();
+});
+</script>
+</body>
+</html>

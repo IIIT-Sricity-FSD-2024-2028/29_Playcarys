@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>PlayCarys - Hill Climbing</title>
+
+  <script language="javascript" src="libraries/p5.js"></script>
+  <script language="javascript" src="libraries/p5.dom.js"></script>
+  <script language="javascript" src="libraries/Box2d.js"></script>
+
+  <script language="javascript" src="sketch.js"></script>
+  <script language="javascript" src="Wheel.js"></script>
+  <script language="javascript" src="Car.js"></script>
+  <script language="javascript" src="Ground.js"></script>
+  <script language="javascript" src="Pickup.js"></script>
+  <script language="javascript" src="Person.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #0b1220;
+      overflow: hidden;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      -webkit-user-select: none; user-select: none;
+      touch-action: none;
+    }
+
+    /* The canvas fills the window; everything else floats on top of it. */
+    #canvas { position: fixed; inset: 0; }
+    #canvas canvas { display: block; width: 100% !important; height: 100% !important; }
+
+    /* ── Top overlay bar ─────────────────────────────────────── */
+    #top-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: .75rem; padding: .55rem .9rem;
+      background: linear-gradient(180deg, rgba(4,8,18,.72), rgba(4,8,18,0));
+      z-index: 10; pointer-events: none;
+    }
+    #top-bar > * { pointer-events: auto; }
+    .btn {
+      background: rgba(12,18,32,.78); color: #fff;
+      padding: .42rem .9rem; border-radius: 8px;
+      font-weight: 700; font-size: .8rem; cursor: pointer;
+      border: 1px solid rgba(255,255,255,.16);
+      backdrop-filter: blur(6px);
+      transition: background .15s, border-color .15s, transform .1s;
+    }
+    .btn:hover { background: rgba(30,42,66,.9); border-color: rgba(255,255,255,.3); }
+    .btn:active { transform: translateY(1px); }
+    #game-title {
+      color: #fff; font-weight: 800; letter-spacing: .04em;
+      font-size: .95rem; text-shadow: 0 2px 8px rgba(0,0,0,.7);
+    }
+    .bar-right { display: flex; gap: .5rem; align-items: center; }
+    .hint {
+      color: rgba(255,255,255,.75); font-size: .74rem;
+      text-shadow: 0 1px 4px rgba(0,0,0,.8);
+    }
+
+    /* ── Touch pedals ────────────────────────────────────────── */
+    #pedals {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      display: flex; justify-content: space-between;
+      padding: 0 2.2vw 2.4vh; z-index: 9;
+      pointer-events: none;
+    }
+    .pedal {
+      pointer-events: auto;
+      width: 15vh; height: 15vh; min-width: 92px; min-height: 92px;
+      max-width: 150px; max-height: 150px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.4rem; color: #fff;
+      border: 3px solid rgba(255,255,255,.35);
+      background: radial-gradient(circle at 34% 30%, rgba(255,255,255,.28), rgba(0,0,0,.42));
+      box-shadow: 0 6px 22px rgba(0,0,0,.45);
+      transition: transform .08s, box-shadow .12s, border-color .12s;
+      text-shadow: 0 2px 6px rgba(0,0,0,.6);
+    }
+    #pedal-brake { background: radial-gradient(circle at 34% 30%, rgba(248,113,113,.55), rgba(120,10,10,.5)); }
+    #pedal-gas   { background: radial-gradient(circle at 34% 30%, rgba(74,222,128,.55), rgba(10,90,40,.5)); }
+    .pedal.on { transform: scale(.92); border-color: #fff; box-shadow: 0 0 26px rgba(255,255,255,.45); }
+
+    /* On a desktop with a keyboard the pedals are only a fallback. */
+    @media (hover: hover) and (pointer: fine) {
+      #pedals { opacity: .38; }
+      #pedals:hover { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas"></div>
+
+  <div id="top-bar">
+    <button class="btn" id="btn-leave" onclick="history.back()">← Leave</button>
+    <span id="game-title">Hill Climbing</span>
+    <div class="bar-right">
+      <span class="hint">← / →  or  A / D</span>
+      <button class="btn" id="btn-fs" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    </div>
+  </div>
+
+  <div id="pedals">
+    <div class="pedal" id="pedal-brake">◀</div>
+    <div class="pedal" id="pedal-gas">▶</div>
+  </div>
+
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script>
+    (function(){
+      var params = new URLSearchParams(window.location.search);
+      var tournId = params.get('tournamentId');
+      if (tournId && typeof DB !== 'undefined') {
+        var t = DB.tournaments.find(function(x){ return String(x.id) === String(tournId); });
+        if (t) {
+          document.getElementById('game-title').textContent = '🏔️ ' + t.name;
+          var leaveBtn = document.getElementById('btn-leave');
+          leaveBtn.textContent = '← Tournament';
+          leaveBtn.onclick = function(){ window.location.href = '../../pages/player/tournaments.html?highlight=' + tournId; };
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

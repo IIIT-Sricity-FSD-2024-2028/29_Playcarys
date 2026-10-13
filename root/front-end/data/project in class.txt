@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Club Event Registration</title>
+</head>
+<body>
+
+    <center>
+        <h2>Club Event Registration</h2>
+    </center>
+
+    <form id="regForm">
+
+        <label>Name:</label><br>
+        <input type="text" id="name" required><br><br>
+
+        <label>Roll Number:</label><br>
+        <input type="text" id="roll" required><br><br>
+
+        <label>Age:</label><br>
+        <input type="number" id="age" min="1" required><br><br>
+
+        <label>Club:</label><br>
+        <select id="club" onchange="updateEvents()" required>
+            <option value="">--Select Club--</option>
+            <option value="IOTA">IOTA</option>
+            <option value="Nirvana">Nirvana</option>
+            <option value="Epoch">Epoch</option>
+            <option value="Enigma">Enigma</option>
+        </select>
+
+        <br><br>
+
+        <label>Event:</label><br>
+        <select id="event" required>
+            <option value="">--Select Event--</option>
+        </select>
+
+        <br><br>
+
+        <button type="submit">Register</button>
+
+    </form>
+
+    <hr>
+
+    <h2>Submission Log</h2>
+
+    <table border="1" id="logTable">
+        <tr>
+            <th>Name</th>
+            <th>Roll No</th>
+            <th>Age</th>
+            <th>Club</th>
+            <th>Event</th>
+        </tr>
+    </table>
+
+<script>
+
+const clubEvents = {
+    "IOTA": [
+        "IOTA 1",
+        "IOTA 2"
+    ],
+    "Nirvana": [
+        "N1",
+        "N2"
+    ],
+    "Epoch": [
+        "Epoch 1",
+        "Epoch 2"
+    ],
+    "Enigma": [
+        "Enigma 1",
+        "Enigma 2"
+    ]
+};
+
+function updateEvents() {
+
+    let club = document.getElementById("club").value;
+    let event = document.getElementById("event");
+
+    event.innerHTML = '<option value="">--Select Event--</option>';
+
+    if (club !== "") {
+
+        clubEvents[club].forEach(function(e) {
+
+            let option = document.createElement("option");
+            option.text = e;
+            option.value = e;
+
+            event.appendChild(option);
+
+        });
+
+    }
+
+}
+
+let submissions = JSON.parse(localStorage.getItem("clubLogs")) || [];
+
+function displayLogs() {
+
+    let table = document.getElementById("logTable");
+
+    table.innerHTML = `
+        <tr>
+            <th>Name</th>
+            <th>Roll No</th>
+            <th>Age</th>
+            <th>Club</th>
+            <th>Event</th>
+        </tr>
+    `;
+
+    submissions.forEach(function(data) {
+
+        let row = table.insertRow();
+
+        row.insertCell(0).innerText = data.name;
+        row.insertCell(1).innerText = data.roll;
+        row.insertCell(2).innerText = data.age;
+        row.insertCell(3).innerText = data.club;
+        row.insertCell(4).innerText = data.event;
+
+    });
+
+}
+
+displayLogs();
+
+document.getElementById("regForm").addEventListener("submit", function(e) {
+
+    e.preventDefault();
+
+    let age = Number(document.getElementById("age").value);
+
+    if (age < 18) {
+        alert("Only participants aged 18 years or above can register.");
+        return;
+    }
+
+    let data = {
+        name: document.getElementById("name").value,
+        roll: document.getElementById("roll").value,
+        age: age,
+        club: document.getElementById("club").value,
+        event: document.getElementById("event").value
+    };
+
+    submissions.push(data);
+
+    localStorage.setItem("clubLogs", JSON.stringify(submissions));
+
+    displayLogs();
+
+    this.reset();
+
+    document.getElementById("event").innerHTML =
+        '<option value="">--Select Event--</option>';
+
+    alert("Registration Successful!");
+
+});
+
+</script>
+
+</body>
+</html>

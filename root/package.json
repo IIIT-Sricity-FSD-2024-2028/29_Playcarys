@@ -1,0 +1,8 @@
+{
+  "name": "playcarys-platform",
+  "version": "1.0.0",
+  "description": "PlayCarys Online Multiplayer Game Management Platform",
+  "scripts": {
+    "start": "run.bat"
+  }
+}

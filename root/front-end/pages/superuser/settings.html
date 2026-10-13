@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Superuser · Settings</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
+.settings-card { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-lg); padding:1.5rem; }
+.settings-card h3 { font-size:0.95rem; margin-bottom:1.25rem; display:flex;align-items:center;gap:0.5rem; }
+.danger-zone { border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.03); }
+.danger-zone h3 { color:var(--accent-red); }
+.danger-row { display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:var(--radius-md);margin-bottom:0.6rem;cursor:pointer;transition:all var(--trans-fast); }
+.danger-row:hover { background:rgba(239,68,68,0.14);border-color:rgba(239,68,68,0.35); }
+.danger-row h4 { font-size:0.875rem;color:var(--accent-red); }
+.danger-row p  { font-size:0.75rem;color:var(--text-secondary);margin-top:0.1rem; }
+.section-full { grid-column:1/-1; }
+@media(max-width:768px){ .settings-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="page-header">
+    <h1>⚙️ System Settings</h1>
+    <p class="text-muted">Global platform configuration — Superuser only</p>
+  </div>
+
+  <div class="settings-grid">
+
+    <!-- Platform Controls -->
+    <div class="settings-card">
+      <h3>🔧 Platform Controls</h3>
+      <div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Maintenance Mode</h4><p>Lock platform for all non-admin users</p></div>
+          <div class="toggle" id="t-maintenance"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>New Registrations</h4><p>Allow new players and publishers to sign up</p></div>
+          <div class="toggle" id="t-registration"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Game Publishing</h4><p>Allow publishers to submit new games</p></div>
+          <div class="toggle on" id="t-publishing"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Tournament Creation</h4><p>Allow publishers to create new tournaments</p></div>
+          <div class="toggle on" id="t-tournaments"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Player Reports</h4><p>Allow players to submit reports</p></div>
+          <div class="toggle on" id="t-reports"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Security Controls -->
+    <div class="settings-card">
+      <h3>🔐 Security Controls</h3>
+      <div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Two-Factor Auth</h4><p>Require 2FA for admin accounts</p></div>
+          <div class="toggle" id="t-2fa"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Strong Passwords</h4><p>Enforce uppercase + number requirement</p></div>
+          <div class="toggle" id="t-passwords"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Rate Limiting</h4><p>Limit API requests per user per minute</p></div>
+          <div class="toggle on" id="t-ratelimit"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>IP Whitelist (Admin)</h4><p>Restrict admin login to whitelisted IPs</p></div>
+          <div class="toggle" id="t-ipwhitelist"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Audit Logging</h4><p>Log all admin actions to audit trail</p></div>
+          <div class="toggle on" id="t-auditlog"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform Info -->
+    <div class="settings-card">
+      <h3>🏷️ Platform Info</h3>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="form-group">
+          <label class="form-label">Platform Name</label>
+          <input class="form-input" id="cfg-name" value="PlayCarys"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Support Email</label>
+          <input class="form-input" id="cfg-email" value="support@playcarys.com" type="email"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Session Timeout (minutes)</label>
+          <input class="form-input" id="cfg-timeout" type="number" value="30" min="5" max="480"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Games per Publisher</label>
+          <input class="form-input" id="cfg-maxgames" type="number" value="10" min="1" max="100"/>
+        </div>
+        <button class="btn btn-primary w-full" onclick="savePlatformInfo()">💾 Save Platform Info</button>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="settings-card">
+      <h3>🔔 Notification Settings</h3>
+      <div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Email Notifications</h4><p>Send transactional emails to users</p></div>
+          <div class="toggle" id="t-email"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Report Alerts</h4><p>Notify moderators of new reports</p></div>
+          <div class="toggle" id="t-reportalerts"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Approval Alerts</h4><p>Notify admins of pending game submissions</p></div>
+          <div class="toggle" id="t-approvalerts"></div>
+        </div>
+        <div class="toggle-wrap">
+          <div class="toggle-info"><h4>Tournament Reminders</h4><p>Notify registered players before tournaments start</p></div>
+          <div class="toggle on" id="t-tournreminders"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Export -->
+    <div class="settings-card">
+      <h3>📦 Data Export</h3>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:1rem">Download platform data as CSV files for external analysis</p>
+      <div style="display:flex;flex-direction:column;gap:0.6rem">
+        <button class="btn btn-ghost w-full" onclick="exportCSV('users')">⬇️ Export All Users</button>
+        <button class="btn btn-ghost w-full" onclick="exportCSV('games')">⬇️ Export All Games</button>
+        <button class="btn btn-ghost w-full" onclick="exportCSV('reports')">⬇️ Export All Reports</button>
+        <button class="btn btn-ghost w-full" onclick="exportCSV('bans')">⬇️ Export Ban History</button>
+        <button class="btn btn-ghost w-full" onclick="exportCSV('tournaments')">⬇️ Export Tournaments</button>
+      </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="settings-card">
+      <h3>📡 System Status</h3>
+      <div id="sys-services"></div>
+      <div style="margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border-primary)">
+        <div class="form-group">
+          <label class="form-label">Platform Version</label>
+          <input class="form-input" value="v2.4.1" readonly style="opacity:0.6;cursor:default"/>
+        </div>
+        <div class="form-group mt-2">
+          <label class="form-label">DB Size (mock)</label>
+          <input class="form-input" id="db-size" readonly style="opacity:0.6;cursor:default"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="settings-card danger-zone section-full">
+      <h3>⚠️ Danger Zone — Superuser Only</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div class="danger-row" onclick="dangerAction('purge-sessions')">
+          <div><h4>Purge All Sessions</h4><p>Immediately disconnect all active game sessions</p></div>
+          <span style="font-size:1.3rem">⚡</span>
+        </div>
+        <div class="danger-row" onclick="dangerAction('lift-bans')">
+          <div><h4>Lift All Bans</h4><p>Remove every active player ban platform-wide</p></div>
+          <span style="font-size:1.3rem">🔓</span>
+        </div>
+        <div class="danger-row" onclick="dangerAction('archive-reports')">
+          <div><h4>Archive All Reports</h4><p>Mark all pending reports as resolved</p></div>
+          <span style="font-size:1.3rem">📁</span>
+        </div>
+        <div class="danger-row" onclick="dangerAction('reset-data')">
+          <div><h4>Reset Platform Data</h4><p>Reset sessions and activity log to defaults</p></div>
+          <span style="font-size:1.3rem">♻️</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</div>
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// navigate() provided globally by utils.js
+
+async function savePlatformInfo() {
+  const name    = document.getElementById('cfg-name').value.trim();
+  const email   = document.getElementById('cfg-email').value.trim();
+  const timeout = parseInt(document.getElementById('cfg-timeout').value);
+  if (!name)  { Toast.error('Platform name required'); return; }
+  if (!email) { Toast.error('Support email required'); return; }
+  // Renaming the platform is confirmed separately from everything else here.
+  //
+  // Admins cannot do it at all; a superuser can, but it is not the same
+  // magnitude of change as a session timeout. The name is on every page and in
+  // every email the platform sends, and is what a player believes they signed
+  // up to — so it gets its own yes, showing the old name beside the new one.
+  const previous = DB.settings.platformName;
+  if (name !== previous) {
+    const ok = await Confirm.show({
+      title: 'Rename the platform?',
+      message: 'This name appears on every page and in every email the platform sends. Every user sees it immediately.',
+      art: '🌐',
+      rows: [['Currently', previous || '—'], ['New name', name]],
+      confirmText: 'Rename',
+      tone: 'danger'
+    });
+    if (!ok) {
+      document.getElementById('cfg-name').value = previous;
+      return;
+    }
+  }
+
+  DB.settings.platformName    = name;
+  DB.settings.sessionTimeout  = timeout;
+  DB.settings.supportEmail    = email;
+  DB.save();
+  Toast.success('Platform info saved');
+}
+
+function exportCSV(type) {
+  const exporters = {
+    users:       DB.users.map(u=>`${u.username},${u.email},${u.role},${u.status},${u.joinDate}`).join('\n'),
+    games:       DB.games.map(g=>`${g.title},${g.publisher},${g.genre},${g.status},${g.enabled},${g.views}`).join('\n'),
+    reports:     DB.reports.map(r=>`${r.id},${r.reporterName},${r.reportedName},${r.type},${r.status}`).join('\n'),
+    bans:        DB.bans.map(b=>`${b.playerName},${b.duration},${b.reason},${b.bannedBy},${b.bannedDate},${b.active}`).join('\n'),
+    tournaments: DB.tournaments.map(t=>`${t.name},${t.game},${t.status},${t.participants},${t.prize}`).join('\n'),
+  };
+  const blob = new Blob([exporters[type]||''], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `playcarys_${type}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  Toast.success(`${capitalize(type)} exported`);
+}
+
+function dangerAction(action) {
+  const map = {
+    // Ends live matches; never deletes them. See the note on the same action in
+    // admin/hub.html — a match is history, not a disposable room.
+    'purge-sessions': { title:'End All Live Matches', msg:'This immediately ends every match in progress. Match history is kept.', fn:()=>{ const live=(DB.matches||[]).filter(m=>m.status==='in-progress'); live.forEach(m=>DB.endMatch(m.match_id)); Toast.warning(`${live.length} match(es) ended`); } },
+    'lift-bans':      { title:'Lift All Bans', msg:'This will restore access to ALL currently banned users.', fn:()=>{ DB.bans.forEach(b=>b.active=false); DB.users.filter(u=>u.status==='banned').forEach(u=>u.status='active'); Toast.success('All bans lifted'); } },
+    'archive-reports':{ title:'Archive All Reports', msg:'All pending reports will be marked as resolved.', fn:()=>{ DB.reports.forEach(r=>r.status='resolved'); Toast.info('All reports archived'); } },
+    'reset-data':     { title:'Clear Activity Log', msg:'⚠️ The activity log will be cleared and every live match ended. Match history is NOT deleted.', fn:()=>{ const live=(DB.matches||[]).filter(m=>m.status==='in-progress'); live.forEach(m=>DB.endMatch(m.match_id)); DB.activityLog.length=0; Toast.warning('Activity log cleared'); } },
+  };
+  const a = map[action]; if (!a) return;
+  confirmAction(a.title, a.msg, a.fn);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['superuser']);
+  if (!session) return;
+  buildNavbar('superuser', 'settings');
+
+  // Init toggles
+  makeToggle(document.getElementById('t-maintenance'),   DB.settings.maintenanceMode,        v=>{ DB.settings.maintenanceMode=v; DB.save(); Toast.info(`Maintenance ${v?'ON':'OFF'}`); });
+  makeToggle(document.getElementById('t-registration'),  DB.settings.registrationOpen,       v=>{ DB.settings.registrationOpen=v; DB.save(); Toast.info(`Registrations ${v?'open':'closed'}`); });
+  makeToggle(document.getElementById('t-publishing'),    true,  v=>Toast.info(`Game publishing ${v?'enabled':'disabled'}`));
+  makeToggle(document.getElementById('t-tournaments'),   true,  v=>Toast.info(`Tournament creation ${v?'enabled':'disabled'}`));
+  makeToggle(document.getElementById('t-reports'),       true,  v=>Toast.info(`Player reports ${v?'enabled':'disabled'}`));
+  makeToggle(document.getElementById('t-2fa'),           DB.settings.twoFactorAuth,          v=>{ DB.settings.twoFactorAuth=v; DB.save(); Toast.info(`2FA ${v?'enabled':'disabled'}`); });
+  makeToggle(document.getElementById('t-passwords'),     DB.settings.strongPasswords,        v=>{ DB.settings.strongPasswords=v; DB.save(); Toast.info(`Strong passwords ${v?'enforced':'optional'}`); });
+  makeToggle(document.getElementById('t-ratelimit'),     true,  v=>Toast.info(`Rate limiting ${v?'on':'off'}`));
+  makeToggle(document.getElementById('t-ipwhitelist'),   false, v=>Toast.info(`IP whitelist ${v?'enabled':'disabled'}`));
+  makeToggle(document.getElementById('t-auditlog'),      true,  v=>Toast.info(`Audit logging ${v?'on':'off'}`));
+  makeToggle(document.getElementById('t-email'),         DB.settings.emailNotifications,     v=>{ DB.settings.emailNotifications=v; DB.save(); Toast.info(`Email notifications ${v?'on':'off'}`); });
+  makeToggle(document.getElementById('t-reportalerts'),  DB.settings.reportNotifications,    v=>{ DB.settings.reportNotifications=v; DB.save(); Toast.info(`Report alerts ${v?'on':'off'}`); });
+  makeToggle(document.getElementById('t-approvalerts'),  DB.settings.approvalNotifications,  v=>{ DB.settings.approvalNotifications=v; DB.save(); Toast.info(`Approval alerts ${v?'on':'off'}`); });
+  makeToggle(document.getElementById('t-tournreminders'),true,  v=>Toast.info(`Tournament reminders ${v?'on':'off'}`));
+
+  // System services
+  document.getElementById('sys-services').innerHTML = [
+    ['API Server','on'],['Database','on'],['Auth Service','on'],['Matchmaking','warn'],['CDN','on'],['Email Service','on']
+  ].map(([n,s])=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0;font-size:0.82rem;border-bottom:1px solid var(--border-primary)">
+      <span style="color:var(--text-secondary)">${n}</span>
+      <div style="display:flex;align-items:center;gap:0.4rem">
+        <div style="width:7px;height:7px;border-radius:50%;background:${s==='on'?'var(--accent-green)':'var(--accent-yellow)'};box-shadow:0 0 5px ${s==='on'?'var(--accent-green)':'var(--accent-yellow)'}"></div>
+        <span style="font-size:0.75rem;color:${s==='on'?'var(--accent-green)':'var(--accent-yellow)'}">${s==='on'?'Online':'Degraded'}</span>
+      </div>
+    </div>`).join('');
+
+  // DB size
+  const dbSize = JSON.stringify(DB).length;
+  document.getElementById('db-size').value = `${(dbSize/1024).toFixed(1)} KB (${DB.users.length} users, ${DB.games.length} games)`;
+});
+</script>
+</body>
+</html>
+

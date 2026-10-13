@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlayCarys — Revenue &amp; Scalability Strategy</title>
+<style>
+:root{
+  --ink:#12161f; --ink2:#39404f; --mute:#6b7385; --line:#e2e6ee; --bg:#fff; --panel:#f7f9fc;
+  --red:#b3261e; --redbg:#fdf2f1; --amber:#8a5a00; --amberbg:#fff8e8;
+  --green:#0f6b45; --greenbg:#eefaf4; --blue:#1a4f8a; --bluebg:#eef4fb;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:56px 28px 120px}
+h1{font-size:2.5rem;line-height:1.12;letter-spacing:-.022em;margin:0 0 12px;font-weight:700}
+h2{font-size:1.5rem;letter-spacing:-.015em;margin:64px 0 6px;font-weight:650;
+  padding-top:26px;border-top:2px solid var(--ink)}
+h3{font-size:1.12rem;margin:34px 0 8px;font-weight:650;letter-spacing:-.008em}
+h4{font-size:.96rem;margin:22px 0 6px;font-weight:650;color:var(--ink2)}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 16px;padding-left:22px}
+li{margin:0 0 7px}
+a{color:var(--blue)}
+.eyebrow{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);
+  font-weight:700;margin-bottom:10px}
+.sub{font-size:1.12rem;color:var(--ink2);margin-bottom:26px;line-height:1.5}
+.meta{font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;margin-bottom:44px}
+table{width:100%;border-collapse:collapse;margin:16px 0 20px;font-size:14px}
+th{text-align:left;background:var(--ink);color:#fff;padding:9px 11px;font-weight:600;
+  font-size:12px;letter-spacing:.03em;text-transform:uppercase;vertical-align:bottom}
+td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--panel)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.box{border-left:4px solid;padding:14px 18px;margin:20px 0;border-radius:0 4px 4px 0;font-size:14.6px}
+.box p:last-child{margin-bottom:0}
+.box .lbl{font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;font-weight:700;
+  display:block;margin-bottom:5px}
+.danger{border-color:var(--red);background:var(--redbg)} .danger .lbl{color:var(--red)}
+.warn{border-color:var(--amber);background:var(--amberbg)} .warn .lbl{color:var(--amber)}
+.good{border-color:var(--green);background:var(--greenbg)} .good .lbl{color:var(--green)}
+.info{border-color:var(--blue);background:var(--bluebg)} .info .lbl{color:var(--blue)}
+code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);
+  padding:1px 5px;border-radius:3px;border:1px solid var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);margin:22px 0}
+.kpi{background:#fff;padding:15px 16px}
+.kpi b{display:block;font-size:1.55rem;letter-spacing:-.02em;line-height:1.15;font-weight:700}
+.kpi span{font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);
+  font-weight:600;display:block;margin-top:5px;line-height:1.4}
+.kpi.r b{color:var(--red)} .kpi.g b{color:var(--green)}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:2px 7px;border-radius:3px;white-space:nowrap}
+.t-f{background:#dbeafe;color:#1e40af} .t-a{background:#fef3c7;color:#92400e}
+.t-e{background:#e9e4f8;color:#5b3fa8} .t-k{background:#fee2e2;color:#991b1b}
+.t-ok{background:#d1fae5;color:#065f46}
+.toc{background:var(--panel);border:1px solid var(--line);padding:18px 24px;margin:30px 0;
+  columns:2;column-gap:34px;font-size:14px}
+.toc a{display:block;padding:3px 0;text-decoration:none;color:var(--ink2);break-inside:avoid}
+.toc a:hover{color:var(--blue)}
+.legend{font-size:13px;color:var(--mute);margin:10px 0 22px}
+hr{border:0;border-top:1px solid var(--line);margin:38px 0}
+.small{font-size:13.4px;color:var(--mute)}
+@media(max-width:640px){.toc{columns:1}h1{font-size:1.95rem}.wrap{padding:34px 18px 80px}
+  table{font-size:12.6px}td,th{padding:7px 8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="eyebrow">PlayCarys · Strategic Analysis</div>
+<h1>Is there a real business inside this?</h1>
+<p class="sub">Yes — but it is not the business you have built, it is not in the market you are aiming at,
+and the revenue model in your own Revenue Model document became a criminal offence in India on
+1 May 2026. This report finds the business that is actually there, and the honest ceiling on it.</p>
+
+<div class="meta">
+15 AUGUST 2026 · MEASURED AGAINST THE UPLOADED WORKING TREE<br>
+13 games / 14 users (7 real) / 134 match results / 5 tournaments / ₹0 earned<br>
+ASSUMED FX ₹88 = US$1 · ALL FIGURES TAGGED FACT / ASSUMPTION / ESTIMATE
+</div>
+
+<div class="legend">
+<span class="tag t-f">FACT</span> verifiable, sourced &nbsp;
+<span class="tag t-a">ASSUMPTION</span> a number I chose; change it and the model changes &nbsp;
+<span class="tag t-e">ESTIMATE</span> my calculation from facts + assumptions
+</div>
+
+<div class="toc">
+<a href="#s0">0 · The verdict, up front</a>
+<a href="#s1">1 · What you have actually built</a>
+<a href="#s2">2 · Wall one: the law</a>
+<a href="#s3">3 · Wall two: Indian ad economics</a>
+<a href="#s4">4 · Wall three: nobody wins this category</a>
+<a href="#s5">5 · Fifteen revenue models, ranked</a>
+<a href="#s6">6 · The recommended business</a>
+<a href="#s7">7 · The funnel</a>
+<a href="#s8">8 · ₹0 → ₹1 crore, with the maths</a>
+<a href="#s9">9 · Unit economics</a>
+<a href="#s10">10 · Architecture, stage by stage</a>
+<a href="#s11">11 · Database evolution</a>
+<a href="#s12">12 · Multi-tenancy</a>
+<a href="#s13">13 · Revenue engineering</a>
+<a href="#s14">14 · Pricing</a>
+<a href="#s15">15 · India-first or global-first</a>
+<a href="#s16">16 · Growth engine at ₹0</a>
+<a href="#s17">17 · Network effects</a>
+<a href="#s18">18 · Moat</a>
+<a href="#s19">19 · Twenty ways this dies</a>
+<a href="#s20">20 · What NOT to build</a>
+<a href="#s21">21 · Founder roadmap</a>
+<a href="#s22">22 · Financial model, three scenarios</a>
+<a href="#s23">23 · Case studies</a>
+<a href="#s24">24 · The VC verdict</a>
+<a href="#s25">25 · Final answer</a>
+</div>
+
+<h2 id="s0">0 · The verdict, up front</h2>
+
+<div class="box danger">
+<span class="lbl">Stop building this first</span>
+<p><b>Your Revenue Model document, stream 04, says: "Tournaments — entry fee and rake… Allow entry in
+Carys <i>or</i> cash… Platform takes 10-15%." Stream 02 says: "players buy Carys with money."</b></p>
+<p>Under the <b>Promotion and Regulation of Online Gaming Act, 2025</b> — in force <b>1 May 2026</b> —
+that exact structure is a banned <b>"online money game."</b> Section 5 prohibits it absolutely.
+Section 9(1) makes it punishable by <b>up to 3 years imprisonment and ₹1 crore fine</b>. Section 10
+makes it <b>cognizable and non-bailable</b>. Section 5 binds "no person" — it reaches you personally,
+not just a company you might later form.</p>
+<p>Skill versus chance is <b>expressly irrelevant</b> under the Act. There is <b>no threshold, no student
+exemption, and no small-platform carve-out</b>. Chess being a game of skill does not help you.</p>
+</div>
+
+<p>The three things that follow from that, in order of how much they should change your plan:</p>
+
+<ol>
+<li><b>The tournament rake model is dead in India.</b> Not risky — illegal. And even if you convinced
+yourself otherwise, <b>you could not collect the money</b>: Razorpay's terms clause 14.10 explicitly
+prohibits money games as defined under this exact Act, and Stripe prohibits "tournaments or
+competitions… with a monetary <i>or material</i> prize." The payment rails are a harder wall than the
+statute.</li>
+
+<li><b>The ad model is arithmetically hopeless on Indian traffic.</b> Lumikai measures Indian rewarded-ad
+eCPM at <b>$2.43</b> and aggregate eCPM at <b>$1.10</b>, against US rewarded video at <b>$15–28</b>.
+Your own seeded ad table is unintentionally honest: $715 across 185,000 impressions. At Indian rates,
+<b>one million game plays earns roughly ₹1.45–3.2 lakh <i>gross, before the publisher's share</i></b>.
+You will not reach one million plays for years.</li>
+
+<li><b>The category you have entered has no winners at your scale.</b> FACEIT — a top-three global
+platform owned by Saudi PIF — books <b>£11.1m/year in subscriptions, a line that grew 2.8% while the
+company lost £60m</b>. Challonge is the only tournament platform on earth publishing a subscription
+price, and it is <b>$12/month</b>. start.gg ran for ten years with <b>no take rate at all</b> and only
+introduced one in February 2025 when Microsoft stopped subsidising it. <b>Selling software to
+tournament organisers is not a business.</b></li>
+</ol>
+
+<div class="box good">
+<span class="lbl">And yet — there is something real here</span>
+<p>Three facts sit next to each other. India has <b>48,246 colleges and 4.5 crore students</b> (AISHE
+2023-24). Organised college esports currently reaches roughly <b>100–150 of them</b> — under
+<b>0.3% penetration</b>. And KRAFTON (128-college tour) and UniPin (50+ universities in 2026) are
+already <b>spending marketing money</b> to reach exactly those students.</p>
+<p>The money in Indian gaming is not in players' pockets and it is not in ad impressions. It is in
+<b>brand and publisher budgets</b>, and in <b>commerce</b>. That is not my opinion — it is what the
+two working Indian pivots did. <b>Rooter</b> went from streaming to selling game currency and vouchers:
+₹82 crore FY25, <b>+120%</b>, losses down 63%. <b>NODWIN</b> does events and owned IP: ₹658 crore FY26,
+first EBITDA profit, IPO-track. <b>Loco</b> tried to monetise attention and sold for $65m against a
+$150m peak.</p>
+<p><b>The business hidden inside PlayCarys is campus tournament operations, sold to the people who
+already have a budget to reach students.</b> The software is not the product. The software is what
+lets one person run fifty tournaments instead of two.</p>
+</div>
+
+<h2 id="s1">1 · What you have actually built</h2>
+
+<h3>The honest inventory</h3>
+<table>
+<thead><tr><th>Layer</th><th>State</th><th>Commercial value</th></tr></thead>
+<tbody>
+<tr><td>Publisher upload → scan → admin review → approve pipeline</td><td>Working, genuinely good.
+Approval binds to <code>approved_bundle_hash</code>, not the listing</td><td><b>High.</b> This is real
+engineering and it is the hardest thing here to rebuild</td></tr>
+<tr><td>Tournament bracket engine (<code>generateBracket</code>, seeded fold, BYEs)</td><td>Working</td>
+<td><b>Medium.</b> Challonge does this free</td></tr>
+<tr><td>Five-role permission system + moderation + audit trail</td><td>Working</td>
+<td><b>Medium.</b> Only matters at multi-org scale</td></tr>
+<tr><td>Carys Points economy, 7 tiers, achievements (5 rows, game-scoped, <code>carys_reward</code>)</td>
+<td>Working, and you built it the way we discussed — publisher-authored, game-scoped, platform-set reward</td>
+<td><b>High, conditionally.</b> See §2 — its legality depends entirely on whether it can be bought</td></tr>
+<tr><td>Six monetisation tables</td><td><b>Zero lines of code read or write them.</b> $64.86 of seeded
+fiction. Every transaction status is "completed"</td><td><b>Zero today</b></td></tr>
+<tr><td>Publisher royalty (<code>revenue_pcp</code>: 45,000 and 12,500)</td><td>Silently accruing 15 Carys
+per session for months. Not declared in the backend type. Converts to nothing</td>
+<td><b>Zero.</b> A counter measuring an imaginary quantity</td></tr>
+<tr><td>Data layer</td><td>415 KB JSON file, shipped whole to every browser on every page load</td>
+<td><b>Negative.</b> It is a liability, priced in §10</td></tr>
+</tbody>
+</table>
+
+<h3>What problem does this solve, and for whom?</h3>
+<p>Be precise, because the fuzzy answer is what makes the business unfundable.</p>
+
+<table>
+<thead><tr><th>Party</th><th>Problem you solve</th><th>Would they pay?</th></tr></thead>
+<tbody>
+<tr><td><b>Player</b></td><td>"I want to play games without installing anything, and compete"</td>
+<td><b>No.</b> Poki, CrazyGames and itch.io solve it better and free. Indian students have near-zero
+willingness to pay for game access</td></tr>
+<tr><td><b>Indie publisher</b></td><td>"I want distribution and revenue for my HTML5 game"</td>
+<td><b>No — you must pay them.</b> Poki has 625M players and pays 100% when the dev brings the player.
+You have 7 real users. You are not distribution</td></tr>
+<tr><td><b>Tournament organiser</b> (college fest, gaming café, Discord admin)</td>
+<td>"Running a bracket for 64 people over WhatsApp is genuine hell"</td>
+<td><b>Marginally.</b> Challonge is free. But they will pay for the <i>work</i>, not the tool</td></tr>
+<tr><td><b>Brand / game publisher marketing team</b></td>
+<td>"I need to reach engaged college gamers in tier-2 India, with proof it happened"</td>
+<td><b>YES. This is the only party in the list with a budget and a reason.</b></td></tr>
+<tr><td><b>Gaming café owner</b></td><td>"I need footfall on weekday evenings"</td>
+<td><b>Yes, small.</b> ₹500–1,500/month is a real Indian SMB price point</td></tr>
+</tbody>
+</table>
+
+<div class="box info">
+<span class="lbl">The reframe that makes everything else work</span>
+<p>You have been building a <b>consumer platform</b> and looking for consumer revenue. The people with
+money are on the <b>other side</b>. Stop asking "how do I monetise players" and start asking
+<b>"who is already paying to reach these players, and can I do that job better than they can?"</b></p>
+</div>
+
+<h2 id="s2">2 · Wall one — the law</h2>
+
+<h3>The statutory text that governs you</h3>
+<p><span class="tag t-f">FACT</span> <b>"online money game"</b> — <i>"an online game, irrespective of
+whether such game is based on skill, chance, or both, played by a user by paying fees, depositing money
+or other stakes in expectation of winning which entails monetary and other enrichment in return of money
+or other stakes; but shall not include any e-sports."</b></i></p>
+
+<p><span class="tag t-f">FACT</span> <b>"other stakes"</b> — <i>"anything recognised as equivalent or
+convertible to money and includes credits, coins, token or objects… whether it is real or virtual, which
+is purchased by paying money <b>directly or by indirect means</b>…"</i></p>
+
+<p>Note two things. <b>"Paying fees" is a separately enumerated trigger</b> — Parliament deliberately
+wrote fees into the prohibition alongside stakes. And <b>"indirect means"</b> is the drafters explicitly
+anticipating exactly the money → virtual currency → entry chain your Revenue Model proposes.</p>
+
+<h3>Is the esports exemption a way out? No.</h3>
+<p>The esports definition has <b>six cumulative limbs</b>. Limb (v) genuinely permits registration fees
+and performance-based prize money. But limb (iii) requires the game to be <i>"duly recognised under the
+National Sports Governance Act, 2025, and registered with the Authority."</i> Commentators who tell you
+"esports can charge entry fees" are quoting limb (v) and dropping limb (iii).</p>
+
+<p><span class="tag t-f">FACT</span> NSGA recognition runs through <b>National Sports Federations</b>, and
+esports has no undisputed international federation — IESF and GEF compete, and ESFI, SOGF and FEAI all
+contest the single Indian slot. Legal commentary describes it as a stalemate. MeitY's Minister of State
+has confirmed games offered as esports must obtain NSGA recognition <i>and</i> register with OGAI, and
+that determinations are <b>per-game and per-provider, and are not precedent</b>.</p>
+
+<p><b>Practical translation:</b> you would need federation-level recognition, for each third-party game
+you did not write, through a body that does not yet functionally exist. That door is closed.</p>
+
+<h3>What IS legal — and it is more than you would think</h3>
+<table>
+<thead><tr><th>Design</th><th>Verdict</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Free-to-enter tournaments, prizes funded by a sponsor</td><td><span class="tag t-ok">CLEAR</span></td>
+<td>No fee, deposit or stake is paid by the user. Element (a) of the definition is simply absent.
+This is the model FAU-G Bharat League used with a ₹50 lakh pool</td></tr>
+<tr><td>Subscription or one-time access fee</td><td><span class="tag t-ok">CLEAR</span></td>
+<td><b>Expressly blessed</b> in the "online social game" definition: <i>"may allow access through payment
+of a subscription fee or one-time access fee, provided that such payment is not in the nature of a stake
+or wager"</i></td></tr>
+<tr><td>Cosmetic purchases, account-bound, non-tradable</td><td><span class="tag t-ok">CLEAR</span></td>
+<td>Rule 9(e) is satisfied: cannot be transferred, redeemed, monetised or used outside the game</td></tr>
+<tr><td>Carys earned by play only — not purchasable, not withdrawable, not transferable</td>
+<td><span class="tag t-ok">CLEAR</span></td><td>Not "purchased by paying money"; not convertible.
+Also sits inside RBI's <b>closed-system PPI exemption</b>, so no wallet licence needed</td></tr>
+<tr><td>Advertising, sponsorship, B2B licensing</td><td><span class="tag t-ok">CLEAR</span></td>
+<td>Ordinary services. 18% GST on the fee</td></tr>
+<tr><td>Carys purchasable, but spendable only on cosmetics</td><td><span class="tag t-a">ARGUABLE</span></td>
+<td>Survivable if nothing of monetary value is on the other side — but Razorpay clause 2.13(5)
+separately prohibits "credits that can be monetized, re-sold or converted." <b>Get written
+confirmation before you build it</b></td></tr>
+<tr><td>Entry fee (cash <i>or</i> Carys) against any prize of value</td><td><span class="tag t-k">ILLEGAL</span></td>
+<td>Every element of the definition is met. Section 5 offence</td></tr>
+<tr><td>Purchasable Carys used to enter a prize tournament</td><td><span class="tag t-k">ILLEGAL</span></td>
+<td>The clearest red line in the entire analysis. "Indirect means" is written into the statute for this</td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">Three compliance obligations that apply even to a free platform</span>
+<p>The 2026 Rules dropped mandatory registration for non-monetised games — <b>you do not need to file
+with OGAI upfront</b>. But these apply regardless: <b>age-gating and parental controls</b>; a
+<b>grievance officer</b> with a two-tier mechanism (15 days initial, 30 days final); and
+<b>data localisation of traffic data and metadata within India</b>. That last one quietly rules out
+hosting your database in Falkenstein.</p>
+</div>
+
+<h3>Tax, briefly</h3>
+<ul>
+<li><span class="tag t-f">FACT</span> Non-money games, esports and social games: <b>18% GST on the
+platform fee</b>. Money games: <b>40% on the full deposit</b>. You want to be firmly in the first bucket.</li>
+<li><span class="tag t-f">FACT</span> GST registration threshold is ₹20 lakh for services —
+<b>but there is a trap.</b> A platform where third-party publishers list and you collect payment likely
+makes you an <b>electronic commerce operator</b> under s.2(45), and s.24(x) compels registration
+<b>regardless of turnover</b>. Ask a CA about this specifically before you take publisher money.</li>
+<li><span class="tag t-f">FACT</span> A student can run this as a <b>sole proprietorship</b> — own PAN,
+personal savings account, no incorporation needed. Razorpay onboards individuals. You need PAN, address
+proof, bank account, and a site with Terms, Privacy and Refund pages.</li>
+<li><span class="tag t-f">FACT</span> Any cash prize triggers <b>Section 194BA: 30% TDS with no
+threshold</b>, deducted by the platform. One more reason to have sponsors pay winners directly.</li>
+</ul>
+
+<h2 id="s3">3 · Wall two — Indian ad economics</h2>
+
+<p>This is the arithmetic that kills the "big free portal, monetise with ads" plan. Three independent
+sources converge.</p>
+
+<div class="kpis">
+<div class="kpi"><b>$15–28</b><span>US rewarded video eCPM</span></div>
+<div class="kpi"><b>$8–15</b><span>EU rewarded eCPM</span></div>
+<div class="kpi r"><b>$1–3</b><span>India / tier-3 eCPM</span></div>
+<div class="kpi r"><b>$2.43</b><span>Lumikai measured India rewarded</span></div>
+<div class="kpi r"><b>$1.10</b><span>Lumikai India aggregate, all formats</span></div>
+</div>
+
+<p><span class="tag t-e">ESTIMATE</span> at 1.5 ad impressions per play, ₹88/USD:</p>
+<table>
+<thead><tr><th>Game plays / month</th><th class="num">At $1.10 aggregate</th><th class="num">At $2.43 rewarded</th><th>Reality</th></tr></thead>
+<tbody>
+<tr><td>100,000</td><td class="num">₹14,520</td><td class="num">₹32,076</td><td>Gross, <i>before</i> the publisher's 70%</td></tr>
+<tr><td>1,000,000</td><td class="num">₹1,45,200</td><td class="num">₹3,20,760</td><td>You keep ₹43k–96k at a 70/30 split</td></tr>
+<tr><td>10,000,000</td><td class="num">₹14,52,000</td><td class="num">₹32,07,600</td><td>You keep ₹4.4–9.6 lakh</td></tr>
+</tbody>
+</table>
+
+<p><span class="tag t-f">FACT</span> A developer's published portfolio data across 451,327 CrazyGames
+plays: <b>€556.92 total — roughly €1.20 per 1,000 plays</b>, and that was Western-skewed traffic. Apply
+the India discount and you are at roughly <b>€0.10–0.15 per 1,000 plays</b>.</p>
+
+<div class="box danger">
+<span class="lbl">What ten million plays means</span>
+<p>Ten million plays a month is roughly <b>one third of CrazyGames' entire monthly volume</b>. At that
+scale — which you will not reach — an ad-funded PlayCarys would gross under ₹32 lakh a month and keep
+under ₹10 lakh after paying publishers. <b>Advertising is not a business you can reach from here.</b>
+Keep the table. Wire it when traffic exists. Its real job in the meantime is to be the thing that Pro
+removes.</p>
+</div>
+
+<h2 id="s4">4 · Wall three — nobody wins this category</h2>
+
+<table>
+<thead><tr><th>Company</th><th>What actually happened</th><th>The lesson</th></tr></thead>
+<tbody>
+<tr><td><b>FACEIT / EFG</b></td><td>UK entity FY2024: revenue £27.8m, <b>subscriptions £11.1m — up just
+2.8%</b>. Operating loss £26.1m, <b>net loss £60m</b>. 200–300 layoffs Oct 2025. Owned by Savvy Games
+Group after a $1.5B merger</td><td><b>Player subscriptions on a top-3 global platform are an £11m/year
+business with no growth.</b> That is the ceiling of the model you seeded</td></tr>
+<tr><td><b>start.gg</b></td><td>Ran 2015–2025 with <b>no take rate at all</b>. Microsoft acquired it 2020,
+released it 2025. First-ever monetisation — a <b>6% registration fee</b> — landed 14 Feb 2025, <i>after</i>
+losing its subsidy</td><td>Free tournament hosting is a loss-leader inside a strategic owner, not a
+standalone business</td></tr>
+<tr><td><b>Challonge</b></td><td>36M+ brackets, 1.2M communities. <b>$12/month</b> (or $6.99 annual).
+Acquired by Logitech ~2020, <b>spun back out in 2023</b></td><td>The category leader by volume charges
+twelve dollars. That is your price ceiling for a bracket tool</td></tr>
+<tr><td><b>Battlefy</b></td><td>Founded 2014, $1.3M seed, runs Riot's tournament pages. <b>Twelve years
+later there is still no published price</b></td><td>It quietly became publisher-funded services. That is
+the actual shape of this business</td></tr>
+<tr><td><b>Kongregate</b></td><td>Backed by Bezos and Greylock. GameStop 2010 → MTG for $55M 2017 →
+Monumental 2024. Stopped accepting games July 2020; <b>124,000+ games stranded</b></td>
+<td>Web portals are structurally fragile — one platform shift (Flash) destroyed the catalogue</td></tr>
+<tr><td><b>Miniclip</b></td><td>The biggest web portal of the 2000s. <b>Shut the browser portal entirely
+in July 2022</b> to focus on mobile</td><td>Even the winner walked away from web</td></tr>
+<tr><td><b>Loco</b> (India)</td><td>Raised $42M, peaked ~$150M valuation, <b>sold for $65M</b> in Sept
+2024. Cause: could not generate revenue</td><td>Monetising Indian gaming attention does not work</td></tr>
+<tr><td><b>Poki</b></td><td><b>625M players, 100M MAU, 65 people, zero outside investment.</b> Revenue
+share: <b>100% when the developer brings the player, 50% when Poki brings the player</b></td>
+<td>The one genuine success — and it took 10+ years and a global (not Indian) audience</td></tr>
+<tr><td><b>Rooter</b> (India)</td><td>Pivoted streaming → <b>commerce</b>. FY25 ₹82 crore, <b>+120%</b>,
+losses down 63%. Users spend <b>₹2,400/month</b> on game currency and vouchers</td>
+<td><b>Indians will spend money on games. They will not generate ad revenue.</b> Sell them things</td></tr>
+<tr><td><b>NODWIN</b> (India)</td><td>FY26 ₹658 crore, <b>first EBITDA profit</b>, IPO-track. Events,
+festivals, owned IP. Never RMG-dependent</td><td><b>Brand money for events is real. This is the model
+closest to what you should do</b></td></tr>
+</tbody>
+</table>
+
+<div class="box info">
+<span class="lbl">Poki's revenue share design — copy this exactly</span>
+<p><b>100% to the developer when the developer brings the player. 50% when the platform brings the
+player.</b> It makes the value exchange mechanical and honest, and it means you never pay out for an
+audience you did not supply. Your Revenue Model's flat 70/30 is worse in both directions: too generous
+when you supplied the player, insulting when they did.</p>
+</div>
+
+<h2 id="s5">5 · Fifteen revenue models, ranked</h2>
+
+<p>Difficulty, scalability, margin, risk on 1–5. <b>Potential</b> is my honest 3-year ceiling for
+<i>this</i> platform run by <i>one student in India</i> — not the theoretical maximum of the model.</p>
+
+<table>
+<thead><tr><th>#</th><th>Model</th><th>Who pays</th><th>Mechanism</th><th class="num">Diff</th>
+<th class="num">Scale</th><th class="num">Margin</th><th class="num">Risk</th><th>3-yr ceiling</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Campus tournament ops as a service</b></td><td>Brands, publishers, college fests</td>
+<td>Fixed fee per event/series</td><td class="num">1</td><td class="num">2</td><td class="num">4</td>
+<td class="num">1</td><td><b>₹15–40 L/yr</b></td></tr>
+<tr><td>2</td><td><b>Brand-sponsored tournament series</b></td><td>Game publishers, D2C brands, energy drinks</td>
+<td>Campaign fee + reach report</td><td class="num">3</td><td class="num">4</td><td class="num">5</td>
+<td class="num">2</td><td><b>₹40 L–1.5 Cr/yr</b></td></tr>
+<tr><td>3</td><td><b>Gaming café / venue subscription</b></td><td>Café owners</td>
+<td>₹999–1,499/mo per venue</td><td class="num">2</td><td class="num">4</td><td class="num">5</td>
+<td class="num">2</td><td><b>₹20–35 L/yr</b></td></tr>
+<tr><td>4</td><td><b>White-label campus league</b></td><td>Colleges, publishers</td>
+<td>Annual licence ₹25–75k</td><td class="num">3</td><td class="num">4</td><td class="num">5</td>
+<td class="num">3</td><td>₹15–40 L/yr</td></tr>
+<tr><td>5</td><td><b>Cosmetics (closed currency)</b></td><td>Players</td><td>₹49–₹299 per item</td>
+<td class="num">2</td><td class="num">5</td><td class="num">5</td><td class="num">2</td><td>₹3–12 L/yr</td></tr>
+<tr><td>6</td><td><b>Player subscription (ad-free + perks)</b></td><td>Players</td><td>₹99/mo, ₹499/yr</td>
+<td class="num">2</td><td class="num">5</td><td class="num">5</td><td class="num">2</td><td>₹2–8 L/yr</td></tr>
+<tr><td>7</td><td>Publisher SaaS (analytics, A/B, live-ops)</td><td>Game studios</td><td>₹2–10k/mo</td>
+<td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num">3</td><td>₹5–20 L/yr</td></tr>
+<tr><td>8</td><td>Verified-student esports ID / credential</td><td>Colleges, brands</td><td>Per-verification or bundled</td>
+<td class="num">4</td><td class="num">5</td><td class="num">4</td><td class="num">4</td><td>₹0–10 L/yr</td></tr>
+<tr><td>9</td><td>Tournament API for third parties</td><td>Developers, orgs</td><td>Per call / tier</td>
+<td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num">3</td><td>₹0–5 L/yr</td></tr>
+<tr><td>10</td><td>Game licensing marketplace (flat fee, not rev-share)</td><td>Portals, brands</td>
+<td>$300–800 per non-exclusive licence</td><td class="num">4</td><td class="num">3</td><td class="num">3</td>
+<td class="num">4</td><td>₹0–8 L/yr</td></tr>
+<tr><td>11</td><td>Merch / prize fulfilment margin</td><td>Sponsors</td><td>Markup on prize sourcing</td>
+<td class="num">2</td><td class="num">2</td><td class="num">2</td><td class="num">3</td><td>₹2–6 L/yr</td></tr>
+<tr><td>12</td><td>Recruitment / placement board for gaming industry</td><td>Studios</td><td>Per listing</td>
+<td class="num">3</td><td class="num">3</td><td class="num">5</td><td class="num">4</td><td>₹0–5 L/yr</td></tr>
+<tr><td>13</td><td>Advertising (banner + rewarded)</td><td>Ad networks</td><td>eCPM</td>
+<td class="num">2</td><td class="num">5</td><td class="num">4</td><td class="num">2</td><td><b>₹0–3 L/yr</b> — see §3</td></tr>
+<tr><td>14</td><td>Aggregated anonymised gaming analytics</td><td>Publishers, researchers</td><td>Report / dashboard</td>
+<td class="num">5</td><td class="num">4</td><td class="num">5</td><td class="num">5</td><td>₹0/yr at your scale</td></tr>
+<tr><td>15</td><td><span class="tag t-k">ILLEGAL</span> Entry fee + rake</td><td>—</td><td>—</td>
+<td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">5</td><td><b>Do not build</b></td></tr>
+</tbody>
+</table>
+
+<div class="box good">
+<span class="lbl">The ranking in one line</span>
+<p><b>Models 1, 2 and 3 are the business. 5 and 6 are the margin on top. Everything from 7 down is a
+year-three conversation, and 13 is a trap that looks like a business.</b></p>
+</div>
+
+<h2 id="s6">6 · The recommended business</h2>
+
+<div class="box info">
+<span class="lbl">The single strategy</span>
+<p><b>PlayCarys is campus and community esports infrastructure for India, monetised by the brands and
+publishers who want to reach those players — not by the players themselves.</b></p>
+<p>You run free-to-enter tournaments for colleges, gaming cafés and Discord communities. Players never
+pay to compete. The software makes one operator capable of running fifty concurrent events. The revenue
+is a sponsor paying for verified reach, a café paying for footfall, and a publisher paying for a campus
+activation they currently run with spreadsheets and a WhatsApp group.</p>
+</div>
+
+<table>
+<thead><tr><th>Question</th><th>Answer</th></tr></thead>
+<tbody>
+<tr><td><b>Who is the customer?</b></td><td>Not the player. The <b>brand/publisher marketing manager</b>
+with a campus budget, and the <b>gaming café owner</b> with empty Tuesdays</td></tr>
+<tr><td><b>What is free, forever?</b></td><td>Playing. Entering tournaments. Creating an account. Friends,
+chat, profile, match history, leaderboards, achievements. <b>Everything a student touches</b></td></tr>
+<tr><td><b>What is paid?</b></td><td>Running a branded event. Venue tooling. Cosmetics. Ad-free Pro.
+Later: publisher analytics</td></tr>
+<tr><td><b>Why would they pay?</b></td><td>Because the alternative is a spreadsheet, a WhatsApp group and
+no proof it worked. You sell them the <b>report</b> as much as the tournament</td></tr>
+<tr><td><b>Why would they keep paying?</b></td><td>Because the audience is yours, not theirs. Once 200
+colleges run their league on PlayCarys, that reach cannot be bought anywhere else</td></tr>
+<tr><td><b>What makes them upgrade?</b></td><td>A café that ran one successful tournament wants a season.
+A brand that got one campus wants twenty</td></tr>
+</tbody>
+</table>
+
+<h3>What this means for the product you have</h3>
+<ul>
+<li><b>Kill the entry-fee schema changes</b> in your Revenue Model section 03. Do not add
+<code>entry_fee_minor</code>, <code>rake_pct</code> or the prize distribution table. That is the illegal
+model.</li>
+<li><b>Keep Carys earned-only.</b> Do not build the inward valve (buying Carys). The outward valve —
+spending earned Carys on cosmetics — is legal, free, and makes 30 seeded items real. Build only that.</li>
+<li><b>Add an <code>organisation</code> layer</b> (§12). This is the one significant new thing to build,
+and it is what turns a website into a product you can sell.</li>
+<li><b>Add sponsor-facing reporting</b>: participants, colleges reached, matches played, hours watched,
+demographics. <b>The report is the product.</b> You have all this data already and show none of it.</li>
+</ul>
+
+<h2 id="s7">7 · The funnel</h2>
+
+<p>Two funnels, because you have two sides. They meet at the tournament.</p>
+
+<table>
+<thead><tr><th>Stage</th><th>Player side (free forever)</th><th>Payer side (the business)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Sees a poster / Instagram reel for their college tournament</td>
+<td>Café owner or fest secretary hears about it</td></tr>
+<tr><td>2</td><td>Registers to enter — <b>account created because they wanted to compete, not to browse</b></td>
+<td>Runs one free tournament themselves on the platform</td></tr>
+<tr><td>3</td><td>Plays the tournament, appears on a leaderboard with their college name</td>
+<td>Discovers running it manually was the hard part, and this was not</td></tr>
+<tr><td>4</td><td>Comes back for the next one; adds friends from the bracket</td>
+<td><b>First payment</b> — pays for the next one to be run <i>for</i> them, or subscribes for their venue</td></tr>
+<tr><td>5</td><td>Earns Carys, unlocks a title, buys a ₹99 cosmetic</td>
+<td>Becomes a recurring organiser — a season, not an event</td></tr>
+<tr><td>6</td><td>Becomes a campus ambassador and organises for their own college</td>
+<td><b>A brand notices the aggregate</b> and buys a multi-campus series</td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">The critical funnel insight</span>
+<p><b>Step 6 on the left feeds step 6 on the right.</b> Every player who becomes an organiser adds a
+college to your reach map, and the reach map is what the brand is buying. Your growth engine and your
+revenue engine are <b>the same mechanism</b> — that is the only genuinely good structural property this
+business has, and everything should be built to strengthen it.</p>
+</div>
+
+<h2 id="s8">8 · ₹0 → ₹1 crore, with the maths</h2>
+
+<div class="box warn">
+<span class="lbl">Read this before the tables</span>
+<p>Everything below Stage 2 is <span class="tag t-e">ESTIMATE</span> built on
+<span class="tag t-a">ASSUMPTION</span>s I have labelled. The conversion rates, close rates and
+retention numbers are <b>my choices, not measured data</b>. The prices are anchored to real Indian
+benchmarks (§14). Change any assumption and re-run — that is what the model is for.</p>
+</div>
+
+<h3>Stage 0 → ₹1 · Weeks 1–8</h3>
+<p><b>The first rupee is not software revenue. It is a service.</b> Find one college fest or one gaming
+café within travelling distance of IIIT Sricity. Offer to run their esports event end to end — bracket,
+registration, scoring, results, a one-page report afterwards. Charge <b>₹2,000</b>.</p>
+<ul>
+<li><b>Users needed: zero.</b> This does not require a platform with traffic.</li>
+<li><b>What it proves:</b> that someone will pay you for this work at all. That is the only question
+that matters at this stage, and no amount of building answers it.</li>
+<li><b>What to build first:</b> nothing. Run it with your existing bracket engine and a Google Form.</li>
+</ul>
+
+<h3>Stage ₹100 → ₹10,000/month · Months 2–6</h3>
+<p>Two routes, run both:</p>
+<table>
+<thead><tr><th>Route</th><th>Maths</th><th class="num">Monthly</th></tr></thead>
+<tbody>
+<tr><td>Event operations</td><td>4 events × ₹2,500</td><td class="num">₹10,000</td></tr>
+<tr><td>Gaming café subscription</td><td>10 venues × ₹999</td><td class="num">₹9,990</td></tr>
+</tbody>
+</table>
+<p><span class="tag t-a">ASSUMPTION</span> 30% close rate on café pitches → you need ~33 conversations to
+land 10. At 3 pitches a day that is <b>11 working days of walking into cafés</b>. This is the least
+glamorous and most important work in the whole plan.</p>
+<p><b>Cost at this stage: ₹0.</b> Cloudflare free tier + Oracle Always Free (4 ARM vCPU, 12 GB RAM,
+10 TB egress, ₹0) covers you completely. <span class="tag t-f">FACT</span></p>
+
+<h3>Stage ₹1,00,000/month · Months 9–18</h3>
+<table>
+<thead><tr><th>Line</th><th>Maths</th><th class="num">Monthly</th></tr></thead>
+<tbody>
+<tr><td>Venue subscriptions</td><td>40 × ₹999</td><td class="num">₹39,960</td></tr>
+<tr><td>Brand / college activations</td><td>2 × ₹25,000</td><td class="num">₹50,000</td></tr>
+<tr><td>Cosmetics</td><td>2,000 MAU × 2% × ₹99</td><td class="num">₹3,960</td></tr>
+<tr><td colspan="2"><b>Total</b></td><td class="num"><b>₹93,920</b></td></tr>
+<tr><td colspan="2">Annualised</td><td class="num">₹11.3 lakh</td></tr>
+</tbody>
+</table>
+<p><b>Users required:</b> ~5,000 registered, ~2,000 monthly active, ~25–35 colleges touched.<br>
+<b>Infrastructure:</b> <span class="tag t-e">ESTIMATE</span> $10–25/month = <b>₹880–2,200</b>.<br>
+<b>Gross margin:</b> ~95%. <b>This stage is profitable on day one</b> because your only real cost is
+your own time.</p>
+
+<h3>Stage ₹10,00,000/month · Year 2–3</h3>
+<table>
+<thead><tr><th>Line</th><th>Maths</th><th class="num">Monthly</th></tr></thead>
+<tbody>
+<tr><td>Brand campaigns</td><td>4 × ₹1,50,000</td><td class="num">₹6,00,000</td></tr>
+<tr><td>Venue / org subscriptions</td><td>150 × ₹1,499</td><td class="num">₹2,24,850</td></tr>
+<tr><td>Cosmetics + Pro</td><td>50,000 MAU × 2% × ₹99</td><td class="num">₹99,000</td></tr>
+<tr><td colspan="2"><b>Total</b></td><td class="num"><b>₹9,23,850</b></td></tr>
+<tr><td colspan="2"><b>Annualised</b></td><td class="num"><b>₹1.11 crore</b></td></tr>
+</tbody>
+</table>
+
+<h4>Cost stack at this stage <span class="tag t-e">ESTIMATE</span></h4>
+<table>
+<thead><tr><th>Item</th><th class="num">Monthly</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>GST component (18%, prices GST-inclusive)</td><td class="num">₹1,40,926</td><td>Not yours — passthrough</td></tr>
+<tr><td>Net revenue ex-GST</td><td class="num">₹7,82,924</td><td>The real top line</td></tr>
+<tr><td>Payment gateway (2% + GST)</td><td class="num">₹21,803</td><td>Razorpay published rate</td></tr>
+<tr><td>Infrastructure (~$150)</td><td class="num">₹13,200</td><td>Cloudflare + Neon + R2</td></tr>
+<tr><td>2 staff (ops + sales)</td><td class="num">₹1,60,000</td><td><span class="tag t-a">ASSUMPTION</span> ₹80k each</td></tr>
+<tr><td>Event costs / travel / prizes not sponsor-funded</td><td class="num">₹1,20,000</td><td><span class="tag t-a">ASSUMPTION</span></td></tr>
+<tr><td><b>Contribution before founder salary</b></td><td class="num"><b>₹4,67,921</b></td><td><b>~60% net margin</b></td></tr>
+</tbody>
+</table>
+
+<div class="box danger">
+<span class="lbl">On "₹1 crore+" — the honest answer</span>
+<p>₹1 crore <b>per year</b> is a realistic 3-year target on this plan, and it is a genuinely good outcome
+for a solo student founder. <b>₹1 crore per month is ₹12 crore a year and it is not reachable from
+here</b> on this model. NODWIN took a decade and an events business to reach ₹658 crore. Rooter needed
+85 million users to reach ₹82 crore.</p>
+<p>If ₹1 crore/month is the goal, this is the wrong business and you should know that now rather than in
+year three. The path to that number runs through <b>commerce</b> (Rooter's ₹2,400/user/month on game
+currency) or <b>owned IP events</b> (NODWIN) — not through tournament software.</p>
+</div>
+
+<h2 id="s9">9 · Unit economics</h2>
+
+<h3>The two customers, costed <span class="tag t-e">ESTIMATE</span></h3>
+<table>
+<thead><tr><th>Metric</th><th class="num">Venue subscriber</th><th class="num">Brand campaign</th><th class="num">Player</th></tr></thead>
+<tbody>
+<tr><td>Price</td><td class="num">₹999/mo</td><td class="num">₹1,50,000/campaign</td><td class="num">₹0</td></tr>
+<tr><td>ARPU / month</td><td class="num">₹999</td><td class="num">₹12,500 amortised</td><td class="num">₹1.98</td></tr>
+<tr><td>Gross margin</td><td class="num">95%</td><td class="num">55% (event costs)</td><td class="num">92%</td></tr>
+<tr><td>Assumed monthly churn</td><td class="num">5%</td><td class="num">n/a — campaign-based</td><td class="num">n/a</td></tr>
+<tr><td>Implied lifetime</td><td class="num">20 months</td><td class="num">2.5 campaigns</td><td class="num">—</td></tr>
+<tr><td><b>LTV</b></td><td class="num"><b>₹18,981</b></td><td class="num"><b>₹2,06,250</b></td><td class="num"><b>₹47</b> over 24 mo</td></tr>
+<tr><td>CAC (founder-sold, time only)</td><td class="num">₹500–1,500</td><td class="num">₹15,000–30,000</td><td class="num">₹0–20 organic</td></tr>
+<tr><td><b>LTV:CAC</b></td><td class="num"><b>12:1 – 38:1</b></td><td class="num"><b>7:1 – 14:1</b></td><td class="num">—</td></tr>
+<tr><td>Payback period</td><td class="num">&lt; 2 months</td><td class="num">Immediate</td><td class="num">—</td></tr>
+</tbody>
+</table>
+
+<div class="box good">
+<span class="lbl">Why these ratios look so good, and the catch</span>
+<p>LTV:CAC of 12:1 is not because the business is magic. It is because <b>your CAC is currently your own
+unpaid time</b>. The moment you hire a salesperson, CAC becomes real money and the ratio collapses toward
+3:1. <b>Do not use these ratios to justify hiring.</b> Use them to justify selling personally for as long
+as humanly possible.</p>
+</div>
+
+<h3>What happens at each user count</h3>
+<table>
+<thead><tr><th class="num">Users</th><th>What actually breaks / changes</th><th class="num">Infra/mo</th><th>Metric that matters</th></tr></thead>
+<tbody>
+<tr><td class="num">100</td><td>Nothing. You know every user by name. Talk to all of them</td><td class="num">₹0</td><td><b>Do they come back next week?</b></td></tr>
+<tr><td class="num">1,000</td><td>Your 415 KB JSON payload is now ~0.2 MB of match history per page load.
+Noticeable on college wifi</td><td class="num">₹0</td><td>Week-4 retention; tournaments per week</td></tr>
+<tr><td class="num">10,000</td><td><b>Payload hits ~2.3 MB. Phones struggle. This is where you must have
+migrated</b></td><td class="num">₹880–2,200</td><td>Organiser count; colleges touched</td></tr>
+<tr><td class="num">100,000</td><td>Single Node process is the ceiling. Moderation queue needs 2 people
+(your own formula)</td><td class="num">₹4,400–13,200</td><td>Revenue per active organiser</td></tr>
+<tr><td class="num">1,000,000</td><td>You are a different company with staff and a board.
+<b>Do not plan for this</b></td><td class="num">₹40,000+</td><td>Contribution margin per campaign</td></tr>
+</tbody>
+</table>
+
+<h2 id="s10">10 · Architecture, stage by stage</h2>
+
+<p>Your own Scalability document already has the right four phases. I am not going to contradict it —
+I am going to price it and tell you <b>when</b> each phase becomes necessary, which is the part it
+leaves open.</p>
+
+<h3>Stage A — today → 1,000 users · ₹0/month</h3>
+<table>
+<thead><tr><th>Layer</th><th>Choice</th><th>Why now</th></tr></thead>
+<tbody>
+<tr><td>Frontend</td><td><b>Cloudflare Pages</b> (free, 500 builds/mo)</td><td>Static assets are free and
+unmetered. <span class="tag t-f">FACT</span></td></tr>
+<tr><td>Backend</td><td><b>Oracle Cloud Always Free</b> — 4 ARM vCPU, 12 GB RAM, 10 TB egress</td>
+<td>Largest free compute allocation available anywhere. <span class="tag t-f">FACT</span></td></tr>
+<tr><td>Database</td><td>JSON → <b>Postgres (Neon free, 0.5 GB)</b></td><td>Do this before payments, not after</td></tr>
+<tr><td>Game bundles</td><td><b>Cloudflare R2</b> — $0 egress, 10 GB free</td><td><b>Decisive.</b> S3 Mumbai
+charges $0.109/GB egress; serving a 50 MB bundle 100,000 times costs <b>~$546 on S3 and $0 on R2</b></td></tr>
+<tr><td>Everything else</td><td><b>Do not build it</b></td><td>See §20</td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">A Cloudflare rule that will bite you if you miss it</span>
+<p><span class="tag t-f">FACT</span> Cloudflare's Service-Specific Terms state you must use paid
+Developer Platform services (R2, Images, Stream) to serve <i>"video and other large files"</i> via the
+CDN, and they reserve the right to disable accounts serving <i>"a disproportionate percentage of…
+large files."</i> <b>Cloudflare Pages also caps a single file at 25 MiB.</b> Game bundles must go to
+R2 from day one — not behind the free CDN.</p>
+</div>
+
+<h3>Stage B → 10,000 users · ₹880–2,200/month</h3>
+<p><b>Trigger: your own measurement.</b> Your Scalability doc says a match row is 239 bytes and 10,000
+matches ships 2.3 MB per page load. <b>That is the migration trigger — not a user count.</b> When mean
+page payload passes ~500 KB, execute Phase 1 (stop shipping the whole database) and Phase 2 (Postgres).</p>
+<ul>
+<li>Neon Launch (usage-based, $0.106/CU-hour) or PlanetScale PS-5 at <b>$5/month</b></li>
+<li><b>Data localisation:</b> the 2026 Rules require traffic data and metadata stored in India.
+Neon/Supabase Mumbai region, or Oracle Hyderabad. <b>Not Hetzner Falkenstein.</b></li>
+<li>Still no Redis. Still one process. Still no queue.</li>
+</ul>
+
+<h3>Stage C → 100,000 users · ₹4,400–13,200/month</h3>
+<p><b>Trigger: you need a second backend process</b> — either for uptime during deploys, or because one
+process is saturating. Only then does Redis earn its place, because that is the moment session and
+matchmaking state must leave process memory (your Phase 3).</p>
+<ul>
+<li>Upstash Redis: 500K commands/month free, then $0.20/100K. <b>10M ops/month = $20.</b></li>
+<li>Two to four Node processes behind a load balancer</li>
+<li>Structured logging and error tracking (Sentry free tier)</li>
+</ul>
+
+<h3>Stage D — 1M+ · Do not plan this</h3>
+<p>You will have a team, revenue and different constraints. Any architecture you design for this today
+will be wrong.</p>
+
+<div class="box danger">
+<span class="lbl">You do NOT need these — and here is precisely why</span>
+<table style="margin:8px 0 0">
+<tr><td style="width:130px"><b>Kubernetes</b></td><td>Solves multi-service orchestration across many
+machines. You have one service. It would add a failure mode you debug alone at 2am</td></tr>
+<tr><td><b>Microservices</b></td><td>Solves multiple teams deploying independently. You are one person.
+It converts function calls into network calls that can fail</td></tr>
+<tr><td><b>Kafka</b></td><td>Solves millions of events/sec with replay. You have 134 match results total</td></tr>
+<tr><td><b>Redis (before Stage C)</b></td><td>Solves shared state across processes. You have one process.
+Until you have two, it is a second thing that can go down</td></tr>
+<tr><td><b>Sharding / read replicas</b></td><td>Solves a database that cannot fit or keep up. Postgres on
+one box handles this workload past a million users</td></tr>
+<tr><td><b>GraphQL</b></td><td>Solves many clients needing different shapes. You have one web client</td></tr>
+</table>
+</div>
+
+<h2 id="s11">11 · Database evolution — what actually triggers each move</h2>
+
+<table>
+<thead><tr><th>From → To</th><th>The real trigger</th><th>Not a trigger</th></tr></thead>
+<tbody>
+<tr><td>JSON file → <b>Postgres</b></td><td><b>Now, before any payment code.</b> Two browser tabs can
+overwrite each other. You have already lost match history to this. <b>The same bug on a payments table
+costs someone real money and cannot be regenerated by playing again</b></td>
+<td>"Production apps use databases"</td></tr>
+<tr><td>Postgres → <b>+ indexes</b></td><td>A query exceeds ~100ms in your own logs. Measure first</td>
+<td>Table row count</td></tr>
+<tr><td>Postgres → <b>+ Redis cache</b></td><td>You run a second app process, or the same query runs
+&gt;100×/second</td><td>"Caching makes things fast"</td></tr>
+<tr><td>Postgres → <b>read replica</b></td><td>Read load measurably saturates the primary and you have
+already added indexes</td><td>Anything below ~100k active users</td></tr>
+<tr><td>Postgres → <b>partitioning</b></td><td><code>match_results</code> passes ~50M rows and time-range
+queries slow down</td><td>You will not reach this</td></tr>
+<tr><td>Postgres → <b>sharding</b></td><td>One machine cannot hold the working set. <b>Genuinely never,
+for this business</b></td><td>Ambition</td></tr>
+</tbody>
+</table>
+
+<div class="box info">
+<span class="lbl">One schema decision to make before the first rupee</span>
+<p>Your seeded transactions store <code>4.99</code> as a float. <b>4.99 has no exact binary
+representation.</b> Money must be <code>BIGINT</code> minor units (paise) or SQL <code>DECIMAL</code>.
+Your Revenue Model already flags this — it is right, and it is the cheapest thing on this entire list to
+fix. Also: every seeded transaction has status <code>completed</code>. Real payments fail, pend, and get
+refunded. A schema with one state cannot record reality.</p>
+</div>
+
+<h2 id="s12">12 · Multi-tenancy — the one thing worth building</h2>
+
+<p><b>This is the single highest-leverage change in the whole report</b>, because it is what converts
+"a website with tournaments on it" into "a product an organisation buys."</p>
+
+<h3>The model</h3>
+<pre style="background:var(--panel);border:1px solid var(--line);padding:14px;font-size:13px;overflow-x:auto;border-radius:4px">
+organisation                     ← IIIT Sricity Esports / Cyber Cafe Vijayawada / KRAFTON Campus
+  ├── members (roles: owner, organiser, moderator)
+  ├── tournaments  (org_id FK)   ← already exists, needs the column
+  ├── branding     (logo, colour, subdomain)
+  ├── subscription (plan, status, current_period_end)
+  └── usage        (tournaments run, participants, matches — metered)
+
+user  ──── belongs to many organisations ────  organisation
+      (a student can play in IIIT's league AND a café's league)
+</pre>
+
+<table>
+<thead><tr><th>Concern</th><th>Do this now</th><th>Do this later</th></tr></thead>
+<tbody>
+<tr><td>Data isolation</td><td><b>Shared database, <code>org_id</code> on every tenant-scoped row</b>,
+enforced in the repository layer</td><td>Postgres row-level security; separate schemas only for an
+enterprise customer who contractually demands it</td></tr>
+<tr><td>Roles</td><td>Extend your existing five-role system with org-scoped roles. <b>Your RolesGuard
+already has the right shape</b></td><td>Custom permission sets</td></tr>
+<tr><td>Branding</td><td>Logo + accent colour + <code>org.playcarys.com</code> subdomain</td>
+<td>Full custom domain, white-label email</td></tr>
+<tr><td>Billing</td><td>One subscription per org, not per user</td><td>Seat-based, usage overage</td></tr>
+<tr><td>Metering</td><td><b>Count tournaments and participants from day one, even while free.</b> You
+cannot price what you never measured</td><td>Hard limits and overage billing</td></tr>
+<tr><td>Analytics</td><td>Per-org dashboard: participants, colleges, matches, hours — <b>this is the
+sponsor report</b></td><td>Cross-org benchmarking</td></tr>
+</tbody>
+</table>
+
+<p><b>Why this is the monetisation engine:</b> a free player account has an LTV of ₹47. A free
+<i>organisation</i> that runs three tournaments has already demonstrated the exact behaviour you charge
+for, and converts at a price 20× higher. <b>Organisations are your paying unit. Build the object.</b></p>
+
+<h2 id="s13">13 · Revenue engineering — build order</h2>
+
+<table>
+<thead><tr><th>Component</th><th>When</th><th>Why then</th></tr></thead>
+<tbody>
+<tr><td>Money as integer minor units</td><td><b>Before ₹1</b></td><td>Cannot be retrofitted safely</td></tr>
+<tr><td>Postgres</td><td><b>Before ₹1</b></td><td>Your own doc's non-negotiable rule, and it is right</td></tr>
+<tr><td><code>transactions</code> with real states (pending/failed/refunded/disputed) + <code>idempotency_key</code> unique</td>
+<td><b>Before ₹1</b></td><td>A retried payment must not charge twice</td></tr>
+<tr><td>Password reset flow</td><td><b>Before anything</b></td><td>Still missing. With device handoff, a
+stolen login is permanent lockout. <b>The only open item that harms a real person</b></td></tr>
+<tr><td>Razorpay payment link (manual)</td><td>First 10 customers</td><td>You do not need an integration
+to take ₹2,000. Send a link. <b>Do this by hand until it hurts</b></td></tr>
+<tr><td><code>organisation</code> + <code>subscription</code> + entitlements</td><td>~₹10k/month</td>
+<td>When you have more than 5 paying orgs to track manually</td></tr>
+<tr><td>Razorpay webhooks + signature verification</td><td>~₹25k/month</td><td>When manual reconciliation
+takes more than an hour a week</td></tr>
+<tr><td>Usage metering + feature limits</td><td>~₹50k/month</td><td>When someone abuses the free tier</td></tr>
+<tr><td>Invoices with GSTIN, coupons, trials, dunning</td><td>~₹1 lakh/month</td>
+<td>GST invoicing becomes mandatory around registration anyway</td></tr>
+<tr><td>Publisher payouts ledger + RazorpayX</td><td>When a publisher earns &gt;₹5,000</td>
+<td>Until then <code>revenue_pcp</code> is an engagement counter — <b>say so in the UI, do not imply money</b></td></tr>
+<tr><td>Revenue analytics dashboard</td><td>₹1 lakh/month</td><td>Below that, a spreadsheet is faster</td></tr>
+<tr><td>Refunds, disputes, proration</td><td>Only when it happens</td><td>Handle the first one by hand</td></tr>
+</tbody>
+</table>
+
+<h2 id="s14">14 · Pricing</h2>
+
+<h3>The anchors — derived, not chosen</h3>
+<ul>
+<li><span class="tag t-f">FACT</span> Indian consumer subscription ladder: <b>₹79 / ₹99 / ₹149 / ₹299
+per month, ₹499/year.</b> YouTube Premium India ₹149. JioHotstar Mobile ₹79/mo, ₹499/yr. Google Play
+Pass ₹99.</li>
+<li><span class="tag t-f">FACT</span> Indian B2B SMB SaaS anchors at <b>₹749–₹800/month</b> (Zoho Books
+Standard ₹749; Zoho CRM Standard ₹800/user).</li>
+<li><span class="tag t-f">FACT</span> Indian college software clusters at <b>₹20,000–₹90,000/year</b>
+(Classplus ₹19,999/yr; Edmingle Core ₹89,988/yr).</li>
+<li><span class="tag t-f">FACT</span> India-vs-international discount: <b>2–4× for B2B SMB, 3–5× for
+B2C</b> (practitioner benchmark, corroborated by Zoho's own ~2.2× India/US gap).</li>
+</ul>
+
+<h3>The pricing page</h3>
+<table>
+<thead><tr><th>Tier</th><th>Who</th><th class="num">Price</th><th>What they get</th><th>Why this price</th></tr></thead>
+<tbody>
+<tr><td><b>Player</b></td><td>Every student</td><td class="num"><b>₹0 forever</b></td>
+<td>Play, compete, friends, chat, history, leaderboards, achievements, earned Carys</td>
+<td><b>Players are the inventory, not the customer.</b> Charging them shrinks the thing you sell</td></tr>
+<tr><td><b>Pro</b></td><td>Engaged players</td><td class="num"><b>₹99/mo<br>₹799/yr</b></td>
+<td>No ads, animated avatar, profile themes, full match history export, early access</td>
+<td>₹99 is the Indian anchor. ₹799/yr = 33% off, inside the 30–40% band. <b>Your seeded $4.99 = ₹439/mo
+is 4.4× too expensive</b></td></tr>
+<tr><td><b>Venue</b></td><td>Gaming cafés, clubs</td><td class="num"><b>₹999/mo</b></td>
+<td>Branded org page, unlimited tournaments, 200 participants, walk-in registration, footfall report</td>
+<td>Sits at the Zoho SMB anchor. One extra customer a week pays for it</td></tr>
+<tr><td><b>Campus</b></td><td>Colleges, big communities</td><td class="num"><b>₹24,999/yr</b></td>
+<td>Everything in Venue + subdomain, 1,000 participants, season leagues, alumni archive, sponsor report</td>
+<td>Bottom of the ₹20k–90k Indian college band. <b>Deliberately below the procurement approval threshold</b></td></tr>
+<tr><td><b>Campaign</b></td><td>Brands, publishers</td><td class="num"><b>₹1,50,000+</b><br>per series</td>
+<td>Multi-campus series, run by you, branded, with a verified reach report</td>
+<td>Priced against what a brand pays for <i>any</i> campus activation, not against software</td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">Your seeded prices are wrong for India by ~4×</span>
+<p>$4.99/mo = <b>₹439</b> and $9.99 = <b>₹879</b>. Both sit far above ₹299, which is where the Indian
+mass market ends. And the Pro perks — "Full match history" and "Profile customization" — are things
+users assume are free, so charging for them reads as a <b>penalty, not a reward</b>. Replace the weakest
+perk on each tier with something that is genuinely additive: <b>no ads</b> and a <b>monthly Carys
+stipend</b>. The stipend is the retention mechanic — the subscription renews because the currency
+renews.</p>
+</div>
+
+<h2 id="s15">15 · India-first or global-first?</h2>
+
+<p><b>India-first for customers. Global-first for the audience, if you ever go for ads.</b> These are
+different questions and conflating them is why the ad model looked viable.</p>
+
+<table>
+<thead><tr><th></th><th>India-first</th><th>Global-first</th></tr></thead>
+<tbody>
+<tr><td>Can you sell it?</td><td><b>Yes.</b> You can walk into a café in Vijayawada. You can email a
+college fest secretary as a fellow student</td><td>No. You have no network, no credibility, no timezone
+overlap, no ability to fly</td></tr>
+<tr><td>Market size</td><td>48,246 colleges, 4.5 crore students, &lt;0.3% esports penetration</td>
+<td>Larger, but Poki/CrazyGames/Challonge already occupy it</td></tr>
+<tr><td>Ad monetisation</td><td><b>$1.10–2.43 eCPM. Hopeless</b></td><td>$15–28 US. 10× better</td></tr>
+<tr><td>Willingness to pay</td><td>Low for consumers, <b>real for brands and businesses</b></td>
+<td>Higher, but you cannot reach them</td></tr>
+<tr><td>Regulation</td><td>Restrictive on money, <b>but explicitly promotes esports and social games</b></td>
+<td>Varies; you would need counsel per market</td></tr>
+<tr><td>Payments</td><td>UPI, zero MDR to users, Razorpay onboards individuals</td>
+<td>Stripe India is invite-only and prohibits your category</td></tr>
+</tbody>
+</table>
+
+<p><b>Sequence: India → South-East Asia → global.</b> SEA next because the college-esports structure and
+price sensitivity rhyme, and UniPin already operates across both. Global only if you ever build an
+audience worth selling Western ad impressions against — and that is a different company.</p>
+
+<div class="box good">
+<span class="lbl">A genuine regulatory tailwind, and you should use it</span>
+<p><span class="tag t-f">FACT</span> The Act does not merely permit esports and online social games —
+the Government <b>explicitly names them as the promoted categories</b> while banning real-money gaming
+outright. There is an OGAI, there are 10-year certificates, and there is a stated policy of easing
+requirements for non-monetised games. <b>You are one of the few things Indian gaming policy is currently
+trying to encourage.</b> Say so in every sponsor pitch — brands are nervous about gaming right now and
+being visibly on the right side of the law is a selling point, not a footnote.</p>
+</div>
+
+<h2 id="s16">16 · Growth engine at ₹0</h2>
+
+<table>
+<thead><tr><th>Channel</th><th>Cost</th><th>Realistic?</th><th>What it actually looks like</th></tr></thead>
+<tbody>
+<tr><td><b>Your own college</b></td><td>₹0</td><td><span class="tag t-ok">START HERE</span></td>
+<td>Run the IIIT Sricity inter-branch league. 200 players. <b>This is your first case study, your first
+testimonial and your first sponsor deck slide</b></td></tr>
+<tr><td><b>Campus ambassadors</b></td><td>₹0 (cosmetics + a title)</td><td><span class="tag t-ok">HIGH</span></td>
+<td>One student per college who wants "Esports Head" on their CV. <b>Pay in status, not money</b> — it
+is what they actually want</td></tr>
+<tr><td><b>Gaming café walk-ins</b></td><td>₹0 + bus fare</td><td><span class="tag t-ok">HIGH</span></td>
+<td>The single highest-conversion channel you have. Owners are reachable, decide alone, and pay monthly</td></tr>
+<tr><td><b>College fest circuit</b></td><td>₹0</td><td><span class="tag t-ok">HIGH</span></td>
+<td>Every Indian college has a fest with an esports event nobody wants to run. Be that person</td></tr>
+<tr><td><b>Discord communities</b></td><td>₹0</td><td>Medium</td><td>Offer to run their weekly tournament
+free. Their admin is drowning in brackets</td></tr>
+<tr><td><b>Instagram reels of finals</b></td><td>₹0</td><td>Medium</td><td>Clip the winning moment,
+tag both players' colleges. Colleges reshare — free distribution to exactly your market</td></tr>
+<tr><td><b>WhatsApp</b></td><td>₹0</td><td>Medium</td><td>Where Indian college groups actually live.
+Tournament links spread here, not on Twitter</td></tr>
+<tr><td>SEO / content</td><td>₹0 + months</td><td>Low now</td><td>Pays back in year 2. "BGMI tournament
+rules format" style queries</td></tr>
+<tr><td>Paid ads</td><td>Money</td><td><span class="tag t-k">NO</span></td>
+<td>You are acquiring users with an LTV of ₹47. <b>Paid acquisition can never work on the player side</b></td></tr>
+<tr><td>Influencers</td><td>Money</td><td><span class="tag t-k">NOT YET</span></td>
+<td>Only once a sponsor is paying for it</td></tr>
+</tbody>
+</table>
+
+<div class="box info">
+<span class="lbl">The one growth loop that compounds</span>
+<p><b>Player competes → sees their college on a leaderboard → wants their college to rank higher →
+recruits classmates → becomes the campus ambassador → their college becomes an organisation → that
+organisation is reach you can sell.</b></p>
+<p>Every step is free and each one feeds the next. <b>Build the college leaderboard early</b> — it is
+the cheapest thing on this page and it is the engine.</p>
+</div>
+
+<h2 id="s17">17 · Network effects — honestly assessed</h2>
+
+<table>
+<thead><tr><th>Claimed effect</th><th>Real?</th><th>Assessment</th></tr></thead>
+<tbody>
+<tr><td>More players → better matchmaking</td><td><span class="tag t-k">NO</span></td>
+<td><b>The publisher's game does the matchmaking</b>, not you. You gave this away in the multiplayer
+redesign — correctly, but it means the effect is not yours</td></tr>
+<tr><td>More games → more players</td><td><span class="tag t-a">WEAK</span></td>
+<td>Poki has thousands. Catalogue is not scarce; <b>attention is</b></td></tr>
+<tr><td>More publishers → more games</td><td><span class="tag t-k">NO</span></td>
+<td>Reversed. Publishers come <i>after</i> players, and you have 7</td></tr>
+<tr><td><b>More colleges → denser competition → more reach to sell → more sponsors → better prizes →
+more colleges</b></td><td><span class="tag t-ok">YES</span></td>
+<td><b>This is the only real one, and it is genuinely strong.</b> Inter-college competition is
+<i>intrinsically</i> more valuable with more colleges, in a way that a bigger game catalogue is not</td></tr>
+<tr><td>More match history → better player profiles → switching cost</td><td><span class="tag t-a">WEAK BUT REAL</span></td>
+<td>Slow-building. A three-year competitive record is genuinely hard to leave behind</td></tr>
+</tbody>
+</table>
+
+<p><b>Conclusion: one real network effect out of five, and it is on the college axis — not the games
+axis.</b> That is further evidence the campus business is the business. Do not claim the other four in a
+pitch; anyone competent will see through them and stop believing the one that is true.</p>
+
+<h2 id="s18">18 · Moat</h2>
+
+<table>
+<thead><tr><th>Moat</th><th>Strength</th><th>Difficulty</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td><b>College relationships + ambassador network</b></td><td>High</td><td>High</td>
+<td><b>Your best moat.</b> Relationship-by-relationship, ambassador-by-ambassador. Cannot be
+cloned by copying your code — and that is exactly what makes it defensible</td></tr>
+<tr><td><b>Multi-year competitive record per player</b></td><td>High</td><td>Slow</td>
+<td>Compounds. In three years "my PlayCarys record" is a thing a student will not abandon</td></tr>
+<tr><td><b>Verified student identity</b></td><td>Medium-High</td><td>Medium</td>
+<td>College-email verification is trivial to build and <b>very hard for a foreign platform to
+replicate</b>. It is also what a sponsor is actually paying for</td></tr>
+<tr><td>Operational competence at running events</td><td>Medium</td><td>Medium</td>
+<td>Boring, real, and the reason NODWIN works</td></tr>
+<tr><td>Brand with Indian students</td><td>Medium</td><td>Slow</td><td>Years away</td></tr>
+<tr><td>Publisher integrations</td><td>Low</td><td>High</td><td>You need them more than they need you</td></tr>
+<tr><td>The codebase</td><td><span class="tag t-k">NONE</span></td><td>—</td>
+<td><b>A competent developer rebuilds your feature set in six weeks.</b> Bracket generation is a
+solved problem. <b>Do not mistake code for a moat</b></td></tr>
+<tr><td>Proprietary algorithms</td><td><span class="tag t-k">NONE</span></td><td>—</td>
+<td>You have a seeded fold bracket algorithm. So does Challonge, free</td></tr>
+</tbody>
+</table>
+
+<h2 id="s19">19 · Twenty ways this dies</h2>
+<p>Probability and impact 1–5. Ranked by product.</p>
+
+<table>
+<thead><tr><th>#</th><th>Risk</th><th class="num">P</th><th class="num">I</th><th class="num">P×I</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>You build the entry-fee model and face criminal liability</b></td><td class="num">3</td>
+<td class="num">5</td><td class="num">15</td><td><b>Delete those schema changes today.</b> Free entry, sponsor-funded prizes only</td></tr>
+<tr><td>2</td><td><b>Nobody pays — everyone wants it free</b></td><td class="num">4</td><td class="num">5</td>
+<td class="num">20</td><td>Sell the <i>service</i> before the software. Charge for your time from event one</td></tr>
+<tr><td>3</td><td><b>You graduate and get a job; the project dies</b></td><td class="num">4</td>
+<td class="num">5</td><td class="num">20</td><td>The single most likely outcome. Decide honestly in month 6 whether this is a business or a portfolio piece</td></tr>
+<tr><td>4</td><td>Tournament frequency too low — a college runs one event a year</td><td class="num">4</td>
+<td class="num">4</td><td class="num">16</td><td>Target cafés (weekly) and Discord (daily), not just fests (annual)</td></tr>
+<tr><td>5</td><td>Publishers give colleges tournaments free (KRAFTON, UniPin)</td><td class="num">4</td>
+<td class="num">4</td><td class="num">16</td><td><b>Sell to them, not against them.</b> Be the infrastructure under their campus tour</td></tr>
+<tr><td>6</td><td>CAC exceeds LTV once you stop selling personally</td><td class="num">3</td>
+<td class="num">4</td><td class="num">12</td><td>Ambassador-led growth; never buy player acquisition</td></tr>
+<tr><td>7</td><td>Payment gateway offboards you for looking like gaming</td><td class="num">3</td>
+<td class="num">4</td><td class="num">12</td><td>Describe yourself as events/software. Get written confirmation on the Carys design</td></tr>
+<tr><td>8</td><td>Cheating destroys competitive credibility</td><td class="num">3</td><td class="num">4</td>
+<td class="num">12</td><td>Client-reported scores are untrusted. Restrict rewards to server-verifiable or observed events</td></tr>
+<tr><td>9</td><td>Moderation load overwhelms one person</td><td class="num">3</td><td class="num">3</td>
+<td class="num">9</td><td>Your own formula: 1 mod per 1,000 players. Recruit volunteer mods from ambassadors</td></tr>
+<tr><td>10</td><td>A malicious game bundle harms players</td><td class="num">2</td><td class="num">5</td>
+<td class="num">10</td><td>Your scanner exists. Fix the same-origin gap — bundles must be served from a separate origin</td></tr>
+<tr><td>11</td><td>Data loss from the JSON database</td><td class="num">4</td><td class="num">3</td>
+<td class="num">12</td><td><b>Postgres before payments.</b> Non-negotiable</td></tr>
+<tr><td>12</td><td>Sponsors churn after one campaign</td><td class="num">4</td><td class="num">3</td>
+<td class="num">12</td><td>The report is the retention mechanic. Make it excellent</td></tr>
+<tr><td>13</td><td>Market too small — Indian college esports never gets big enough</td><td class="num">3</td>
+<td class="num">4</td><td class="num">12</td><td>Real risk. ₹1 crore/yr is the honest ceiling; accept it or change business</td></tr>
+<tr><td>14</td><td>A funded competitor enters the campus niche</td><td class="num">2</td><td class="num">4</td>
+<td class="num">8</td><td>Move faster on relationships. They cannot buy 200 ambassadors quickly</td></tr>
+<tr><td>15</td><td>GST/ECO registration obligations arrive earlier than expected</td><td class="num">3</td>
+<td class="num">2</td><td class="num">6</td><td>Talk to a CA before taking publisher money</td></tr>
+<tr><td>16</td><td>Founder burnout — 4th year, placements, this</td><td class="num">4</td><td class="num">4</td>
+<td class="num">16</td><td>Cap it at 15 hrs/week. Do not sacrifice your degree for a ₹10k/month business</td></tr>
+<tr><td>17</td><td>Publisher relationships never materialise</td><td class="num">4</td><td class="num">2</td>
+<td class="num">8</td><td>Run tournaments on games that already exist. You do not need a catalogue</td></tr>
+<tr><td>18</td><td>Data localisation non-compliance</td><td class="num">2</td><td class="num">3</td>
+<td class="num">6</td><td>Host in an Indian region from day one. Cheap now, painful later</td></tr>
+<tr><td>19</td><td>An underage-player incident</td><td class="num">2</td><td class="num">4</td>
+<td class="num">8</td><td>Age-gating is a Rules obligation regardless of registration. Build it</td></tr>
+<tr><td>20</td><td>A prize dispute becomes a legal problem</td><td class="num">2</td><td class="num">3</td>
+<td class="num">6</td><td><b>Have sponsors pay winners directly.</b> Never hold prize money</td></tr>
+</tbody>
+</table>
+
+<div class="box danger">
+<span class="lbl">The top three are not technical</span>
+<p><b>Nobody pays (20), you graduate and stop (20), and burnout (16)</b> are the three highest-scoring
+risks, and none of them are solved by writing code. Every hour spent on architecture instead of talking
+to a café owner increases risk 2 and 3. That is the actual failure mode of this project, and it is the
+failure mode of almost every student project that had a real business inside it.</p>
+</div>
+
+<h2 id="s20">20 · What NOT to build</h2>
+
+<table>
+<thead><tr><th>Gate</th><th>Build</th><th>Do NOT build</th></tr></thead>
+<tbody>
+<tr><td><b>This month</b></td><td>Password reset. Postgres migration. Stop shipping the whole DB.
+College leaderboard. A sponsor report page. Run one real tournament</td>
+<td>Payments. Carys purchase. Subscriptions. Ads. New games. Mobile app</td></tr>
+<tr><td><b>After 10 real users</b></td><td>Organisation object + org-scoped tournaments. Ambassador
+signup</td><td>Billing. Analytics dashboards. API</td></tr>
+<tr><td><b>After the first paying customer</b></td><td>Razorpay payment link (manual). Basic invoice.
+Usage counters</td><td>Webhooks. Subscription automation. Dunning</td></tr>
+<tr><td><b>After ₹10k/month</b></td><td>Subscription entitlements. Automated org onboarding. Cosmetics
+shop with earned Carys</td><td>Redis. Multiple processes. Publisher payouts</td></tr>
+<tr><td><b>After ₹1 lakh/month</b></td><td>Webhooks. GST invoicing. Publisher payout ledger. Real
+moderation tooling</td><td>Kubernetes. Microservices. Mobile app. AI features</td></tr>
+<tr><td><b>After ₹10 lakh/month</b></td><td>Second backend process + Redis. Read replica if measured.
+Proper observability</td><td>Sharding. Multi-region. Custom ML</td></tr>
+<tr><td><b>Only if scale demands</b></td><td>Everything else</td><td><b>Assume you will never get here</b></td></tr>
+</tbody>
+</table>
+
+<div class="box warn">
+<span class="lbl">The most expensive thing you could do next</span>
+<p><b>Building the payments system.</b> It is the most interesting engineering on your roadmap, it will
+take you a month, and it will earn ₹0 — because you have no customer waiting to pay. Send a Razorpay
+payment link by WhatsApp instead. Do that <b>ten times</b> before you write a single line of billing
+code.</p>
+</div>
+
+<h2 id="s21">21 · Founder roadmap</h2>
+
+<table>
+<thead><tr><th>Phase</th><th>Goal</th><th>Product</th><th>Revenue</th><th>Exit criteria</th></tr></thead>
+<tbody>
+<tr><td><b>0 · Validation</b><br><span class="small">Month 1–2</span></td><td>Prove someone will pay for
+the work</td><td>Nothing new. Password reset only</td><td><b>₹2,000</b> — one event</td>
+<td><b>One person has paid you money.</b> If nobody will after 20 asks, stop and take the portfolio win</td></tr>
+<tr><td><b>1 · First users</b><br><span class="small">Month 2–5</span></td><td>Real repeat usage</td>
+<td>Postgres. College leaderboard. Sponsor report</td><td>₹5–10k/mo</td>
+<td>3 organisations running events without you in the room</td></tr>
+<tr><td><b>2 · First recurring revenue</b><br><span class="small">Month 5–9</span></td><td>Predictable
+monthly money</td><td>Organisation object. Manual billing</td><td>₹10–25k/mo</td>
+<td>10 paying venues, &lt;10% monthly churn</td></tr>
+<tr><td><b>3 · Product-market fit</b><br><span class="small">Month 9–18</span></td><td>Demand you did not
+personally create</td><td>Self-serve org onboarding. Cosmetics on earned Carys</td><td><b>₹1 lakh/mo</b></td>
+<td>An organisation signs up and runs an event <b>without you touching it</b></td></tr>
+<tr><td><b>4 · Repeatable</b><br><span class="small">Year 2</span></td><td>Sales that are not you</td>
+<td>Billing automation. Campaign tooling</td><td>₹3–5 lakh/mo</td><td>Someone other than you closes a deal</td></tr>
+<tr><td><b>5 · Scale</b><br><span class="small">Year 2–3</span></td><td>Growth without proportional cost</td>
+<td>Redis, second process, observability</td><td><b>₹10 lakh/mo</b></td><td>Revenue grows faster than headcount</td></tr>
+<tr><td><b>6 · Company</b><br><span class="small">Year 3+</span></td><td>Team, capital, partnerships</td>
+<td>Whatever the customers demand</td><td>₹1 crore+/yr</td><td>You are hiring, not building</td></tr>
+</tbody>
+</table>
+
+<h2 id="s22">22 · Financial model, three scenarios</h2>
+<p><span class="tag t-e">ESTIMATE</span> throughout. Revenue in ₹ per month unless stated.</p>
+
+<table>
+<thead><tr><th>Scenario</th><th class="num">M1</th><th class="num">M6</th><th class="num">M12</th>
+<th class="num">Y2 exit</th><th class="num">Y3 exit</th><th class="num">Y3 ARR</th></tr></thead>
+<tbody>
+<tr><td><b>Conservative</b><br><span class="small">10 hrs/wk, placements take priority</span></td>
+<td class="num">0</td><td class="num">4,000</td><td class="num">15,000</td><td class="num">45,000</td>
+<td class="num">1,20,000</td><td class="num"><b>₹14.4 L</b></td></tr>
+<tr><td><b>Base</b><br><span class="small">15 hrs/wk, one co-founder</span></td>
+<td class="num">0</td><td class="num">10,000</td><td class="num">45,000</td><td class="num">2,50,000</td>
+<td class="num">9,00,000</td><td class="num"><b>₹1.08 Cr</b></td></tr>
+<tr><td><b>Aggressive</b><br><span class="small">Full-time after graduation, 2 hires</span></td>
+<td class="num">0</td><td class="num">25,000</td><td class="num">1,10,000</td><td class="num">6,00,000</td>
+<td class="num">22,00,000</td><td class="num"><b>₹2.64 Cr</b></td></tr>
+</tbody>
+</table>
+
+<h3>Base case, in detail</h3>
+<table>
+<thead><tr><th>Metric</th><th class="num">M6</th><th class="num">M12</th><th class="num">Y2</th><th class="num">Y3</th></tr></thead>
+<tbody>
+<tr><td>Registered players</td><td class="num">600</td><td class="num">4,000</td><td class="num">25,000</td><td class="num">1,20,000</td></tr>
+<tr><td>Monthly active</td><td class="num">250</td><td class="num">1,600</td><td class="num">9,000</td><td class="num">45,000</td></tr>
+<tr><td>Organisations (free)</td><td class="num">6</td><td class="num">30</td><td class="num">140</td><td class="num">500</td></tr>
+<tr><td><b>Paying organisations</b></td><td class="num"><b>4</b></td><td class="num"><b>18</b></td><td class="num"><b>70</b></td><td class="num"><b>160</b></td></tr>
+<tr><td>Brand campaigns / quarter</td><td class="num">0</td><td class="num">1</td><td class="num">3</td><td class="num">11</td></tr>
+<tr><td><b>MRR (gross collected)</b></td><td class="num">₹10,000</td><td class="num">₹45,000</td><td class="num">₹2,50,000</td><td class="num">₹9,00,000</td></tr>
+<tr><td>Less GST passthrough (18%)</td><td class="num">₹0</td><td class="num">₹0</td><td class="num">₹38,136</td><td class="num">₹1,37,288</td></tr>
+<tr><td><b>Net revenue</b></td><td class="num">₹10,000</td><td class="num">₹45,000</td><td class="num">₹2,11,864</td><td class="num">₹7,62,712</td></tr>
+<tr><td>Infrastructure</td><td class="num">₹0</td><td class="num">₹900</td><td class="num">₹3,500</td><td class="num">₹13,000</td></tr>
+<tr><td>Payment processing</td><td class="num">₹236</td><td class="num">₹1,062</td><td class="num">₹5,900</td><td class="num">₹21,240</td></tr>
+<tr><td>Staff</td><td class="num">₹0</td><td class="num">₹0</td><td class="num">₹80,000</td><td class="num">₹1,60,000</td></tr>
+<tr><td>Events / travel / marketing</td><td class="num">₹2,000</td><td class="num">₹8,000</td><td class="num">₹40,000</td><td class="num">₹1,20,000</td></tr>
+<tr><td><b>Contribution before founder pay</b></td><td class="num">₹7,764</td><td class="num">₹35,038</td>
+<td class="num">₹82,464</td><td class="num"><b>₹4,48,472</b></td></tr>
+</tbody>
+</table>
+
+<p class="small">GST is ₹0 in M6 and M12 because annual turnover is below the <b>₹20 lakh services
+registration threshold</b> — ₹1.2 L and ₹5.4 L respectively. It appears from Y2 (₹30 L annualised).
+<b>Caveat:</b> if you are classified as an electronic commerce operator (§2), registration is compulsory
+from day one regardless of turnover, and these two cells become ₹1,525 and ₹6,864.</p>
+
+<div class="box good">
+<span class="lbl">The one genuinely attractive financial property</span>
+<p><b>Cash required to reach break-even: approximately ₹0.</b> Infrastructure is free until ~₹10k/month
+of revenue. You are profitable from your first customer, because your only input is time. <b>This
+business never needs to raise money</b> — which is fortunate, because as §24 explains, it also could not.</p>
+</div>
+
+<h2 id="s23">23 · Case studies</h2>
+
+<table>
+<thead><tr><th>Company</th><th>Started as</th><th>First users</th><th>Monetisation &amp; when</th><th>Lesson for you</th></tr></thead>
+<tbody>
+<tr><td><b>Poki</b> 🟢</td><td>Web game portal, Amsterdam</td><td>Organic web traffic</td>
+<td>Ads from early. 100%/50% dev split by traffic source</td><td><b>625M players, 65 people, zero
+funding.</b> But 10+ years and a global audience. The split model is worth copying exactly</td></tr>
+<tr><td><b>Challonge</b> 🟢</td><td>One dev's bracket tool, 2009</td><td>Fighting-game community</td>
+<td>Ads, then $12/mo Premier</td><td>36M brackets. Sold to Logitech, <b>bought itself back in 2023.</b>
+A great lifestyle business — never a venture outcome</td></tr>
+<tr><td><b>start.gg</b> 🟡</td><td>smash.gg, 2015</td><td>Smash Bros community</td>
+<td><b>Nothing for 10 years.</b> 6% fee only in Feb 2025</td><td>Microsoft bought it, then let it go.
+Free tournament hosting cannot fund itself</td></tr>
+<tr><td><b>Battlefy</b> 🟡</td><td>2014, $1.3M seed, zero revenue</td><td>600 beta tournaments</td>
+<td>Never published a price; runs Riot's pages</td><td><b>Ended up doing publisher-funded services.</b>
+That is where this category lands — plan for it directly</td></tr>
+<tr><td><b>FACEIT</b> 🟡</td><td>CS matchmaking</td><td>CS:GO players</td><td>Player subs ~$11/mo</td>
+<td>£11.1m subs, <b>+2.8%</b>, £60m loss. <b>The ceiling on player subscriptions, proven</b></td></tr>
+<tr><td><b>itch.io</b> 🟢</td><td>2013, one person, Bandcamp-inspired</td><td>Game jam devs</td>
+<td><b>Developer chooses itch's cut, 0–100%</b></td><td>Founder lost $8,000 personally in 2014. Now 1M+
+products. <b>Radical generosity built the supply side</b></td></tr>
+<tr><td><b>Rooter</b> 🟢</td><td>Indian game streaming</td><td>85M Indian gamers</td>
+<td><b>Pivoted to commerce:</b> currencies, vouchers, gift cards</td><td>₹82 cr FY25, +120%, users spend
+₹2,400/mo. <b>Indians spend on games, not on ads. Sell them things</b></td></tr>
+<tr><td><b>NODWIN</b> 🟢</td><td>Indian esports events, 2014</td><td>Tournament audiences</td>
+<td>Sponsorship, events, owned IP</td><td>₹658 cr FY26, first EBITDA profit. <b>The closest working
+analogue to the business I am recommending</b></td></tr>
+<tr><td><b>Loco</b> 🔴</td><td>Indian streaming, $42M raised</td><td>Millions of viewers</td>
+<td>Ads + subs. Never worked</td><td>Sold for $65M vs $150M peak. <b>Indian gaming attention does not
+convert to revenue</b></td></tr>
+<tr><td><b>Kongregate</b> 🔴</td><td>2006 web portal, Bezos-backed</td><td>Flash gamers</td>
+<td>25–50% ad share to devs</td><td>Stopped accepting games 2020. <b>124,000 games stranded.</b>
+Platform risk is absolute</td></tr>
+<tr><td><b>YaLLa Esports</b> 🔴</td><td>MENA esports org</td><td>—</td><td>Sponsorships</td>
+<td>Liquidated 2025, <b>$1M+ debt including $700k unpaid prize money.</b> <b>Never hold prize
+money you have not collected</b></td></tr>
+<tr><td><b>Miniclip</b> 🟡</td><td>2001, £40,000</td><td>Browser gamers</td><td>Ads → mobile IAP</td>
+<td>Valued £275M+, then <b>shut the browser portal in 2022.</b> Even the winner left web</td></tr>
+</tbody>
+</table>
+
+<h2 id="s24">24 · The VC verdict</h2>
+
+<div class="box danger">
+<span class="lbl">Would I invest? No.</span>
+<p>Not because the work is bad — the publisher pipeline and approval-binds-to-build design are better
+engineering than most seed-stage products I would see. <b>I would pass because the market cannot
+produce a venture return.</b></p>
+</div>
+
+<h3>The arithmetic a VC does</h3>
+<ul>
+<li>Indian esports direct revenue: <b>$22M FY25</b>, growing to ~$132M in five years (BITKRAFT/Redseer).
+<b>The entire addressable market is smaller than one mid-size Series B.</b></li>
+<li>Tournament software has a proven ceiling: FACEIT's subscription line is £11m and flat. Challonge
+charges $12.</li>
+<li>A venture fund needs a <b>$1B+ outcome</b> from its winners. To return a fund, PlayCarys would need
+to be roughly <b>10× the entire current Indian esports market.</b></li>
+<li>The moat is relationships and operations — <b>real, but it does not scale superlinearly</b>, which
+is exactly what venture requires.</li>
+</ul>
+
+<h3>Could it become…</h3>
+<table>
+<thead><tr><th>Target</th><th>Verdict</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><b>₹1 crore/year</b></td><td><span class="tag t-ok">YES, REALISTIC</span></td>
+<td>160 paying orgs + 11 brand campaigns/year. Achievable in 3 years with real work</td></tr>
+<tr><td><b>₹10 crore/year</b></td><td><span class="tag t-a">POSSIBLE, HARD</span></td>
+<td>Requires becoming an events company like NODWIN — a services business with a team, not a SaaS</td></tr>
+<tr><td><b>₹100 crore/year</b></td><td><span class="tag t-k">NO</span></td>
+<td>NODWIN reached ₹658 cr in a decade with owned IP and physical events. Not from tournament software</td></tr>
+<tr><td><b>$10M ARR (₹88 cr)</b></td><td><span class="tag t-k">NO</span></td>
+<td>Would require ~4× the entire Indian esports market flowing through you</td></tr>
+<tr><td><b>$100M ARR</b></td><td><span class="tag t-k">NO</span></td><td>Not a serious question for this business</td></tr>
+</tbody>
+</table>
+
+<h3>What would change my mind</h3>
+<ol>
+<li><b>Evidence that colleges are a repeatable, self-serve channel</b> — 50 organisations onboarded
+without you in the room. That would suggest something with real leverage.</li>
+<li><b>A commerce line that works</b> — if you found that Indian students buy game currency through you
+the way they do through Rooter (₹2,400/month/user), that is a genuinely bigger business than tournaments.
+<b>Test this early; it is the one thing that could make me wrong about the ceiling.</b></li>
+<li><b>Publishers paying for campus reach at scale</b> — if KRAFTON or Krafton-scale budgets ran through
+your infrastructure, you are an ad-tech company with a much larger TAM.</li>
+</ol>
+
+<div class="box info">
+<span class="lbl">The better direction, if you want the bigger business</span>
+<p><b>Follow Rooter, not Challonge.</b> The largest verified revenue acceleration in Indian gaming right
+now is <b>selling things to gamers</b> — currency, vouchers, gift cards — at ₹2,400/user/month, not
+selling tournaments or attention. You already have the two hard pieces: a <b>player identity system</b>
+and a <b>closed virtual currency</b>. If you tested "can I sell BGMI UC / Valorant points to my
+tournament players" and it worked, that is a materially larger company than the one this report
+describes — and the tournaments become the customer acquisition channel rather than the product.</p>
+<p><b>I would test that in parallel from month three.</b> It is cheap to test and it is the only path
+here to a ₹10 crore+ outcome.</p>
+</div>
+
+<h2 id="s25">25 · Final answer</h2>
+
+<table>
+<thead><tr><th>Question</th><th>Answer</th></tr></thead>
+<tbody>
+<tr><td><b>The business model</b></td><td>Campus and community esports infrastructure, monetised by
+brands and venues. Free-to-enter tournaments, sponsor-funded prizes</td></tr>
+<tr><td><b>The target customer</b></td><td>Gaming café owners (₹999/mo) and brand/publisher campus
+marketing budgets (₹1.5 lakh/campaign). <b>Not players</b></td></tr>
+<tr><td><b>The free product</b></td><td>Everything a student touches. Play, compete, friends, chat,
+history, achievements, earned Carys</td></tr>
+<tr><td><b>The paid product</b></td><td>Organisation tooling, branded events run as a service, and a
+verified reach report</td></tr>
+<tr><td><b>The pricing</b></td><td>₹0 / ₹99 Pro / ₹999 Venue / ₹24,999 Campus / ₹1,50,000 Campaign</td></tr>
+<tr><td><b>The revenue engine</b></td><td>Organisations, not users. Metering from day one. Manual
+billing until it hurts</td></tr>
+<tr><td><b>The growth engine</b></td><td>Campus ambassadors paid in status. College leaderboards.
+Café walk-ins</td></tr>
+<tr><td><b>The architecture</b></td><td>Cloudflare Pages + Oracle Always Free + Postgres + R2. ₹0 to
+1,000 users. Redis only when you run a second process</td></tr>
+<tr><td><b>The unit economics</b></td><td>Venue LTV ₹18,981 at ~95% margin. Player LTV ₹47. <b>Sell to
+venues</b></td></tr>
+<tr><td><b>This month</b></td><td>Password reset. Postgres. Stop shipping the whole database. College
+leaderboard. <b>Run one real tournament and charge ₹2,000 for it</b></td></tr>
+<tr><td><b>Do NOT build</b></td><td>Entry fees. Carys purchase. Payments automation. Ads. Kubernetes.
+A mobile app</td></tr>
+<tr><td><b>The first ₹1</b></td><td>One college fest or café pays you ₹2,000 to run their esports event.
+No new code required</td></tr>
+<tr><td><b>Path to ₹1 lakh/mo</b></td><td>40 venues × ₹999 + 2 activations × ₹25,000 + cosmetics.
+Months 9–18</td></tr>
+<tr><td><b>Path to ₹10 lakh/mo</b></td><td>4 brand campaigns × ₹1.5 L + 150 venues × ₹1,499 + 50k MAU
+cosmetics. Year 2–3</td></tr>
+<tr><td><b>Path to ₹1 crore/yr</b></td><td>The above, sustained. <b>₹1 crore/month is a different
+company and this is not it</b></td></tr>
+<tr><td><b>Biggest risk</b></td><td>You graduate, get placed, and this stops. Followed by: nobody pays</td></tr>
+<tr><td><b>Biggest opportunity</b></td><td>Selling game currency and vouchers to your tournament players —
+the Rooter model. <b>Test it by month three</b></td></tr>
+</tbody>
+</table>
+
+<div class="box good">
+<span class="lbl">One last thing worth saying plainly</span>
+<p>If this ends as a portfolio project rather than a company, <b>that is not a failure.</b> You have
+built a five-role, twelve-table, sixty-endpoint platform with a security scanner, an approval pipeline
+that binds to build hashes, and an honest written record of seven vulnerabilities you found and closed.
+Most graduates cannot describe one system that well.</p>
+<p>But that outcome is only worth it if you <b>decide</b> on it, rather than drifting into it. So set
+the test now: <b>if you cannot get one person to pay you ₹2,000 within eight weeks, this is a portfolio
+piece and you should stop spending nights on it.</b> If someone does pay — you have a business, and
+everything above is the map.</p>
+</div>
+
+<hr>
+<p class="small"><b>Sources.</b> Promotion and Regulation of Online Gaming Act, 2025 (MeitY) and Rules,
+2026 (PIB) · Trilegal, Khaitan &amp; Co, Bar &amp; Bench, Legal 500 analyses · <i>State of TN v. Junglee
+Games</i> 2026 INSC 594 · <i>DGGI v. Gameskraft</i> 2026 INSC 595 · Razorpay Terms cl. 14.10 and 2.13(5)
+and pricing page · Stripe restricted businesses list · Lumikai State of India Interactive Media 2025 ·
+BITKRAFT/Redseer Oct 2025 · AISHE 2023-24, Ministry of Education · ESL FACEIT Group Limited FY2024 filed
+accounts via Sheep Esports · Challonge, Toornament, start.gg, Poki, CrazyGames, GameDistribution, Y8,
+Kongregate published terms and pricing · Cloudflare, Oracle, Neon, Supabase, Upstash, Render, Fly.io,
+Hetzner published pricing · Entrackr, Inc42, Outlook Business, YourStory, TechCrunch for Indian company
+financials · Naavik and a16z Speedrun on web gaming economics.</p>
+
+<p class="small"><b>This is strategic research, not legal, tax or financial advice.</b> Before collecting
+money against any prize, or making Carys purchasable, get a written opinion from an Indian gaming-practice
+firm and written confirmation from your payment aggregator on your specific design.</p>
+
+</div>
+</body>
+</html>

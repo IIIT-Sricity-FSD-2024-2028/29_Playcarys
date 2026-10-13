@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Player Reports</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content" id="main-view">
+
+  <div class="page-header">
+    <h1>Player Reports</h1>
+    <p class="text-muted">Review and handle reported player behavior</p>
+  </div>
+
+  <div class="filter-bar" style="flex-wrap:wrap;gap:0.5rem">
+    <div style="flex:1;min-width:200px;position:relative">
+      <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-secondary)">🔍</span>
+      <input class="form-input" id="search-filter" placeholder="Search player name or report ID…" oninput="renderReports()" style="padding-left:2.2rem"/>
+    </div>
+    <select class="form-select" id="status-filter" onchange="renderReports()" style="width:160px">
+      <option value="">All Reports</option>
+      <option value="pending">Pending</option>
+      <option value="under-review">Under Review</option>
+      <option value="resolved">Resolved</option>
+      <option value="dismissed">Dismissed</option>
+    </select>
+    <select class="form-select" id="type-filter" onchange="renderReports()" style="width:160px">
+      <option value="">All Types</option>
+      <option value="Toxic Behavior">Toxic Behavior</option>
+      <option value="Cheating">Cheating</option>
+      <option value="Griefing">Griefing</option>
+      <option value="Direct Contact">Direct Contact</option>
+    </select>
+  </div>
+
+  <div id="reports-list"></div>
+</div>
+
+<!-- TAKE ACTION VIEW -->
+<div class="page-content hidden" id="action-view">
+  <div class="back-btn" onclick="showList()">← Back to Reports</div>
+  <h1>Take Action on Report</h1>
+  <p class="text-muted mb-2">Review and decide on this report</p>
+  <div id="action-content"></div>
+</div>
+
+</div>
+<div id="toast-container"></div>
+
+<!-- ⚠️ WARN PLAYER MODAL -->
+<div class="modal-overlay" id="warn-modal" onclick="if(event.target===this)closeWarnModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:9999;display:none;align-items:center;justify-content:center">
+  <div style="background:#111520;border:1px solid rgba(245,158,11,0.35);border-radius:1rem;padding:2rem;max-width:480px;width:90%;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.7)">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#f59e0b,#ef4444);border-radius:1rem 1rem 0 0"></div>
+    <button onclick="closeWarnModal()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,0.06);border:none;color:var(--text-secondary);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:0.9rem">✕</button>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);display:flex;align-items:center;justify-content:center;font-size:1.4rem">⚠️</div>
+      <div>
+        <div style="font-family:'Orbitron',monospace;font-weight:800;font-size:1rem">Issue Warning</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.15rem">To: <strong id="warn-player-name" style="color:var(--accent-yellow)"></strong></div>
+      </div>
+    </div>
+    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem">Custom message (optional — leave blank for default)</div>
+    <textarea id="warn-message" rows="4" placeholder="e.g. Please follow community guidelines. Repeated violations may result in a ban."
+      style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:0.5rem;padding:0.75rem;color:#fff;font-size:0.88rem;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
+    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:0.5rem;padding:0.75rem;margin-top:0.75rem;font-size:0.78rem;color:rgba(245,158,11,0.9)">
+      ⚠️ The player will receive this warning as a notification. It will be logged in moderation records.
+    </div>
+    <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+      <button onclick="submitWarn()" style="flex:1;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;border-radius:0.5rem;padding:0.7rem 1.5rem;font-weight:800;font-size:0.9rem;cursor:pointer">⚠️ Send Warning</button>
+      <button onclick="closeWarnModal()" style="flex:1;background:rgba(255,255,255,0.05);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.7rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// navigate() provided globally by utils.js
+let currentReportId = null;
+
+/* Safe helper — attach getters then resolve display values defensively */
+function safeReport(r) {
+  if (DB.attachReportGetters) DB.attachReportGetters(r);
+  
+  // Robust ID resolution
+  const rid = r.report_id || r.id || 'N/A';
+  
+  // Robust name resolution
+  const getReporterName = () => {
+    if (r.reporterName) return r.reporterName;
+    const uid = r.reported_by || r.reporterId;
+    const u = DB.users.find(u => String(u.user_id || u.id) === String(uid));
+    return u ? (u.user_name || u.username) : 'Unknown';
+  };
+  
+  const getReportedName = () => {
+    if (r.reportedName) return r.reportedName;
+    if (r.reported_user == null && r.reportedId == null) return '—';
+    const uid = r.reported_user || r.reportedId;
+    const u = DB.users.find(u => String(u.user_id || u.id) === String(uid));
+    return u ? (u.user_name || u.username) : 'Unknown';
+  };
+
+  return {
+    id:           String(rid),
+    type:         r.type         || 'Unknown',
+    status:       r.status       || 'pending',
+    time:         r.time         || r.report_date || '',
+    session:      r.session      || '—',
+    desc:         r.reason       || r.desc || '',
+    reporterName: getReporterName(),
+    reportedName: getReportedName(),
+    isContact:    !!r.isDirectContact,
+    assigned:     r.assignedModerator || null,
+    raw:          r
+  };
+}
+
+/* Find a report by id string regardless of whether getters are attached */
+function findReportById(id) {
+  return DB.reports.find(r => String(r.report_id || r.id) === String(id));
+}
+
+function renderReports() {
+  const statusF = document.getElementById('status-filter').value;
+  const typeF   = document.getElementById('type-filter').value;
+  const searchF = (document.getElementById('search-filter')?.value || '').toLowerCase().trim();
+  let reports = DB.reports.slice();
+
+  if (statusF) reports = reports.filter(r => r.status === statusF);
+  if (typeF) {
+    reports = reports.filter(r => {
+      const t = (r.type || '').toLowerCase();
+      const f = typeF.toLowerCase();
+      return t === f || t.includes(f) || t.startsWith(f);
+    });
+  }
+  if (searchF) {
+    reports = reports.filter(r => {
+      const sr = safeReport(r);
+      return sr.reporterName.toLowerCase().includes(searchF)
+        || sr.reportedName.toLowerCase().includes(searchF)
+        || String(sr.id).includes(searchF)
+        || sr.desc.toLowerCase().includes(searchF);
+    });
+  }
+
+  if (!reports.length) {
+    document.getElementById('reports-list').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">✅</div>
+        <h3>No reports found</h3>
+        <p>No reports match your current filters</p>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+  reports.forEach(raw => {
+    try {
+      const r = safeReport(raw);
+      const rInitials = r.reporterName !== 'Unknown' ? r.reporterName.slice(0,2).toUpperCase() : '??';
+      const dInitials = (r.reportedName && r.reportedName !== '—' && r.reportedName !== 'Unknown')
+                        ? r.reportedName.slice(0,2).toUpperCase() : '??';
+
+      const contactBadge = r.isContact
+        ? `<span style="font-size:0.7rem;background:rgba(0,212,255,0.12);color:#22d3ee;border:1px solid rgba(0,212,255,0.3);border-radius:99px;padding:0.1rem 0.45rem;font-weight:700">📡 Direct Contact</span>`
+        : '';
+      const assignedBadge = r.assigned
+        ? `<span style="font-size:0.7rem;color:var(--text-secondary)">→ <strong>${r.assigned}</strong></span>`
+        : '';
+
+      html += `
+      <div class="list-item">
+        <div class="list-item-info">
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+            <span class="list-item-title">Report #${r.id}</span>
+            ${badgeHTML(r.status)}
+            <span class="tag">${r.type}</span>
+            ${contactBadge}
+            ${assignedBadge}
+          </div>
+          <div class="list-item-sub mt-1">
+            ${avatarHTML(rInitials,'sm')} <strong>${r.reporterName}</strong>
+            <span>${r.isContact ? 'contacted moderator' : 'reported'}</span>
+            ${!r.isContact ? `${avatarHTML(dInitials,'sm')} <strong>${r.reportedName}</strong>` : ''}
+            <span>· ${r.time}</span>
+          </div>
+          <div class="text-sm text-muted mt-1">${r.desc}</div>
+          <div class="text-xs text-muted mt-1">Session: ${r.session}</div>
+        </div>
+        <div class="list-item-actions" style="display:flex;flex-direction:column;gap:0.35rem;align-items:flex-end">
+          ${r.status !== 'resolved' && r.status !== 'dismissed' ? `<button class="btn btn-yellow btn-sm" onclick="reviewReport('${r.id}')">👁 Review</button>` : ''}
+          ${(r.status === 'pending' || r.status === 'under-review') ? `
+            <button class="btn btn-outline btn-sm" onclick="takeAction('${r.id}')" style="border-color:rgba(0,212,255,0.4);color:var(--accent-cyan)">⚡ Action</button>
+            <button class="btn btn-ghost btn-sm" onclick="warnPlayer('${r.id}')" style="border-color:rgba(245,158,11,0.4);color:var(--accent-yellow);font-size:0.68rem">⚠️ Warn</button>
+          ` : ''}
+        </div>
+      </div>`;
+    } catch (err) {
+      console.error("Failed to render report:", raw, err);
+    }
+  });
+  document.getElementById('reports-list').innerHTML = html;
+}
+
+function reviewReport(id) {
+  const r = findReportById(id);
+  if (!r) { Toast.error('Report not found'); return; }
+
+  if (r.status === 'pending') {
+    r.status = 'under-review';
+    Toast.info('Report marked as Under Review');
+
+    if (typeof dispatchUserNotification !== 'undefined') {
+      const s = Auth.getSession();
+      const sr = safeReport(r);
+      dispatchUserNotification(sr.reporterName, s.role, s.username, `Your report against ${sr.reportedName} is now under review.`);
+      if (!sr.isContact) dispatchUserNotification(sr.reportedName, s.role, s.username, `A report against you for ${sr.type} is under review.`);
+    }
+  } else {
+    Toast.info('Already under review or processed');
+  }
+  DB.save();
+  renderReports();
+}
+
+function takeAction(id) {
+  const r = findReportById(id);
+  if (!r) return;
+
+  if (r.status === 'pending') r.status = 'under-review';
+  currentReportId = String(r.report_id || r.id);
+  DB.save();
+
+  const sr = safeReport(r);
+
+  document.getElementById('action-content').innerHTML = `
+    <div class="detail-card">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem">
+        <span style="font-family:'Orbitron',monospace;font-weight:700">Report #${sr.id}</span>
+        ${badgeHTML(sr.status)} <span class="tag">${sr.type}</span>
+        ${sr.isContact ? '<span style="font-size:0.72rem;color:#22d3ee;font-weight:700">📡 Direct Contact</span>' : ''}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <div style="font-size:0.72rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Reported By</div>
+          <div style="font-weight:700">${sr.reporterName}</div>
+        </div>
+        ${!sr.isContact ? `<div>
+          <div style="font-size:0.72rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Reported Player</div>
+          <div style="font-weight:700">${sr.reportedName}</div>
+        </div>` : ''}
+      </div>
+
+      <div class="form-group mt-2">
+        <label class="form-label">Report Description</label>
+        <div style="background:var(--bg-input);padding:0.75rem;border-radius:var(--radius-md);font-size:0.875rem">${sr.desc}</div>
+      </div>
+
+      <div class="form-group mt-2">
+        <label class="form-label">Session · Time</label>
+        <div style="background:var(--bg-input);padding:0.75rem;border-radius:var(--radius-md);font-size:0.875rem">
+          ${sr.session}<br><span style="color:var(--text-secondary);font-size:0.8rem">${sr.time}</span>
+        </div>
+      </div>
+
+      ${sr.assigned ? `<div style="font-size:0.8rem;color:var(--text-secondary);margin-top:0.5rem">Assigned to: <strong>${sr.assigned}</strong></div>` : ''}
+    </div>
+
+    <div class="detail-card">
+      <h3>⚡ Your Decision</h3>
+
+      <div class="form-group" style="margin-top:0.75rem">
+        <label class="form-label">Severity Level</label>
+        <input type="hidden" id="action-severity" value="medium"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.5rem" id="sev-btns">
+          <button type="button" onclick="setSeverity('low',this)" data-val="low"
+            style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.75rem;border-radius:0.45rem;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#d1d5db;font-size:0.78rem;font-weight:600;cursor:pointer;text-align:left">
+            <span>🟡</span><span>Low<br/><span style="font-size:0.64rem;opacity:0.6">First offence</span></span></button>
+          <button type="button" onclick="setSeverity('medium',this)" data-val="medium"
+            style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.75rem;border-radius:0.45rem;border:1px solid rgba(245,158,11,0.5);background:rgba(245,158,11,0.1);color:#fbbf24;font-size:0.78rem;font-weight:700;cursor:pointer;text-align:left">
+            <span>🟠</span><span>Medium<br/><span style="font-size:0.64rem;opacity:0.7">Repeated</span></span></button>
+          <button type="button" onclick="setSeverity('high',this)" data-val="high"
+            style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.75rem;border-radius:0.45rem;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#d1d5db;font-size:0.78rem;font-weight:600;cursor:pointer;text-align:left">
+            <span>🔴</span><span>High<br/><span style="font-size:0.64rem;opacity:0.6">Serious</span></span></button>
+          <button type="button" onclick="setSeverity('critical',this)" data-val="critical"
+            style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.75rem;border-radius:0.45rem;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#d1d5db;font-size:0.78rem;font-weight:600;cursor:pointer;text-align:left">
+            <span>🚨</span><span>Critical<br/><span style="font-size:0.64rem;opacity:0.6">Immediate</span></span></button>
+        </div>
+      </div>
+
+
+      <div class="form-group" style="margin-top:0.75rem">
+        <label class="form-label">Action Notes <span style="color:var(--accent-red)">*</span></label>
+        <textarea id="action-notes" class="form-textarea" placeholder="Write detailed notes about your decision…"></textarea>
+      </div>
+
+      <div style="display:flex;gap:0.75rem;margin-top:1rem;flex-wrap:wrap">
+        <button class="btn btn-green" style="flex:1;min-width:120px" onclick="resolveReport()">✓ Resolve</button>
+        <button class="btn btn-ghost" style="flex:1;min-width:120px" onclick="dismissReport()">✕ Dismiss</button>
+      </div>
+      <button class="btn btn-ghost btn-sm w-full mt-2" onclick="escalateToBan()" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red)">🚫 Escalate to Ban →</button>
+    </div>`;
+
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('action-view').classList.remove('hidden');
+  
+  // Auto-select Medium
+  setTimeout(() => {
+    const medBtn = document.querySelector('#sev-btns button[data-val="medium"]');
+    if (medBtn) setSeverity('medium', medBtn);
+  }, 10);
+}
+
+function showList() {
+  document.getElementById('main-view').classList.remove('hidden');
+  document.getElementById('action-view').classList.add('hidden');
+  renderReports();
+}
+
+function resolveReport() {
+  const notes = document.getElementById('action-notes').value;
+  if (!notes || notes.length < 10) { Toast.error('Minimum 10 characters required'); return; }
+
+  const r = findReportById(currentReportId);
+  if (!r) return;
+
+  const severity = document.getElementById('action-severity')?.value || 'medium';
+  r.status = 'resolved';
+  r.actionNote = notes;
+  r.severity = severity;
+
+  // Log moderator action
+  const s = Auth.getSession();
+  DB.moderator_actions.push({
+    action_id: Date.now(), moderator_id: parseInt(s.userId,10),
+    report_id: parseInt(currentReportId,10),
+    action_type: 'resolve', action_date: new Date().toISOString().split('T')[0],
+    action_reason: notes
+  });
+  DB.save();
+
+  if (typeof dispatchUserNotification !== 'undefined') {
+    const sr = safeReport(r);
+    dispatchUserNotification(sr.reporterName, s.role, s.username, `Your report against ${sr.reportedName} has been resolved.`);
+    if (!sr.isContact) dispatchUserNotification(sr.reportedName, s.role, s.username, `A report against you for ${sr.type} has been resolved. Notes: ${notes}`);
+  }
+
+  Toast.success('Report resolved ✅');
+  showList();
+}
+
+function dismissReport() {
+  const notes = document.getElementById('action-notes').value;
+  if (!notes || notes.length < 5) { Toast.error('Minimum 5 characters required'); return; }
+
+  const r = findReportById(currentReportId);
+  if (!r) return;
+
+  r.status = 'dismissed';
+  r.actionNote = notes;
+  DB.save();
+
+  if (typeof dispatchUserNotification !== 'undefined') {
+    const s = Auth.getSession();
+    const sr = safeReport(r);
+    dispatchUserNotification(sr.reporterName, s.role, s.username, `Your report against ${sr.reportedName} has been dismissed. Notes: ${notes}`);
+    if (!sr.isContact) dispatchUserNotification(sr.reportedName, s.role, s.username, `A report against you for ${sr.type} was reviewed and dismissed.`);
+  }
+
+  Toast.info('Report dismissed');
+  showList();
+}
+// ── Severity Button Selector ──────────────────────────
+const SEV_STYLES = {
+  low:      { border:'rgba(234,179,8,0.4)',  bg:'rgba(234,179,8,0.1)',   color:'#fde047' },
+  medium:   { border:'rgba(245,158,11,0.5)', bg:'rgba(245,158,11,0.1)', color:'#fbbf24' },
+  high:     { border:'rgba(239,68,68,0.5)',  bg:'rgba(239,68,68,0.1)',  color:'#f87171' },
+  critical: { border:'rgba(220,38,38,0.7)',  bg:'rgba(220,38,38,0.18)', color:'#ff4444' },
+};
+function setSeverity(val, btn) {
+  document.getElementById('action-severity').value = val;
+  document.querySelectorAll('#sev-btns button').forEach(b => {
+    b.style.border = '1px solid rgba(255,255,255,0.1)';
+    b.style.background = 'rgba(255,255,255,0.04)';
+    b.style.color = '#d1d5db';
+    b.style.fontWeight = '600';
+  });
+  const s = SEV_STYLES[val] || SEV_STYLES.medium;
+  btn.style.border = `1px solid ${s.border}`;
+  btn.style.background = s.bg;
+  btn.style.color = s.color;
+  btn.style.fontWeight = '800';
+}
+
+// ── Warn Player Modal ─────────────────────────────────
+let _warnReportId = null;
+
+function warnPlayer(id) {
+  const r = findReportById(id);
+  if (!r) return;
+  _warnReportId = id;
+  const sr = safeReport(r);
+  document.getElementById('warn-player-name').textContent = sr.isContact ? sr.reporterName : sr.reportedName;
+  document.getElementById('warn-message').value = '';
+  const modal = document.getElementById('warn-modal');
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('warn-message').focus(), 80);
+}
+
+function closeWarnModal() {
+  document.getElementById('warn-modal').style.display = 'none';
+  _warnReportId = null;
+}
+
+function submitWarn() {
+  if (!_warnReportId) return;
+  const r = findReportById(_warnReportId);
+  if (!r) return;
+  const sr = safeReport(r);
+  const target = sr.isContact ? sr.reporterName : sr.reportedName;
+  const customMsg = document.getElementById('warn-message').value.trim();
+  const msg = customMsg || `You received a warning regarding ${sr.type}. Please follow community guidelines.`;
+
+  r.status = 'under-review';
+  r.actionNote = '[Warning Issued] ' + msg;
+  const s = Auth.getSession();
+  DB.moderator_actions.push({
+    action_id: Date.now(), moderator_id: parseInt(s.userId,10),
+    report_id: parseInt(_warnReportId,10),
+    action_type: 'warning', action_date: new Date().toISOString().split('T')[0],
+    action_reason: msg
+  });
+  if (typeof dispatchUserNotification !== 'undefined') {
+    dispatchUserNotification(target, s.role, s.username, `⚠️ Warning from Moderator ${s.username}: ${msg}`);
+    if (!sr.isContact) dispatchUserNotification(sr.reporterName, s.role, s.username, `Your report against ${sr.reportedName} is being addressed — a warning has been issued.`);
+  }
+  DB.save();
+  closeWarnModal();
+  Toast.success(`⚠️ Warning sent to ${target}`);
+  renderReports();
+}
+
+function escalateToBan() {
+  if (currentReportId) {
+    DB.save();
+    window.location.href = 'bans.html';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['moderator']);
+  if (!session) return;
+
+  buildNavbar('moderator','reports');
+  renderReports();
+});
+</script>
+</body>
+</html>
+

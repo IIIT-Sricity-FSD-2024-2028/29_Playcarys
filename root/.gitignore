@@ -1,0 +1,47 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# NestJS (Backend)
+back-end/dist/
+back-end/prebuild/
+back-end/*.tsbuildinfo
+
+# Frontend
+front-end/node_modules/
+front-end/live_database.json
+
+# Environment Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+back-end/.auth-secret
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Project Specific
+Videos/
+temp_script.js
+
+# Launcher runtime files (machine-specific, regenerated on every run)
+logs/
+.playcarys-cache.json
+front-end/public_url.txt
+.removed-bundles-*/

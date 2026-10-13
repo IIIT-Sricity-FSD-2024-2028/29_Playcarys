@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>PlayCarys — Moderator Dashboard</title>
+  <link rel="stylesheet" href="../../css/variables.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+  /* ── Moderator Dashboard Premium ───────────────────── */
+  .mod-hero {
+    background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(0,212,255,0.06) 100%);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: var(--radius-xl);
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .mod-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+  }
+  .mod-hero-shield {
+    width: 68px; height: 68px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #00d4ff);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem;
+    box-shadow: 0 0 24px rgba(124,58,237,0.4);
+    flex-shrink: 0;
+  }
+  .mod-hero-body { flex: 1; }
+  .mod-hero-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.2rem; font-weight: 800;
+    margin-bottom: 0.2rem;
+  }
+  .mod-hero-sub { font-size: 0.8rem; color: var(--text-secondary); }
+  .mod-hero-actions { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
+
+  /* ── Stats Row ────────── */
+  .mod-stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.85rem;
+    margin-bottom: 1.5rem;
+  }
+  @media(max-width:1000px){ .mod-stats-row { grid-template-columns: repeat(3,1fr); } }
+  @media(max-width:640px){ .mod-stats-row { grid-template-columns: repeat(2,1fr); } }
+
+  .mod-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+  }
+  .mod-stat:hover { border-color: rgba(0,212,255,0.25); box-shadow: var(--shadow-glow); }
+  .mod-stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 0.35rem; }
+  .mod-stat-value { font-family: 'Orbitron', monospace; font-size: 1.7rem; font-weight: 900; line-height: 1; }
+  .mod-stat-sub { font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.3rem; }
+
+  /* ── Grid Layout ─────── */
+  .mod-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  @media(max-width:900px){ .mod-grid { grid-template-columns: 1fr; } }
+
+  /* ── Activity Timeline ── */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item {
+    display: flex;
+    gap: 1rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    position: relative;
+  }
+  .tl-item:last-child { border-bottom: none; }
+  .tl-dot {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .tl-body { flex: 1; min-width: 0; }
+  .tl-title { font-size: 0.85rem; font-weight: 600; line-height: 1.3; }
+  .tl-time { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.2rem; }
+
+  /* ── Quick Actions ─────── */
+  .qa-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+  .qa-btn {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+  .qa-btn:hover { background: rgba(0,212,255,0.07); border-color: rgba(0,212,255,0.25); }
+  .qa-btn-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .qa-btn-text .title { font-size: 0.82rem; font-weight: 700; }
+  .qa-btn-text .sub { font-size: 0.68rem; color: var(--text-secondary); margin-top: 0.1rem; }
+
+  /* ── Mod Performance Card ── */
+  .perf-ring-wrap { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1rem; }
+  .perf-stat-list { display: flex; flex-direction: column; gap: 0.6rem; }
+  .perf-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; }
+  .perf-bar-wrap { flex: 1; margin: 0 0.75rem; height: 4px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+  .perf-bar-fill { height: 100%; border-radius: 99px; }
+
+  /* ── Chart card ─────── */
+  .chart-card { height: 260px; position: relative; }
+  </style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <!-- ── MOD HERO ── -->
+  <div class="mod-hero" id="mod-hero">
+    <div class="mod-hero-shield">🛡️</div>
+    <div class="mod-hero-body">
+      <div class="mod-hero-name" id="mod-name">Loading...</div>
+      <div class="mod-hero-sub" id="mod-sub">PlayCarys Moderation Team · <span id="mod-date"></span></div>
+    </div>
+    <div class="mod-hero-actions">
+      <button class="btn btn-outline btn-sm" onclick="contactAdmin()">📨 Contact Admin</button>
+      <button class="btn btn-ghost btn-sm" onclick="navigate('reports')">⚠️ View Reports</button>
+    </div>
+  </div>
+
+  <!-- ── TOP STATS ── -->
+  <div class="mod-stats-row" id="mod-stats-row"></div>
+
+  <!-- ── MAIN GRID ── -->
+  <div class="mod-grid">
+
+    <!-- Left: Chart + Recent Reports -->
+    <div>
+      <div class="card mb-2 chart-card">
+        <h3 class="mb-1" style="font-size:0.9rem">📈 Report Activity (Last 7 Days)</h3>
+        <p style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:0.6rem">Incoming reports vs. resolved per day</p>
+        <canvas id="activityChart"></canvas>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <h3>⚠️ Recent Reports</h3>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('reports')">View All →</button>
+        </div>
+        <div id="recent-reports"></div>
+      </div>
+    </div>
+
+    <!-- Right: Quick Actions + Activity Log + Performance -->
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+      <!-- Quick Actions -->
+      <div class="card">
+        <div class="sid-title" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;font-weight:900;color:var(--text-muted);margin-bottom:0.85rem">⚡ Quick Actions</div>
+        <div class="qa-grid">
+          <div class="qa-btn" onclick="navigate('reports')">
+            <div class="qa-btn-icon">📋</div>
+            <div class="qa-btn-text"><div class="title">Reports</div><div class="sub" id="qa-reports-sub">Loading...</div></div>
+          </div>
+          <div class="qa-btn" onclick="navigate('sessions')">
+            <div class="qa-btn-icon">🎮</div>
+            <div class="qa-btn-text"><div class="title">Sessions</div><div class="sub" id="qa-sessions-sub">Loading...</div></div>
+          </div>
+          <div class="qa-btn" onclick="navigate('bans')">
+            <div class="qa-btn-icon">🚫</div>
+            <div class="qa-btn-text"><div class="title">Bans</div><div class="sub" id="qa-bans-sub">Loading...</div></div>
+          </div>
+          <div class="qa-btn" onclick="contactAdmin()">
+            <div class="qa-btn-icon">📨</div>
+            <div class="qa-btn-text"><div class="title">Escalate</div><div class="sub">Contact admin</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Moderator Performance -->
+      <div class="card">
+        <div class="sid-title" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;font-weight:900;color:var(--text-muted);margin-bottom:0.85rem">🏆 Your Moderation Record</div>
+        <div class="perf-stat-list" id="perf-list"></div>
+      </div>
+
+      <!-- Live Activity Log -->
+      <div class="card" style="flex:1">
+        <div class="sid-title" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;font-weight:900;color:var(--text-muted);margin-bottom:0.85rem">🕐 Activity Log</div>
+        <div class="timeline" id="activity-log" style="max-height:260px;overflow-y:auto"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+<div id="toast-container"></div>
+
+<!-- 📨 CONTACT ADMIN MODAL -->
+<div id="contact-admin-modal" onclick="if(event.target===this)closeContactModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#111520;border:1px solid rgba(245,158,11,0.3);border-radius:1rem;padding:2rem;max-width:500px;width:90%;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.7)">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#f59e0b,#00d4ff);border-radius:1rem 1rem 0 0"></div>
+    <button onclick="closeContactModal()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,0.06);border:none;color:var(--text-secondary);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:0.9rem">✕</button>
+
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);display:flex;align-items:center;justify-content:center;font-size:1.4rem">📨</div>
+      <div>
+        <div style="font-family:'Orbitron',monospace;font-weight:800;font-size:1rem">Contact Administrator</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.15rem">Escalate an issue or request support</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:0.85rem">
+      <label style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-bottom:0.6rem;display:block">Priority Level</label>
+      <input type="hidden" id="contact-priority" value="medium"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem" id="priority-btns">
+        <button type="button" onclick="setPriority('low',this)" data-val="low"
+          style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.85rem;border-radius:0.5rem;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#e5e7eb;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:left">
+          <span style="font-size:1rem">🟡</span><span>Low<br/><span style="font-size:0.68rem;opacity:0.6">General query</span></span></button>
+        <button type="button" onclick="setPriority('medium',this)" data-val="medium"
+          style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.85rem;border-radius:0.5rem;border:1px solid rgba(245,158,11,0.5);background:rgba(245,158,11,0.12);color:#fbbf24;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.15s;text-align:left">
+          <span style="font-size:1rem">🟠</span><span>Medium<br/><span style="font-size:0.68rem;opacity:0.7">Needs attention</span></span></button>
+        <button type="button" onclick="setPriority('high',this)" data-val="high"
+          style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.85rem;border-radius:0.5rem;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#e5e7eb;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:left">
+          <span style="font-size:1rem">🔴</span><span>High<br/><span style="font-size:0.68rem;opacity:0.6">Urgent issue</span></span></button>
+        <button type="button" onclick="setPriority('critical',this)" data-val="critical"
+          style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.85rem;border-radius:0.5rem;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#e5e7eb;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:left">
+          <span style="font-size:1rem">🚨</span><span>Critical<br/><span style="font-size:0.68rem;opacity:0.6">Platform at risk</span></span></button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:0.85rem">
+      <label style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-bottom:0.4rem;display:block">Subject</label>
+      <input id="contact-subject" placeholder="Brief description of the issue…" style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:0.5rem;padding:0.65rem 0.75rem;color:#fff;font-size:0.88rem;font-family:inherit;box-sizing:border-box"/>
+    </div>
+
+    <div style="margin-bottom:1rem">
+      <label style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary);margin-bottom:0.4rem;display:block">Message <span style="color:var(--accent-red)">*</span></label>
+      <textarea id="contact-message" rows="4" placeholder="Describe the issue in detail. Include player names, session IDs, or any relevant context…"
+        style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:0.5rem;padding:0.75rem;color:#fff;font-size:0.88rem;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
+    </div>
+
+    <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:0.5rem;padding:0.7rem;margin-bottom:1.25rem;font-size:0.76rem;color:rgba(0,212,255,0.85)">
+      🔔 This message will be sent as a notification to an available administrator.
+    </div>
+
+    <div style="display:flex;gap:0.75rem">
+      <button onclick="submitContactAdmin()" style="flex:1;background:linear-gradient(135deg,#f59e0b,#00d4ff);color:#000;border:none;border-radius:0.5rem;padding:0.7rem 1.5rem;font-weight:800;font-size:0.9rem;cursor:pointer">📨 Send to Admin</button>
+      <button onclick="closeContactModal()" style="flex:1;background:rgba(255,255,255,0.05);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);border-radius:0.5rem;padding:0.7rem 1.5rem;font-weight:600;font-size:0.9rem;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// navigate() provided globally by utils.js
+
+// Priority button selector
+const PRIORITY_STYLES = {
+  low:      { border:'rgba(234,179,8,0.4)',   bg:'rgba(234,179,8,0.1)',    color:'#fde047' },
+  medium:   { border:'rgba(245,158,11,0.5)',  bg:'rgba(245,158,11,0.12)',  color:'#fbbf24' },
+  high:     { border:'rgba(239,68,68,0.5)',   bg:'rgba(239,68,68,0.12)',   color:'#f87171' },
+  critical: { border:'rgba(220,38,38,0.7)',   bg:'rgba(220,38,38,0.2)',    color:'#ff4444' },
+};
+function setPriority(val, btn) {
+  document.getElementById('contact-priority').value = val;
+  document.querySelectorAll('#priority-btns button').forEach(b => {
+    b.style.border = '1px solid rgba(255,255,255,0.12)';
+    b.style.background = 'rgba(255,255,255,0.04)';
+    b.style.color = '#e5e7eb';
+    b.style.fontWeight = '600';
+    b.style.transform = '';
+  });
+  const s = PRIORITY_STYLES[val] || PRIORITY_STYLES.medium;
+  btn.style.border = `1px solid ${s.border}`;
+  btn.style.background = s.bg;
+  btn.style.color = s.color;
+  btn.style.fontWeight = '800';
+  btn.style.transform = 'scale(1.03)';
+}
+
+function contactAdmin() {
+  const modal = document.getElementById('contact-admin-modal');
+  modal.style.display = 'flex';
+  // Reset to medium on open
+  const medBtn = document.querySelector('#priority-btns button[data-val="medium"]');
+  if (medBtn) setPriority('medium', medBtn);
+  setTimeout(() => document.getElementById('contact-subject').focus(), 80);
+}
+
+function closeContactModal() {
+  document.getElementById('contact-admin-modal').style.display = 'none';
+  document.getElementById('contact-subject').value = '';
+  document.getElementById('contact-message').value = '';
+}
+
+function submitContactAdmin() {
+  const session = Auth.getSession();
+  if (!session) return;
+  const subject = document.getElementById('contact-subject').value.trim();
+  const msg = document.getElementById('contact-message').value.trim();
+  const priority = document.getElementById('contact-priority').value;
+  if (!msg) { Toast.error('Message is required'); return; }
+
+  const admins = DB.users.filter(u => u.role_id === 2 || u.role === 'admin');
+  if (!admins.length) { Toast.error('No admins available right now.'); return; }
+  const target = admins[Math.floor(Math.random() * admins.length)];
+
+  const priorityEmoji = { low:'🟡', medium:'🟠', high:'🔴', critical:'🚨' };
+  const fullMsg = `[Moderator Escalation] ${priorityEmoji[priority] || ''} ${priority.toUpperCase()}${ subject ? ' — ' + subject : ''}: ${msg}`;
+
+  DB.notifications.push({
+    id: Date.now(), toRole: null, toUser: target.user_id,
+    from: session.username,
+    avatar: session.avatar || session.username.slice(0,2).toUpperCase(),
+    fromRole: 'moderator', fromUserId: session.userId,
+    type: 'escalation',
+    msg: fullMsg,
+    time: new Date().toISOString(), read: false, replies: []
+  });
+  DB.save();
+  closeContactModal();
+  Toast.success('📨 Message sent to Admin ' + (target.user_name || target.username));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['moderator']);
+  if (!session) return;
+  buildNavbar('moderator', 'dashboard');
+
+  const now = new Date();
+  document.getElementById('mod-name').textContent = '🛡 ' + session.username;
+  document.getElementById('mod-sub').innerHTML = `PlayCarys Moderation Team · ${now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}`;
+
+  // ── Stats ─────────────────────────────────────────────────────────
+  const s = getPlatformStats();
+  const totalResolved = DB.reports.filter(r => r.status === 'resolved' || r.status === 'dismissed').length;
+  const myActions = DB.moderator_actions.filter(a => String(a.moderator_id) === String(session.userId));
+  const todayStr = now.toISOString().split('T')[0];
+  const todayReports = DB.reports.filter(r => (r.report_date || '').startsWith(todayStr)).length;
+
+  // Every card carried "<icon> Platform-wide" underneath, which is true of all
+  // five and therefore tells a moderator nothing. Each now says what the number
+  // means, and the two that represent a queue open that queue.
+  const liveNow = (DB.matches || []).filter(m => m.status === 'in-progress').length;
+  const statsData = [
+    { label:'Pending Reports', value: s.pendingReports, color:'var(--accent-yellow)', icon:'⚠️',
+      sub: !s.pendingReports ? 'queue clear'
+           : todayReports ? `${todayReports} filed today`
+           : 'carried over from earlier', go: 'reports',
+      urgent: s.pendingReports > 0 },
+    { label:'Under Review',    value: s.reviewReports,  color:'var(--accent-purple)', icon:'🔍',
+      sub: 'being handled now', go: 'reports' },
+    { label:'Resolved Total',  value: totalResolved,    color:'var(--accent-green)',  icon:'✅',
+      sub: 'all time' },
+    { label:'Active Sessions', value: liveNow,          color:'var(--accent-cyan)',   icon:'🎮',
+      sub: liveNow ? 'playing right now' : 'nothing live', go: 'sessions' },
+    { label:'Banned Players',  value: s.activeBans,     color:'var(--accent-red)',    icon:'🚫',
+      sub: 'bans in force', go: 'bans' },
+  ];
+  document.getElementById('mod-stats-row').innerHTML = statsData.map(d => `
+    <div class="mod-stat${d.go ? ' stat-link' : ''}${d.urgent ? ' stat-urgent' : ''}"
+         ${d.go ? `onclick="navigate('${d.go}')" title="Open ${d.label.toLowerCase()}"` : ''}>
+      <div class="mod-stat-label">${d.label}</div>
+      <div class="mod-stat-value" style="color:${d.color}">${d.value}</div>
+      <div class="mod-stat-sub stat-sub">${d.icon} ${d.sub}</div>
+    </div>`).join('');
+
+  // ── Quick Action subtitles ──────────────────────────────────────
+  document.getElementById('qa-reports-sub').textContent = `${s.pendingReports} pending`;
+  document.getElementById('qa-sessions-sub').textContent = `${(DB.matches||[]).filter(m=>m.status==='in-progress').length} active`;
+  document.getElementById('qa-bans-sub').textContent = `${s.activeBans} total`;
+
+  // ── Recent Reports ─────────────────────────────────────────────
+  document.getElementById('recent-reports').innerHTML = DB.reports.slice(0, 6).map(raw => {
+    try {
+      if (DB.attachReportGetters) DB.attachReportGetters(raw);
+      const rn = raw.reporterName || (DB.users.find(u=>String(u.user_id||u.id)===String(raw.reported_by))?.user_name) || '??';
+      const dn = raw.reportedName || (DB.users.find(u=>String(u.user_id||u.id)===String(raw.reported_user))?.user_name) || '??';
+      const type = raw.type || 'Unknown';
+      const time = raw.time || raw.report_date || '';
+      return `
+      <div class="list-item" style="padding:0.65rem 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+        <div class="avatar avatar-sm">${rn.slice(0,2).toUpperCase()}</div>
+        <div class="list-item-info">
+          <div style="font-size:0.82rem;font-weight:600">${dn} reported for <span style="color:var(--accent-yellow)">${type}</span></div>
+          <div style="font-size:0.7rem;color:var(--text-secondary)">By ${rn} · ${time}</div>
+        </div>
+        <div>${badgeHTML(raw.status || 'pending')}</div>
+        ${(raw.status==='pending'||raw.status==='under-review')?`<button class="btn btn-outline btn-sm" onclick="navigate('reports')" style="margin-left:0.5rem;font-size:0.68rem">Review</button>`:''}
+      </div>`;
+    } catch(e) { return ''; }
+  }).join('') || `<p style="color:var(--text-secondary);font-size:0.85rem;text-align:center;padding:1rem">No reports yet</p>`;
+
+  // ── Moderator Performance ──────────────────────────────────────
+  const resolvedByMe = myActions.filter(a => a.action_type === 'resolve' || a.action_type === 'dismiss' || a.action_type === 'warning' || a.action_type === 'ban' || a.action_type === 'review').length;
+  const warnsByMe    = myActions.filter(a => a.action_type === 'warning').length;
+  const bansByMe     = myActions.filter(a => a.action_type === 'ban').length;
+  const totalActions = DB.moderator_actions.length || 1;
+  const sharePercent = Math.round((myActions.length / totalActions) * 100);
+
+  const perfRows = [
+    { label: 'Actions Taken',   val: myActions.length,  max: Math.max(myActions.length, 5),   color: '#00d4ff'  },
+    { label: 'Warnings Issued', val: warnsByMe,          max: Math.max(warnsByMe, 3),           color: '#f59e0b'  },
+    { label: 'Bans Issued',     val: bansByMe,           max: Math.max(bansByMe, 2),            color: '#ef4444'  },
+    { label: 'Team Share (%)',   val: sharePercent + '%', max: 100,                              color: '#7c3aed'  },
+  ];
+  document.getElementById('perf-list').innerHTML = perfRows.map(r => `
+    <div class="perf-row">
+      <span style="min-width:110px;font-size:0.75rem;color:var(--text-secondary)">${r.label}</span>
+      <div class="perf-bar-wrap">
+        <div class="perf-bar-fill" style="width:${Math.min(100,(parseInt(r.val)||0)/r.max*100)}%;background:${r.color}"></div>
+      </div>
+      <span style="font-family:'Orbitron',monospace;font-size:0.78rem;font-weight:700;color:${r.color};min-width:28px;text-align:right">${r.val}</span>
+    </div>`).join('');
+
+  // ── Activity Log ───────────────────────────────────────────────
+  const logItems = [
+    ...(DB.activityLog || []).slice(0,8).map(l => ({ icon:'📌', text: l.msg, time: l.time, color: 'rgba(0,212,255,0.15)', tc: '#00d4ff' })),
+    ...DB.reports.filter(r=>r.status==='resolved').slice(0,3).map(r => ({ icon:'✅', text: `Report #${r.report_id||r.id} resolved`, time: r.report_date||'', color: 'rgba(16,185,129,0.12)', tc: '#10b981' })),
+    ...DB.reports.filter(r=>r.status==='pending').slice(0,3).map(r => ({ icon:'⚠️', text: `New report: ${r.type} by ${r.reporterName||'Player'}`, time: r.time||r.report_date||'', color: 'rgba(245,158,11,0.12)', tc: '#f59e0b' })),
+  ].slice(0,10);
+
+  document.getElementById('activity-log').innerHTML = logItems.length ? logItems.map(l => `
+    <div class="tl-item">
+      <div class="tl-dot" style="background:${l.color}">${l.icon}</div>
+      <div class="tl-body">
+        <div class="tl-title">${l.text}</div>
+        <div class="tl-time">${l.time}</div>
+      </div>
+    </div>`).join('') : `<p style="font-size:0.8rem;color:var(--text-secondary);text-align:center;padding:1rem">No recent activity</p>`;
+
+  // ── Report Activity Chart ──────────────────────────────────────
+  const ctx = document.getElementById('activityChart');
+  if (ctx) {
+    // Build last 7 day labels
+    const days = Array.from({length:7}, (_,i) => {
+      const d = new Date(); d.setDate(d.getDate() - (6-i));
+      return d.toISOString().split('T')[0];
+    });
+    const incoming  = days.map(d => DB.reports.filter(r => (r.report_date||'').startsWith(d)).length);
+    const resolved  = days.map(d => DB.reports.filter(r => r.status==='resolved' && (r.report_date||'').startsWith(d)).length);
+    const dayLabels = days.map(d => new Date(d).toLocaleDateString('en-IN',{weekday:'short',day:'numeric'}));
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: dayLabels,
+        datasets: [
+          { label: 'Incoming', data: incoming, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', borderWidth: 2, pointBackgroundColor: '#f59e0b', tension: 0.4, fill: true },
+          { label: 'Resolved', data: resolved, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.07)', borderWidth: 2, pointBackgroundColor: '#10b981', tension: 0.4, fill: true }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#c8d0e7', font:{size:11}, usePointStyle:true } },
+          tooltip: { backgroundColor:'rgba(8,10,15,0.95)', borderColor:'#7c3aed', borderWidth:1, titleColor:'#f0f4ff', bodyColor:'#c8d0e7', padding:8 }
+        },
+        scales: {
+          x: { ticks:{color:'#6b7a99',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
+          y: { ticks:{color:'#6b7a99',font:{size:10},stepSize:1,precision:0}, grid:{color:'rgba(124,58,237,0.08)'}, beginAtZero:true }
+        }
+      }
+    });
+  }
+});
+</script>
+</body>
+</html>
+

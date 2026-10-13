@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Studio Earnings</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* ── Earnings ──────────────────────────────────────────── */
+.earn-hero {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:0.9rem; margin-bottom:1.6rem;
+}
+.earn-stat {
+  background:var(--bg-card); border:1px solid var(--border-primary);
+  border-radius:var(--radius-lg); padding:1rem 1.2rem;
+}
+.earn-stat.highlight {
+  background:linear-gradient(135deg, rgba(16,185,129,0.09), rgba(0,212,255,0.06));
+  border-color:rgba(16,185,129,0.35);
+}
+.earn-val { font-family:'Orbitron',monospace; font-size:1.75rem; font-weight:900; line-height:1; }
+.earn-lbl { font-size:0.63rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-secondary); margin-top:0.35rem; }
+.earn-sub { font-size:0.7rem; color:var(--text-secondary); margin-top:0.3rem; }
+
+.earn-section { margin-bottom:2rem; }
+.earn-section h2 { font-size:1.05rem; margin-bottom:0.3rem; }
+.earn-section .lead { font-size:0.78rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.55; }
+
+/* Split bar */
+.split-bar { display:flex; height:34px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border-primary); }
+.split-you { background:linear-gradient(90deg,#10b981,#059669); display:flex; align-items:center; justify-content:center;
+  font-size:0.7rem; font-weight:800; color:#04140d; }
+.split-platform { background:rgba(255,255,255,0.07); display:flex; align-items:center; justify-content:center;
+  font-size:0.7rem; font-weight:700; color:var(--text-secondary); }
+
+table.earn-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+table.earn-table th {
+  text-align:left; font-size:0.63rem; text-transform:uppercase; letter-spacing:0.06em;
+  color:var(--text-secondary); padding:0.55rem 0.7rem; border-bottom:1px solid var(--border-primary);
+}
+table.earn-table td { padding:0.65rem 0.7rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+table.earn-table td.num, table.earn-table th.num { text-align:right; font-variant-numeric:tabular-nums; }
+table.earn-table tr:last-child td { border-bottom:none; }
+
+.pill { font-size:0.6rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;
+  padding:0.15rem 0.5rem; border-radius:99px; }
+.pill.pending { background:rgba(245,158,11,0.15); color:#f59e0b; }
+.pill.paid    { background:rgba(16,185,129,0.15); color:#10b981; }
+.pill.failed  { background:rgba(239,68,68,0.15);  color:#ef4444; }
+
+.earn-note {
+  background:rgba(0,212,255,0.05); border-left:3px solid var(--accent-cyan);
+  border-radius:var(--radius-md); padding:0.85rem 1rem; font-size:0.76rem;
+  color:var(--text-secondary); line-height:1.6;
+}
+.earn-empty { text-align:center; padding:2.5rem 1rem; color:var(--text-secondary); font-size:0.82rem; }
+.card-box { background:var(--bg-card); border:1px solid var(--border-primary); border-radius:var(--radius-lg); padding:1.1rem 1.2rem; }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="page-header-row mb-2">
+    <div style="display:flex;align-items:center;gap:1rem">
+      <button class="btn btn-ghost" onclick="navigateTo('dashboard.html')" style="padding:0.5rem">❮ Dashboard</button>
+      <div>
+        <h1 style="margin-bottom:0">💰 Studio Earnings</h1>
+        <p class="text-muted" style="margin-top:0.25rem" id="studio-line">What your games have earned</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="earn-root"><div class="earn-empty">Loading…</div></div>
+
+</div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+let EARN = null;
+
+async function load() {
+  const uid = Auth.getSession().userId;
+  try {
+    EARN = await API.get('/economy/publishers/' + encodeURIComponent(uid) + '/earnings');
+  } catch (err) {
+    document.getElementById('earn-root').innerHTML =
+      `<div class="earn-empty">Could not load earnings. ${err.message}</div>`;
+    return;
+  }
+  render();
+}
+
+function render() {
+  const e = EARN;
+  document.getElementById('studio-line').textContent =
+    (e.studio_name || 'Your studio') + ' — revenue attributable to your games';
+
+  const u = e.unsettled;
+  const platformPct = 100 - e.share_pct;
+
+  document.getElementById('earn-root').innerHTML = `
+    <div class="earn-hero">
+      <div class="earn-stat highlight">
+        <div class="earn-val" style="color:#10b981">${u.net_display}</div>
+        <div class="earn-lbl">Ready to pay out</div>
+        <div class="earn-sub">${u.payable ? 'Above the minimum' : 'Below the ' + e.min_payout_display + ' minimum'}</div>
+      </div>
+      <div class="earn-stat">
+        <div class="earn-val">${e.balance_display}</div>
+        <div class="earn-lbl">Awaiting transfer</div>
+        <div class="earn-sub">Closed, not yet sent</div>
+      </div>
+      <div class="earn-stat">
+        <div class="earn-val">${e.lifetime_earned_display}</div>
+        <div class="earn-lbl">Lifetime earned</div>
+      </div>
+      <div class="earn-stat">
+        <div class="earn-val">${Money.formatCarys(e.revenue_pcp)}</div>
+        <div class="earn-lbl">Session royalty (Carys)</div>
+        <div class="earn-sub">Engagement counter, all time</div>
+      </div>
+    </div>
+
+    <div class="earn-section">
+      <h2>How this period splits</h2>
+      <p class="lead">
+        You keep ${e.share_pct}% of everything attributable to your games. The platform keeps
+        ${platformPct}% to run review, moderation and hosting.
+      </p>
+      <div class="split-bar">
+        <div class="split-you" style="width:${e.share_pct}%">You — ${u.net_display} (${e.share_pct}%)</div>
+        <div class="split-platform" style="width:${platformPct}%">Platform — ${Money.formatINR(u.platform_cut_paise)} (${platformPct}%)</div>
+      </div>
+      <div style="margin-top:1rem" class="card-box">
+        <table class="earn-table">
+          <tr><td>Session royalty</td>
+              <td class="num">${Money.formatCarys(u.royalty_carys)} Carys</td>
+              <td class="num">${Money.formatINR(u.royalty_paise)}</td></tr>
+          <tr><td>Tournament rake share</td>
+              <td class="num">—</td>
+              <td class="num">${Money.formatINR(u.rake_paise)}</td></tr>
+          <tr><td><strong>Gross this period</strong></td>
+              <td class="num"></td>
+              <td class="num"><strong>${Money.formatINR(u.gross_paise)}</strong></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="earn-section">
+      <h2>By game</h2>
+      <p class="lead">Lifetime attribution per title — which of your games actually earns.</p>
+      <div class="card-box">
+        ${e.per_game.length ? `
+        <table class="earn-table">
+          <thead><tr>
+            <th>Game</th><th class="num">Sessions</th>
+            <th class="num">Royalty</th><th class="num">Rake</th><th class="num">Gross</th>
+          </tr></thead>
+          <tbody>${e.per_game.map(g => `
+            <tr>
+              <td>${g.game_name}</td>
+              <td class="num">${(g.sessions||0).toLocaleString('en-IN')}</td>
+              <td class="num">${g.royalty_display}</td>
+              <td class="num">${g.rake_display}</td>
+              <td class="num"><strong>${g.gross_display}</strong></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : `<div class="earn-empty">No games published yet.</div>`}
+      </div>
+    </div>
+
+    <div class="earn-section">
+      <h2>Payout history</h2>
+      <p class="lead">Each row is a closed period. A payout is a historical record and is never edited.</p>
+      <div class="card-box">
+        ${e.history.length ? `
+        <table class="earn-table">
+          <thead><tr>
+            <th>Period</th><th class="num">Gross</th><th class="num">Platform</th>
+            <th class="num">You receive</th><th>Status</th><th>Closed</th>
+          </tr></thead>
+          <tbody>${e.history.map(p => `
+            <tr>
+              <td>${p.period}</td>
+              <td class="num">${Money.formatINR(p.gross_paise)}</td>
+              <td class="num">${Money.formatINR(p.platform_cut_paise)}</td>
+              <td class="num"><strong>${p.net_display}</strong></td>
+              <td><span class="pill ${p.status}">${p.status}</span></td>
+              <td>${(p.created_at||'').slice(0,10)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : `<div class="earn-empty">No payouts closed yet.</div>`}
+      </div>
+    </div>
+
+    <div class="earn-note">
+      <strong>How you get paid.</strong> Revenue accrues continuously as your games are played and
+      your tournaments run. An admin closes a period, which moves your ${e.share_pct}% share into
+      "awaiting transfer". Nothing under ${e.min_payout_display} is sent — it costs more to transfer
+      than it is worth, so it simply rolls into the next period.
+    </div>
+  `;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['publisher']);
+  if (!session) return;
+  buildNavbar(session.role, 'earnings');
+  load();
+});
+</script>
+</body>
+</html>

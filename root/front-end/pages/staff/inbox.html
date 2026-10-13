@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlayCarys — Staff Inbox</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    /* Two columns: the conversation list, and who you are allowed to talk to.
+       Staff previously had no notifications page at all — only the nav drawer,
+       which shows a count and a stub list and offers no way to reply or to
+       start anything. */
+    .inbox-grid {
+      display: grid; grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: 1.25rem; align-items: start;
+    }
+    @media (max-width: 900px) { .inbox-grid { grid-template-columns: 1fr; } }
+
+    .note {
+      display: flex; gap: .8rem; padding: .85rem 1rem;
+      border: 1px solid var(--border-primary, rgba(255,255,255,.08));
+      border-radius: 12px; margin-bottom: .6rem;
+      background: var(--bg-card, rgba(255,255,255,.02));
+    }
+    /* Unread is a left edge, not a background wash — a list where half the rows
+       are tinted stops reading as "these need you". */
+    .note.unread { border-left: 3px solid var(--accent-cyan, #00d4ff); }
+    .note-av {
+      width: 38px; height: 38px; border-radius: 50%; flex: none;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .8rem; color: #fff;
+      background: linear-gradient(135deg, #7c3aed, #00d4ff);
+    }
+    .note-body { min-width: 0; flex: 1; }
+    .note-top { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+    .note-from { font-weight: 700; font-size: .85rem; color: var(--text-primary, #e9edf7); }
+    .note-role {
+      font-size: .58rem; font-weight: 800; letter-spacing: .06em;
+      padding: .12rem .35rem; border-radius: 4px; text-transform: uppercase;
+      background: rgba(124,58,237,.2); color: #c4b5fd;
+      border: 1px solid rgba(124,58,237,.35);
+    }
+    .note-time { font-size: .68rem; color: var(--text-secondary, #8b96ad); margin-left: auto; }
+    .note-msg { font-size: .82rem; line-height: 1.5; color: var(--text-secondary, #cbd5e1); margin-top: .25rem; }
+    .note-actions { display: flex; gap: .4rem; margin-top: .5rem; }
+
+    .dir-group { margin-bottom: 1rem; }
+    .dir-role {
+      font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--text-secondary, #8b96ad); margin-bottom: .35rem;
+    }
+    .dir-person {
+      display: flex; align-items: center; gap: .5rem; width: 100%;
+      padding: .45rem .6rem; margin-bottom: .25rem; cursor: pointer;
+      border: 1px solid var(--border-primary, rgba(255,255,255,.07));
+      border-radius: 9px; background: transparent; text-align: left;
+      color: var(--text-primary, #e9edf7); font-size: .78rem;
+    }
+    .dir-person:hover { border-color: rgba(0,212,255,.45); }
+    .dir-person.selected { border-color: #00d4ff; background: rgba(0,212,255,.1); }
+    .dir-empty { font-size: .74rem; color: var(--text-secondary, #8b96ad); line-height: 1.5; }
+    .inbox-empty { padding: 2.5rem 1rem; text-align: center; color: var(--text-secondary, #8b96ad); }
+  </style>
+</head>
+<body>
+  <div id="navbar" class="navbar"></div>
+
+  <div class="container" style="padding-top:1.5rem">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem">
+      <div>
+        <h1 style="margin:0">📬 Inbox</h1>
+        <p class="text-muted" style="margin:.25rem 0 0;font-size:.85rem" id="inbox-sub">
+          Messages and platform alerts
+        </p>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="markAll()">
+        Mark all read
+      </button>
+    </div>
+
+    <div class="inbox-grid">
+      <div>
+        <div id="inbox-list"><div class="inbox-empty">Loading…</div></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 .3rem;font-size:.95rem">✉️ New message</h3>
+        <p class="text-muted" style="margin:0 0 .9rem;font-size:.72rem;line-height:1.5" id="dir-note">
+          Loading directory…
+        </p>
+        <div id="directory"></div>
+
+        <div id="compose" style="display:none;margin-top:.5rem">
+          <textarea id="compose-msg" class="form-input" rows="4"
+                    placeholder="Write your message…" maxlength="1000"
+                    style="width:100%;resize:vertical"></textarea>
+          <button class="btn btn-primary btn-sm" style="width:100%;margin-top:.5rem"
+                  onclick="send()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    // Any signed-in staff role. Players have their own notifications page and a
+    // friends chat; this is the escalation channel between staff.
+    const session = Auth.requireAuth(['admin', 'superuser', 'moderator', 'publisher']);
+    let DIRECTORY = null;
+    let SELECTED = null;
+
+    buildNavbar(session.role, 'inbox');
+
+    // ── Inbox ────────────────────────────────────────────────
+    function myNotifications() {
+      return (DB.notifications || [])
+        .filter(n => notifIsVisible(n, session.userId, session.role))
+        .slice()
+        .reverse();                       // newest first
+    }
+
+    function timeAgo(t) {
+      const ms = Date.now() - new Date(t).getTime();
+      if (isNaN(ms)) return String(t || '');
+      const m = Math.floor(ms / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return m + 'm ago';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + 'h ago';
+      return Math.floor(h / 24) + 'd ago';
+    }
+
+    function renderInbox() {
+      const rows = myNotifications();
+      const unread = rows.filter(n => !notifIsRead(n, session.userId)).length;
+      document.getElementById('inbox-sub').textContent =
+        rows.length
+          ? `${rows.length} message${rows.length === 1 ? '' : 's'} · ${unread} unread`
+          : 'Nothing here yet';
+
+      const el = document.getElementById('inbox-list');
+      if (!rows.length) {
+        el.innerHTML = '<div class="inbox-empty">No messages. Platform alerts and ' +
+                       'escalations from other staff arrive here.</div>';
+        return;
+      }
+
+      el.innerHTML = rows.map(n => {
+        const read = notifIsRead(n, session.userId);
+        const who = n.from || 'System';
+        return `
+          <div class="note ${read ? '' : 'unread'}">
+            <div class="note-av">${(n.avatar || who.slice(0, 2)).toUpperCase()}</div>
+            <div class="note-body">
+              <div class="note-top">
+                <span class="note-from">${who}</span>
+                ${n.fromRole ? `<span class="note-role">${n.fromRole}</span>` : ''}
+                <span class="note-time">${timeAgo(n.time)}</span>
+              </div>
+              <div class="note-msg">${n.msg || ''}</div>
+              ${read ? '' : `<div class="note-actions">
+                <button class="btn btn-ghost btn-sm" onclick="markRead('${n.id}')">Mark read</button>
+              </div>`}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function markRead(id) {
+      const n = (DB.notifications || []).find(x => String(x.id) === String(id));
+      if (!n) return;
+      setNotifRead(n, session.userId);
+      DB.save();
+      renderInbox();
+    }
+
+    function markAll() {
+      myNotifications().forEach(n => setNotifRead(n, session.userId));
+      DB.save();
+      renderInbox();
+      Toast.success('All caught up');
+    }
+
+    // ── Directory ────────────────────────────────────────────
+    //
+    // Built from the server's answer, not from a client-side list of users.
+    // The endpoint enforces the same matrix, so what is offered here and what
+    // the platform will accept cannot drift apart.
+    async function loadDirectory() {
+      try {
+        DIRECTORY = await API.get('/notifications/directory?viewerId=' + session.userId);
+      } catch (e) {
+        document.getElementById('dir-note').textContent =
+          'Could not load the directory. ' + e.message;
+        return;
+      }
+
+      const note = document.getElementById('dir-note');
+      const box = document.getElementById('directory');
+
+      if (!DIRECTORY.can_contact.length) {
+        note.textContent = 'Your role does not send staff messages.';
+        box.innerHTML = '';
+        return;
+      }
+
+      // 'a admin' — the only roles here starting with a vowel are admin, so
+      // the article has to be picked rather than hardcoded.
+      const article = /^[aeiou]/i.test(DIRECTORY.viewer_role) ? 'an' : 'a';
+      note.textContent = 'As ' + article + ' ' + DIRECTORY.viewer_role +
+                         ' you can message ' + DIRECTORY.can_contact.join(', ') + '.';
+
+      box.innerHTML = DIRECTORY.groups.map(g => `
+        <div class="dir-group">
+          <div class="dir-role">${g.role}${g.people.length ? ' · ' + g.people.length : ''}</div>
+          ${g.people.length
+            ? g.people.map(p => `
+                <button class="dir-person" data-id="${p.user_id}"
+                        onclick="pick(${p.user_id}, '${String(p.user_name).replace(/'/g, "\\'")}')">
+                  <span>${p.user_name}</span>
+                </button>`).join('')
+            : '<div class="dir-empty">Nobody in this role yet.</div>'}
+        </div>`).join('');
+    }
+
+    function pick(id, name) {
+      SELECTED = { id, name };
+      document.querySelectorAll('.dir-person').forEach(b =>
+        b.classList.toggle('selected', String(b.dataset.id) === String(id)));
+      document.getElementById('compose').style.display = '';
+      document.getElementById('compose-msg').placeholder = 'Message ' + name + '…';
+      document.getElementById('compose-msg').focus();
+    }
+
+    async function send() {
+      const box = document.getElementById('compose-msg');
+      const msg = box.value.trim();
+      if (!SELECTED) { Toast.error('Pick someone to message first.'); return; }
+      if (!msg) { Toast.error('Write something first.'); return; }
+
+      try {
+        await API.post('/notifications', {
+          toUser: SELECTED.id,
+          fromUserId: Number(session.userId),
+          fromRole: session.role,
+          from: session.username,
+          avatar: session.avatar || session.username.slice(0, 2).toUpperCase(),
+          msg,
+        });
+        box.value = '';
+        Toast.success('Sent to ' + SELECTED.name);
+      } catch (e) {
+        // The server enforces the same matrix, so a refusal here means the two
+        // disagreed — worth showing verbatim rather than a generic failure.
+        Toast.error(e.message);
+      }
+    }
+
+    renderInbox();
+    loadDirectory();
+
+    // Alerts arrive while the page is open — a review request, an escalation.
+    // Re-render on the same cadence the rest of the app syncs.
+    setInterval(renderInbox, 15000);
+  </script>
+</body>
+</html>

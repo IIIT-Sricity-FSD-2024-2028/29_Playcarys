@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>PlayCarys — Superuser · Users</title>
+<link rel="stylesheet" href="../../css/variables.css"/>
+<style>
+/* Sensitive action zone inside edit modal */
+.danger-zone {
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  background: rgba(239,68,68,0.04);
+}
+.danger-zone-title {
+  font-size: 0.78rem; font-weight: 700; color: var(--accent-red);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem;
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.action-block {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+}
+.action-block-title { font-size: 0.82rem; font-weight: 700; margin-bottom: 0.25rem; }
+.action-block-sub   { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.65rem; }
+/* suspended badge */
+.badge-suspended { background:rgba(245,158,11,0.15); color:var(--accent-yellow); border:1px solid rgba(245,158,11,0.35); border-radius:99px; font-size:0.72rem; font-weight:700; padding:0.15rem 0.55rem; display:inline-block; }
+</style>
+</head>
+<body>
+<div id="navbar" class="navbar"></div>
+<div class="page-wrapper">
+<div class="page-content">
+
+  <div class="page-header-row">
+    <div>
+      <h1>👥 All Users</h1>
+      <p class="text-muted">View and manage every user on the platform</p>
+    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">+ Add User</button>
+  </div>
+
+  <!-- Role KPIs -->
+  <div class="stats-grid stats-grid-4 mt-2" id="role-kpis"></div>
+
+  <!-- Filters + Table -->
+  <div class="card mt-3" style="padding:0;overflow:hidden">
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-primary);display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+      <div class="search-wrap" style="max-width:260px">
+        <span class="search-icon">🔍</span>
+        <input class="form-input" id="search" placeholder="Search users..." oninput="renderTable()"/>
+      </div>
+      <select class="form-select" id="role-filter" onchange="renderTable()" style="width:150px">
+        <option value="">All Roles</option>
+        <option value="superuser">Superuser</option>
+        <option value="admin">Admin</option>
+        <option value="moderator">Moderator</option>
+        <option value="publisher">Publisher</option>
+        <option value="player">Player</option>
+      </select>
+      <select class="form-select" id="status-filter" onchange="renderTable()" style="width:140px">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="suspended">Suspended</option>
+        <option value="banned">Banned</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th><th>Last Seen</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">➕ Add User</h3>
+      <span class="modal-close" onclick="Modal.close('add-modal')">✕</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <div class="cards-grid-2">
+        <div class="form-group">
+          <label class="form-label">Username <span class="required">*</span></label>
+          <input class="form-input" id="a-username" placeholder="3–20 characters"/>
+          <span class="form-error"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" id="a-email" type="email" placeholder="email@example.com"/>
+          <span class="form-error"></span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role <span class="required">*</span></label>
+        <!-- No superuser in add — singular role -->
+        <select class="form-select" id="a-role">
+          <option value="player">Player</option>
+          <option value="publisher">Publisher</option>
+          <option value="moderator">Moderator</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password <span class="required">*</span></label>
+        <input class="form-input" id="a-password" type="password" placeholder="Min 8 chars, uppercase + number"/>
+        <span class="form-error"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('add-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addUser()">Add User</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL — role-aware, no naked ban/delete buttons -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h3 class="modal-title" id="edit-modal-title">Edit User</h3>
+      <span class="modal-close" onclick="Modal.close('edit-modal')">✕</span>
+    </div>
+    <div id="edit-modal-body" style="display:flex;flex-direction:column;gap:1rem"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('edit-modal')">Close</button>
+      <button class="btn btn-primary" id="edit-save-btn" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../../data/db.js"></script>
+<script src="../../js/utils.js"></script>
+<script src="../../js/api.js"></script>
+<script src="../../js/player-skin.js"></script>
+<script>
+// navigate() provided globally by utils.js
+
+let editingId = null;
+
+function renderKPIs() {
+  const s = getPlatformStats();
+  document.getElementById('role-kpis').innerHTML = [
+    { label:'Admins',     val:s.admins,      icon:'👑', cls:'text-yellow'  },
+    { label:'Moderators', val:s.moderators,  icon:'🛡️', cls:'text-purple'  },
+    { label:'Publishers', val:s.publishers,  icon:'⬆️', cls:'text-green'   },
+    { label:'Players',    val:s.players,     icon:'🎮', cls:'text-cyan'    },
+  ].map(k => `
+    <div class="stat-card">
+      <div class="label">${k.label}</div>
+      <div class="value ${k.cls}">${k.val}</div>
+      <div class="icon">${k.icon}</div>
+    </div>`).join('');
+}
+
+function statusBadge(u) {
+  if (u.status === 'banned')    return '<span class="badge badge-banned">Banned</span>';
+  if (u.status === 'suspended') return '<span class="badge-suspended">⏸ Suspended</span>';
+  return '<span class="badge badge-active">Active</span>';
+}
+
+function renderTable() {
+  const q      = document.getElementById('search').value.toLowerCase();
+  const role   = document.getElementById('role-filter').value;
+  const status = document.getElementById('status-filter').value;
+  let users = [...DB.users];
+  if (q)      users = users.filter(u => u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  if (role)   users = users.filter(u => u.role === role);
+  if (status) users = users.filter(u => u.status === status);
+
+  const session = Auth.getSession();
+  document.getElementById('users-tbody').innerHTML = users.length ? users.map(u => {
+    const isSelf = u.id === session.userId;
+    return `<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:0.6rem">
+          ${avatarHTML(u.avatar,'sm')}
+          <div>
+            <div style="font-weight:600;font-size:0.875rem">${u.username}${isSelf ? ' <span style="font-size:0.7rem;color:var(--accent-cyan)">(you)</span>' : ''}</div>
+            <div style="font-size:0.72rem;color:var(--text-secondary)">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td>${badgeHTML(u.role)}</td>
+      <td>${statusBadge(u)}</td>
+      <td style="font-size:0.8rem;color:var(--text-secondary)">${formatDate(u.joinDate)}</td>
+      <td style="font-size:0.8rem;color:var(--text-secondary)">${formatDate(u.lastSeen)}</td>
+      <td>
+        ${!isSelf
+          ? `<button class="btn btn-outline btn-sm" onclick="openEditModal('${u.id}')">✏️ Edit</button>`
+          : '<span style="font-size:0.75rem;color:var(--text-muted)">—</span>'}
+      </td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-secondary)">No users found</td></tr>`;
+}
+
+// ── ADD USER ──────────────────────────────────────────────────────
+function openAddModal() {
+  ['a-username','a-email','a-password'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('a-role').value = 'player';
+  Modal.open('add-modal');
+}
+
+function addUser() {
+  const uEl = document.getElementById('a-username');
+  const eEl = document.getElementById('a-email');
+  const pEl = document.getElementById('a-password');
+  if (!Validate.form([
+    { el:uEl, rules:[{type:'required'},{type:'minLen',n:3},{type:'maxLen',n:20}] },
+    { el:eEl, rules:[{type:'required'},{type:'email'}] },
+    { el:pEl, rules:[{type:'required'},{type:'password'}] }
+  ])) return;
+
+  const username = uEl.value.trim(), email = eEl.value.trim();
+  const role = document.getElementById('a-role').value;
+
+  if (DB.users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+    Validate.field(uEl, [{type:'custom', fn:()=>false, msg:'Username already taken'}]); return;
+  }
+  // Scoped to the role being created, matching self-registration: one address
+  // may hold a player account and a studio account, never two of either.
+  if (DB.emailTakenForRole(email, role)) {
+    Validate.field(eEl, [{type:'custom', fn:()=>false, msg:'A '+role+' account already uses this email'}]); return;
+  }
+
+  const numId = Date.now();
+  const roleMap = { 'player': 4, 'publisher': 5, 'moderator': 3, 'admin': 2, 'superuser': 1 };
+  DB.users.push({
+    user_id: numId, user_name: username, role_id: roleMap[role] || 4,
+    email, status:'active',
+    password: pEl.value,
+    avatar: username.slice(0,2).toUpperCase(),
+    joinDate: new Date().toISOString().slice(0,10),
+    lastSeen: new Date().toISOString().slice(0,10)
+  });
+  
+  if (role === 'player') {
+    if (!DB.player_profiles) DB.player_profiles = [];
+    DB.player_profiles.push({ user_id: numId, player_name: username, carys_points: 100, play_time: 0, matches_won: 0, player_status: true });
+  } else if (role === 'publisher') {
+    if (!DB.publisher_profiles) DB.publisher_profiles = [];
+    DB.publisher_profiles.push({ user_id: numId, total_games: 0, approved_games: 0, active_games: 0 });
+  }
+  DB.save();
+  Toast.success(`User "${username}" created as ${capitalize(role)}`);
+  Modal.close('add-modal');
+  window.location.reload();
+}
+
+// ── EDIT MODAL (role-aware) ───────────────────────────────────────
+function openEditModal(id) {
+  const u = DB.users.find(u => u.id === id); if (!u) return;
+  editingId = id;
+  document.getElementById('edit-modal-title').textContent = `✏️ ${u.username}`;
+
+  const isStaff   = ['admin','moderator','superuser'].includes(u.role);
+  const isPlayer  = u.role === 'player';
+  const isPublisher = u.role === 'publisher';
+  const isBanned  = u.status === 'banned';
+  const isSuspended = u.status === 'suspended';
+
+  // Build role options — no superuser selectable
+  const roleOptions = ['player','publisher','moderator','admin']
+    .map(r => `<option value="${r}" ${u.role===r?'selected':''}>${capitalize(r)}</option>`)
+    .join('');
+
+  let html = `
+    <!-- Basic edit fields -->
+    <div class="cards-grid-2">
+      <div class="form-group">
+        <label class="form-label">Username <span class="required">*</span></label>
+        <input class="form-input" id="eu-username" value="${u.username}"/>
+        <span class="form-error"></span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email <span class="required">*</span></label>
+        <input class="form-input" id="eu-email" type="email" value="${u.email}"/>
+        <span class="form-error"></span>
+      </div>
+    </div>`;
+
+  // Role change — only for non-superuser
+  if (u.role !== 'superuser') {
+    html += `
+    <div class="form-group">
+      <label class="form-label">Role</label>
+      <select class="form-select" id="eu-role" disabled>${roleOptions}</select>
+    </div>`;
+  } else {
+    html += `<input type="hidden" id="eu-role" value="superuser"/>
+    <div style="padding:0.65rem 0.85rem;background:var(--bg-secondary);border-radius:var(--radius-md);font-size:0.8rem;color:var(--text-secondary)">
+      ⚡ Superuser role cannot be changed.
+    </div>`;
+  }
+
+  if (u.role !== 'superuser') {
+    html += `
+    <div style="margin-top:0.5rem">
+      <label class="form-label" style="font-size:0.8rem">Action Reason (Sent to user) <span class="required">*</span></label>
+      <input class="form-input" id="eu-action-reason" placeholder="Required: Explain why this action is taken..."/>
+    </div>`;
+  }
+
+  // Suspend / Reinstate — for admin and moderator (not ban)
+  if (isStaff && u.role !== 'superuser') {
+    if (!isSuspended) {
+      html += `
+      <div class="action-block" style="border-color:rgba(245,158,11,0.25)">
+        <div class="action-block-title" style="color:var(--accent-yellow)">⏸ Suspend Account</div>
+        <div class="action-block-sub">Temporarily restrict platform access. Can be reinstated at any time.</div>
+        <button class="btn btn-yellow w-full btn-sm" onclick="quickSuspend('${u.id}')">⏸ Suspend ${u.username}</button>
+      </div>`;
+    } else {
+      html += `
+      <div class="action-block" style="border-color:rgba(16,185,129,0.25)">
+        <div class="action-block-title" style="color:var(--accent-green)">▶️ Reinstate Account</div>
+        <div class="action-block-sub">Restore full platform access for this staff member.</div>
+        <button class="btn btn-green w-full btn-sm" onclick="quickReinstate('${u.id}')">▶️ Reinstate ${u.username}</button>
+      </div>`;
+    }
+  }
+
+  // Ban — only for players and publishers, inside edit (not naked on table)
+  if (isPlayer || isPublisher) {
+    if (!isBanned) {
+      html += `
+      <div class="danger-zone">
+        <div class="danger-zone-title">🚫 Danger Zone</div>
+        <div class="action-block">
+          <div class="action-block-title" style="color:var(--accent-red)">🚫 Ban User</div>
+          <div class="action-block-sub">Permanently bans this user from the platform. Use only for serious violations.</div>
+          <button class="btn btn-red w-full btn-sm" onclick="quickBan('${u.id}')">🚫 Ban ${u.username}</button>
+        </div>
+      </div>`;
+    } else {
+      html += `
+      <div class="action-block" style="border-color:rgba(16,185,129,0.25)">
+        <div class="action-block-title" style="color:var(--accent-green)">✅ Lift Ban</div>
+        <div class="action-block-sub">Restore this user's access to the platform.</div>
+        <button class="btn btn-green w-full btn-sm" onclick="quickUnban('${u.id}')">✅ Unban ${u.username}</button>
+      </div>`;
+    }
+  }
+
+  document.getElementById('edit-modal-body').innerHTML = html;
+  Modal.open('edit-modal');
+}
+
+function saveEdit() {
+  if (!editingId) return;
+  const u = DB.users.find(u => u.id === editingId); if (!u) return;
+  const uEl = document.getElementById('eu-username');
+  const eEl = document.getElementById('eu-email');
+  if (!Validate.form([
+    { el:uEl, rules:[{type:'required'},{type:'minLen',n:3},{type:'maxLen',n:20}] },
+    { el:eEl, rules:[{type:'required'},{type:'email'}] }
+  ])) return;
+
+  const newUsername = uEl.value.trim(), newEmail = eEl.value.trim();
+  const newRole = document.getElementById('eu-role')?.value || u.role;
+
+  if (DB.users.find(x => x.username.toLowerCase()===newUsername.toLowerCase() && x.id!==u.id)) {
+    Validate.field(uEl,[{type:'custom',fn:()=>false,msg:'Username already taken'}]); return;
+  }
+  if (DB.users.find(x => x.email.toLowerCase()===newEmail.toLowerCase() && x.id!==u.id)) {
+    Validate.field(eEl,[{type:'custom',fn:()=>false,msg:'Email already registered'}]); return;
+  }
+
+  const roleMap = { 'player': 4, 'publisher': 5, 'moderator': 3, 'admin': 2, 'superuser': 1 };
+  u.user_name = newUsername;
+  u.email = newEmail;
+  if(newRole) u.role_id = roleMap[newRole] || u.role_id;
+  u.avatar = newUsername.slice(0,2).toUpperCase();
+
+  DB.save();
+  Toast.success(`${newUsername} updated`);
+  Modal.close('edit-modal');
+  window.location.reload();
+}
+
+function quickSuspend(id) {
+  const u = DB.users.find(u=>u.id===id); if(!u) return;
+  const reasonEl = document.getElementById('eu-action-reason');
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!reason) { Toast.error('Action Reason is required.'); return; }
+  const s = Auth.getSession();
+  confirmAction('Suspend Account', `Suspend ${u.username}? They will lose access until reinstated.`, () => {
+    u.status = 'suspended';
+    dispatchUserNotification(u.username, s.role, s.username, `You have been suspended. Reason: ${reason}`);
+    DB.save();
+    Toast.warning(`${u.username} suspended`);
+    Modal.close('edit-modal');
+    renderKPIs(); renderTable();
+  }, 'danger');
+}
+
+function quickReinstate(id) {
+  const u = DB.users.find(u=>u.id===id); if(!u) return;
+  const reasonEl = document.getElementById('eu-action-reason');
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!reason) { Toast.error('Action Reason is required.'); return; }
+  const s = Auth.getSession();
+  u.status = 'active';
+  dispatchUserNotification(u.username, s.role, s.username, `Your suspension has been revoked. Note: ${reason}`);
+  DB.save();
+  Toast.success(`${u.username} reinstated`);
+  Modal.close('edit-modal');
+  renderKPIs(); renderTable();
+}
+
+function quickBan(id) {
+  const u = DB.users.find(u=>u.id===id); if(!u) return;
+  const reasonEl = document.getElementById('eu-action-reason');
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!reason) { Toast.error('Action Reason is required.'); return; }
+  const s = Auth.getSession();
+  confirmAction('Ban User', `Ban ${u.username} from the platform? This is a serious action.`, () => {
+    u.status = 'banned';
+    dispatchUserNotification(u.username, s.role, s.username, `You have been permanently banned. Reason: ${reason}`);
+    DB.save();
+    Toast.success(`${u.username} banned`);
+    Modal.close('edit-modal');
+    renderKPIs(); renderTable();
+  });
+}
+
+function quickUnban(id) {
+  const u = DB.users.find(u=>u.id===id); if(!u) return;
+  const reasonEl = document.getElementById('eu-action-reason');
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!reason) { Toast.error('Action Reason is required.'); return; }
+  const s = Auth.getSession();
+  u.status = 'active';
+  dispatchUserNotification(u.username, s.role, s.username, `Your ban has been lifted. Note: ${reason}`);
+  DB.save();
+  Toast.success(`${u.username} unbanned`);
+  Modal.close('edit-modal');
+  renderKPIs(); renderTable();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const session = Auth.requireAuth(['superuser']);
+  if (!session) return;
+  buildNavbar('superuser', 'users');
+  renderKPIs();
+  renderTable();
+});
+</script>
+</body>
+</html>
+

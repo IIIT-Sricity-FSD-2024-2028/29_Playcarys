@@ -1,0 +1,19 @@
+{
+  "name": "playcarys-frontend",
+  "version": "1.0.0",
+  "description": "PlayCarys Frontend Static Site",
+  "main": "index.html",
+  "scripts": {
+    "start": "node dev-server.js",
+    "start:static": "http-server . -p 8080 -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "localtunnel": "^2.0.2"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}

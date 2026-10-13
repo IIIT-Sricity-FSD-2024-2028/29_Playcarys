@@ -1,0 +1,30 @@
+[
+  {
+    "game_id": 16,
+    "slug": "hexgl-16",
+    "play_path": "games/hexgl-16",
+    "bundle_size": 20437121,
+    "bundle_uploaded_at": "2026-08-02T19:25:22.655Z"
+  },
+  {
+    "game_id": 18,
+    "slug": "2048-18",
+    "play_path": "games/2048-18",
+    "bundle_size": 608256,
+    "bundle_uploaded_at": "2026-08-02T19:25:22.917Z"
+  },
+  {
+    "game_id": 19,
+    "slug": "hextris-19",
+    "play_path": "games/hextris-19",
+    "bundle_size": 1525328,
+    "bundle_uploaded_at": "2026-08-02T19:25:23.379Z"
+  },
+  {
+    "game_id": 25,
+    "slug": "ancient-beast-25",
+    "play_path": "games/ancient-beast-25",
+    "bundle_size": 0,
+    "bundle_uploaded_at": "2026-08-05T02:33:49.771Z"
+  }
+]

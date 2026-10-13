@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Live Matches</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+  <div class="page-wrapper">
+    <div class="page-content">
+
+      <div class="page-header">
+        <h1>Live Matches</h1>
+        <p class="text-muted">Monitor matches being played, in real time</p>
+      </div>
+
+      <div class="stats-grid stats-grid-4 mb-3" id="stats-grid"></div>
+
+      <div class="card mb-3" style="height: 320px; position: relative;">
+        <h3 class="mb-2">Platform Session Trends</h3>
+        <canvas id="sessionsChart"></canvas>
+      </div>
+
+      <div class="filter-bar">
+        <select class="form-select" id="status-filter" onchange="renderSessions()" style="width:180px">
+          <option value="">All Matches</option>
+          <option value="in-progress">Being Played</option>
+          <option value="completed">Finished</option>
+        </select>
+        <select class="form-select" id="mode-filter" onchange="renderSessions()" style="width:180px">
+          <option value="">All Modes</option>
+          <option value="casual">Casual</option>
+          <option value="ranked">Ranked</option>
+          <option value="tournament">Tournament</option>
+        </select>
+      </div>
+
+      <div id="sessions-list"></div>
+
+    </div>
+  </div>
+
+  <!-- MONITOR MODAL -->
+  <div class="modal-overlay" id="monitor-modal">
+    <div class="modal" style="max-width:560px">
+      <div class="modal-header">
+        <h3 class="modal-title" id="monitor-title">Monitor Session</h3>
+        <span class="modal-close" onclick="Modal.close('monitor-modal')">✕</span>
+      </div>
+      <div id="monitor-content"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="Modal.close('monitor-modal')">Close</button>
+        <button class="btn btn-red" id="terminate-btn">⛔ Terminate Session</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    // navigate() provided globally by utils.js (includes CSS fade transition)
+
+    // This page monitors MATCHES now, not rooms.
+    //
+    // It used to browse the session table: rooms with names, hosts, seat counts
+    // and a "waiting" state for a lobby nobody had started yet. None of those
+    // exist any more — a moderator watching the platform wants to see what is
+    // being PLAYED, which is what this shows.
+    function renderStats() {
+      const all = DB.matches || [];
+      const totalRaw = all.length;
+      const inprog = all.filter(m => m.status === 'in-progress').length;
+      const activeSessions = all.filter(m => m.status === 'in-progress');
+      const totalPlayers = activeSessions.reduce((sum, m) => sum + getPlayers(m).length, 0);
+
+      const sessionsByDay = {};
+      all.forEach(s => {
+        const raw = s.created_at || s.start_time || s.end_time;
+        if (!raw) return;
+        const parsed = new Date(raw);
+        if (isNaN(parsed.getTime())) return;
+        const d = parsed.toISOString().split('T')[0];
+        sessionsByDay[d] = (sessionsByDay[d] || 0) + 1;
+      });
+      const daysWithActivity = Object.keys(sessionsByDay).length || 1;
+      const avgPerDay = Math.round(totalRaw / daysWithActivity);
+      
+      let peakDay = "N/A";
+      let peakCount = 0;
+      for (let d in sessionsByDay) {
+        if (sessionsByDay[d] > peakCount) { peakCount = sessionsByDay[d]; peakDay = formatDate(d); }
+      }
+
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="label">Being Played Now</div><div class="value text-cyan">${inprog}</div><div class="icon">🎮</div></div>
+        <div class="stat-card"><div class="label">All-Time Matches</div><div class="value text-purple">${totalRaw}</div><div class="icon">📈</div></div>
+        <div class="stat-card"><div class="label">Avg Matches/Day</div><div class="value text-green">${avgPerDay}</div><div class="icon">📅</div></div>
+        <div class="stat-card"><div class="label">Peak Day</div><div class="value" style="font-size:1.1rem">${peakDay} (${peakCount})</div><div class="icon">🏔️</div></div>
+      `;
+
+      if (window.modChart) window.modChart.destroy();
+      const ctx = document.getElementById('sessionsChart');
+      if (ctx && totalRaw > 0) {
+        const sortedDays = Object.keys(sessionsByDay).sort();
+        window.modChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: sortedDays.map(d => formatDate(d)),
+            datasets: [{
+              label: 'Matches Played',
+              data: sortedDays.map(d => sessionsByDay[d]),
+              borderColor: '#a78bfa',
+              backgroundColor: 'rgba(124, 58, 237, 0.1)',
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: 'white' } } }, scales: { x: { ticks:{color:'gray'} }, y: { ticks:{color:'gray'}, beginAtZero:true } } }
+        });
+      }
+    }
+
+    /**
+     * Who played a match.
+     *
+     * `participants` is written when the match starts. For matches migrated
+     * from the old session rows there is no such list, so fall back to the
+     * match_results — which is where "who took part" has always really lived.
+     */
+    function getPlayers(m) {
+      if (Array.isArray(m.participants) && m.participants.length) return m.participants.map(String);
+      const mid = String(m.match_id);
+      const fromResults = [...new Set(
+        (DB.match_results || [])
+          .filter(r => String(r.session_id) === mid)
+          .map(r => String(r.player_id))
+      )];
+      if (fromResults.length) return fromResults;
+      // Last resort for a migrated row: whoever started it was in it. Better
+      // than showing "0 players" for a match somebody demonstrably played.
+      return m.created_by != null ? [String(m.created_by)] : [];
+    }
+
+    function renderSessions() {
+      const statusF = document.getElementById('status-filter').value;
+      const modeF = document.getElementById('mode-filter').value;
+      let sessions = (DB.matches || []).filter(m => m.match_id);
+      if (statusF) sessions = sessions.filter(s => s.status === statusF);
+      if (modeF) sessions = sessions.filter(s => s.mode === modeF);
+
+      // Newest first — a moderator wants what is happening now, and the old
+      // page showed them in whatever order the table happened to be in.
+      sessions = sessions.slice().sort((a, b) =>
+        Date.parse(b.start_time || b.created_at || 0) - Date.parse(a.start_time || a.created_at || 0));
+
+      if (!sessions.length) {
+        document.getElementById('sessions-list').innerHTML = `<div class="empty-state"><div class="icon">🎮</div><h3>No matches found</h3><p>No matches match your filters</p></div>`;
+        return;
+      }
+      document.getElementById('sessions-list').innerHTML = sessions.map(s => {
+        const plist = getPlayers(s);
+        const sid = String(s.match_id);
+        return `
+    <div class="list-item">
+      <div class="list-item-info">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+          <span class="list-item-title">${s.game || 'Game'}</span>
+          ${badgeHTML(s.status)} <span class="badge badge-review" style="font-size:0.68rem">${s.mode || 'casual'}</span>
+        </div>
+        <div class="list-item-sub mt-1">
+          <span>👥 ${plist.length} player${plist.length === 1 ? '' : 's'}</span>
+          <span>⏱ ${s.duration || 0}s</span>
+          <span>#${sid}</span>
+        </div>
+        <div class="list-item-sub">
+          <div style="display:flex;gap:0.2rem;flex-wrap:wrap">
+            ${plist.map(pid => { const u = DB.users.find(u => String(u.user_id) === String(pid) || u.id === pid); return u ? `<div class="avatar avatar-sm">${u.avatar}</div>` : '' }).join('')}
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="monitorSession('${sid}')">👁 Monitor</button>
+    </div>`;
+      }).join('');
+    }
+
+    function monitorSession(id) {
+      const s = (DB.matches || []).find(m => String(m.match_id) === String(id));
+      if (!s) return;
+      const plist = getPlayers(s);
+      document.getElementById('monitor-title').textContent = `Monitoring: ${s.game || 'Match'} #${s.match_id}`;
+      document.getElementById('monitor-content').innerHTML = `
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem">
+      ${badgeHTML(s.status)} <span class="tag">${s.mode || 'casual'}</span>
+    </div>
+    <div class="detail-grid mb-2">
+      <div class="detail-field"><label>Game</label><span>${s.game || 'Unknown'}</span></div>
+      <div class="detail-field"><label>Started</label><span>${s.start_time ? new Date(s.start_time).toLocaleString() : '—'}</span></div>
+      <div class="detail-field"><label>Players</label><span>${plist.length}</span></div>
+      <div class="detail-field"><label>Duration</label><span>${s.duration || 0} seconds</span></div>
+    </div>
+    <div>
+      <h4 style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem">PLAYERS IN THIS MATCH</h4>
+      ${plist.length === 0 ? '<p class="text-muted">No players recorded for this match.</p>' : plist.map(pid => {
+        const u = DB.users.find(u => String(u.user_id) === String(pid) || u.id === pid);
+        if (!u) return '';
+        return `<div class="list-item" style="padding:0.6rem 0.9rem;margin-bottom:0.4rem">
+          <div class="avatar avatar-sm">${u.avatar}</div>
+          <div style="flex:1;font-size:0.875rem">${u.user_name || u.username} ${badgeHTML(u.role || 'player')}</div>
+          ${u.status === 'banned' ? '<span class="badge badge-banned">Banned</span>' : ''}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="alert alert-warning mt-2">⚠️ Terminating will disconnect all players immediately</div>
+  `;
+      document.getElementById('terminate-btn').onclick = () => terminateSession(String(s.match_id));
+      Modal.open('monitor-modal');
+    }
+
+    /**
+     * End a match — do NOT delete it.
+     *
+     * The old version spliced the session row out of the array, which was fine
+     * for a room. A match is the record that somebody played, and the
+     * match_results rows point at it, so deleting one would leave orphaned
+     * history behind — and, because matches are append-only across the sync, it
+     * would reappear from the first stale tab regardless.
+     */
+    function terminateSession(id) {
+      confirmAction('End Match', 'This ends the match for all players. The match record is kept.', () => {
+        DB.endMatch(String(id));
+        Modal.close('monitor-modal');
+        Toast.success('Match ended');
+        renderStats(); renderSessions();
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const session = Auth.requireAuth(['moderator']);
+      if (!session) return;
+      buildNavbar('moderator', 'sessions');
+      renderStats(); renderSessions();
+    });
+  </script>
+</body>
+
+</html>
+

@@ -1,0 +1,5891 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "API Health Check",
+        "tags": [
+          "root"
+        ]
+      }
+    },
+    "/api/v1/db-export": {
+      "get": {
+        "operationId": "AppController_exportDb",
+        "parameters": [
+          {
+            "name": "tables",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "historyLimit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Export the in-memory DB. ?tables=a,b,c returns only those tables.",
+        "tags": [
+          "root"
+        ]
+      }
+    },
+    "/api/v1/db-import": {
+      "post": {
+        "operationId": "AppController_importDb",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC (any authenticated role accepted)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Import/sync full DB state from frontend (write-back)",
+        "tags": [
+          "root"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "operationId": "AuthController_forgotPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "operationId": "AuthController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/heartbeat": {
+      "post": {
+        "operationId": "AuthController_heartbeat",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionPingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/release": {
+      "post": {
+        "operationId": "AuthController_release",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionPingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/roles": {
+      "get": {
+        "operationId": "RolesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Roles"
+        ]
+      }
+    },
+    "/api/v1/roles/{id}": {
+      "get": {
+        "operationId": "RolesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Roles"
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "UsersController_findAll",
+        "parameters": [
+          {
+            "name": "role_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      },
+      "post": {
+        "operationId": "UsersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "operationId": "UsersController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "operationId": "UsersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/status": {
+      "patch": {
+        "operationId": "UsersController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/role": {
+      "patch": {
+        "operationId": "UsersController_assignRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/v1/player-profiles": {
+      "get": {
+        "operationId": "PlayerProfileController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PlayerProfile"
+        ]
+      }
+    },
+    "/api/v1/player-profiles/leaderboard": {
+      "get": {
+        "operationId": "PlayerProfileController_getLeaderboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PlayerProfile"
+        ]
+      }
+    },
+    "/api/v1/player-profiles/{userId}": {
+      "get": {
+        "operationId": "PlayerProfileController_findOne",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PlayerProfile"
+        ]
+      },
+      "patch": {
+        "operationId": "PlayerProfileController_update",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlayerProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PlayerProfile"
+        ]
+      }
+    },
+    "/api/v1/player-profiles/{userId}/match-history": {
+      "get": {
+        "operationId": "PlayerProfileController_getMatchHistory",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PlayerProfile"
+        ]
+      }
+    },
+    "/api/v1/publisher-profiles": {
+      "get": {
+        "operationId": "PublisherProfileController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherProfile"
+        ]
+      }
+    },
+    "/api/v1/publisher-profiles/{userId}": {
+      "get": {
+        "operationId": "PublisherProfileController_findOne",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherProfile"
+        ]
+      }
+    },
+    "/api/v1/games": {
+      "get": {
+        "operationId": "GameController_findAll",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "publisherId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "active",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      },
+      "post": {
+        "operationId": "GameController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/scan-manifest": {
+      "get": {
+        "operationId": "GameController_scanManifest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/view": {
+      "post": {
+        "operationId": "GameController_countView",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}": {
+      "get": {
+        "operationId": "GameController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      },
+      "patch": {
+        "operationId": "GameController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGameRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      },
+      "delete": {
+        "operationId": "GameController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/state": {
+      "patch": {
+        "operationId": "GameController_setGameState",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetGameStateRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/bundle": {
+      "post": {
+        "operationId": "GameController_uploadBundle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "bundle",
+                  "publisher_id"
+                ],
+                "properties": {
+                  "bundle": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Web build as a .zip (index.html at root)"
+                  },
+                  "publisher_id": {
+                    "type": "integer",
+                    "example": 5
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      },
+      "delete": {
+        "operationId": "GameController_removeBundle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "publisherId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/review": {
+      "get": {
+        "operationId": "GameController_getReview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/rescan": {
+      "post": {
+        "operationId": "GameController_rescan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/approve": {
+      "patch": {
+        "operationId": "GameController_approveGame",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveGameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Game"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/achievements": {
+      "get": {
+        "description": "Locked and unlocked together, which is what the player-facing panel needs. Secret achievements appear as masked placeholders until earned. Pending and rejected ones are hidden unless includeUnapproved is set — a player should not be shown a reward that cannot yet be granted.",
+        "operationId": "AchievementController_listForGame",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 8,
+              "type": "number"
+            }
+          },
+          {
+            "name": "viewerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 7,
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeUnapproved",
+            "required": false,
+            "in": "query",
+            "description": "For the publisher's own view and the admin review console.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Achievements, each with an `unlocked` flag."
+          }
+        },
+        "summary": "List a game's achievements",
+        "tags": [
+          "achievements"
+        ]
+      },
+      "post": {
+        "description": "Created as PENDING — it is not grantable until an admin approves it. Also checked against this game's lifetime reward budget, so a publisher finds out while writing it rather than after review.",
+        "operationId": "AchievementController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Must be publisher.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAchievementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created with status \"pending\"."
+          },
+          "400": {
+            "description": "Would exceed the game's lifetime budget."
+          },
+          "403": {
+            "description": "Not your game."
+          }
+        },
+        "summary": "Propose an achievement for your own game",
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/achievements/pending": {
+      "get": {
+        "description": "Each row carries its game's committed spend and budget, so the reviewer can see what approving it would commit the game to.",
+        "operationId": "AchievementController_pending",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Must be admin or superuser.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending achievements, newest first."
+          }
+        },
+        "summary": "Achievements awaiting review",
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/achievements/{id}/review": {
+      "patch": {
+        "description": "The budget is re-checked here, not only at creation: several achievements can be proposed while all are still pending, each passing a check against a total that did not include the others. An admin may raise this game's budget as part of the decision.",
+        "operationId": "AchievementController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Must be admin or superuser.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewAchievementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decision recorded."
+          },
+          "400": {
+            "description": "Approving would exceed the budget."
+          },
+          "404": {
+            "description": "No such achievement."
+          }
+        },
+        "summary": "Approve or reject a proposed achievement",
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/achievements/platform": {
+      "post": {
+        "description": "Belongs to no game, exempt from any publisher budget, and evaluated by the platform from its own data — a game cannot see how many friends a player has, and should not be trusted with it if it could.",
+        "operationId": "AchievementController_createPlatform",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Must be admin or superuser.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlatformAchievementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created and approved."
+          }
+        },
+        "summary": "Define a platform-wide achievement",
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/players/{userId}/achievements/evaluate": {
+      "post": {
+        "description": "Grants any platform achievement the player now qualifies for. Safe to call after a match, a new friendship or a tournament entry — it only ever grants what is not already held.",
+        "operationId": "AchievementController_evaluate",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ granted: <count>, achievements: [...] }"
+          }
+        },
+        "summary": "Evaluate platform achievements for a player",
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/achievements/{id}": {
+      "delete": {
+        "operationId": "AchievementController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "publisherId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/achievements/unlock": {
+      "post": {
+        "operationId": "AchievementController_unlock",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockAchievementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Record that a player earned a declared achievement",
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/players/{userId}/achievements": {
+      "get": {
+        "operationId": "AchievementController_listForPlayer",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/players/{userId}/titles": {
+      "get": {
+        "operationId": "AchievementController_titles",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/players/{userId}/title": {
+      "patch": {
+        "operationId": "AchievementController_setTitle",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveTitleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "achievements"
+        ]
+      }
+    },
+    "/api/v1/tournaments": {
+      "get": {
+        "operationId": "TournamentController_findAll",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gameId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includePrivate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      },
+      "post": {
+        "operationId": "TournamentController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTournamentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}": {
+      "get": {
+        "operationId": "TournamentController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      },
+      "patch": {
+        "operationId": "TournamentController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTournamentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      },
+      "delete": {
+        "operationId": "TournamentController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/registrations": {
+      "get": {
+        "operationId": "TournamentController_getRegistrations",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/stages": {
+      "get": {
+        "operationId": "TournamentController_listStages",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      },
+      "post": {
+        "operationId": "TournamentController_addStage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTournamentGameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/stages/{stageId}": {
+      "delete": {
+        "operationId": "TournamentController_removeStage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/tournaments/player/{playerId}": {
+      "get": {
+        "operationId": "TournamentController_getPlayerTournaments",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/register": {
+      "post": {
+        "operationId": "TournamentController_registerPlayer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterPlayerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/register/{playerId}": {
+      "delete": {
+        "operationId": "TournamentController_unregisterPlayer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Tournament"
+        ]
+      }
+    },
+    "/api/v1/economy/catalogue": {
+      "get": {
+        "operationId": "EconomyController_catalogue",
+        "parameters": [
+          {
+            "name": "viewerId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Cosmetics and plans, annotated with what the viewer owns",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/platform": {
+      "get": {
+        "operationId": "EconomyController_platform",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Platform-wide inflow, outflow, liability and staffing ratios",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/skins": {
+      "get": {
+        "operationId": "EconomyController_skins",
+        "parameters": [
+          {
+            "name": "userIds",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Equipped cosmetics for a set of players",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/balance/{userId}": {
+      "get": {
+        "operationId": "EconomyController_balance",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Carys balance and recent ledger entries",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/transactions/{userId}": {
+      "get": {
+        "operationId": "EconomyController_transactions",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Payment history for a user",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/purchase": {
+      "post": {
+        "operationId": "EconomyController_purchase",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseCosmeticDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Buy a cosmetic with Carys or (simulated) INR",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/equip": {
+      "post": {
+        "operationId": "EconomyController_equip",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquipCosmeticDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Equip an owned cosmetic (one per category)",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/unequip": {
+      "post": {
+        "operationId": "EconomyController_unequip",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquipCosmeticDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Remove an equipped cosmetic",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/award": {
+      "post": {
+        "operationId": "EconomyController_award",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AwardMatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Credit a completed match (server decides the amount)",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/subscribe": {
+      "post": {
+        "operationId": "EconomyController_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Start a subscription (simulated payment)",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/claim-stipend": {
+      "post": {
+        "operationId": "EconomyController_claimStipend",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimStipendDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Claim the monthly Carys stipend for an active subscription",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/publishers/{id}/earnings": {
+      "get": {
+        "operationId": "EconomyController_earnings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Attributable revenue, 70/30 split and payout history",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/publishers/{id}/payouts": {
+      "post": {
+        "operationId": "EconomyController_closePayout",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClosePayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Close a period into a payout row",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/payouts/{payoutId}/paid": {
+      "post": {
+        "operationId": "EconomyController_markPaid",
+        "parameters": [
+          {
+            "name": "payoutId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Mark a payout sent (simulated)",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/payouts": {
+      "get": {
+        "operationId": "EconomyController_listPayouts",
+        "parameters": [
+          {
+            "name": "publisherId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Payout rows, optionally for one publisher",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/groups": {
+      "get": {
+        "operationId": "GroupsController_findAll",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "viewerId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      },
+      "post": {
+        "operationId": "GroupsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}": {
+      "get": {
+        "operationId": "GroupsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      },
+      "patch": {
+        "operationId": "GroupsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      },
+      "delete": {
+        "operationId": "GroupsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/officers/{userId}": {
+      "post": {
+        "operationId": "GroupsController_promoteOfficer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      },
+      "delete": {
+        "operationId": "GroupsController_demoteOfficer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/join": {
+      "post": {
+        "operationId": "GroupsController_join",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/leave": {
+      "post": {
+        "operationId": "GroupsController_leave",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/members/{userId}": {
+      "delete": {
+        "operationId": "GroupsController_removeMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/requests": {
+      "get": {
+        "operationId": "GroupsController_listRequests",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/requests/{requestId}/accept": {
+      "post": {
+        "operationId": "GroupsController_acceptRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/requests/{requestId}/reject": {
+      "post": {
+        "operationId": "GroupsController_rejectRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/tournaments": {
+      "get": {
+        "operationId": "GroupsController_tournaments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/groups/{id}/chat": {
+      "get": {
+        "operationId": "GroupsController_chat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      },
+      "post": {
+        "operationId": "GroupsController_postChat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Groups"
+        ]
+      }
+    },
+    "/api/v1/teams": {
+      "get": {
+        "operationId": "TeamsController_findAll",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      },
+      "post": {
+        "operationId": "TeamsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTeamDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{id}": {
+      "get": {
+        "operationId": "TeamsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      },
+      "delete": {
+        "operationId": "TeamsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{id}/members": {
+      "post": {
+        "operationId": "TeamsController_addMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTeamMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{id}/members/{userId}": {
+      "delete": {
+        "operationId": "TeamsController_removeMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{id}/register/{tournamentId}": {
+      "post": {
+        "operationId": "TeamsController_registerForTournament",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tournamentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      },
+      "delete": {
+        "operationId": "TeamsController_unregisterFromTournament",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tournamentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Teams"
+        ]
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "operationId": "GameSessionController_findAll",
+        "parameters": [
+          {
+            "name": "gameId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hostId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GameSession"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "get": {
+        "operationId": "GameSessionController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GameSession"
+        ]
+      }
+    },
+    "/api/v1/sessions/player/{playerId}": {
+      "get": {
+        "operationId": "GameSessionController_getPlayerSessions",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GameSession"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}/end": {
+      "patch": {
+        "operationId": "GameSessionController_endSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndSessionRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GameSession"
+        ]
+      }
+    },
+    "/api/v1/match-results/session/{sessionId}": {
+      "get": {
+        "operationId": "MatchResultController_findBySession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MatchResult"
+        ]
+      }
+    },
+    "/api/v1/match-results/player/{playerId}": {
+      "get": {
+        "operationId": "MatchResultController_findByPlayer",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MatchResult"
+        ]
+      }
+    },
+    "/api/v1/match-results/top-scorers": {
+      "get": {
+        "operationId": "MatchResultController_getTopScorers",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "MatchResult"
+        ]
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "operationId": "ReportController_findAll",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reportedUserId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reporterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Report"
+        ]
+      },
+      "post": {
+        "operationId": "ReportController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Report"
+        ]
+      }
+    },
+    "/api/v1/reports/{id}": {
+      "get": {
+        "operationId": "ReportController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Report"
+        ]
+      }
+    },
+    "/api/v1/reports/{id}/status": {
+      "patch": {
+        "operationId": "ReportController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReportStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Report"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions": {
+      "get": {
+        "operationId": "ModeratorActionController_findAll",
+        "parameters": [
+          {
+            "name": "moderatorId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions/bans": {
+      "get": {
+        "operationId": "ModeratorActionController_findAllBans",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions/bans/active": {
+      "get": {
+        "operationId": "ModeratorActionController_findActiveBans",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions/act-on-report": {
+      "post": {
+        "operationId": "ModeratorActionController_actOnReport",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModeratorActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions/handle-violation": {
+      "post": {
+        "operationId": "ModeratorActionController_handleViolation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandleViolationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions/bans/{playerId}/lift": {
+      "patch": {
+        "operationId": "ModeratorActionController_liftBan",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiftBanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "NotificationController_findForUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "roleName",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      },
+      "post": {
+        "operationId": "NotificationController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/notifications/unread": {
+      "get": {
+        "operationId": "NotificationController_findUnread",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "roleName",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "NotificationController_countUnread",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "roleName",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/notifications/directory": {
+      "get": {
+        "operationId": "NotificationController_directory",
+        "parameters": [
+          {
+            "name": "viewerId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/notifications/{id}": {
+      "get": {
+        "operationId": "NotificationController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      },
+      "delete": {
+        "operationId": "NotificationController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationAudienceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/notifications/{id}/reply": {
+      "post": {
+        "operationId": "NotificationController_reply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "patch": {
+        "operationId": "NotificationController_markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkReadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/notifications/mark-all-read": {
+      "patch": {
+        "operationId": "NotificationController_markAllRead",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationAudienceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
+    "/api/v1/players/search": {
+      "get": {
+        "description": "Substring match on username, minimum 2 characters. Banned accounts and the viewer themselves are excluded. Each result carries the viewer's relationship to that player (none | friends | sent | received) so the UI can draw the right button without a second request.",
+        "operationId": "SocialController_searchPlayers",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "At least 2 characters.",
+            "schema": {
+              "example": "night",
+              "type": "string"
+            }
+          },
+          {
+            "name": "viewerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 7,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching players, each with stats, presence and relationship.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "user_id": {
+                        "type": "number",
+                        "example": 8
+                      },
+                      "user_name": {
+                        "type": "string",
+                        "example": "NightHawk"
+                      },
+                      "avatar": {
+                        "type": "string",
+                        "example": "NH"
+                      },
+                      "matches": {
+                        "type": "number",
+                        "example": 42
+                      },
+                      "wins": {
+                        "type": "number",
+                        "example": 26
+                      },
+                      "win_rate": {
+                        "type": "number",
+                        "example": 62
+                      },
+                      "presence": {
+                        "type": "object",
+                        "properties": {
+                          "state": {
+                            "type": "string",
+                            "example": "playing"
+                          },
+                          "game": {
+                            "type": "string",
+                            "example": "Hill Climbing",
+                            "nullable": true
+                          },
+                          "match_id": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        }
+                      },
+                      "relationship": {
+                        "type": "string",
+                        "example": "none"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Query shorter than 2 characters."
+          }
+        },
+        "summary": "Search players by name",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/players/{id}/profile": {
+      "get": {
+        "description": "Matches, wins and win rate are computed from match_results. The old profile modal read user.matches / user.wins, which exist on no user row, so it always showed zeroes.",
+        "operationId": "SocialController_getProfile",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 8,
+              "type": "number"
+            }
+          },
+          {
+            "name": "viewerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 7,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The player, with stats, presence and relationship."
+          },
+          "404": {
+            "description": "No such user."
+          }
+        },
+        "summary": "Public profile for one player",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/friends/{userId}": {
+      "get": {
+        "description": "Each friend carries presence — including the NAME of the game they are playing — and a count of messages they have sent that this client has not yet acknowledged.",
+        "operationId": "SocialController_listFriends",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 7,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Friends, with presence and unread counts."
+          }
+        },
+        "summary": "A player's friends",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/friends/{userId}/requests": {
+      "get": {
+        "description": "Requests are their own records now, not notifications. Rewriting a notification can no longer erase the fact that a request happened.",
+        "operationId": "SocialController_listRequests",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 8,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ incoming: [...], outgoing: [...] }"
+          }
+        },
+        "summary": "Pending friend requests, both directions",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/friends/request": {
+      "post": {
+        "description": "Refuses self-adds, non-players, existing friends, duplicate requests, and re-requests inside the cooldown that follows a rejection.",
+        "operationId": "SocialController_sendRequest",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendFriendRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request created; the recipient is notified."
+          },
+          "400": {
+            "description": "Already friends, duplicate request, or not a player."
+          },
+          "403": {
+            "description": "Rejected recently — still inside the cooldown."
+          }
+        },
+        "summary": "Send a friend request",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/friends/requests/{id}/respond": {
+      "post": {
+        "description": "BOTH outcomes notify the requester. Rejection used to be silent, which left the requester waiting on an answer that had already been given.",
+        "operationId": "SocialController_respond",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "friend_request id",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondFriendRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Answered; the requester is notified either way."
+          },
+          "403": {
+            "description": "The request was not addressed to you."
+          },
+          "404": {
+            "description": "No such request."
+          }
+        },
+        "summary": "Accept or reject a friend request",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/friends/{userId}/{friendId}": {
+      "delete": {
+        "description": "Does three things: notifies the other player, ends the friendship for BOTH sides (it is one shared row), and deletes the conversation for BOTH sides. That last part is what makes it different from clearing a conversation.",
+        "operationId": "SocialController_removeFriend",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "friendId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed, with a count of messages deleted."
+          },
+          "400": {
+            "description": "You are not friends with this player."
+          }
+        },
+        "summary": "Remove a friend",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/messages/{userId}/{withUserId}": {
+      "get": {
+        "description": "Oldest first. Rows the caller has cleared are hidden from THEM only. Each message carries status 'sent' or 'delivered' — there is deliberately no 'read', because we cannot prove a human read anything.",
+        "operationId": "SocialController_getConversation",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "withUserId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The conversation, oldest first."
+          }
+        },
+        "summary": "Conversation between two players",
+        "tags": [
+          "social"
+        ]
+      },
+      "delete": {
+        "description": "One-sided by design: the other person keeps their copy. This is why the rows are tombstoned per user rather than deleted — a hard delete here would destroy the other side of a conversation they never agreed to lose.",
+        "operationId": "SocialController_deleteConversation",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "withUserId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cleared for the caller only."
+          }
+        },
+        "summary": "Clear a conversation for yourself only",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/messages": {
+      "post": {
+        "description": "Stored, not relayed. Friends only.",
+        "operationId": "SocialController_sendMessage",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The stored message, status 'sent'."
+          },
+          "403": {
+            "description": "You can only message your friends."
+          }
+        },
+        "summary": "Send a message to a friend",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/messages/delivered": {
+      "post": {
+        "description": "Called by the RECIPIENT when their client has the messages. If the sender could mark its own messages delivered, \"delivered\" would mean nothing more than \"sent\".",
+        "operationId": "SocialController_markDelivered",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC. These routes are for signed-in players.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkDeliveredDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ delivered: <count> }"
+          }
+        },
+        "summary": "Acknowledge receipt (recipient only)",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/api/v1/games/{id}/save": {
+      "get": {
+        "description": "Returns data: null when nothing has been saved yet — a first-time player is an ordinary case, not a 404. The blob is returned parsed if it is valid JSON, exactly as the game stored it.",
+        "operationId": "GameSaveController_load",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "game_id",
+            "schema": {
+              "example": 8,
+              "type": "number"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": 7,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The save blob, or null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user_id": {
+                      "type": "number",
+                      "example": 7
+                    },
+                    "game_id": {
+                      "type": "number",
+                      "example": 8
+                    },
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "example": {
+                        "coins": 1250,
+                        "diamonds": 8
+                      }
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "nullable": true,
+                      "example": "2026-08-16T09:12:44.001Z"
+                    },
+                    "bytes": {
+                      "type": "number",
+                      "example": 38
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such game or user."
+          }
+        },
+        "summary": "Load a player's save for one game",
+        "tags": [
+          "game-saves"
+        ]
+      },
+      "put": {
+        "description": "Last-write-wins: one blob per (player, game), replaced in place. Capped at 64 KB measured in UTF-8 BYTES — uploaded games are third-party code writing into the single file this platform keeps all its data in, so an unbounded autosave loop is a denial of service, not a bug.",
+        "operationId": "GameSaveController_save",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Caller role for RBAC.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "game_id",
+            "schema": {
+              "example": 8,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutGameSaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved, with the byte size actually stored."
+          },
+          "404": {
+            "description": "No such game or user."
+          },
+          "413": {
+            "description": "Blob exceeds the 64 KB limit."
+          }
+        },
+        "summary": "Write a player's save for one game",
+        "tags": [
+          "game-saves"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/overview": {
+      "get": {
+        "description": "Returns the leaderboard for a score contest or the bracket for a knockout, with `format` saying which. One call, so the page does not have to guess from the game id which shape it is looking at.",
+        "operationId": "TournamentPlayController_overview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 4,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tournament overview with standings or matches."
+          },
+          "404": {
+            "description": "No such tournament."
+          }
+        },
+        "summary": "Everything the tournament page needs",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/leaderboard": {
+      "get": {
+        "description": "Ranks every entrant by the tournament's DECLARED metric and direction, so the same endpoint serves distance (high wins) and lap time (low wins). Only results tagged with this tournament and inside its date window count. Entrants who have not played sort last either way.",
+        "operationId": "TournamentPlayController_leaderboard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 4,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standings, ranked."
+          }
+        },
+        "summary": "Score-contest standings",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/bracket": {
+      "get": {
+        "operationId": "TournamentPlayController_bracket",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matches, ordered by round."
+          }
+        },
+        "summary": "The knockout bracket, with player names resolved",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/start": {
+      "post": {
+        "description": "Server-side and once only. This used to run in the browser, which meant the bracket was whatever the last client to sync said it was. Byes are fed forward immediately, or round 1 leaves winners that never reach round 2.",
+        "operationId": "TournamentPlayController_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Organizer, admin or superuser.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTournamentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The generated bracket."
+          },
+          "400": {
+            "description": "Score contest, already started, or fewer than 2 entrants."
+          },
+          "403": {
+            "description": "Not the organizer."
+          }
+        },
+        "summary": "Generate the bracket",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/overall-leaderboard": {
+      "get": {
+        "description": "Provisional until every stage is completed (see `complete` in the response). Points per stage come from the placement each player reached in it, scaled by that stage's points_weight.",
+        "operationId": "TournamentPlayController_overallLeaderboard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": 4,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Multi-game: combined points standing across every completed stage",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/stages/{stageId}/leaderboard": {
+      "get": {
+        "operationId": "TournamentPlayController_stageLeaderboard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One stage's score-contest standings",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/stages/{stageId}/bracket": {
+      "get": {
+        "operationId": "TournamentPlayController_stageBracket",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One stage's bracket",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/stages/{stageId}/start": {
+      "post": {
+        "description": "Score format: just opens it, players play. Bracket format: generates the bracket, same algorithm as the single-game path, scoped to this stage.",
+        "operationId": "TournamentPlayController_startStage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTournamentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Open a stage",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/stages/{stageId}/complete": {
+      "post": {
+        "description": "Bracket stages complete themselves when the final is decided. A score contest has no equivalent signal, so the organizer closes it explicitly.",
+        "operationId": "TournamentPlayController_completeStage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTournamentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Close a score-format stage",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/matches/{matchId}/token": {
+      "get": {
+        "description": "The rendezvous key. Both players in a fixture receive a token carrying the SAME match_id; the publisher's own matchmaker groups whoever presents it. That is the entire integration on their side — the platform never runs the netcode, which is exactly why rooms were removed. HMAC-signed and short-lived.",
+        "operationId": "TournamentPlayController_token",
+        "parameters": [
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "T1R1M0",
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": 7,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ match_id, token, deep_link, expires_at }"
+          },
+          "403": {
+            "description": "You are not in this match."
+          }
+        },
+        "summary": "Get your signed match token",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/verify-token": {
+      "post": {
+        "description": "For the publisher's server to confirm a player really was drawn into the match they claim. Rejects an unsigned, tampered or expired token.",
+        "operationId": "TournamentPlayController_verify",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "game_id": {
+                    "type": "number",
+                    "example": 2
+                  },
+                  "token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ valid: true, payload: {...} }"
+          },
+          "403": {
+            "description": "Bad signature or expired."
+          }
+        },
+        "summary": "Publisher-side check of a token a player presented",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/matches/{matchId}/result": {
+      "post": {
+        "description": "The integrated path. Sign the RAW JSON body with the game's shared secret and send it as X-PlayCarys-Signature (sha256=<hex>). Signing the whole body rather than a few fields is what stops a replay with the winner swapped. This is the first thing that has ever actually used Game.webhook_url's secret.",
+        "operationId": "TournamentPlayController_signedResult",
+        "parameters": [
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "T1R1M0",
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-playcarys-signature",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-PlayCarys-Signature",
+            "in": "header",
+            "description": "sha256=<hmac of the raw body>",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignedResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded, with the updated bracket."
+          },
+          "403": {
+            "description": "Signature does not match."
+          }
+        },
+        "summary": "Publisher's server reports a match result (HMAC-signed)",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/matches/{matchId}/report": {
+      "post": {
+        "description": "One player reports; the OTHER has to confirm before it counts.",
+        "operationId": "TournamentPlayController_report",
+        "parameters": [
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Awaiting the opponent."
+          }
+        },
+        "summary": "Report a result (fallback for un-integrated games)",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/matches/{matchId}/confirm": {
+      "post": {
+        "description": "The reporter cannot confirm their own report — otherwise \"dual report\" is one player deciding twice.",
+        "operationId": "TournamentPlayController_confirm",
+        "parameters": [
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed; the bracket advances."
+          },
+          "403": {
+            "description": "You reported it, so you cannot confirm it."
+          }
+        },
+        "summary": "Confirm your opponent's report",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/matches/{matchId}/dispute": {
+      "post": {
+        "description": "Parks the match for the organizer. Disputes previously went nowhere at all — a disagreement simply stopped the tournament with no way to resume it.",
+        "operationId": "TournamentPlayController_dispute",
+        "parameters": [
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisputeResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Disputed; the organizer is asked to decide."
+          }
+        },
+        "summary": "Dispute a reported result",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/matches/{matchId}/resolve": {
+      "post": {
+        "operationId": "TournamentPlayController_resolve",
+        "parameters": [
+          {
+            "name": "matchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveDisputeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settled; the bracket advances."
+          },
+          "403": {
+            "description": "Not the organizer."
+          }
+        },
+        "summary": "Organizer settles a disputed match",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/disputes/{organizerId}": {
+      "get": {
+        "operationId": "TournamentPlayController_disputes",
+        "parameters": [
+          {
+            "name": "organizerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disputed matches."
+          }
+        },
+        "summary": "Disputed matches waiting on this organizer",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/tournaments/{id}/chat": {
+      "get": {
+        "description": "Everyone in the tournament sees the same thread. Stored in `messages` with tournament_id set and to_user null — a different addressee, not a different kind of message.",
+        "operationId": "TournamentPlayController_chat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Messages, oldest first."
+          }
+        },
+        "summary": "Tournament public chat",
+        "tags": [
+          "tournament-play"
+        ]
+      },
+      "post": {
+        "description": "Registered entrants only — otherwise it is a billboard, not a tournament chat.",
+        "operationId": "TournamentPlayController_postChat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The stored message."
+          },
+          "403": {
+            "description": "Not registered for this tournament."
+          }
+        },
+        "summary": "Post to the tournament chat",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
+    "/api/v1/linked-accounts/platforms": {
+      "get": {
+        "operationId": "LinkedAccountsController_platforms",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "LinkedAccounts"
+        ]
+      }
+    },
+    "/api/v1/linked-accounts/player/{playerId}": {
+      "get": {
+        "operationId": "LinkedAccountsController_forPlayer",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "LinkedAccounts"
+        ]
+      }
+    },
+    "/api/v1/linked-accounts": {
+      "post": {
+        "operationId": "LinkedAccountsController_link",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkGameAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "LinkedAccounts"
+        ]
+      }
+    },
+    "/api/v1/linked-accounts/{id}": {
+      "delete": {
+        "operationId": "LinkedAccountsController_unlink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "requesterId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "LinkedAccounts"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "PlayCarys OMGMP API",
+    "description": "The Online Multiplayer Game Management Platform Backend API",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "role": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "role"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The email address of the user",
+            "example": "dragon@example.com"
+          },
+          "username": {
+            "type": "string",
+            "description": "Alternatively, the username",
+            "example": "GodMode"
+          },
+          "password": {
+            "type": "string",
+            "description": "The password data",
+            "example": "yourSecurePassw0rd!"
+          },
+          "role_id": {
+            "type": "number",
+            "description": "Optional. Which account to sign in to when one email holds more than one (4 = Player, 5 = Publisher). Omit and the password decides.",
+            "example": 5
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Take the account even though another session currently holds it. Only meant to be sent after the caller has confirmed that with a human (handoff approval or an explicit \"sign in anyway\") — omit it for a normal login attempt.",
+            "example": false
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "ForgotPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address on the account",
+            "example": "dragon@example.com"
+          },
+          "role_id": {
+            "type": "number",
+            "description": "Which account, when one address holds both (4 = Player, 5 = Publisher).",
+            "example": 4
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "ResetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address on the account",
+            "example": "dragon@example.com"
+          },
+          "code": {
+            "type": "string",
+            "description": "The 6-digit one-time code",
+            "example": "482913"
+          },
+          "new_password": {
+            "type": "string",
+            "description": "The new password (min 8 characters)",
+            "example": "n3wPassw0rd!"
+          },
+          "role_id": {
+            "type": "number",
+            "example": 4
+          }
+        },
+        "required": [
+          "email",
+          "code",
+          "new_password"
+        ]
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "description": "Account whose password is changing",
+            "example": 9
+          },
+          "current_password": {
+            "type": "string",
+            "description": "The password currently on the account"
+          },
+          "new_password": {
+            "type": "string",
+            "description": "Replacement password (min 8 characters)",
+            "example": "N3wPassw0rd!"
+          }
+        },
+        "required": [
+          "user_id",
+          "current_password",
+          "new_password"
+        ]
+      },
+      "SessionPingDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "description": "Internal ID of the signed-in user",
+            "example": 7
+          },
+          "session_token": {
+            "type": "string",
+            "description": "The session token issued when this tab signed in"
+          }
+        },
+        "required": [
+          "user_id",
+          "session_token"
+        ]
+      },
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "user_name": {
+            "type": "string",
+            "description": "Desired username",
+            "example": "NewPlayer99"
+          },
+          "email": {
+            "type": "string",
+            "description": "User contact email",
+            "example": "hello@example.com"
+          },
+          "password": {
+            "type": "string",
+            "description": "Strong password",
+            "example": "Testings123!"
+          },
+          "role_id": {
+            "type": "number",
+            "description": "Identifier mapping to internal DB roles (default: 4 = Player, 5 = Publisher)",
+            "example": 4
+          }
+        },
+        "required": [
+          "user_name",
+          "email",
+          "password"
+        ]
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateUserStatusDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AssignRoleDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdatePlayerProfileDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateGameDto": {
+        "type": "object",
+        "properties": {
+          "hosting_type": {
+            "type": "string",
+            "description": "How the game is delivered to players",
+            "enum": [
+              "hosted",
+              "selfhosted"
+            ]
+          },
+          "game_url": {
+            "type": "string",
+            "description": "Self-hosted games only: absolute URL of the publisher-hosted build",
+            "example": "https://mystudio.io/neon-drift/"
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "Optional endpoint that receives match events"
+          },
+          "max_carys_per_match": {
+            "type": "number",
+            "description": "Most Carys one match may award a player (0-1000). The server clamps anything a match reports above this.",
+            "example": 200
+          },
+          "game_name": {
+            "type": "string",
+            "description": "The display name of the game",
+            "example": "Cyberpunk Quest"
+          },
+          "game_type": {
+            "type": "string",
+            "description": "Genre of the game",
+            "example": "RPG"
+          },
+          "desc": {
+            "type": "string",
+            "description": "Detailed description of gameplay",
+            "example": "Explore a neon-lit city..."
+          },
+          "players": {
+            "type": "string",
+            "description": "Player count boundaries",
+            "example": "1-4"
+          },
+          "img": {
+            "type": "string",
+            "description": "Identifier of the image asset",
+            "example": "cyberpunk_quest"
+          },
+          "game_publisher": {
+            "type": "number",
+            "description": "Internal ID of the Publisher User",
+            "example": 5
+          }
+        },
+        "required": [
+          "game_name",
+          "game_type",
+          "desc",
+          "players",
+          "game_publisher"
+        ]
+      },
+      "UpdateGameRequestDto": {
+        "type": "object",
+        "properties": {
+          "hosting_type": {
+            "type": "string",
+            "description": "How the game is delivered to players",
+            "enum": [
+              "hosted",
+              "selfhosted"
+            ]
+          },
+          "game_url": {
+            "type": "string",
+            "description": "Self-hosted games only: absolute URL of the publisher-hosted build",
+            "example": "https://mystudio.io/neon-drift/"
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "Optional endpoint that receives match events"
+          },
+          "max_carys_per_match": {
+            "type": "number",
+            "description": "Most Carys one match may award a player (0-1000). The server clamps anything a match reports above this.",
+            "example": 200
+          }
+        }
+      },
+      "SetGameStateRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ApproveGameDto": {
+        "type": "object",
+        "properties": {
+          "game_approval_status": {
+            "type": "string",
+            "description": "Next approval status",
+            "example": "approved",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "reviewer_id": {
+            "type": "number",
+            "description": "user_id of the admin making the decision",
+            "example": 2
+          },
+          "note": {
+            "type": "string",
+            "description": "Reviewer note. Required when rejecting — it is what the publisher is shown.",
+            "example": "index.html loads a script from an external CDN; please bundle it."
+          },
+          "override_note": {
+            "type": "string",
+            "description": "Superuser only: justification for approving a build whose security scan failed. Recorded on the review."
+          }
+        },
+        "required": [
+          "game_approval_status",
+          "reviewer_id"
+        ]
+      },
+      "CreateAchievementDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Slug the game unlocks by",
+            "example": "first_win"
+          },
+          "name": {
+            "type": "string",
+            "example": "First Blood"
+          },
+          "description": {
+            "type": "string",
+            "example": "Win your first match."
+          },
+          "icon": {
+            "type": "string",
+            "description": "A single emoji",
+            "example": "🏆"
+          },
+          "carys_reward": {
+            "type": "number",
+            "description": "Carys granted once, 0-500",
+            "example": 50
+          },
+          "xp_reward": {
+            "type": "number",
+            "description": "XP granted once, 0-1000",
+            "example": 100
+          },
+          "title_awarded": {
+            "type": "string",
+            "description": "Title the player may display",
+            "example": "Hill Conqueror"
+          },
+          "secret": {
+            "type": "boolean",
+            "description": "Hide until earned"
+          },
+          "publisher_id": {
+            "type": "number",
+            "description": "Owning publisher, for the ownership check",
+            "example": 5
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "description",
+          "carys_reward",
+          "publisher_id"
+        ]
+      },
+      "ReviewAchievementDto": {
+        "type": "object",
+        "properties": {
+          "reviewer_id": {
+            "type": "number",
+            "description": "The admin deciding.",
+            "example": 2
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "example": "approve"
+          },
+          "budget_carys": {
+            "type": "number",
+            "description": "Raise this GAME's lifetime Carys budget as part of the decision. Use when a game genuinely warrants more than the default, rather than approving past the cap.",
+            "example": 3000
+          },
+          "budget_xp": {
+            "type": "number",
+            "description": "Raise this game's lifetime XP budget.",
+            "example": 6000
+          }
+        },
+        "required": [
+          "reviewer_id",
+          "decision"
+        ]
+      },
+      "CreatePlatformAchievementDto": {
+        "type": "object",
+        "properties": {
+          "admin_id": {
+            "type": "number",
+            "description": "The admin defining it.",
+            "example": 2
+          },
+          "code": {
+            "type": "string",
+            "example": "first_match"
+          },
+          "name": {
+            "type": "string",
+            "example": "Getting Started"
+          },
+          "description": {
+            "type": "string",
+            "example": "Play your first match on PlayCarys."
+          },
+          "icon": {
+            "type": "string",
+            "example": "🎬"
+          },
+          "carys_reward": {
+            "type": "number",
+            "example": 100
+          },
+          "xp_reward": {
+            "type": "number",
+            "example": 200
+          },
+          "rule": {
+            "type": "string",
+            "description": "What the platform measures. first_match | matches_played | friends | first_tournament",
+            "example": "first_match"
+          },
+          "threshold": {
+            "type": "number",
+            "description": "Threshold for the rule, e.g. 5 friends.",
+            "example": 1
+          },
+          "title_awarded": {
+            "type": "string",
+            "example": "First Steps"
+          }
+        },
+        "required": [
+          "admin_id",
+          "code",
+          "name",
+          "description",
+          "carys_reward",
+          "rule"
+        ]
+      },
+      "UnlockAchievementDto": {
+        "type": "object",
+        "properties": {
+          "game_id": {
+            "type": "number",
+            "example": 8
+          },
+          "user_id": {
+            "type": "number",
+            "example": 9
+          },
+          "code": {
+            "type": "string",
+            "description": "The code the game declared at publish time",
+            "example": "first_win"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Match this was earned in, if any"
+          }
+        },
+        "required": [
+          "game_id",
+          "user_id",
+          "code"
+        ]
+      },
+      "SetActiveTitleDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 9
+          },
+          "title": {
+            "type": "string",
+            "description": "A title the player has earned, or null to clear"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "CreateTournamentGameDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateTournamentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "RegisterPlayerDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateTournamentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "PurchaseCosmeticDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "description": "Who is buying"
+          },
+          "item_id": {
+            "type": "number",
+            "description": "Catalogue item id"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Which currency to pay in. INR is simulated — no gateway is involved, but the transaction states are real.",
+            "enum": [
+              "carys",
+              "inr"
+            ]
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "Retry-safe key; a repeat is refused, not charged twice"
+          }
+        },
+        "required": [
+          "user_id",
+          "item_id",
+          "currency"
+        ]
+      },
+      "EquipCosmeticDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number"
+          },
+          "item_id": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "user_id",
+          "item_id"
+        ]
+      },
+      "AwardMatchDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number"
+          },
+          "game_id": {
+            "type": "number",
+            "description": "The game played — sets the multiplier and the payout cap"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "win",
+              "loss",
+              "draw"
+            ]
+          },
+          "session_id": {
+            "type": "number",
+            "description": "Session this match belongs to, for the ledger reference"
+          }
+        },
+        "required": [
+          "user_id",
+          "game_id",
+          "result"
+        ]
+      },
+      "SubscribeDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number"
+          },
+          "plan_id": {
+            "type": "string",
+            "description": "Plan id, e.g. \"pro\" or \"pro_plus\""
+          }
+        },
+        "required": [
+          "user_id",
+          "plan_id"
+        ]
+      },
+      "ClaimStipendDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ClosePayoutDto": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "description": "Label for the period being closed, e.g. \"2026-08\""
+          },
+          "min_paise": {
+            "type": "number",
+            "description": "Override the minimum payout threshold (staff only)"
+          }
+        },
+        "required": [
+          "period"
+        ]
+      },
+      "CreateGroupDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateGroupDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "GroupChatDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateTeamDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AddTeamMemberDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "EndSessionRequestDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateReportDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateReportStatusDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateModeratorActionDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "HandleViolationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "LiftBanDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateNotificationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReplyDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "MarkReadDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "NotificationAudienceDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SendFriendRequestDto": {
+        "type": "object",
+        "properties": {
+          "from_user": {
+            "type": "number",
+            "example": 7,
+            "description": "The user sending the request."
+          },
+          "to_user": {
+            "type": "number",
+            "example": 8,
+            "description": "The user being asked."
+          }
+        },
+        "required": [
+          "from_user",
+          "to_user"
+        ]
+      },
+      "RespondFriendRequestDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 8,
+            "description": "The user answering. Must be the recipient of the request."
+          },
+          "action": {
+            "type": "string",
+            "example": "accept",
+            "enum": [
+              "accept",
+              "reject"
+            ],
+            "description": "Either answer notifies the requester. Rejecting used to be silent, which left the requester waiting on an answer that had already been given."
+          }
+        },
+        "required": [
+          "user_id",
+          "action"
+        ]
+      },
+      "SendMessageDto": {
+        "type": "object",
+        "properties": {
+          "from_user": {
+            "type": "number",
+            "example": 7
+          },
+          "to_user": {
+            "type": "number",
+            "example": 8
+          },
+          "body": {
+            "type": "string",
+            "example": "good game!",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "from_user",
+          "to_user",
+          "body"
+        ]
+      },
+      "MarkDeliveredDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 8,
+            "description": "The RECIPIENT acknowledging receipt. Delivery is only ever claimed by the receiving client, never assumed by the sender."
+          },
+          "from_user": {
+            "type": "number",
+            "example": 7,
+            "description": "Limit the ack to one conversation. Omit to ack everything addressed to me."
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "PutGameSaveDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 7,
+            "description": "The player whose save this is."
+          },
+          "data": {
+            "type": "object",
+            "description": "The save blob. Send an object or a JSON string — the platform stores it as an opaque string and never inspects it. What goes in it is entirely the game's business: coins, diamonds, unlocked levels, settings.",
+            "example": {
+              "coins": 1250,
+              "diamonds": 8,
+              "bestDistance": 4310
+            }
+          }
+        },
+        "required": [
+          "user_id",
+          "data"
+        ]
+      },
+      "StartTournamentDto": {
+        "type": "object",
+        "properties": {
+          "organizer_id": {
+            "type": "number",
+            "example": 5,
+            "description": "Must be the tournament organizer."
+          }
+        },
+        "required": [
+          "organizer_id"
+        ]
+      },
+      "SignedResultDto": {
+        "type": "object",
+        "properties": {
+          "winner_id": {
+            "type": "object",
+            "example": 7,
+            "description": "Who won. Must be one of the two players actually drawn into this fixture — a publisher may report an outcome, not invent a participant."
+          },
+          "score": {
+            "type": "string",
+            "description": "Publisher's own score line, for the record."
+          }
+        },
+        "required": [
+          "winner_id"
+        ]
+      },
+      "ReportResultDto": {
+        "type": "object",
+        "properties": {
+          "reporter_id": {
+            "type": "number",
+            "example": 7,
+            "description": "The player filing the report."
+          },
+          "winner_id": {
+            "type": "object",
+            "example": 8,
+            "description": "Who they say won."
+          }
+        },
+        "required": [
+          "reporter_id",
+          "winner_id"
+        ]
+      },
+      "ConfirmResultDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 8,
+            "description": "The OPPONENT confirming. The reporter cannot confirm their own report."
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "DisputeResultDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 8
+          },
+          "reason": {
+            "type": "string",
+            "example": "I won 3-1; the reported result is wrong."
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "ResolveDisputeDto": {
+        "type": "object",
+        "properties": {
+          "organizer_id": {
+            "type": "number",
+            "example": 5,
+            "description": "The organizer. Their decision is final."
+          },
+          "winner_id": {
+            "type": "object",
+            "example": 7
+          }
+        },
+        "required": [
+          "organizer_id",
+          "winner_id"
+        ]
+      },
+      "PostChatDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "number",
+            "example": 7
+          },
+          "body": {
+            "type": "string",
+            "example": "good luck everyone",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "user_id",
+          "body"
+        ]
+      },
+      "LinkGameAccountDto": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  }
+}

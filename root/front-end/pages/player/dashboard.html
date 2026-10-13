@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>PlayCarys — Home</title>
+  <link rel="stylesheet" href="../../css/variables.css" />
+  <style>
+    /* ─── Layout Shell ─────────────────────────── */
+    .dash-shell {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 0;
+      /* The navbar is position:fixed, so it takes no space in the flow. Every
+         other page clears it with .page-wrapper's padding-top; this page puts
+         .dash-shell straight on <body> instead, so it has to clear the navbar
+         itself — without this the first 64px of both columns sit UNDER the bar
+         and the sidebar's avatar is sliced in half.
+         box-sizing is border-box globally, so min-height:100vh with this
+         padding leaves exactly the calc(100vh - nav) content box the columns
+         below are sized against. */
+      padding-top: var(--nav-height);
+      min-height: 100vh;
+    }
+
+    .dash-main {
+      padding: 0;
+      overflow-y: auto;
+      height: calc(100vh - var(--nav-height));
+    }
+
+    .dash-right {
+      background: #0b0d14;
+      border-left: 1px solid #1a1f30;
+      padding: 0;
+      overflow-y: auto;
+      height: calc(100vh - var(--nav-height));
+      position: sticky;
+      top: var(--nav-height);
+    }
+
+    /* ─── Featured Game Spotlight ──────────────── */
+    .featured {
+      position: relative;
+      height: 420px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .featured-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #0d1b35 0%, #120a24 50%, #0a1a0a 100%);
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.04);
+      transition: transform 8s ease;
+    }
+
+    .featured:hover .featured-bg {
+      transform: scale(1.08);
+    }
+
+    .featured-grain {
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .featured-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to right, rgba(8, 10, 15, 0.95) 0%, rgba(8, 10, 15, 0.6) 50%, transparent 100%),
+        linear-gradient(to top, rgba(8, 10, 15, 0.9) 0%, transparent 40%);
+    }
+
+    .featured-content {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      padding: 2.5rem 2.5rem 2rem;
+      max-width: 560px;
+    }
+
+    .featured-eyebrow {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1)
+      }
+
+      50% {
+        opacity: .4;
+        transform: scale(1.4)
+      }
+    }
+
+    .featured-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 2.4rem;
+      font-weight: 900;
+      line-height: 1.05;
+      margin-bottom: 0.75rem;
+      color: #fff;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
+    }
+
+    .featured-desc {
+      font-size: 0.88rem;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+      max-width: 420px;
+    }
+
+    .featured-chips {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .featured-chip {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 99px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .featured-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .btn-play {
+      background: linear-gradient(135deg, var(--accent-cyan), #0099cc);
+      color: #000;
+      font-weight: 900;
+      font-size: 0.9rem;
+      padding: 0.75rem 2rem;
+      border-radius: var(--radius-lg);
+      border: none;
+      cursor: pointer;
+      transition: all .2s;
+      box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-play:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 212, 255, 0.5);
+    }
+
+    .btn-info {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      font-weight: 700;
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      cursor: pointer;
+      transition: all .2s;
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-info:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    /* Floating game emoji visual in featured */
+    .featured-visual {
+      position: absolute;
+      right: 6%;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9rem;
+      opacity: 0.18;
+      filter: blur(2px);
+      animation: float-emoji 6s ease-in-out infinite;
+    }
+
+    @keyframes float-emoji {
+
+      0%,
+      100% {
+        transform: translateY(-50%) rotate(-3deg)
+      }
+
+      50% {
+        transform: translateY(-55%) rotate(3deg)
+      }
+    }
+
+    /* Thumbnail dots */
+    .featured-dots {
+      position: absolute;
+      bottom: 1rem;
+      right: 2rem;
+      display: flex;
+      gap: 6px;
+    }
+
+    .fdot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transition: all .2s;
+    }
+
+    .fdot.active {
+      width: 22px;
+      background: var(--accent-cyan);
+    }
+
+    /* ─── Scrollable main content ───────────────── */
+    .dash-scroll {
+      padding: 2rem 2.5rem 3rem;
+    }
+
+    /* ─── Section label ─────────────────────────── */
+    .sec-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 2rem 0 1rem;
+    }
+
+    .sec-label-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 900;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sec-label-title::before {
+      content: '';
+      display: block;
+      width: 16px;
+      height: 2px;
+      background: var(--accent-cyan);
+      border-radius: 99px;
+    }
+
+    .sec-label-link {
+      font-size: 0.75rem;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s;
+      text-decoration: none;
+    }
+
+    .sec-label-link:hover {
+      opacity: 0.7;
+    }
+
+    /* ─── Game tile grid (Steam-style) ─────────── */
+    .game-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 1rem;
+    }
+
+    .game-tile {
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      transition: all .25s cubic-bezier(.4, 0, .2, 1);
+      aspect-ratio: 3/4;
+    }
+
+    .game-tile:hover {
+      transform: scale(1.04) translateY(-4px);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--accent-cyan);
+      z-index: 2;
+    }
+
+    /* .game-tile-bg removed — tiles use .game-tile-visual from getGameIconHTML() */
+
+    .game-tile-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(8, 10, 15, 0.95) 0%, rgba(8, 10, 15, 0.3) 55%, transparent 100%);
+    }
+
+    .game-tile-body {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0.85rem 0.9rem;
+    }
+
+    .tile-genre {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-bottom: 0.25rem;
+    }
+
+    .tile-name {
+      font-weight: 800;
+      font-size: 0.88rem;
+      line-height: 1.2;
+      margin-bottom: 0.35rem;
+    }
+
+    .tile-rating {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .tile-rating .stars {
+      color: var(--accent-yellow);
+    }
+
+    /* Hover reveal play button */
+    .tile-play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: rgba(0, 212, 255, 0.9);
+      color: #000;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 900;
+      transition: all .22s cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    .game-tile:hover .tile-play-btn {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* ─── Tournament strip ──────────────────────── */
+    .tourn-strip {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+
+    .tourn-strip-card {
+      background: rgba(139, 92, 246, 0.06);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all .18s;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tourn-strip-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: linear-gradient(180deg, var(--accent-purple), var(--accent-cyan));
+    }
+
+    .tourn-strip-card:hover {
+      background: rgba(139, 92, 246, 0.12);
+      border-color: rgba(139, 92, 246, 0.4);
+      transform: translateX(5px);
+    }
+
+    .ts-icon {
+      font-size: 1.6rem;
+      flex-shrink: 0;
+    }
+
+    .ts-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ts-name {
+      font-weight: 800;
+      font-size: 0.88rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ts-meta {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+    }
+
+    .ts-prize {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: 0.9rem;
+      color: var(--accent-yellow);
+      flex-shrink: 0;
+    }
+
+    /* ─── Right Sidebar ────────────────────────── */
+    .sidebar-section {
+      padding: 1.5rem;
+      border-bottom: 1px solid #1a1f30;
+    }
+
+    .sidebar-section:last-child {
+      border: none;
+    }
+
+    /* Player Identity Card */
+    .player-id-card {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(160deg, rgba(0, 212, 255, 0.1) 0%, rgba(139, 92, 246, 0.12) 100%);
+    }
+
+    .pid-glow {
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.1);
+      filter: blur(40px);
+      pointer-events: none;
+    }
+
+    .pid-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 900;
+      position: relative;
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.3), 0 0 20px rgba(0, 212, 255, 0.2);
+    }
+
+    .pid-online {
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      border: 2px solid #0b0d14;
+    }
+
+    .pid-name {
+      font-family: 'Orbitron', monospace;
+      font-weight: 800;
+      font-size: 1rem;
+      text-align: center;
+      margin-bottom: 0.25rem;
+    }
+
+    .pid-sub {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .pid-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .pid-stat {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-md);
+      padding: 0.6rem 0.4rem;
+    }
+
+    .pid-stat-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.1rem;
+      font-weight: 900;
+    }
+
+    .pid-stat-lbl {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
+    }
+
+    /* PCP Block */
+    .pcp-block {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.04));
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      margin-top: 1rem;
+    }
+
+    .pcp-icon {
+      font-size: 2rem;
+    }
+
+    .pcp-val-txt {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: 1.5rem;
+      color: var(--accent-yellow);
+    }
+
+    .pcp-lbl-txt {
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Rank progress bar CSS removed — not used in this page */
+
+    /* Sidebar Nav Buttons */
+    .sid-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+
+    .sid-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.75rem;
+      cursor: pointer;
+      transition: all .15s;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .sid-btn:hover {
+      background: rgba(0, 212, 255, 0.08);
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+
+    .sid-btn-icon {
+      font-size: 1.1rem;
+    }
+
+    .sid-btn-lbl {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    /* Friend / notification row */
+    .friend-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .friend-row:last-child {
+      border: none;
+    }
+
+    .friend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .friend-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .friend-status {
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+    }
+
+    /* sidebar section title */
+    .sid-title {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 900;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    @media(max-width:900px) {
+      .dash-shell {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+      }
+
+      /* min-width:0 is what actually stops the sideways scroll here.
+         A grid item defaults to min-width:auto, so the `1fr` track above is
+         really minmax(auto, 1fr) and cannot shrink below the item's min-content
+         width. On a 375px phone these two columns held the track open at 450px
+         and the whole page slid ~75px to the right — the navbar scrolled away
+         from the content under it and there was dead space down the side.
+         The columns are the full width now, so `overflow: visible` above is
+         safe: it lets the page (not the column) do the scrolling. */
+      .dash-main {
+        height: auto;
+        overflow: visible;
+        min-width: 0;
+      }
+
+      .dash-right {
+        height: auto;
+        position: static;
+        border-left: none;
+        border-top: 1px solid #1a1f30;
+        min-width: 0;
+      }
+
+      /* Decorative glows are absolutely positioned and deliberately hang past
+         their box (.pid-glow sits at right:-40px). On a desktop they bleed off
+         a column that is not the page edge; on a phone that IS the page edge,
+         so each one re-opened the horizontal scroll on its own. Clip them. */
+      .featured,
+      .player-id-card {
+        overflow: hidden;
+      }
+
+      .game-tiles {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+
+      .featured {
+        height: 300px;
+      }
+
+      .featured-title {
+        font-size: 1.6rem;
+      }
+
+      .featured-visual {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar" class="navbar"></div>
+
+  <div class="dash-shell" style="position:relative;z-index:1">
+
+    <!-- ≡≡≡  MAIN FEED  ≡≡≡ -->
+    <div class="dash-main">
+
+      <!-- Featured Spotlight -->
+      <div class="featured" id="featured-banner" onclick="slideNextMatch()">
+        <div class="featured-bg" id="feat-bg"></div>
+        <div class="featured-grain"></div>
+        <div class="featured-overlay"></div>
+        <div class="featured-visual" id="feat-emoji">♟️</div>
+        <div class="featured-content">
+          <div class="featured-eyebrow"><span class="eyebrow-dot"></span><span id="feat-eyebrow">FEATURED GAME</span>
+          </div>
+          <h1 class="featured-title" id="feat-title">Chess Pro</h1>
+          <p class="featured-desc" id="feat-desc">Challenge opponents in the ultimate strategy game. Compete in ranked
+            matches, join live tournaments, and climb the global leaderboard.</p>
+          <div class="featured-chips" id="feat-chips">
+            <span class="featured-chip">♟️ Board Game</span>
+            <span class="featured-chip">🔴 Live Players</span>
+            <span class="featured-chip">🏆 Tournament Ready</span>
+          </div>
+          <div class="featured-actions">
+            <button class="btn-play" onclick="event.stopPropagation(); playFast(window._featGameId)">▶ Play Now</button>
+            <button class="btn-info" onclick="event.stopPropagation(); viewBiodata(window._featGameId)">View
+              Details</button>
+          </div>
+        </div>
+        <div class="featured-dots" id="feat-dots"></div>
+      </div>
+
+      <!-- Scrollable Area -->
+      <div class="dash-scroll">
+
+        <!-- Upcoming Tournaments strip -->
+        <div class="sec-label">
+          <div class="sec-label-title">Live Events</div>
+          <span class="sec-label-link" onclick="navigate('tournaments')">View all →</span>
+        </div>
+        <div class="tourn-strip" id="tourn-strip"></div>
+
+        <!-- Game Library -->
+        <div class="sec-label">
+          <div class="sec-label-title">Game Library</div>
+          <span class="sec-label-link" onclick="navigate('games')">Browse all →</span>
+        </div>
+        <div class="game-tiles" id="game-tiles"></div>
+
+      </div>
+    </div>
+
+    <!-- ≡≡≡  RIGHT SIDEBAR  ≡≡≡ -->
+    <div class="dash-right">
+
+      <!-- Player Identity -->
+      <div class="sidebar-section player-id-card">
+        <div class="pid-glow"></div>
+
+        <div
+          style="position:relative; width:80px; height:80px; margin: 0 auto 1rem; display:flex; align-items:center; justify-content:center;">
+          <!-- SVG Ring -->
+          <svg width="80" height="80" style="position:absolute; top:0; left:0; transform:rotate(-90deg);">
+            <circle cx="40" cy="40" r="36" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"></circle>
+            <circle id="sid-xp-ring" cx="40" cy="40" r="36" fill="none" stroke="var(--accent-purple)" stroke-width="4"
+              stroke-dasharray="226" stroke-dashoffset="226"
+              style="transition: stroke-dashoffset 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); stroke-linecap: round;">
+            </circle>
+          </svg>
+          <div class="pid-avatar" id="sid-avatar"
+            style="width:60px; height:60px; margin:0; position:relative; z-index:2; font-size:1.5rem">
+            ?
+            <div class="pid-online" style="bottom:-2px; right:-2px; width:14px; height:14px; border-width:3px"></div>
+          </div>
+        </div>
+
+        <div class="pid-name" id="sid-name">Loading…</div>
+        <div class="pid-sub" id="sid-sub" style="font-weight:700">Loading Tier...</div>
+
+        <!-- PCP -->
+        <div class="pcp-block">
+          <div class="pcp-icon">💎</div>
+          <div>
+            <div class="pcp-val-txt" id="sid-pcp">0</div>
+            <div class="pcp-lbl-txt">PlayCarys Points</div>
+          </div>
+        </div>
+
+        <div
+          style="text-align:center; font-size:0.7rem; color:var(--text-secondary); margin-bottom:1rem; letter-spacing:0.05em; font-family:'Orbitron',monospace">
+          <span id="sid-xp-now">0</span> / <span id="sid-xp-next">1000</span> XP TO LEVEL <span
+            id="sid-level-next">2</span>
+        </div>
+
+        <!-- Stats grid -->
+        <div class="pid-stats" id="sid-stats">
+          <div class="pid-stat" style="background:rgba(0,0,0,0.3)">
+            <div class="pid-stat-val text-cyan" id="sid-level">1</div>
+            <div class="pid-stat-lbl">Level</div>
+          </div>
+          <div class="pid-stat" style="background:rgba(0,0,0,0.3)">
+            <div class="pid-stat-val text-yellow" id="sid-elo">1200</div>
+            <div class="pid-stat-lbl">Elo Score</div>
+          </div>
+          <div class="pid-stat" style="background:rgba(0,0,0,0.3)">
+            <div class="pid-stat-val" id="sid-matches">0</div>
+            <div class="pid-stat-lbl">Matches</div>
+          </div>
+          <div class="pid-stat" style="background:rgba(0,0,0,0.3)">
+            <div class="pid-stat-val text-green" id="sid-wins">0</div>
+            <div class="pid-stat-lbl">Wins</div>
+          </div>
+          <div class="pid-stat" style="background:rgba(0,0,0,0.3);grid-column:span 2">
+            <div class="pid-stat-val" id="sid-winrate" style="color:#a78bfa">0%</div>
+            <div class="pid-stat-lbl">📈 Win Rate</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Navigation -->
+      <div class="sidebar-section">
+        <div class="sid-title">Quick Access</div>
+        <div class="sid-nav">
+          <div class="sid-btn" onclick="navigate('tournaments')">
+            <div class="sid-btn-icon">🏆</div>
+            <div class="sid-btn-lbl">Tournaments</div>
+          </div>
+          <div class="sid-btn" onclick="navigate('my-tournaments')">
+            <div class="sid-btn-icon">🎯</div>
+            <div class="sid-btn-lbl">My Events</div>
+          </div>
+          <div class="sid-btn" onclick="navigate('leaderboard')">
+            <div class="sid-btn-icon">👑</div>
+            <div class="sid-btn-lbl">Leaderboard</div>
+          </div>
+          <div class="sid-btn" onclick="navigate('profile')">
+            <div class="sid-btn-icon">👤</div>
+            <div class="sid-btn-lbl">Profile</div>
+          </div>
+          <div class="sid-btn" onclick="navigate('match-history')">
+            <div class="sid-btn-icon">📊</div>
+            <div class="sid-btn-lbl">Match History</div>
+          </div>
+          <div class="sid-btn" onclick="navigate('notifications')">
+            <div class="sid-btn-icon">🔔</div>
+            <div class="sid-btn-lbl">Notifications</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Login Streak -->
+      <div class="sidebar-section">
+        <div class="sid-title">🔥 Daily Streak</div>
+        <div id="streak-widget"></div>
+      </div>
+
+      <!-- Friends Online -->
+      <div class="sidebar-section" id="friends-section">
+        <div class="sid-title">Friends Online</div>
+        <div id="friends-list"></div>
+      </div>
+
+      <!-- Today's Activity -->
+      <div class="sidebar-section">
+        <div class="sid-title">⚡ Today's Activity</div>
+        <div id="today-activity"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Biodata Modal -->
+  <div class="modal-overlay" id="biodata-modal">
+    <div class="modal" style="max-width:550px; text-align:left; padding: 2.5rem;">
+      <button class="modal-close" onclick="Modal.close('biodata-modal')">✕</button>
+      <div style="display:flex; gap:1.5rem; align-items:flex-start; margin-bottom:1.5rem">
+        <div id="bio-icon" style="font-size:3.5rem; line-height:1; flex-shrink:0;">🎮</div>
+        <div>
+          <h2 id="bio-title"
+            style="margin-bottom:0.25rem; font-family:'Orbitron', monospace; font-size:1.8rem; color:#fff;"></h2>
+          <div id="bio-genre" class="tag" style="margin-bottom:0.5rem; display:inline-block"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.5rem; color:var(--text-secondary); line-height:1.6;" id="bio-desc"></div>
+
+      <div
+        style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); padding:1.25rem; border-radius:var(--radius-lg);">
+        <div>
+          <div
+            style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.25rem">
+            Rating</div>
+          <div id="bio-rating" style="font-size:1.1rem; color:var(--accent-yellow); font-weight:800;"></div>
+        </div>
+        <div>
+          <div
+            style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.25rem">
+            Capacity</div>
+          <div id="bio-players" style="font-size:1.1rem; font-weight:700;"></div>
+        </div>
+        <div>
+          <div
+            style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.25rem">
+            Publisher Studio</div>
+          <div id="bio-publisher" style="font-size:1.1rem; font-weight:700;"></div>
+        </div>
+        <div>
+          <div
+            style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.25rem">
+            Platform Joined</div>
+          <div id="bio-joined" style="font-size:1.1rem; color:var(--accent-cyan); font-weight:700;"></div>
+        </div>
+      </div>
+      <div style="margin-top:1.5rem; display:flex; gap:1rem; justify-content:flex-end">
+        <button class="btn btn-primary" id="bio-play-btn"
+          style="font-size:1rem; padding: 0.75rem 2rem; border-radius:var(--radius-md);">▶ Play Now</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <!-- Partial sync. db.js reads this before it hydrates; a page that declares
+       nothing still pulls the whole database, which is what every unconverted
+       page does. Only `notifications` and `match_results` are scoped here:
+       both are filtered to the signed-in user everywhere they are read
+       (utils.js notifIsVisible / the player_id filters), while `matches` is
+       deliberately left whole because Presence.spectate() looks up other
+       people's live matches by id. -->
+  <script>
+    try {
+      var _s = JSON.parse(sessionStorage.getItem('playcarys_session')
+                       || localStorage.getItem('playcarys_session') || 'null');
+      if (_s && _s.userId != null) {
+        window.PC_SCOPE = {
+          userId: _s.userId,
+          scope: ['notifications', 'match_results'],
+          historyLimit: 400
+        };
+      }
+    } catch (e) { /* no session yet — hydrate unscoped and let the page redirect */ }
+  </script>
+  <script src="../../data/db.js"></script>
+  <script src="../../js/stores/authStore.js"></script>
+  <script src="../../js/utils.js"></script>
+  <script src="../../js/game-launch.js"></script>
+  <script src="../../js/api.js"></script>
+  <script src="../../js/player-skin.js"></script>
+  <script>
+    // navigate() provided globally by utils.js (includes CSS fade transition)
+
+    function hasEngine(gameId) {
+      // Shared resolver — covers builtin, uploaded-bundle and self-hosted games.
+      if (window.GameLaunch) return GameLaunch.hasEngine(gameId);
+      return ['7', '8'].includes(String(gameId));
+    }
+
+    function playFast(id) {
+      if (!hasEngine(id)) {
+        Toast.info("Coming Soon! 🚀 This game engine is being integrated.");
+        return;
+      }
+      const g = DB.games.find(x => String(x.id || x.game_id) === String(id));
+      if (!g) return;
+
+      // Every game launches the same way now: press Play, the game opens.
+      //
+      // This used to fork on `String(g.players) === "1"` — the free-text blurb
+      // from the catalogue — sending anything that was not the literal string
+      // "1" off to the room browser. A game listed as "1-6" or "Single player"
+      // therefore went to a lobby it had no use for, and a genuinely
+      // multiplayer game went to OUR lobby only to make the player build a
+      // second one inside the game itself.
+      const uid = String((Auth.getSession() || {}).userId || 7);
+      const newSid = DB.startMatch(g.game_id || g.id, { created_by: uid });
+      // GameLaunch resolves builtin vs uploaded-bundle vs self-hosted; the old
+      // `games/${g.img}/` guess only worked for the two builtin games.
+      if (!GameLaunch.launch(g.game_id || g.id, { sid: newSid })) {
+        Toast.error(GameLaunch.unplayableReason(g.game_id || g.id));
+      }
+    }
+
+    function viewBiodata(id) {
+      const g = DB.games.find(x => String(x.id || x.game_id) === String(id));
+      if (!g) return;
+      const stars = '★'.repeat(Math.round(g.rating || 4)) + '☆'.repeat(5 - Math.round(g.rating || 4));
+
+      // Resolve publisher name from DB (game_publisher is a user_id integer)
+      const pubUser = DB.users.find(u => String(u.user_id || u.id) === String(g.game_publisher));
+      const pubName = pubUser ? (pubUser.user_name || pubUser.username) : 'PlayCarys';
+
+      document.getElementById('bio-title').innerHTML = g.game_name || g.title;
+      document.getElementById('bio-genre').innerHTML = g.game_type || g.genre || 'Game';
+      document.getElementById('bio-desc').innerHTML = g.desc || g.description || '';
+      document.getElementById('bio-rating').innerHTML = `<span style="color:var(--accent-yellow)">${stars}</span> ${g.rating || '4.0'}`;
+      document.getElementById('bio-publisher').innerHTML = pubName;
+      document.getElementById('bio-joined').innerHTML = formatDate(g.submittedDate) || 'Recently';
+      document.getElementById('bio-players').innerHTML = g.players || 'Unknown';
+      document.getElementById('bio-icon').textContent = GAME_ASSETS?.EMOJI_MAP?.[g.img] || '🎮';
+
+      const playBtn = document.getElementById('bio-play-btn');
+      playBtn.onclick = () => playFast(g.id || g.game_id);
+
+      Modal.open('biodata-modal');
+    }
+
+    // EMOJI_MAP removed — use GAME_ASSETS.EMOJI_MAP from utils.js (same data, no duplication)
+    // BG_MAP removed — never used; tile backgrounds handled by GAME_ASSETS.COLORS in utils.js
+    const FEAT_BG_MAP = {
+      call_of_duty: 'linear-gradient(135deg,#1a0505 0%,#2a0808 40%,#0a0a0a 100%)',
+      chess: 'linear-gradient(135deg,#050520 0%,#0d0d2a 40%,#050515 100%)',
+      f1_2022: 'linear-gradient(135deg,#200505 0%,#350808 40%,#0a0505 100%)',
+      horror_escape: 'linear-gradient(135deg,#050a05 0%,#0a1a0a 40%,#030a03 100%)',
+      hill_climbing: 'linear-gradient(135deg,#050a0a 0%,#0a1a0a 40%,#030808 100%)',
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const session = Auth.requireAuth(['player', 'guest']);
+      if (!session) return;
+      buildNavbar(session.role, 'dashboard');
+
+      try {
+         const serverGames = await API.get('/games');
+         if (serverGames && serverGames.length) {
+            DB.games = serverGames;
+         }
+      } catch (err) {
+         console.warn("Failed to fetch API data:", err);
+      }
+
+      const uid = session.userId;  // keep as string to avoid parseInt losing string IDs
+      
+      let user = await AuthStore.getUserById(uid);
+      if (!user) user = { level: 1, wins: 0, losses: 0, matches: 0 };
+
+      const prof = DB.player_profiles.find(p => String(p.user_id) === String(uid));
+      // Derive win/match stats from match_results for new players without pre-computed fields
+      const myResults = DB.match_results.filter(r => String(r.player_id) === String(uid));
+      const derivedWins = myResults.filter(r => (r.result||'') === 'win').length;
+      const derivedMatches = myResults.length;
+
+      // ── Global Progression ─────────────────────────────────────────────
+      const pcp = prof?.carys_points || 0;
+      const level = user.level || 1;
+      const elo = user.elo || 1200;
+      const xp = user.xp || 0;
+      const nextReq = Math.floor(1000 * Math.pow(level, 1.5));
+      const prevReq = level > 1 ? Math.floor(1000 * Math.pow(level - 1, 1.5)) : 0;
+
+      const xpProgress = Math.max(0, xp - prevReq);
+      const xpTierSize = nextReq - prevReq;
+      const pct = Math.min(100, Math.round((xpProgress / xpTierSize) * 100));
+
+      const tierInfo = (typeof Economy !== 'undefined' && Economy.getTierFromElo) ? Economy.getTierFromElo(elo) : { name: "Bronze", color: "#d97706" };
+
+      // ── Sidebar Identity ─────────────────────────────────────────
+      document.getElementById('sid-avatar').childNodes[0].textContent = user.avatar || session.avatar || '?';
+      document.getElementById('sid-name').textContent = user.username || session.username;
+      // Only show tier for real players; guests get their label set below
+      if (session.role !== 'guest') {
+        document.getElementById('sid-sub').innerHTML = `<span style="color:${tierInfo.color}">❖ ${tierInfo.name} Tier</span>`;
+      }
+      document.getElementById('sid-pcp').textContent = pcp.toLocaleString();
+
+      // Progress Ring logic
+      document.getElementById('sid-xp-now').textContent = xpProgress.toLocaleString();
+      document.getElementById('sid-xp-next').textContent = xpTierSize.toLocaleString();
+      document.getElementById('sid-level-next').textContent = level + 1;
+
+      setTimeout(() => {
+        const ring = document.getElementById('sid-xp-ring');
+        if (ring) {
+          ring.style.stroke = tierInfo.color;
+          ring.style.strokeDashoffset = 226 - (226 * (pct / 100));
+        }
+      }, 100);
+
+      document.getElementById('sid-level').textContent = level;
+      document.getElementById('sid-elo').innerHTML = `<span style="color:${tierInfo.color}">${elo}</span>`;
+      document.getElementById('sid-matches').textContent = user.matches || derivedMatches;
+      document.getElementById('sid-wins').textContent = user.wins || derivedWins;
+
+      // Win Rate
+      const totalM = user.matches || derivedMatches;
+      const totalW = user.wins || derivedWins;
+      const winR = totalM > 0 ? Math.round((totalW / totalM) * 100) : 0;
+      const wrEl = document.getElementById('sid-winrate');
+      if (wrEl) wrEl.textContent = winR + '%';
+
+      // ── Daily Login Streak ───────────────────────────────────────
+      const todayKey = new Date().toISOString().split('T')[0];
+      const lastLogin = user.lastLoginDate || null;
+      const streak = user.loginStreak || 0;
+      let newStreak = streak;
+      let bonusMsg = null;
+      if (lastLogin !== todayKey) {
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+        const yKey = yesterday.toISOString().split('T')[0];
+        newStreak = (lastLogin === yKey) ? streak + 1 : 1;
+        
+        try {
+            const updated = await AuthStore.updateUser(user.id || uid, { lastLoginDate: todayKey, loginStreak: newStreak });
+            if (updated) user = updated;
+        } catch (e) {
+            console.warn("Could not update user streak via AuthStore (likely a guest account).");
+        }
+        
+        // Streak bonus PCP
+        const bonusPcp = newStreak >= 7 ? 100 : newStreak >= 3 ? 40 : 15;
+        if (prof) {
+            prof.carys_points = (prof.carys_points || 0) + bonusPcp;
+            DB.save();
+        }
+        bonusMsg = `+${bonusPcp} PCP`;
+      }
+      const streakEl = document.getElementById('streak-widget');
+      if (streakEl) {
+        const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+        const today = new Date().getDay();
+        const dotHTML = days.map((d,i) => {
+          const active = i <= today && newStreak > (today - i);
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <div style="width:26px;height:26px;border-radius:50%;background:${active?'linear-gradient(135deg,#f59e0b,#ef4444)':'rgba(255,255,255,0.06)'};display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:${active?'#fff':'var(--text-muted)'}">
+              ${active?'🔥':d}
+            </div>
+            <div style="font-size:0.5rem;color:var(--text-muted)">${d}</div>
+          </div>`;
+        }).join('');
+        streakEl.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:0.65rem">
+            ${dotHTML}
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:0.8rem;font-weight:700;color:var(--accent-yellow)">🔥 ${newStreak}-day streak</span>
+            ${bonusMsg ? `<span style="font-size:0.7rem;background:rgba(245,158,11,0.15);color:var(--accent-yellow);border:1px solid rgba(245,158,11,0.25);border-radius:99px;padding:0.1rem 0.5rem">${bonusMsg} bonus!</span>` : ''}
+          </div>
+          <div style="font-size:0.68rem;color:var(--text-secondary);margin-top:0.3rem">Log in daily to keep your streak &amp; earn bonus PCP</div>`;
+      }
+
+      // ── Today's Activity ─────────────────────────────────────────
+      const todayActEl = document.getElementById('today-activity');
+      if (todayActEl) {
+        const myTodaySessions = DB.sessions.filter(s => {
+          const inPlayers = (s.players||[]).includes(uid) || (s.players||[]).includes(String(uid));
+          const isToday = (s.createdAt||'').startsWith(todayKey);
+          return inPlayers && isToday;
+        });
+        const myTodayTourns = DB.tournaments.filter(t => {
+          const reg = DB.player_tournament.some(pt => String(pt.player_id) === String(uid) && pt.tournament_id === t.tournament_id);
+          return reg && (t.status === 'in-progress' || t.status === 'upcoming');
+        });
+        const items = [
+          ...myTodaySessions.map(s => ({ icon: '🎮', text: `Played ${DB.games.find(g=>String(g.game_id||g.id)===String(s.game_id||s.gameId))?.game_name||'a game'}`, color:'var(--accent-cyan)' })),
+          ...myTodayTourns.map(t => ({ icon: '🏆', text: `Registered: ${t.tournament_name||t.name}`, color:'var(--accent-yellow)' })),
+          ...(bonusMsg ? [{ icon:'💰', text:`Login bonus: ${bonusMsg} earned`, color:'var(--accent-green)' }] : []),
+        ].slice(0, 5);
+        todayActEl.innerHTML = items.length ? items.map(it => `
+          <div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.78rem">
+            <span>${it.icon}</span>
+            <span style="color:${it.color};flex:1">${it.text}</span>
+          </div>`).join('') :
+          `<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;padding:0.5rem 0">No activity today yet — play something!</div>`;
+      }
+
+      // ── Guest overrides (must come before friends render) ────────
+      if (session.role === 'guest') {
+        document.getElementById('sid-sub').textContent = 'Guest Progression';
+        document.getElementById('friends-section').style.display = 'none';
+      }
+
+      // ── Friends Online ────────────────────────────────────────────
+      if (session.role !== 'guest') {
+        const friendsList = document.getElementById('friends-list');
+        const friends = DB.getFriends(user.user_id).map(f => ({ name: f.user_name || f.username, avatar: f.avatar }));
+        if (friends.length) {
+          friendsList.style.maxHeight = '250px';
+          friendsList.style.overflowY = 'auto';
+          // Read presence live rather than from the friend row's frozen f.status
+          // snapshot, which was written once at accept time and always said "Online".
+          friendsList.innerHTML = friends.map(f => {
+            const p = Presence.statusOf(f.name);
+            // Spectate sits on the row itself, not just inside the profile popup:
+            // watching a friend's match is the whole point of knowing they are in one.
+            const watch = p.canSpectate
+              ? `<button class="btn btn-outline btn-sm" style="padding:.1rem .45rem;font-size:.68rem;margin-left:auto"
+                   onclick="event.stopPropagation();Presence.spectate('${p.session.session_id != null ? p.session.session_id : p.session.id}')">👁 Watch</button>`
+              : '';
+            return `
+        <div class="friend-row" onclick="showUserProfile('${f.name}', event)">
+          <div class="friend-dot" style="background:${p.color}"></div>
+          <div class="friend-name">${f.name}</div>
+          <div class="friend-status" style="color:${p.color}">${p.label}</div>
+          ${watch}
+        </div>`;
+          }).join('');
+        } else {
+          friendsList.innerHTML = `<div style="font-size:0.78rem;color:var(--text-muted);text-align:center;padding:0.75rem 0">No friends yet — invite players!</div>`;
+        }
+      }
+
+      // ── Featured Spotlight ───────────────────────────────────────
+      const approvedGames = DB.games.filter(g =>
+        (g.game_approval_status === 'approved' || g.status === 'approved') &&
+        (g.game_status === 'enabled' || g.status === 'enabled' || g.enabled)
+      );
+      let featGames = approvedGames.filter(g => g.img).slice(0, 4);
+      // Fallback: if no approved games, show any games so the banner isn't blank
+      if (featGames.length === 0) {
+        const allWithImg = DB.games.filter(g => g.img).slice(0, 4);
+        featGames = allWithImg.length ? allWithImg : DB.games.slice(0, 4);
+      }
+
+      window.setFeaturedGame = function(index) {
+        if (!featGames.length) return;
+        window._currentFeatIndex = index % featGames.length;
+        const featGame = featGames[window._currentFeatIndex];
+        
+        window._featGameId = featGame.id || featGame.game_id;
+        const imgKey = featGame.img || '';
+        const emoji = (typeof GAME_ASSETS !== 'undefined' && GAME_ASSETS.EMOJI_MAP) ? GAME_ASSETS.EMOJI_MAP[imgKey] : (EMOJI_MAP[imgKey] || '🎮');
+        const bg = FEAT_BG_MAP[imgKey] || 'linear-gradient(135deg,#050510 0%,#0a0a20 100%)';
+        const imgSrc = (typeof GAME_ASSETS !== 'undefined' && GAME_ASSETS.IMG_MAP && GAME_ASSETS.IMG_MAP[imgKey]) ? getPathPrefix() + GAME_ASSETS.IMG_MAP[imgKey] : null;
+
+        document.getElementById('feat-bg').style.background = bg;
+
+        if (imgSrc) {
+          document.getElementById('feat-emoji').innerHTML = `<img src="${imgSrc}" style="width:140px;height:140px;object-fit:cover;border-radius:var(--radius-lg);box-shadow:0 12px 32px rgba(0,0,0,0.5)"/>`;
+        } else {
+          document.getElementById('feat-emoji').textContent = emoji;
+        }
+
+        document.getElementById('feat-title').textContent = featGame.game_name || featGame.title;
+        document.getElementById('feat-desc').textContent = featGame.desc || featGame.description || 'Compete, climb the leaderboard, and dominate your opponents in this intense multiplayer experience.';
+        document.getElementById('feat-eyebrow').textContent = 'FEATURED GAME';
+
+        // Count active tournaments for this game (not stale game sessions)
+        const liveTournaments = DB.tournaments.filter(t =>
+          String(t.game_id) === String(featGame.game_id || featGame.id) &&
+          t.status === 'in-progress'
+        ).length;
+        document.getElementById('feat-chips').innerHTML = `
+      <span class="featured-chip">${emoji} ${featGame.game_type || featGame.genre || 'Game'}</span>
+      ${liveTournaments > 0 ? `<span class="featured-chip" style="border-color:rgba(239,68,68,0.4);color:#f87171">🔴 ${liveTournaments} Live</span>` : ''}
+      <span class="featured-chip">⭐ ${featGame.rating || '4.0'}</span>
+    `;
+
+        document.getElementById('feat-dots').innerHTML = featGames.map((_, i) =>
+          `<div class="fdot ${i === window._currentFeatIndex ? 'active' : ''}" onclick="event.stopPropagation(); setFeaturedGame(${i})" style="cursor:pointer; z-index:10; padding:6px; margin:-6px; background-clip:content-box"></div>`).join('');
+      };
+
+      window.slideNextMatch = function() {
+          if (!featGames.length) return;
+          const nextIdx = (window._currentFeatIndex !== undefined ? window._currentFeatIndex + 1 : 0);
+          setFeaturedGame(nextIdx);
+      };
+
+      if (featGames.length > 0) {
+        setFeaturedGame(Math.floor(Math.random() * featGames.length));
+      }
+
+      // ── Tournament Strip ──────────────────────────────────────────
+      const tourns = DB.tournaments
+        .filter(t => (t.status === 'upcoming' || t.status === 'in-progress'))
+        .slice(0, 3);
+      document.getElementById('tourn-strip').innerHTML = tourns.length ? tourns.map(t => {
+        const tGame = DB.games.find(g => String(g.game_id || g.id) === String(t.game_id));
+        const tGameName = tGame ? (tGame.game_name || tGame.title) : 'Game';
+        const tId = t.tournament_id || t.id;
+        return `
+    <div class="tourn-strip-card" onclick="window.location.href='tournaments.html?highlight=${tId}'">
+      <div class="ts-icon">🏆</div>
+      <div class="ts-info">
+        <div class="ts-name">${t.tournament_name || t.name || 'Tournament'}</div>
+        <div class="ts-meta">${tGameName} · ${formatDate(t.start_date || t.startDate)} · ${t.participants || 0}/${t.maxParticipants || '?'} players</div>
+      </div>
+      <div>
+        <div class="ts-prize">${t.prize || ''}</div>
+        ${badgeHTML(t.status)}
+      </div>
+    </div>`;
+      }).join('') : `<div style="color:var(--text-secondary);font-size:0.85rem;padding:0.5rem">No events scheduled</div>`;
+
+      // ── Game Tiles Grid ───────────────────────────────────────────
+      // Show approved games; fallback to all games if none approved yet
+      const tilesToShow = approvedGames.length ? approvedGames : DB.games;
+      document.getElementById('game-tiles').innerHTML = tilesToShow.slice(0, 10).map((g, i) => {
+        const visual = getGameIconHTML(g, i, 'tile');
+        const stars = '★'.repeat(Math.round(g.rating || 4)) + '☆'.repeat(5 - Math.round(g.rating || 4));
+        const isApproved = g.game_approval_status === 'approved' || g.status === 'approved';
+        return `
+    <div class="game-tile" onclick="viewBiodata('${g.id || g.game_id}')">
+      ${visual}
+      <div class="game-tile-overlay"></div>
+      ${isApproved ? `<div class="tile-play-btn" onclick="event.stopPropagation(); playFast('${g.id || g.game_id}')">▶</div>` : `<div class="tile-play-btn" style="background:rgba(100,100,100,0.7)" onclick="event.stopPropagation(); Toast.info('Game coming soon!')">🔒</div>`}
+      <div class="game-tile-body">
+        <div class="tile-genre">${g.game_type || g.genre || 'Game'}</div>
+        <div class="tile-name">${g.game_name || g.title}</div>
+        <div class="tile-rating"><span class="stars">${stars}</span>${g.rating || (isApproved ? '4.0' : 'Pending')}</div>
+      </div>
+    </div>`;
+      }).join('');
+    });
+  </script>
+</body>
+
+</html>
+
