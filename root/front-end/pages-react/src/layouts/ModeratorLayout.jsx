@@ -1,12 +1,26 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import ModeratorNavbar from '../components/moderator/common/ModeratorNavbar';
+import '../styles/moderator/moderator.css';
 
 export function ModeratorLayout() {
+  const location = useLocation();
+
+  let activePage = 'dashboard';
+  if (location.pathname.includes('/moderator/reports')) {
+    activePage = 'reports';
+  } else if (location.pathname.includes('/moderator/bans')) {
+    activePage = 'bans';
+  } else if (location.pathname.includes('/moderator/sessions')) {
+    activePage = 'sessions';
+  }
+
   return (
-    <div className="dash-shell">
-      <main className="page-wrapper">
+    <div>
+      <ModeratorNavbar activePage={activePage} />
+      <div className="page-wrapper">
         <Outlet />
-      </main>
+      </div>
     </div>
   );
 }

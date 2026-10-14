@@ -13,6 +13,13 @@ import Community from '../pages/player/Community';
 import Shop from '../pages/player/Shop';
 import Profile from '../pages/player/Profile';
 
+// Moderator
+import ModeratorLayout from '../layouts/ModeratorLayout';
+import ModeratorDashboard from '../pages/moderator/Dashboard';
+import ModeratorReports from '../pages/moderator/Reports';
+import ModeratorBans from '../pages/moderator/Bans';
+import ModeratorSessions from '../pages/moderator/Sessions';
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -39,6 +46,15 @@ export function AppRoutes() {
         <Route path="community" element={<Community />} />
         <Route path="shop" element={<Shop />} />
         <Route path="profile" element={<Profile />} />
+      </Route>
+
+      {/* Moderator routes */}
+      <Route path="/moderator" element={<ModeratorLayout />}>
+        <Route index element={<Navigate to="/moderator/dashboard" replace />} />
+        <Route path="dashboard" element={<ModeratorDashboard />} />
+        <Route path="reports" element={<ModeratorReports />} />
+        <Route path="bans" element={<ModeratorBans />} />
+        <Route path="sessions" element={<ModeratorSessions />} />
       </Route>
 
       {/* Fallback to publisher dashboard */}
