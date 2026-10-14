@@ -1,0 +1,85 @@
+/* PlayCarys — Superuser Admin Management Styles */
+
+.admin-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  transition: border-color var(--trans-med), transform var(--trans-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--ac, var(--gradient-brand));
+  border-radius: 0 2px 2px 0;
+}
+
+.admin-card:hover {
+  border-color: rgba(0, 212, 255, 0.25);
+  transform: translateX(2px);
+}
+
+.admin-card.superuser-card {
+  --ac: linear-gradient(180deg, #f59e0b, #ef4444);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.admin-card.admin-card-style {
+  --ac: linear-gradient(180deg, #00d4ff, #7c3aed);
+}
+
+.admin-card.moderator-card {
+  --ac: var(--accent-purple);
+}
+
+.admin-card.suspended {
+  opacity: 0.65;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* Suspended badge */
+.badge-suspended {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.55rem;
+  display: inline-block;
+}
+
+/* Form 2-column grid */
+.cards-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .cards-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .admin-card button {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}

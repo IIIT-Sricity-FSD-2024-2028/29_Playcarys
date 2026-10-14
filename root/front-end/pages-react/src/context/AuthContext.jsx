@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import authService from '../services/authService';
 
 export const AuthContext = createContext({
@@ -11,12 +12,13 @@ export const AuthContext = createContext({
 export function AuthProvider(props) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     const session = authService.getSession();
     setUser(session);
     setLoading(false);
-  }, []);
+  }, [location.pathname]);
 
   function handleLogin(sessionData, token) {
     authService.setSession(sessionData, token);
