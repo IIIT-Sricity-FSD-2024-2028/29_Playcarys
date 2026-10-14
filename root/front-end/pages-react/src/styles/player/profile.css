@@ -1,0 +1,317 @@
+/* ── Profile Styles (migrated from legacy profile.html) ── */
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Identity & PCP Cards ── */
+.profile-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-stats-row {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 1.25rem;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 1.25rem;
+  text-align: center;
+}
+
+.pcp-card-vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Achievements & Milestones ── */
+.achievement {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--bg-secondary, #0e1118);
+  border: 1px solid var(--border-primary, #1e2336);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.65rem;
+  transition: all var(--trans-fast, 0.15s ease);
+}
+
+.achievement:hover {
+  border-color: rgba(124, 58, 237, 0.35);
+  transform: translateY(-1px);
+}
+
+.achievement.unlocked {
+  border-color: rgba(124, 58, 237, 0.45);
+  background: rgba(124, 58, 237, 0.08);
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.1);
+}
+
+.achievement-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-card, #111520);
+  border: 1px solid var(--border-primary, #1e2336);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.achievement.unlocked .achievement-icon {
+  background: rgba(124, 58, 237, 0.25);
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+.achievement-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.achievement-info h4 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+}
+
+.achievement-info p {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+  margin-top: 0.15rem;
+  margin-bottom: 0;
+}
+
+/* ── Advanced Stats ── */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border-primary, #1e2336);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-row .label {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.stat-row .val {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+/* ── Support & Moderation (Two Columns) ── */
+.report-contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .report-contact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+/* Contact Moderator card */
+.contact-mod-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(124, 58, 237, 0.28) !important;
+  background: linear-gradient(145deg, rgba(124, 58, 237, 0.08), var(--bg-card, #111520)) !important;
+}
+
+.mod-glow-blob {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.mod-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(0, 212, 255, 0.15));
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  font-size: 1.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.mod-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  color: #fff;
+}
+
+.mod-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.mod-assigned {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.9rem;
+  animation: fadeIn 0.4s ease;
+}
+
+.mod-assigned.hidden {
+  display: none;
+}
+
+.mod-assigned-label {
+  font-size: 0.68rem;
+  color: var(--text-secondary, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mod-assigned-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #c4b5fd;
+}
+
+.mod-send-btn {
+  transition: all 0.2s ease;
+}
+
+.mod-send-btn:active {
+  transform: scale(0.98);
+}
+
+.mod-btn-icon {
+  margin-right: 0.35rem;
+}
+
+.mod-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+  margin-top: 0.85rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.cards-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 800px) {
+  .cards-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Edit Profile Modal ── */
+.profile-modal {
+  max-width: 480px;
+  width: 100%;
+  background: var(--bg-card, #111520);
+  border: 1px solid var(--border-primary, #1e2336);
+  border-radius: var(--radius-xl, 16px);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-modal, 0 24px 80px rgba(0, 0, 0, 0.8));
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #00d4ff, #7c3aed);
+}
+
+.password-change-box {
+  padding: 1rem;
+  background: var(--bg-secondary, #0e1118);
+  border: 1px solid var(--border-primary, #1e2336);
+  border-radius: var(--radius-md, 10px);
+  margin-bottom: 1.25rem;
+}
+
+.password-box-title {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #8b9bb4);
+  margin-bottom: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}

@@ -5,3 +5,157 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ── Unified Form Styles (ensuring consistency across all React pages) ── */
+.form-control,
+.form-input,
+.form-select,
+.form-textarea {
+  background: var(--bg-input, #0f1219) !important;
+  border: 1px solid var(--border-primary, #1e2336) !important;
+  border-radius: var(--radius-md, 8px) !important;
+  color: var(--text-primary, #f0f4ff) !important;
+  font-family: inherit !important;
+  font-size: 0.88rem !important;
+  padding: 0.65rem 0.9rem !important;
+  transition: border-color var(--trans-fast, 0.15s ease), box-shadow var(--trans-fast, 0.15s ease), background var(--trans-fast, 0.15s ease) !important;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.form-control:hover,
+.form-input:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: rgba(0, 212, 255, 0.35) !important;
+}
+
+.form-control:focus,
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--accent-cyan, #00d4ff) !important;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15), 0 0 16px rgba(0, 212, 255, 0.08) !important;
+  background: #090c14 !important;
+}
+
+.form-control:disabled,
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  border-color: var(--border-primary, #1e2336) !important;
+}
+
+.form-control.error,
+.form-input.error,
+.form-select.error,
+.form-textarea.error {
+  border-color: var(--accent-red, #ef4444) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.form-control-sm,
+.form-input-sm,
+.form-select-sm {
+  padding: 0.45rem 0.75rem !important;
+  font-size: 0.82rem !important;
+  border-radius: var(--radius-sm, 6px) !important;
+}
+
+.form-label {
+  font-size: 0.76rem !important;
+  color: var(--text-secondary, #8b9bb4) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+.form-label .required,
+.form-label .text-danger {
+  color: var(--accent-red, #ef4444) !important;
+  margin-left: 2px;
+}
+
+.form-error,
+.text-danger.small {
+  color: var(--accent-red, #ef4444) !important;
+  font-size: 0.76rem !important;
+  font-weight: 500 !important;
+  margin-top: 0.25rem !important;
+  display: block;
+}
+
+/* Modal foundation */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal-content-card,
+.modal {
+  background: var(--bg-card, #111520) !important;
+  border: 1px solid var(--border-primary, #1e2336) !important;
+  border-radius: var(--radius-xl, 16px) !important;
+  box-shadow: var(--shadow-modal, 0 24px 80px rgba(0, 0, 0, 0.8)) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-content-card::before,
+.modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #00d4ff, #7c3aed);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-primary, #1e2336);
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #8b9bb4);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm, 4px);
+  line-height: 1;
+  transition: all var(--trans-fast, 0.15s ease);
+}
+
+.modal-close-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border-primary, #1e2336);
+}
