@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import playerService, { getDatabase, formatDate, sameId, GAME_ASSETS } from '../../../services/playerService';
+import { isRegistered } from '../../../services/tournamentService';
 import GameAchievements from './GameAchievements';
 import GameReviews from './GameReviews';
 
@@ -235,44 +236,63 @@ export function GameDetails({
               🏆 Related Tournaments
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {tourns.map((t) => (
-                <div
-                  key={t.id || t.tournament_id}
-                  className="list-item"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.7rem 1rem',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-primary)',
-                    flexWrap: 'wrap',
-                    gap: '0.75rem'
-                  }}
-                >
-                  <div className="list-item-info">
-                    <span style={{ fontWeight: 600, color: '#fff' }}>{t.name}</span>
-                    <div className="text-xs text-muted" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                      Starts {formatDate(t.startDate || t.start_date)} · {t.participants || 0}/{t.maxParticipants || t.max_participants || 16} · Prize: {t.prize || '—'}
+              {tourns.map((t) => {
+                const isReg = isRegistered(t, userId, db);
+                const tid = t.id || t.tournament_id;
+                const canRegister = t.status === 'upcoming' && !isReg;
+                return (
+                  <div
+                    key={tid}
+                    className="list-item"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.7rem 1rem',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-primary)',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem'
+                    }}
+                  >
+                    <div className="list-item-info">
+                      <span style={{ fontWeight: 600, color: '#fff' }}>
+                        {t.tournament_name || t.name}
+                      </span>
+                      <div className="text-xs text-muted" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                        Starts {formatDate(t.start_date || t.startDate)} · {t.participants || 0}/{t.maxParticipants || t.max_participants || 16} · Prize: {t.prize || '—'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span className={`badge ${getBadgeClass(t.status)}`}>
+                        {formatStatusLabel(t.status)}
+                      </span>
+                      {canRegister ? (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            navigate(`/player/tournaments?highlight=${tid}&register=true`);
+                          }}
+                          type="button"
+                        >
+                          ⚡ Register Now
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-purple btn-sm"
+                          onClick={() => {
+                            navigate(`/player/tournaments?highlight=${tid}`);
+                          }}
+                          type="button"
+                        >
+                          {isReg ? 'View (Registered)' : 'View'}
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span className={`badge ${getBadgeClass(t.status)}`}>
-                      {formatStatusLabel(t.status)}
-                    </span>
-                    <button
-                      className="btn btn-purple btn-sm"
-                      onClick={() => {
-                        navigate(`/player/tournaments?highlight=${t.id || t.tournament_id}`);
-                      }}
-                      type="button"
-                    >
-                      View
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

@@ -32,7 +32,9 @@ export function AppRoutes() {
         <Route index element={<Navigate to="/player/dashboard" replace />} />
         <Route path="dashboard" element={<PlayerDashboard />} />
         <Route path="games" element={<PlayerGames />} />
+        <Route path="games/:gameId" element={<PlayerGames />} />
         <Route path="tournaments" element={<PlayerTournaments />} />
+        <Route path="tournaments/:tournamentId" element={<PlayerTournaments />} />
         <Route path="create-tournament" element={<CreateTournament />} />
         <Route path="community" element={<Community />} />
         <Route path="shop" element={<Shop />} />

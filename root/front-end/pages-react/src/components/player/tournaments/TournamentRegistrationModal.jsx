@@ -119,7 +119,7 @@ export function TournamentRegistrationModal({
           userId,
           inviteCode
         );
-        onShowToast(`Registered for ${t.name}! 🏆 Good luck!`, 'success');
+        onShowToast(`Registered for ${t.tournament_name || t.name}! 🏆 Good luck!`, 'success');
       }
       onSuccess();
       onClose();
@@ -163,12 +163,12 @@ export function TournamentRegistrationModal({
                 color: '#fff'
               }}
             >
-              {t.name}
+              {t.tournament_name || t.name}
             </div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
               {isTeam
                 ? `Team tournament · teams of ${t.team_size}`
-                : `${t.game || 'Game'} · ${formatDate(t.startDate || t.start_date)} · Prize: ${t.prize}`}
+                : `${t.game || t.game_name || 'Game'} · ${formatDate(t.startDate || t.start_date)} · Prize: ${t.prize}`}
             </div>
             {groupTag && (
               <div

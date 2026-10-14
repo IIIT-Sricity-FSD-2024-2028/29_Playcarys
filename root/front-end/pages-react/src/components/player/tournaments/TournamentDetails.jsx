@@ -3,6 +3,7 @@ import {
   isRegistered,
   myTeamsIn,
   entrantName,
+  entrantCount,
   tournamentService
 } from '../../../services/tournamentService';
 import { formatDate, sameId } from '../../../services/playerService';
@@ -19,7 +20,9 @@ export function TournamentDetails({
   onBack,
   onOpenRegModal,
   onRefresh,
-  onShowToast
+  onShowToast,
+  onWithdraw,
+  withdrawingId
 }) {
   const [activeTab, setActiveTab] = useState('tab-overview');
 
@@ -29,6 +32,10 @@ export function TournamentDetails({
   const tid = t.tournament_id || t.id;
   const uid = String(userId);
   const reg = isRegistered(t, userId, db);
+  const entrants = entrantCount(t, db);
+  const max = t.maxParticipants || t.max_participants || 16;
+  const isFull = entrants >= max;
+  const regClosed = t.regClose ? new Date() > new Date(t.regClose) : false;
 
   // Score contest resolution
   const gameOf = (db.games || []).find((g) => sameId(g.game_id || g.id, t.game_id));
@@ -175,7 +182,7 @@ export function TournamentDetails({
                     ID: {t.tournament_id || t.id}
                   </span>
                 </div>
-                <h1 className="hero-title">{t.name}</h1>
+                <h1 className="hero-title">{t.tournament_name || t.name || t.desc}</h1>
                 <p className="hero-desc">{t.desc}</p>
               </div>
 
@@ -398,15 +405,78 @@ export function TournamentDetails({
 
               <div className="side-panel">
                 <div className="action-panel">
-                  <button
-                    className={`reg-cta ${!reg ? 'open' : 'registered'}`}
-                    onClick={() => {
-                      if (!reg) onOpenRegModal(t);
-                    }}
-                    type="button"
-                  >
-                    {!reg ? '⚡ Register Now' : '✓ Registered'}
-                  </button>
+                  {reg && t.status === 'upcoming' && onWithdraw ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                      <button
+                        className="reg-cta registered"
+                        type="button"
+                        style={{ cursor: 'default' }}
+                      >
+                        ✓ Registered
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        style={{
+                          width: '100%',
+                          borderColor: 'rgba(239, 68, 68, 0.4)',
+                          color: 'var(--accent-red)',
+                          opacity: withdrawingId && sameId(withdrawingId, tid) ? 0.6 : 1,
+                          cursor: withdrawingId && sameId(withdrawingId, tid) ? 'not-allowed' : 'pointer'
+                        }}
+                        disabled={Boolean(withdrawingId && sameId(withdrawingId, tid))}
+                        onClick={() => onWithdraw(t)}
+                        type="button"
+                      >
+                        {withdrawingId && sameId(withdrawingId, tid) ? 'Withdrawing...' : 'Withdraw from Tournament'}
+                      </button>
+                    </div>
+                  ) : reg ? (
+                    <button
+                      className="reg-cta registered"
+                      type="button"
+                    >
+                      ✓ Registered
+                    </button>
+                  ) : t.status === 'upcoming' && isFull ? (
+                    <button
+                      className="reg-cta registered"
+                      disabled
+                      style={{ opacity: 0.65, cursor: 'not-allowed' }}
+                      type="button"
+                    >
+                      Field Full
+                    </button>
+                  ) : t.status === 'upcoming' && regClosed ? (
+                    <button
+                      className="reg-cta registered"
+                      disabled
+                      style={{ opacity: 0.65, cursor: 'not-allowed' }}
+                      type="button"
+                    >
+                      Registration Closed
+                    </button>
+                  ) : t.status === 'upcoming' ? (
+                    <button
+                      className="reg-cta open"
+                      onClick={() => onOpenRegModal(t)}
+                      type="button"
+                    >
+                      {t.team_size ? '⚡ Enter a Team' : '⚡ Register Now'}
+                    </button>
+                  ) : (
+                    <button
+                      className="reg-cta registered"
+                      disabled
+                      style={{ opacity: 0.65, cursor: 'not-allowed' }}
+                      type="button"
+                    >
+                      {t.status === 'in-progress'
+                        ? 'In Progress'
+                        : t.status === 'completed'
+                        ? 'Completed'
+                        : 'Registration Closed'}
+                    </button>
+                  )}
 
                   {isScoreContest && reg && t.status === 'in-progress' && (
                     <button

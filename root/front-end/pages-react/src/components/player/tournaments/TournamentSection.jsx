@@ -11,7 +11,8 @@ export function TournamentSection({
   db,
   onSelect,
   onRegister,
-  onWithdraw
+  onWithdraw,
+  withdrawingId
 }) {
   const count = tournaments.length;
 
@@ -36,6 +37,7 @@ export function TournamentSection({
               onSelect={onSelect}
               onRegister={onRegister}
               onWithdraw={onWithdraw}
+              withdrawingId={withdrawingId}
             />
           ))
         ) : (

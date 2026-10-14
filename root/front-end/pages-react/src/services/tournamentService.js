@@ -39,16 +39,33 @@ export function isRegistered(t, userId, db) {
     return myTeamsIn(t, userId, db).length > 0;
   }
   const uid = String(userId);
-  return (t.registeredPlayers || []).map(String).includes(uid);
+  const players = t.registeredPlayers || t.registered_player_ids || [];
+  if (players.map(String).includes(uid)) return true;
+  if (db && Array.isArray(db.player_tournament)) {
+    const tid = t.tournament_id || t.id;
+    return db.player_tournament.some(
+      (pt) => sameId(pt.player_id, uid) && sameId(pt.tournament_id, tid)
+    );
+  }
+  return false;
 }
 
 export function entrantCount(t, db) {
   if (!t) return 0;
   if (t.team_size) {
     const tid = String(t.tournament_id || t.id);
-    return (db.team_tournament || []).filter((r) => sameId(r.tournament_id, tid)).length;
+    return (db?.team_tournament || []).filter((r) => sameId(r.tournament_id, tid)).length;
   }
-  return (t.registeredPlayers || []).length;
+  if (t.participants != null && t.participants > 0) {
+    return t.participants;
+  }
+  const players = t.registeredPlayers || t.registered_player_ids || [];
+  if (players.length > 0) return players.length;
+  if (db && Array.isArray(db.player_tournament)) {
+    const tid = t.tournament_id || t.id;
+    return db.player_tournament.filter((pt) => sameId(pt.tournament_id, tid)).length;
+  }
+  return 0;
 }
 
 export function entrantName(t, slot, db) {
@@ -112,10 +129,15 @@ export const tournamentService = {
     const t = (db.tournaments || []).find((x) => sameId(x.id || x.tournament_id, tournamentId));
     if (t) {
       if (!t.registeredPlayers) t.registeredPlayers = [];
+      if (!t.registered_player_ids) t.registered_player_ids = [];
       const uidStr = String(userId);
       if (!t.registeredPlayers.includes(uidStr)) {
         t.registeredPlayers.push(uidStr);
       }
+      if (!t.registered_player_ids.includes(uid)) {
+        t.registered_player_ids.push(uid);
+      }
+      t.participants = (t.participants || 0) + 1;
     }
     if (!db.player_tournament) db.player_tournament = [];
     db.player_tournament.push({
@@ -147,9 +169,12 @@ export const tournamentService = {
   },
 
   async withdraw(t, userId) {
+    if (!t) throw new Error('No tournament specified for withdrawal.');
+    const tid = t.tournament_id || t.id;
+    if (!tid) throw new Error('Tournament ID is missing.');
     const db = getDatabase();
     const uid = parseInt(userId, 10);
-    const tid = t.tournament_id || t.id;
+    if (isNaN(uid)) throw new Error('Player ID is missing.');
 
     if (t.team_size) {
       const team = myTeamsIn(t, userId, db)[0];
@@ -163,8 +188,16 @@ export const tournamentService = {
     } else {
       await api.del(`/tournaments/${tid}/register/${uid}`);
       const tItem = (db.tournaments || []).find((x) => sameId(x.id || x.tournament_id, tid));
-      if (tItem && tItem.registeredPlayers) {
-        tItem.registeredPlayers = tItem.registeredPlayers.filter((p) => !sameId(p, userId));
+      if (tItem) {
+        if (tItem.registeredPlayers) {
+          tItem.registeredPlayers = tItem.registeredPlayers.filter((p) => !sameId(p, userId));
+        }
+        if (tItem.registered_player_ids) {
+          tItem.registered_player_ids = tItem.registered_player_ids.filter((p) => !sameId(p, userId));
+        }
+        if (typeof tItem.participants === 'number' && tItem.participants > 0) {
+          tItem.participants -= 1;
+        }
       }
       dropLocalRows('player_tournament', (r) => sameId(r.player_id, uid) && sameId(r.tournament_id, tid));
       saveDatabase(db);

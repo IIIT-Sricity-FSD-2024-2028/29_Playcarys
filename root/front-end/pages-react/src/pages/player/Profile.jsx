@@ -63,15 +63,29 @@ export function Profile() {
   // Determine current user ID canonical representation
   const uid = Number(user?.id || user?.user_id || user?.userId || 7);
 
-  // 1. Calculate & load profile data from DB
-  const loadProfile = () => {
-    const db = getDatabase();
-    const curUser =
-      (db.users || []).find((u) => Number(u.id || u.user_id) === uid) ||
-      (db.users || []).find((u) => (u.username || u.user_name) === user?.username) ||
-      user;
+  // 1. Calculate & load profile data from backend & DB
+  const loadProfile = async () => {
+    let curUser = null;
+    let pp = null;
+    try {
+      const [uRes, pRes] = await Promise.all([
+        api.get(`/users/${uid}`).catch(() => null),
+        api.get(`/player-profiles/${uid}`).catch(() => null),
+      ]);
+      curUser = uRes;
+      pp = pRes;
+    } catch (e) {}
 
-    const pp = (db.player_profiles || []).find((p) => Number(p.user_id) === uid);
+    const db = getDatabase();
+    if (!curUser) {
+      curUser =
+        (db.users || []).find((u) => Number(u.id || u.user_id) === uid) ||
+        (db.users || []).find((u) => (u.username || u.user_name) === user?.username) ||
+        user;
+    }
+    if (!pp) {
+      pp = (db.player_profiles || []).find((p) => Number(p.user_id) === uid);
+    }
     let curTotal = pp ? pp.carys_points || 0 : 0;
     let lvl = 1;
     let req = 250;

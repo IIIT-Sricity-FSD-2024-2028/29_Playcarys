@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, sameId, hydrateFromServer } from '../../services/playerService';
 import {
@@ -15,13 +15,16 @@ import '../../styles/player/tournaments.css';
 export function Tournaments() {
   const { user } = useContext(AuthContext);
   const location = useLocation();
-  const userId = user?.id || user?.user_id || 7;
+  const navigate = useNavigate();
+  const { tournamentId: routeTournamentId } = useParams();
+  const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
 
   const [kindFilter, setKindFilter] = useState('all');
   const [selectedTournamentId, setSelectedTournamentId] = useState(null);
   const [regModalTournament, setRegModalTournament] = useState(null);
   const [dbVersion, setDbVersion] = useState(0);
   const [toast, setToast] = useState(null);
+  const [withdrawingId, setWithdrawingId] = useState(null);
 
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -30,14 +33,22 @@ export function Tournaments() {
     }, 3500);
   }
 
-  // Handle direct-link ?highlight=<id>
+  // Handle direct-link ?highlight=<id> or :tournamentId
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const highlight = params.get('highlight');
+    const highlight = params.get('highlight') || params.get('id') || routeTournamentId;
+    const shouldRegister = params.get('register') === 'true';
     if (highlight) {
       setSelectedTournamentId(highlight);
+      if (shouldRegister) {
+        const dbNow = getDatabase();
+        const t = (dbNow.tournaments || []).find((x) => sameId(x.id || x.tournament_id, highlight));
+        if (t) setRegModalTournament(t);
+      }
+    } else if (!routeTournamentId) {
+      setSelectedTournamentId(null);
     }
-  }, [location.search]);
+  }, [location.search, routeTournamentId, dbVersion]);
 
   // Hydrate tournaments from backend on mount
   useEffect(() => {
@@ -79,7 +90,7 @@ export function Tournaments() {
   const isVisible = (t) => {
     if (t.visibility !== 'private') return true;
     const isOrg = sameId(t.organizer || t.organizer_id, userId);
-    const inReg = (t.registeredPlayers || []).map(String).includes(String(userId));
+    const inReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
     return isOrg || inReg;
   };
 
@@ -94,25 +105,39 @@ export function Tournaments() {
   const completedTournaments = allTournaments.filter((t) => t.status === 'completed');
 
   // Withdrawal action handler
-  function handleWithdraw(tournament) {
-    const isTeam = !!tournament.team_size;
-    const confirmMsg = isTeam
-      ? `Withdraw your team from ${tournament.name}?`
-      : `Withdraw from ${tournament.name}?`;
+  async function handleWithdraw(tournament) {
+    if (!tournament) return;
+    const tid = tournament.tournament_id || tournament.id;
+    if (!tid) {
+      showToast('Tournament ID is missing.', 'error');
+      return;
+    }
+    if (withdrawingId) return; // Prevent duplicate withdrawal requests
 
-    if (window.confirm(confirmMsg)) {
-      tournamentService
-        .withdraw(tournament, userId)
-        .then((res) => {
-          showToast(
-            res.teamName ? `${res.teamName} withdrawn from ${tournament.name}` : `Withdrew from ${tournament.name}`,
-            'info'
-          );
-          setDbVersion((v) => v + 1);
-        })
-        .catch((err) => {
-          showToast(err.message || 'Could not withdraw from tournament.', 'error');
-        });
+    const isTeam = !!tournament.team_size;
+    const tourneyName = tournament.tournament_name || tournament.name || tournament.desc || 'this tournament';
+    const confirmMsg = isTeam
+      ? `Withdraw your team from ${tourneyName}?`
+      : `Withdraw from ${tourneyName}?`;
+
+    if (!window.confirm(confirmMsg)) {
+      return; // Canceled: make no API request, leave registration unchanged
+    }
+
+    setWithdrawingId(tid);
+    try {
+      const res = await tournamentService.withdraw(tournament, userId);
+      showToast(
+        res.teamName ? `${res.teamName} withdrawn from ${tourneyName}` : `Withdrew from ${tourneyName}`,
+        'info'
+      );
+      // Re-hydrate tournament list and registrations from the backend
+      await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+      setDbVersion((v) => v + 1);
+    } catch (err) {
+      showToast(err.message || 'Could not withdraw from tournament.', 'error');
+    } finally {
+      setWithdrawingId(null);
     }
   }
 
@@ -128,10 +153,15 @@ export function Tournaments() {
           tournament={selectedTournament}
           userId={userId}
           db={db}
-          onBack={() => setSelectedTournamentId(null)}
+          onBack={() => {
+            setSelectedTournamentId(null);
+            navigate('/player/tournaments', { replace: true });
+          }}
           onOpenRegModal={(t) => setRegModalTournament(t)}
           onRefresh={() => setDbVersion((v) => v + 1)}
           onShowToast={showToast}
+          onWithdraw={handleWithdraw}
+          withdrawingId={withdrawingId}
         />
       ) : (
         <div className="page-content" id="list-view">
@@ -152,9 +182,13 @@ export function Tournaments() {
             }
             userId={userId}
             db={db}
-            onSelect={(id) => setSelectedTournamentId(id)}
+            onSelect={(id) => {
+              setSelectedTournamentId(id);
+              navigate(`/player/tournaments?highlight=${id}`);
+            }}
             onRegister={(t) => setRegModalTournament(t)}
             onWithdraw={handleWithdraw}
+            withdrawingId={withdrawingId}
           />
 
           <TournamentSection
@@ -169,9 +203,13 @@ export function Tournaments() {
             }
             userId={userId}
             db={db}
-            onSelect={(id) => setSelectedTournamentId(id)}
+            onSelect={(id) => {
+              setSelectedTournamentId(id);
+              navigate(`/player/tournaments?highlight=${id}`);
+            }}
             onRegister={(t) => setRegModalTournament(t)}
             onWithdraw={handleWithdraw}
+            withdrawingId={withdrawingId}
           />
 
           <TournamentSection
@@ -186,9 +224,13 @@ export function Tournaments() {
             }
             userId={userId}
             db={db}
-            onSelect={(id) => setSelectedTournamentId(id)}
+            onSelect={(id) => {
+              setSelectedTournamentId(id);
+              navigate(`/player/tournaments?highlight=${id}`);
+            }}
             onRegister={(t) => setRegModalTournament(t)}
             onWithdraw={handleWithdraw}
+            withdrawingId={withdrawingId}
           />
         </div>
       )}

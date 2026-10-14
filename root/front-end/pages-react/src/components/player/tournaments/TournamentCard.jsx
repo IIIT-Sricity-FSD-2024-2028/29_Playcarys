@@ -14,10 +14,13 @@ export function TournamentCard({
   db,
   onSelect,
   onRegister,
-  onWithdraw
+  onWithdraw,
+  withdrawingId
 }) {
   const t = tournament;
-  const tid = String(t.id || t.tournament_id);
+  const rawTid = t.tournament_id || t.id;
+  const tid = rawTid ? String(rawTid) : '';
+  const isWithdrawing = Boolean(withdrawingId && sameId(withdrawingId, rawTid));
   const entrants = entrantCount(t, db);
   const max = t.maxParticipants || t.max_participants || 16;
   const pct = max ? Math.min(100, Math.round((entrants / max) * 100)) : 0;
@@ -34,6 +37,7 @@ export function TournamentCard({
   function handleActionClick(e, type) {
     e.stopPropagation();
     if (type === 'withdraw') {
+      if (isWithdrawing || !rawTid) return;
       onWithdraw(t);
     } else if (type === 'register') {
       onRegister(t);
@@ -48,9 +52,11 @@ export function TournamentCard({
       <button
         className="tc-btn tc-btn-ghost"
         onClick={(e) => handleActionClick(e, 'withdraw')}
+        disabled={isWithdrawing || !rawTid}
         type="button"
+        style={isWithdrawing ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
       >
-        Withdraw
+        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
       </button>
     );
   } else if (t.status === 'upcoming' && isFull) {
@@ -99,7 +105,7 @@ export function TournamentCard({
       <div className="tcard-body">
         <div className="tcard-head">
           {isLive && <span className="live-dot" />}
-          <span className="tcard-title">{t.name}</span>
+          <span className="tcard-title">{t.tournament_name || t.name || t.desc}</span>
           <span className={`kind-pill kind-pill-${kind}`}>{KIND_LABEL[kind]}</span>
           {isTeam && (
             <span className="kind-pill kind-pill-team">

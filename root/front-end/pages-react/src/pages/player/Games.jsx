@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import playerService, { getDatabase, sameId, hydrateFromServer } from '../../services/playerService';
 import GameFilters from '../../components/player/games/GameFilters';
@@ -9,7 +10,10 @@ import '../../styles/player/games.css';
 
 export function Games() {
   const { user } = useContext(AuthContext);
-  const userId = user?.id || user?.user_id || 7;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { gameId: routeGameId } = useParams();
+  const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
 
   // Catalog State
   const [showingFavs, setShowingFavs] = useState(false);
@@ -20,6 +24,17 @@ export function Games() {
   const [offlineMap, setOfflineMap] = useState({});
   const [dbVersion, setDbVersion] = useState(0);
   const [toast, setToast] = useState(null);
+
+  // Sync selectedGameId from URL search param (?id=, ?gameId=, ?highlight=) or route param (:gameId)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const qId = params.get('id') || params.get('gameId') || params.get('highlight') || routeGameId;
+    if (qId) {
+      setSelectedGameId(qId);
+    } else if (!routeGameId) {
+      setSelectedGameId(null);
+    }
+  }, [location.search, routeGameId]);
 
   // Trigger toast with auto-hide
   function showToast(message, type = 'info') {
@@ -186,7 +201,10 @@ export function Games() {
           userId={userId}
           isFav={favs.includes(String(selectedGame.id || selectedGame.game_id))}
           onToggleFav={handleToggleFav}
-          onBack={() => setSelectedGameId(null)}
+          onBack={() => {
+            setSelectedGameId(null);
+            navigate('/player/games', { replace: true });
+          }}
           onLaunch={handleLaunchGame}
           onReviewSubmitted={() => setDbVersion((v) => v + 1)}
           onShowToast={showToast}
@@ -211,7 +229,10 @@ export function Games() {
             favs={favs}
             showingFavs={showingFavs}
             onToggleFav={handleToggleFav}
-            onSelectGame={(gid) => setSelectedGameId(gid)}
+            onSelectGame={(gid) => {
+              setSelectedGameId(gid);
+              navigate(`/player/games?id=${gid}`);
+            }}
             onLaunch={handleLaunchGame}
             offlineMap={offlineMap}
           />

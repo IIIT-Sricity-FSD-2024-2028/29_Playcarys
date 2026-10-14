@@ -143,12 +143,34 @@ export async function hydrateFromServer(tables = [], userId = null) {
 
     const db = getDatabase();
     for (const [key, value] of Object.entries(fresh)) {
-      if (Array.isArray(value) || (value !== null && typeof value === 'object')) {
+      if (Array.isArray(value)) {
+        if (key === 'games') {
+          const freshIds = new Set(value.map((g) => String(g.game_id || g.id)));
+          const preservedLocal = (db.games || []).filter(
+            (g) => !freshIds.has(String(g.game_id || g.id))
+          );
+          db.games = [...value, ...preservedLocal];
+        } else if (key === 'tournaments') {
+          const freshIds = new Set(value.map((t) => String(t.tournament_id || t.id)));
+          const preservedLocal = (db.tournaments || []).filter(
+            (t) => !freshIds.has(String(t.tournament_id || t.id))
+          );
+          db.tournaments = [...value, ...preservedLocal];
+        } else if (key === 'player_tournament') {
+          const freshKeys = new Set(value.map((pt) => `${pt.player_id}|${pt.tournament_id}`));
+          const preservedLocal = (db.player_tournament || []).filter(
+            (pt) => !freshKeys.has(`${pt.player_id}|${pt.tournament_id}`)
+          );
+          db.player_tournament = [...value, ...preservedLocal];
+        } else {
+          db[key] = value;
+        }
+      } else if (value !== null && typeof value === 'object') {
         db[key] = value;
       }
     }
     if (typeof window !== 'undefined' && window.DB) {
-      for (const [key, value] of Object.entries(fresh)) {
+      for (const [key, value] of Object.entries(db)) {
         window.DB[key] = value;
       }
     }

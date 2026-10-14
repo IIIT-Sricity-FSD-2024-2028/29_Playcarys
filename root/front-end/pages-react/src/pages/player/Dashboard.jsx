@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import playerService, { sameId, hydrateFromServer, getDatabase } from '../../services/playerService';
 import FeaturedGame from '../../components/player/dashboard/FeaturedGame';
@@ -46,24 +47,21 @@ export function Dashboard() {
       console.warn('Unauthorized role for Player Dashboard:', currentRole);
     }
 
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    const currentUid = user?.userId ?? user?.id ?? user?.user_id ?? 7;
 
     async function loadDashboard() {
       try {
         setLoading(true);
-
-        const userId = user?.userId ?? user?.id ?? 7;
 
         // Hydrate all key tables from backend so stats, friends, and tournaments
         // reflect authoritative server state rather than stale localStorage.
         await hydrateFromServer(
           ['users', 'player_profiles', 'games', 'tournaments', 'player_tournament',
            'matches', 'match_results', 'sessions', 'friendships', 'notifications'],
-          userId
+          currentUid
         );
 
-        const dashData = playerService.getDashboardData(userId, currentRole);
+        const dashData = playerService.getDashboardData(currentUid, currentRole);
         setData(dashData);
 
         // Pick a random featured game index initially as in original source
@@ -79,7 +77,9 @@ export function Dashboard() {
     }
 
     loadDashboard();
-  }, [authLoading, user]);
+  }, [authLoading, user?.userId, user?.id, user?.user_id]);
+
+  const navigate = useNavigate();
 
   // Featured game slide controls
   function handleSlideNext() {
@@ -92,19 +92,11 @@ export function Dashboard() {
     setFeaturedIndex(idx % data.featuredGames.length);
   }
 
-  // Game details modal
+  // Navigate to Game Details page
   function handleViewDetails(gameId) {
-    if (!data?.allGames) return;
-    const g = data.allGames.find((x) => sameId(x.id || x.game_id, gameId));
-    if (!g) return;
-
-    const db = getDatabase();
-    const pubUser = (db.users || []).find((u) => sameId(u.user_id || u.id, g.game_publisher));
-    const pubName = pubUser ? pubUser.user_name || pubUser.username : 'PlayCarys';
-
-    setSelectedGame(g);
-    setSelectedPublisher(pubName);
-    setIsModalOpen(true);
+    const targetId = gameId || (currentFeatGame ? (currentFeatGame.id || currentFeatGame.game_id) : null);
+    if (!targetId) return;
+    navigate(`/player/games?id=${targetId}`);
   }
 
   function handleCloseModal() {
