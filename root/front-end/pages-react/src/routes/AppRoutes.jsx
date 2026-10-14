@@ -12,12 +12,21 @@ import CreateTournament from '../pages/player/CreateTournament';
 import Community from '../pages/player/Community';
 import Shop from '../pages/player/Shop';
 import Profile from '../pages/player/Profile';
+import Landing from '../pages/Landing';
+import AdminLayout from '../layouts/AdminLayout';
+import Settings from '../pages/admin/Settings';
+import Approvals from '../pages/admin/Approvals';
+import AdminDashboard from '../pages/admin/Dashboard';
+import Users from '../pages/admin/Users';
+import GameReview from '../pages/admin/GameReview';
+import Hub from '../pages/admin/Hub';
 
 export function AppRoutes() {
   return (
     <Routes>
-      {/* Root redirect to Publisher Dashboard */}
-      <Route path="/" element={<Navigate to="/publisher/dashboard" replace />} />
+      {/* Landing page + login. /index.html is the address the old pages send people to on logout. */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/index.html" element={<Landing />} />
 
       {/* Publisher routes */}
       <Route path="/publisher" element={<PublisherLayout />}>
@@ -39,8 +48,19 @@ export function AppRoutes() {
         <Route path="profile" element={<Profile />} />
       </Route>
 
-      {/* Fallback to publisher dashboard */}
-      <Route path="*" element={<Navigate to="/publisher/dashboard" replace />} />
+      {/* Admin routes */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="approvals" element={<Approvals />} />
+        <Route path="users" element={<Users />} />
+        <Route path="game-review" element={<GameReview />} />
+        <Route path="hub" element={<Hub />} />
+      </Route>
+
+      {/* Anything else goes to the landing page */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

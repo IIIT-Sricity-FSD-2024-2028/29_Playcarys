@@ -31,6 +31,8 @@ function serveLegacyStatic() {
       server.middlewares.use((req, res, next) => {
         const rawUrl = req.url || '';
         const pathname = rawUrl.split('?')[0];
+        // The old static files (the remaining .html pages, images, db.js ...). The login page is
+        // no longer one of them: /index.html is the React landing page now (see AppRoutes).
         if (/^\/(pages|images|assets|css|data|js|games|vendor)\//.test(pathname)) {
           const filePath = path.join(rootDir, decodeURIComponent(pathname));
           if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
