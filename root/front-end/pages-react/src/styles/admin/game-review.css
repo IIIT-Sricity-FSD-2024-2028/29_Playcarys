@@ -1,0 +1,64 @@
+/* Game Review page styles (pages/admin/game-review.html).
+ * Copied from the <style> block of the old page; every selector is prefixed with :where(.admin-game-review)
+ * (zero extra specificity, so the cascade behaves exactly as in the old page)
+ * and cannot change any other page. */
+/* ── verdict banner ── */
+    :where(.admin-game-review) .verdict {display:flex;align-items:center;gap:1rem;padding:1.1rem 1.25rem;border-radius:var(--radius-md);border:1px solid;margin-bottom:1.25rem}
+    :where(.admin-game-review) .verdict .vi {font-size:2rem;line-height:1}
+    :where(.admin-game-review) .verdict h3 {margin:0 0 .2rem;font-family:'Orbitron',monospace;font-size:1rem}
+    :where(.admin-game-review) .verdict p {margin:0;font-size:.84rem;line-height:1.5}
+    :where(.admin-game-review) .v-pass {background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.35);color:var(--accent-green)}
+    :where(.admin-game-review) .v-warn {background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.35);color:var(--accent-yellow)}
+    :where(.admin-game-review) .v-fail {background:rgba(239,68,68,.09);border-color:rgba(239,68,68,.4);color:var(--accent-red)}
+    :where(.admin-game-review) .v-none {background:rgba(107,122,153,.08);border-color:var(--border-primary);color:var(--text-secondary)}
+    :where(.admin-game-review) .verdict p {color:var(--text-secondary)}
+
+    /* ── layout ── */
+    :where(.admin-game-review) .rv-grid {display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:1.25rem;align-items:start}
+    @media(max-width:1100px) {:where(.admin-game-review) .rv-grid {grid-template-columns:1fr}}
+
+    /* ── findings ── */
+    :where(.admin-game-review) .finding {border:1px solid var(--border-primary);border-left-width:3px;border-radius:var(--radius-sm);padding:.7rem .85rem;margin-bottom:.6rem;background:var(--bg-input)}
+    :where(.admin-game-review) .f-critical {border-left-color:var(--accent-red)}
+    :where(.admin-game-review) .f-high {border-left-color:var(--accent-yellow)}
+    :where(.admin-game-review) .f-medium {border-left-color:var(--accent-purple)}
+    :where(.admin-game-review) .f-low,
+:where(.admin-game-review) .f-info {border-left-color:var(--text-muted)}
+    :where(.admin-game-review) .f-head {display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem}
+    :where(.admin-game-review) .f-sev {font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:.1rem .4rem;border-radius:4px}
+    :where(.admin-game-review) .s-critical {background:rgba(239,68,68,.18);color:#fca5a5}
+    :where(.admin-game-review) .s-high {background:rgba(245,158,11,.16);color:#fcd34d}
+    :where(.admin-game-review) .s-medium {background:rgba(124,58,237,.18);color:#c4b5fd}
+    :where(.admin-game-review) .s-low,
+:where(.admin-game-review) .s-info {background:rgba(107,122,153,.15);color:var(--text-secondary)}
+    :where(.admin-game-review) .f-code {font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.7rem;color:var(--accent-cyan)}
+    :where(.admin-game-review) .f-loc {font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--text-secondary);margin-left:auto}
+    :where(.admin-game-review) .f-msg {font-size:.82rem;color:var(--text-primary);line-height:1.5}
+    :where(.admin-game-review) .f-snip {margin-top:.4rem;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;color:var(--text-secondary);background:var(--bg-primary);border-radius:4px;padding:.4rem .55rem;overflow-x:auto;white-space:pre}
+
+    /* ── manifest ── */
+    :where(.admin-game-review) .files {max-height:340px;overflow:auto;border:1px solid var(--border-primary);border-radius:var(--radius-sm)}
+    :where(.admin-game-review) .files table {width:100%;border-collapse:collapse;font-size:.76rem}
+    :where(.admin-game-review) .files th {position:sticky;top:0;background:var(--bg-secondary);text-align:left;padding:.45rem .6rem;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);border-bottom:1px solid var(--border-primary)}
+    :where(.admin-game-review) .files td {padding:.35rem .6rem;border-bottom:1px solid rgba(30,35,54,.5);font-family:ui-monospace,Menlo,Consolas,monospace}
+    :where(.admin-game-review) .files td.n {color:var(--text-secondary);text-align:right;white-space:nowrap}
+    :where(.admin-game-review) .files td.h {color:var(--text-muted);font-size:.68rem}
+
+    :where(.admin-game-review) .kv {display:flex;justify-content:space-between;gap:1rem;padding:.4rem 0;border-bottom:1px solid rgba(30,35,54,.6);font-size:.82rem}
+    :where(.admin-game-review) .kv:last-child {border-bottom:0}
+    :where(.admin-game-review) .kv span:first-child {color:var(--text-secondary)}
+    :where(.admin-game-review) .kv span:last-child {text-align:right;word-break:break-all}
+    :where(.admin-game-review) .mono {font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.74rem}
+    :where(.admin-game-review) .origin {display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.72rem;background:var(--bg-input);border:1px solid var(--border-primary);border-radius:4px;padding:.15rem .45rem;margin:.15rem .2rem .15rem 0;color:var(--accent-yellow)}
+    :where(.admin-game-review) .sec-title {font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);margin:0 0 .6rem;font-weight:700}
+
+    /* ── sandbox preview ── */
+    :where(.admin-game-review) .preview {position:relative;background:#000;border:1px solid var(--border-primary);border-radius:var(--radius-sm);overflow:hidden;aspect-ratio:16/10}
+    :where(.admin-game-review) .preview iframe {width:100%;height:100%;border:0;display:block}
+    :where(.admin-game-review) .preview .ph {position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;text-align:center;padding:1.5rem;background:var(--bg-input)}
+    :where(.admin-game-review) .preview .ph p {font-size:.78rem;color:var(--text-secondary);max-width:320px;line-height:1.5;margin:0}
+
+    :where(.admin-game-review) .hist {font-size:.78rem;padding:.5rem 0;border-bottom:1px solid rgba(30,35,54,.6)}
+    :where(.admin-game-review) .hist:last-child {border-bottom:0}
+    :where(.admin-game-review) .hist .when {color:var(--text-muted);font-size:.7rem}
+    :where(.admin-game-review) .hidden {display:none!important}

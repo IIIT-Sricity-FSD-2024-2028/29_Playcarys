@@ -82,9 +82,11 @@ export const authService = {
       console.warn('Failed to parse session from storage', e);
     }
 
-    // In development mode, provide default publisher session if not signed in yet
-    // Defaulting to user 6 (IndieDevStudios) who owns Hill Climbing (game 8)
-    if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+    // In development mode, provide default session if not signed in yet
+    // (Only on the publisher and player pages. The landing page and the admin pages need a real
+    // login, never a made-up publisher.)
+    if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV &&
+      (window.location.pathname.startsWith('/publisher') || window.location.pathname.startsWith('/player'))) {
       if (window.location.pathname.startsWith('/player')) {
         const devPlayerSession = {
           userId: DRAGON_SLAYER_ID,
@@ -158,7 +160,8 @@ export const authService = {
     } catch (e) {
       // ignore storage errors
     }
-    window.location.href = '/index.html';
+    // Full reload (not a router jump) so every timer and page state of the signed-in user is dropped.
+    window.location.href = '/';
   }
 };
 
