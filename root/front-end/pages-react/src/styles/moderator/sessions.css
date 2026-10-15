@@ -1,0 +1,156 @@
+/* PlayCarys — Moderator Sessions (Live Matches) Styles */
+
+.sessions-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.sessions-header {
+  margin-bottom: 1.5rem;
+}
+
+.sessions-header h1 {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
+
+.sessions-chart-card {
+  height: 320px;
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.sessions-chart-card h3 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.sessions-chart-wrapper {
+  position: relative;
+  height: calc(100% - 2rem);
+  width: 100%;
+}
+
+.sessions-filter-bar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.sessions-filter-select {
+  width: 180px;
+}
+
+@media (max-width: 640px) {
+  .sessions-filter-select {
+    flex: 1;
+    min-width: 140px;
+  }
+}
+
+.match-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.match-list-item:hover {
+  border-color: rgba(0, 212, 255, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.match-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.match-item-title {
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.match-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.match-item-avatars {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .match-list-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .match-list-item .btn {
+    align-self: flex-end;
+    margin-top: 0.5rem;
+  }
+}
+
+/* Detail modal styles */
+.match-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 480px) {
+  .match-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.match-players-list {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.match-player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-input);
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.4rem;
+}

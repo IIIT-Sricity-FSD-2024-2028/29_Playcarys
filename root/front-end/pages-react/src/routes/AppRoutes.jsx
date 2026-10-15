@@ -36,6 +36,13 @@ import Hub from '../pages/admin/Hub';
 import StaffLayout from '../layouts/StaffLayout';
 import StaffInbox from '../pages/staff/Inbox';
 
+// Moderator
+import ModeratorLayout from '../layouts/ModeratorLayout';
+import ModeratorDashboard from '../pages/moderator/Dashboard';
+import ModeratorReports from '../pages/moderator/Reports';
+import ModeratorSessions from '../pages/moderator/Sessions';
+import ModeratorBans from '../pages/moderator/Bans';
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -88,6 +95,15 @@ export function AppRoutes() {
       <Route path="/staff" element={<StaffLayout />}>
         <Route index element={<Navigate to="/staff/inbox" replace />} />
         <Route path="inbox" element={<StaffInbox />} />
+      </Route>
+
+      {/* Moderator routes */}
+      <Route path="/moderator" element={<ModeratorLayout />}>
+        <Route index element={<Navigate to="/moderator/dashboard" replace />} />
+        <Route path="dashboard" element={<ModeratorDashboard />} />
+        <Route path="reports" element={<ModeratorReports />} />
+        <Route path="sessions" element={<ModeratorSessions />} />
+        <Route path="bans" element={<ModeratorBans />} />
       </Route>
 
       {/* Anything else goes to the landing page */}

@@ -86,7 +86,7 @@ export const authService = {
     // (Only on the publisher and player pages. The landing page and the admin pages need a real
     // login, never a made-up publisher.)
     if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV &&
-      (window.location.pathname.startsWith('/publisher') || window.location.pathname.startsWith('/player'))) {
+      (window.location.pathname.startsWith('/publisher') || window.location.pathname.startsWith('/player') || window.location.pathname.startsWith('/moderator'))) {
       if (window.location.pathname.startsWith('/player')) {
         const devPlayerSession = {
           userId: DRAGON_SLAYER_ID,
@@ -101,6 +101,19 @@ export const authService = {
         };
         this.setSession(devPlayerSession);
         return devPlayerSession;
+      }
+      if (window.location.pathname.startsWith('/moderator')) {
+        const devModSession = {
+          userId: 3,
+          id: 3,
+          user_id: 3,
+          role: 'moderator',
+          username: 'ModeratorOne',
+          avatar: 'MO',
+          sessionToken: null
+        };
+        this.setSession(devModSession);
+        return devModSession;
       }
       const devSession = {
         userId: 6,
