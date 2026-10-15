@@ -73,6 +73,10 @@ export const api = {
 
   del(endpoint) {
     return this.request(endpoint, 'DELETE');
+  },
+
+  delete(endpoint) {
+    return this.request(endpoint, 'DELETE');
   }
 };
 

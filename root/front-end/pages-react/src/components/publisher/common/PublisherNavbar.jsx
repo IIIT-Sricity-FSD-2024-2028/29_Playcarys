@@ -11,9 +11,9 @@ export function PublisherNavbar(props) {
     { id: 'dashboard', label: 'Dashboard', icon: '🏠', isReactRoute: true, path: '/publisher/dashboard' },
     { id: 'publish', label: 'Publish Game', icon: '🎮', isReactRoute: true, path: '/publisher/publish' },
     { id: 'publish-tournament', label: 'Publish Tournament', icon: '🏆', isReactRoute: true, path: '/publisher/publish-tournament' },
-    { id: 'mygames', label: 'My Games', icon: '🎮', isReactRoute: false, path: '/pages/publisher/mygames.html' },
-    { id: 'earnings', label: 'Earnings', icon: '💰', isReactRoute: false, path: '/pages/publisher/earnings.html' },
-    { id: 'profile', label: 'Profile', icon: '👤', isReactRoute: false, path: '/pages/publisher/profile.html' }
+    { id: 'my-games', label: 'My Games', icon: '🎮', isReactRoute: true, path: '/publisher/my-games' },
+    { id: 'earnings', label: 'Earnings', icon: '💰', isReactRoute: true, path: '/publisher/earnings' },
+    { id: 'profile', label: 'Profile', icon: '👤', isReactRoute: true, path: '/publisher/profile' }
   ];
 
   const username = user?.username || 'Publisher';
@@ -84,15 +84,15 @@ export function PublisherNavbar(props) {
             <div className="nav-username">{username}</div>
             <div className="nav-role">PUBLISHER</div>
           </div>
-          <a
-            href="/pages/publisher/profile.html"
+          <Link
+            to="/publisher/profile"
             className="nav-avatar"
             id="pc-nav-avatar"
             title="View your profile"
             style={{ textDecoration: 'none' }}
           >
             {avatarText}
-          </a>
+          </Link>
           <span
             className="nav-logout"
             onClick={logout}

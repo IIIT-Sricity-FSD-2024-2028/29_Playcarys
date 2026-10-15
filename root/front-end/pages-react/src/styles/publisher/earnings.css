@@ -1,0 +1,172 @@
+/* ── Earnings ──────────────────────────────────────────── */
+.earn-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1.6rem;
+}
+
+.earn-stat {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.2rem;
+}
+
+.earn-stat.highlight {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.09), rgba(0, 212, 255, 0.06));
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.earn-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.earn-lbl {
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-top: 0.35rem;
+}
+
+.earn-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 0.3rem;
+}
+
+.earn-section {
+  margin-bottom: 2rem;
+}
+
+.earn-section h2 {
+  font-size: 1.05rem;
+  margin-bottom: 0.3rem;
+}
+
+.earn-section .lead {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.55;
+}
+
+/* Split bar */
+.split-bar {
+  display: flex;
+  height: 34px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-primary);
+}
+
+.split-you {
+  background: linear-gradient(90deg, #10b981, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #04140d;
+  transition: width 0.3s ease;
+  white-space: nowrap;
+  padding: 0 0.5rem;
+}
+
+.split-platform {
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: width 0.3s ease;
+  white-space: nowrap;
+  padding: 0 0.5rem;
+}
+
+table.earn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+table.earn-table th {
+  text-align: left;
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+table.earn-table td {
+  padding: 0.65rem 0.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+table.earn-table td.num,
+table.earn-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+table.earn-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pill {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  display: inline-block;
+}
+
+.pill.pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.pill.paid {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.pill.failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.earn-note {
+  background: rgba(0, 212, 255, 0.05);
+  border-left: 3px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.earn-empty {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.2rem;
+  overflow-x: auto;
+}

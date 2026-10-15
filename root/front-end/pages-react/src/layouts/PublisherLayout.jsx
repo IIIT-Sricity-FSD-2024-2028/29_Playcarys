@@ -7,8 +7,8 @@ export function PublisherLayout() {
 
   // Determine active page from current path
   let activePage = 'dashboard';
-  if (location.pathname.includes('/publisher/mygames')) {
-    activePage = 'mygames';
+  if (location.pathname.includes('/publisher/my-games') || location.pathname.includes('/publisher/mygames')) {
+    activePage = 'my-games';
   } else if (location.pathname.includes('/publisher/earnings')) {
     activePage = 'earnings';
   } else if (location.pathname.includes('/publisher/profile')) {

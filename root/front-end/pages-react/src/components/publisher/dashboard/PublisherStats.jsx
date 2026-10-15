@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function PublisherStats(props) {
+  const navigate = useNavigate();
   const {
     totalGames = 0,
     approvedCount = 0,
@@ -65,7 +67,7 @@ export function PublisherStats(props) {
       icon: '💰',
       sub: earningsSub,
       id: 'stat-earnings',
-      href: '/pages/publisher/earnings.html'
+      href: '/publisher/earnings'
     }
   ];
 
@@ -79,7 +81,11 @@ export function PublisherStats(props) {
             className={`stat-premium ${isClickable ? 'stat-clickable' : ''}`}
             onClick={() => {
               if (s.href) {
-                window.location.href = s.href;
+                if (s.href.startsWith('/publisher/')) {
+                  navigate(s.href);
+                } else {
+                  window.location.href = s.href;
+                }
               }
             }}
             title={isClickable ? 'Open earnings' : ''}

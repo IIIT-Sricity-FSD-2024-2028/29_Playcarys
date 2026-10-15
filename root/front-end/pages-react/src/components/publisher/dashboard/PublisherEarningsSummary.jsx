@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function PublisherEarningsSummary(props) {
   const { earningsData, loading, error } = props;
+  const navigate = useNavigate();
 
   function handleOpenEarnings() {
-    window.location.href = '/pages/publisher/earnings.html';
+    navigate('/publisher/earnings');
   }
 
   return (

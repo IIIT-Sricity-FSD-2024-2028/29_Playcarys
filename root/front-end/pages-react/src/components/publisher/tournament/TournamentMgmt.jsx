@@ -88,8 +88,8 @@ export function TournamentMgmt({
         <div id="mgmt-matches" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {matches.length > 0 ? (
             matches.map((m) => {
-              const p1 = getUserName(m.player1);
-              const p2 = getUserName(m.player2);
+              const p1 = m.p1_name || getUserName(m.player1);
+              const p2 = m.p2_name || getUserName(m.player2);
               const isLive =
                 m.status !== 'completed' &&
                 m.player1 &&
@@ -97,14 +97,16 @@ export function TournamentMgmt({
                 m.player1 !== 'BYE' &&
                 m.player2 !== 'BYE';
 
-              const p1IsWinner = m.winnerId && String(m.winnerId) === String(m.player1);
-              const p2IsWinner = m.winnerId && String(m.winnerId) === String(m.player2);
+              const winner = m.winner_id != null ? m.winner_id : m.winnerId;
+              const p1IsWinner = winner != null && String(winner) === String(m.player1);
+              const p2IsWinner = winner != null && String(winner) === String(m.player2);
+              const matchId = m.match_id || m.matchId || m.id;
 
               return (
-                <div key={m.match_id} className="tourn-card" style={{ padding: '1rem' }}>
+                <div key={matchId} className="tourn-card" style={{ padding: '1rem' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
-                      {m.match_id} · Round {m.round}{' '}
+                      {matchId} · Round {m.round}{' '}
                       {m.status === 'disputed' && <span className="badge badge-rejected">DISPUTED</span>}
                       {m.status === 'pending' && <span className="badge badge-waiting">PENDING</span>}
                     </div>
@@ -132,20 +134,20 @@ export function TournamentMgmt({
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     {m.status === 'completed' && (
                       <span style={{ color: 'var(--accent-green)', fontSize: '0.8rem', fontWeight: 700 }}>
-                        Winner: {String(m.winnerId) === String(m.player1) ? p1 : p2}
+                        Winner: {String(winner) === String(m.player1) ? p1 : p2}
                       </span>
                     )}
                     {isLive && (
                       <>
                         <button
                           className="btn btn-primary btn-sm"
-                          onClick={() => onForceWinner(m.match_id, m.player1, p1)}
+                          onClick={() => onForceWinner(matchId, m.player1, p1)}
                         >
                           🏆 Win P1
                         </button>
                         <button
                           className="btn btn-primary btn-sm"
-                          onClick={() => onForceWinner(m.match_id, m.player2, p2)}
+                          onClick={() => onForceWinner(matchId, m.player2, p2)}
                         >
                           🏆 Win P2
                         </button>
