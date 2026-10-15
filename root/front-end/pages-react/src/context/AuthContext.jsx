@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import authService, { ENABLE_TEMP_DEV_IDENTITY } from '../services/authService';
 
 // TEMPORARY DEVELOPMENT IDENTITY:
@@ -18,6 +19,7 @@ export const AuthContext = createContext({
 });
 
 export function AuthProvider(props) {
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [devIdentityError, setDevIdentityError] = useState(null);
@@ -63,7 +65,7 @@ export function AuthProvider(props) {
           return;
         }
 
-        // Publisher or other role session
+        // Publisher, Moderator, Superuser, or other role session
         setUser(existingSession);
       } else {
         const sess = authService.getSession();
@@ -78,7 +80,7 @@ export function AuthProvider(props) {
 
   useEffect(() => {
     initIdentity();
-  }, []);
+  }, [location?.pathname]);
 
   function handleLogin(sessionData, token) {
     authService.setSession(sessionData, token);

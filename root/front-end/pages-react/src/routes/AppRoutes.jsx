@@ -43,6 +43,19 @@ import ModeratorReports from '../pages/moderator/Reports';
 import ModeratorSessions from '../pages/moderator/Sessions';
 import ModeratorBans from '../pages/moderator/Bans';
 
+// Superuser
+import SuperuserLayout from '../layouts/SuperuserLayout';
+import SuperuserDashboard from '../pages/superuser/Dashboard';
+import SuperuserHub from '../pages/superuser/Hub';
+import SuperuserUsers from '../pages/superuser/Users';
+import SuperuserAdmins from '../pages/superuser/Admins';
+import SuperuserGames from '../pages/superuser/Games';
+import SuperuserSettings from '../pages/superuser/Settings';
+import SuperuserReports from '../pages/superuser/Reports';
+
+// Common
+import NotFound from '../pages/common/NotFound';
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -97,6 +110,18 @@ export function AppRoutes() {
         <Route path="inbox" element={<StaffInbox />} />
       </Route>
 
+      {/* Superuser routes */}
+      <Route path="/superuser" element={<SuperuserLayout />}>
+        <Route index element={<Navigate to="/superuser/dashboard" replace />} />
+        <Route path="dashboard" element={<SuperuserDashboard />} />
+        <Route path="hub" element={<SuperuserHub />} />
+        <Route path="users" element={<SuperuserUsers />} />
+        <Route path="admins" element={<SuperuserAdmins />} />
+        <Route path="games" element={<SuperuserGames />} />
+        <Route path="reports" element={<SuperuserReports />} />
+        <Route path="settings" element={<SuperuserSettings />} />
+      </Route>
+
       {/* Moderator routes */}
       <Route path="/moderator" element={<ModeratorLayout />}>
         <Route index element={<Navigate to="/moderator/dashboard" replace />} />
@@ -106,8 +131,8 @@ export function AppRoutes() {
         <Route path="bans" element={<ModeratorBans />} />
       </Route>
 
-      {/* Anything else goes to the landing page */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* 404 Not Found for unmatched routes */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

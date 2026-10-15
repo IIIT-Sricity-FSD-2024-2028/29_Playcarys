@@ -1,6 +1,7 @@
 import api from './api';
+import { getDevelopmentIdentity } from '../config/developmentIdentity.js';
 
-// Authentication service compatible with legacy Auth contracts
+// Authentication service compatible with legacy Auth contracts and backend tokens
 
 const SESSION_KEY = 'playcarys_session';
 const API_TOKEN_KEY = 'playcarys_api_token';
@@ -76,18 +77,49 @@ export const authService = {
     try {
       const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
       if (raw) {
-        return JSON.parse(raw);
+        const session = JSON.parse(raw);
+        const isDevSession =
+          session &&
+          (session.isDev ||
+            (!session.sessionToken && (session.username === 'IndieDevStudios' || session.username === 'GodMode')));
+
+        // If this is a genuine user session (not a dev default), return it
+        if (!isDevSession && session && session.role) {
+          return session;
+        }
+
+        // If it's a dev session and we are in dev mode, provide the appropriate dev session for the route
+        if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+          const path = window.location.pathname;
+          if (path.startsWith('/superuser')) {
+            if (session && (session.role === 'superuser' || session.role === 'admin') && session.username === 'GodMode') {
+              return session;
+            }
+            return this.getDevSession('superuser');
+          } else if (path.startsWith('/moderator')) {
+            if (session && session.role === 'moderator' && session.username === 'ModeratorOne') {
+              return session;
+            }
+            return this.getDevSession('moderator');
+          } else if (path.startsWith('/publisher')) {
+            if (session && session.role === 'publisher' && session.username === 'IndieDevStudios') {
+              return session;
+            }
+            return this.getDevSession('publisher');
+          }
+        }
+
+        return session;
       }
     } catch (e) {
       console.warn('Failed to parse session from storage', e);
     }
 
     // In development mode, provide default session if not signed in yet
-    // (Only on the publisher and player pages. The landing page and the admin pages need a real
-    // login, never a made-up publisher.)
-    if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV &&
-      (window.location.pathname.startsWith('/publisher') || window.location.pathname.startsWith('/player') || window.location.pathname.startsWith('/moderator'))) {
-      if (window.location.pathname.startsWith('/player')) {
+    // (Only on the publisher, player, superuser, and moderator pages. The landing page and admin pages need real login.)
+    if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+      const path = window.location.pathname;
+      if (path.startsWith('/player')) {
         const devPlayerSession = {
           userId: DRAGON_SLAYER_ID,
           id: DRAGON_SLAYER_ID,
@@ -101,34 +133,53 @@ export const authService = {
         };
         this.setSession(devPlayerSession);
         return devPlayerSession;
+      } else if (path.startsWith('/superuser')) {
+        return this.getDevSession('superuser');
+      } else if (path.startsWith('/moderator')) {
+        return this.getDevSession('moderator');
+      } else if (path.startsWith('/publisher')) {
+        return this.getDevSession('publisher');
       }
-      if (window.location.pathname.startsWith('/moderator')) {
-        const devModSession = {
-          userId: 3,
-          id: 3,
-          user_id: 3,
-          role: 'moderator',
-          username: 'ModeratorOne',
-          avatar: 'MO',
-          sessionToken: null
-        };
-        this.setSession(devModSession);
-        return devModSession;
-      }
-      const devSession = {
-        userId: 6,
-        id: 6,
-        user_id: 6,
-        role: 'publisher',
-        username: 'IndieDevStudios',
-        avatar: 'ID',
-        sessionToken: null
-      };
-      this.setSession(devSession);
-      return devSession;
     }
 
     return null;
+  },
+
+  getDevSession(role) {
+    const devIdentity = getDevelopmentIdentity(role);
+    if (devIdentity) {
+      const devSession = {
+        userId: devIdentity.userId,
+        user_id: devIdentity.user_id,
+        id: devIdentity.id,
+        role: devIdentity.role,
+        role_id: devIdentity.role_id,
+        role_name: devIdentity.role_name,
+        username: devIdentity.username,
+        user_name: devIdentity.user_name,
+        email: devIdentity.email,
+        avatar: devIdentity.avatar,
+        sessionToken: devIdentity.sessionToken,
+        isDev: true
+      };
+      this.setSession(devSession, devIdentity.apiToken);
+      return devSession;
+    }
+
+    // Publisher default fallback for other parts of the application
+    const publisherSession = {
+      userId: 6,
+      user_id: 6,
+      id: '6',
+      role: 'publisher',
+      role_id: 5,
+      username: 'IndieDevStudios',
+      avatar: 'ID',
+      sessionToken: null,
+      isDev: true
+    };
+    this.setSession(publisherSession);
+    return publisherSession;
   },
 
   setSession(session, token = null) {
