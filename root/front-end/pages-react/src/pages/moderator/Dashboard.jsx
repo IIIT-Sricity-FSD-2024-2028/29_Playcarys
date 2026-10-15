@@ -15,6 +15,33 @@ import ContactAdminModal from '../../components/moderator/dashboard/ContactAdmin
 import Toast from '../../components/common/Toast';
 import '../../styles/moderator/dashboard.css';
 
+const DEFAULT_DASHBOARD_STATE = {
+  kpis: {
+    pendingReports: 0,
+    reviewReports: 0,
+    totalResolved: 0,
+    liveNow: 0,
+    activeBans: 0,
+    todayReports: 0
+  },
+  performance: {
+    actionsTaken: 0,
+    warnsByMe: 0,
+    bansByMe: 0,
+    sharePercent: 0
+  },
+  recentReports: [],
+  logItems: [],
+  activeMatches: [],
+  activeBansList: [],
+  chartData: {
+    labels: [],
+    incoming: [],
+    resolved: []
+  },
+  users: []
+};
+
 export function Dashboard() {
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
@@ -22,30 +49,7 @@ export function Dashboard() {
   // Dashboard Data State
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [data, setData] = useState({
-    kpis: {
-      pendingReports: 0,
-      reviewReports: 0,
-      totalResolved: 0,
-      liveNow: 0,
-      activeBans: 0,
-      todayReports: 0
-    },
-    performance: {
-      actionsTaken: 0,
-      warnsByMe: 0,
-      bansByMe: 0,
-      sharePercent: 0
-    },
-    recentReports: [],
-    logItems: [],
-    chartData: {
-      labels: [],
-      incoming: [],
-      resolved: []
-    },
-    users: []
-  });
+  const [data, setData] = useState(DEFAULT_DASHBOARD_STATE);
 
   // Modal & Toast State
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -63,7 +67,22 @@ export function Dashboard() {
     setLoadError(null);
     try {
       const res = await fetchModeratorDashboardData(userId);
-      setData(res);
+      setData({
+        ...DEFAULT_DASHBOARD_STATE,
+        ...res,
+        kpis: { ...DEFAULT_DASHBOARD_STATE.kpis, ...(res?.kpis || {}) },
+        performance: { ...DEFAULT_DASHBOARD_STATE.performance, ...(res?.performance || {}) },
+        chartData: {
+          labels: res?.chartData?.labels || [],
+          incoming: res?.chartData?.incoming || [],
+          resolved: res?.chartData?.resolved || []
+        },
+        recentReports: res?.recentReports || [],
+        logItems: res?.logItems || [],
+        activeMatches: res?.activeMatches || [],
+        activeBansList: res?.activeBansList || [],
+        users: res?.users || []
+      });
     } catch (err) {
       console.error('Failed to load moderator dashboard data:', err);
       setLoadError('Failed to load dashboard data.');
@@ -122,11 +141,15 @@ export function Dashboard() {
     );
   }
 
-  const username = session?.username || 'ModeratorOne';
+  if (!session) {
+    return null;
+  }
+
+  const username = session.username || 'Moderator';
 
   return (
     <div className="page-content">
-      {/* Hero Header */}
+      {/* Hero Banner */}
       <ModeratorHero
         username={username}
         onContactAdmin={() => setIsContactModalOpen(true)}
@@ -134,12 +157,12 @@ export function Dashboard() {
 
       {/* Top Stats Row */}
       <ModeratorStatsRow
-        pendingReports={data.kpis.pendingReports}
-        reviewReports={data.kpis.reviewReports}
-        totalResolved={data.kpis.totalResolved}
-        liveNow={data.kpis.liveNow}
-        activeBans={data.kpis.activeBans}
-        todayReports={data.kpis.todayReports}
+        pendingReports={data.kpis?.pendingReports || 0}
+        reviewReports={data.kpis?.reviewReports || 0}
+        totalResolved={data.kpis?.totalResolved || 0}
+        liveNow={data.kpis?.liveNow || 0}
+        activeBans={data.kpis?.activeBans || 0}
+        todayReports={data.kpis?.todayReports || 0}
       />
 
       {/* Main Grid Content */}
@@ -168,30 +191,30 @@ export function Dashboard() {
           {/* Left Column: Chart + Recent Reports */}
           <div>
             <ReportActivityChart
-              labels={data.chartData.labels}
-              incoming={data.chartData.incoming}
-              resolved={data.chartData.resolved}
+              labels={data.chartData?.labels || []}
+              incoming={data.chartData?.incoming || []}
+              resolved={data.chartData?.resolved || []}
             />
-            <RecentReportsList reports={data.recentReports} />
+            <RecentReportsList reports={data.recentReports || []} />
           </div>
 
           {/* Right Column: Quick Actions + Performance + Activity Log */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <QuickActionsCard
-              pendingReports={data.kpis.pendingReports}
-              liveSessions={data.kpis.liveNow}
-              activeBans={data.kpis.activeBans}
+              pendingReports={data.kpis?.pendingReports || 0}
+              liveSessions={data.kpis?.liveNow || 0}
+              activeBans={data.kpis?.activeBans || 0}
               onContactAdmin={() => setIsContactModalOpen(true)}
             />
 
             <ModeratorPerformanceCard
-              actionsTaken={data.performance.actionsTaken}
-              warnsByMe={data.performance.warnsByMe}
-              bansByMe={data.performance.bansByMe}
-              sharePercent={data.performance.sharePercent}
+              actionsTaken={data.performance?.actionsTaken ?? data.performance?.totalByMe ?? 0}
+              warnsByMe={data.performance?.warnsByMe || 0}
+              bansByMe={data.performance?.bansByMe || 0}
+              sharePercent={data.performance?.sharePercent || 0}
             />
 
-            <ActivityLogCard logItems={data.logItems} />
+            <ActivityLogCard logItems={data.logItems || []} />
           </div>
         </div>
       )}
@@ -203,7 +226,7 @@ export function Dashboard() {
         onSubmit={handleSendContactAdmin}
       />
 
-      {/* Toast Notifications */}
+      {/* Toast notifications */}
       {toast && (
         <Toast
           message={toast.message}

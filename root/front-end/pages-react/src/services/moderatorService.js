@@ -188,6 +188,22 @@ export async function fetchModeratorDashboardData(sessionUserId) {
       };
     });
 
+  // Report Activity Chart: 7 days of incoming vs resolved from live backend reports
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toISOString().split('T')[0];
+  });
+  const incoming = days.map((d) => reports.filter((r) => (r.report_date || '').startsWith(d)).length);
+  const resolved = days.map((d) => reports.filter((r) => (r.status === 'resolved' || r.status === 'dismissed' || r.status === 'rejected') && (r.report_date || '').startsWith(d)).length);
+  const dayLabels = days.map((d) => new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' }));
+
+  const chartData = {
+    labels: dayLabels,
+    incoming,
+    resolved
+  };
+
   return {
     kpis: {
       pendingReports,
@@ -198,6 +214,7 @@ export async function fetchModeratorDashboardData(sessionUserId) {
       todayReports
     },
     performance: {
+      actionsTaken: myActions.length,
       warnsByMe,
       bansByMe,
       totalByMe: myActions.length,
@@ -206,7 +223,9 @@ export async function fetchModeratorDashboardData(sessionUserId) {
     recentReports,
     logItems,
     activeMatches,
-    activeBansList
+    activeBansList,
+    chartData,
+    users
   };
 }
 
