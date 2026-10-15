@@ -26,7 +26,9 @@
 (function () {
   'use strict';
 
-  var BASE = '../../vendor/three/';
+  var BASE = (typeof window !== 'undefined' && (window.location.pathname.startsWith('/player') || window.location.pathname.startsWith('/publisher')))
+    ? '/vendor/three/'
+    : '../../vendor/three/';
 
   // Resolved once, then reused. Import maps are not used because these pages
   // are plain scripts, not modules — a dynamic import with an explicit URL

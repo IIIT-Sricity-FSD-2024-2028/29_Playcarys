@@ -12,6 +12,10 @@ import CreateTournament from '../pages/player/CreateTournament';
 import Community from '../pages/player/Community';
 import Shop from '../pages/player/Shop';
 import Profile from '../pages/player/Profile';
+import MyTournaments from '../pages/player/MyTournaments';
+import Leaderboard from '../pages/player/Leaderboard';
+import MatchHistory from '../pages/player/MatchHistory';
+import Notifications from '../pages/player/Notifications';
 
 export function AppRoutes() {
   return (
@@ -35,6 +39,10 @@ export function AppRoutes() {
         <Route path="games/:gameId" element={<PlayerGames />} />
         <Route path="tournaments" element={<PlayerTournaments />} />
         <Route path="tournaments/:tournamentId" element={<PlayerTournaments />} />
+        <Route path="my-tournaments" element={<MyTournaments />} />
+        <Route path="leaderboard" element={<Leaderboard />} />
+        <Route path="match-history" element={<MatchHistory />} />
+        <Route path="notifications" element={<Notifications />} />
         <Route path="create-tournament" element={<CreateTournament />} />
         <Route path="community" element={<Community />} />
         <Route path="shop" element={<Shop />} />

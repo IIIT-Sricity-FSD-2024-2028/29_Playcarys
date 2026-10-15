@@ -4,6 +4,7 @@ import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase } from '../../services/playerService';
 import authService from '../../services/authService';
 import Toast from '../../components/common/Toast';
+import Avatar3DViewer from '../../components/player/profile/Avatar3DViewer';
 import '../../styles/player/profile.css';
 
 export function Profile() {
@@ -20,6 +21,7 @@ export function Profile() {
 
   // Profile data & statistics
   const [profileData, setProfileData] = useState(null);
+  const [avatarMode, setAvatarMode] = useState('loading'); // 'loading' | '3d' | 'fallback'
 
   // Server-based Game Achievements & Titles
   const [earnedAchievements, setEarnedAchievements] = useState([]);
@@ -599,14 +601,22 @@ export function Profile() {
               </button>
 
               <div className="profile-card-content">
+                <Avatar3DViewer
+                  userId={uid}
+                  size={200}
+                  autoRotate={true}
+                  onStateChange={(state) => setAvatarMode(state)}
+                />
+
                 <div
                   className="avatar avatar-xl mb-2"
+                  id="p-avatar"
                   style={{
                     width: '74px',
                     height: '74px',
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #00d4ff, #7c3aed)',
-                    display: 'flex',
+                    display: avatarMode === '3d' ? 'none' : 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '1.8rem',

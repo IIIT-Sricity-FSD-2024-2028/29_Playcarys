@@ -10,6 +10,7 @@ import TournamentFilters from '../../components/player/tournaments/TournamentFil
 import TournamentSection from '../../components/player/tournaments/TournamentSection';
 import TournamentDetails from '../../components/player/tournaments/TournamentDetails';
 import TournamentRegistrationModal from '../../components/player/tournaments/TournamentRegistrationModal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import '../../styles/player/tournaments.css';
 
 export function Tournaments() {
@@ -22,6 +23,7 @@ export function Tournaments() {
   const [kindFilter, setKindFilter] = useState('all');
   const [selectedTournamentId, setSelectedTournamentId] = useState(null);
   const [regModalTournament, setRegModalTournament] = useState(null);
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [dbVersion, setDbVersion] = useState(0);
   const [toast, setToast] = useState(null);
   const [withdrawingId, setWithdrawingId] = useState(null);
@@ -104,8 +106,8 @@ export function Tournaments() {
   const upcomingTournaments = allTournaments.filter((t) => t.status === 'upcoming');
   const completedTournaments = allTournaments.filter((t) => t.status === 'completed');
 
-  // Withdrawal action handler
-  async function handleWithdraw(tournament) {
+  // Withdrawal action prompt
+  function handleWithdraw(tournament) {
     if (!tournament) return;
     const tid = tournament.tournament_id || tournament.id;
     if (!tid) {
@@ -113,16 +115,21 @@ export function Tournaments() {
       return;
     }
     if (withdrawingId) return; // Prevent duplicate withdrawal requests
+    setWithdrawTarget(tournament);
+  }
+
+  // Confirmed withdrawal execution
+  async function handleConfirmWithdraw() {
+    if (!withdrawTarget || withdrawingId) return;
+    const tournament = withdrawTarget;
+    const tid = tournament.tournament_id || tournament.id;
+    if (!tid) {
+      showToast('Tournament ID is missing.', 'error');
+      return;
+    }
 
     const isTeam = !!tournament.team_size;
     const tourneyName = tournament.tournament_name || tournament.name || tournament.desc || 'this tournament';
-    const confirmMsg = isTeam
-      ? `Withdraw your team from ${tourneyName}?`
-      : `Withdraw from ${tourneyName}?`;
-
-    if (!window.confirm(confirmMsg)) {
-      return; // Canceled: make no API request, leave registration unchanged
-    }
 
     setWithdrawingId(tid);
     try {
@@ -131,10 +138,12 @@ export function Tournaments() {
         res.teamName ? `${res.teamName} withdrawn from ${tourneyName}` : `Withdrew from ${tourneyName}`,
         'info'
       );
+      setWithdrawTarget(null);
       // Re-hydrate tournament list and registrations from the backend
       await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
       setDbVersion((v) => v + 1);
     } catch (err) {
+      // On failure, preserve current registration state and display actual error
       showToast(err.message || 'Could not withdraw from tournament.', 'error');
     } finally {
       setWithdrawingId(null);
@@ -245,6 +254,30 @@ export function Tournaments() {
           onClose={() => setRegModalTournament(null)}
           onSuccess={() => setDbVersion((v) => v + 1)}
           onShowToast={showToast}
+        />
+      )}
+
+      {/* Withdraw Confirmation Modal */}
+      {withdrawTarget && (
+        <ConfirmModal
+          isOpen={Boolean(withdrawTarget)}
+          title="Withdraw"
+          message={
+            withdrawTarget.team_size
+              ? `Withdraw your team from ${withdrawTarget.tournament_name || withdrawTarget.name || withdrawTarget.desc || 'this tournament'}?`
+              : `Withdraw from ${withdrawTarget.tournament_name || withdrawTarget.name || withdrawTarget.desc || 'this tournament'}?`
+          }
+          confirmText="Confirm"
+          cancelText="Cancel"
+          confirmStyle="danger"
+          loading={Boolean(withdrawingId)}
+          loadingText="Withdrawing..."
+          onCancel={() => {
+            if (!withdrawingId) {
+              setWithdrawTarget(null);
+            }
+          }}
+          onConfirm={handleConfirmWithdraw}
         />
       )}
 

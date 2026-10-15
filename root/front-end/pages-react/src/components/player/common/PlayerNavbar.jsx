@@ -1,11 +1,13 @@
 import React, { useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../../context/AuthContext';
+import NotificationDropdown from '../notifications/NotificationDropdown';
 
 export function PlayerNavbar(props) {
   const { activePage = 'dashboard' } = props;
   const { user, logout } = useContext(AuthContext);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const navigate = useNavigate();
 
   const role = user?.role === 'guest' ? 'guest' : 'player';
   const roleBadge = role === 'guest' ? 'GUEST' : 'PLAYER';
@@ -32,7 +34,7 @@ export function PlayerNavbar(props) {
     if (typeof window !== 'undefined' && typeof window.showUserProfile === 'function') {
       window.showUserProfile(username, e);
     } else {
-      window.location.href = '/player/profile';
+      navigate('/player/profile');
     }
   }
 
@@ -97,6 +99,7 @@ export function PlayerNavbar(props) {
         </nav>
 
         <div className="nav-user">
+          <NotificationDropdown userId={user?.userId ?? user?.id ?? 7} roleName={role} />
           <div style={{ textAlign: 'right' }}>
             <div className="nav-username">{username}</div>
             <div className="nav-role">{roleBadge}</div>
