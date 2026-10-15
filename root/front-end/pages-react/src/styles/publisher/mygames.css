@@ -1,0 +1,391 @@
+/* ── My Games CSS ──────────────────────────────── */
+
+/* Game Row Cards */
+.game-row {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 0.85rem;
+  transition: all var(--trans-med);
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+}
+.game-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--gradient-brand);
+  transform: scaleY(0);
+  transition: transform var(--trans-med);
+}
+.game-row:hover {
+  border-color: rgba(0, 212, 255, 0.22);
+  box-shadow: var(--shadow-glow);
+}
+.game-row:hover::before {
+  transform: scaleY(1);
+}
+
+.game-row-thumb {
+  width: 68px;
+  height: 68px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border-primary);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-row-info {
+  flex: 1;
+  min-width: 0;
+}
+.game-row-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.game-row-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+.game-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.game-row-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.game-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Hosting badges */
+.hbadge-hosted {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 99px;
+  padding: 0.12rem 0.45rem;
+}
+.hbadge-selfhosted {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 99px;
+  padding: 0.12rem 0.45rem;
+}
+
+/* ── Edit View ──────────────────────────────────────── */
+.edit-shell {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.edit-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.edit-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-brand);
+}
+.edit-panel-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 0.2rem;
+}
+.edit-panel-sub {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+.edit-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+@media (max-width: 560px) {
+  .edit-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* iOS Toggle */
+.tog {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.tog input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.tog-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+  transition: 0.3s;
+}
+.tog-slider::before {
+  position: absolute;
+  content: '';
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+.tog input:checked ~ .tog-slider {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 14px rgba(124, 58, 237, 0.4);
+}
+.tog input:checked ~ .tog-slider::before {
+  transform: translateX(22px);
+}
+
+/* Status subcard */
+.status-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+}
+.status-box-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border-primary);
+}
+.toggle-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.toggle-lbl {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 0.12rem;
+}
+.toggle-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* Actions */
+.edit-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.btn-save {
+  flex: 1;
+  min-width: 160px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all var(--trans-fast);
+}
+.btn-save:hover {
+  opacity: 0.88;
+  transform: translateY(-2px);
+  box-shadow: 0 0 24px rgba(124, 58, 237, 0.4);
+}
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.btn-cancel {
+  flex: 1;
+  min-width: 120px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--trans-fast);
+}
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+.btn-del {
+  width: 100%;
+  background: transparent;
+  color: var(--accent-red);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all var(--trans-fast);
+  margin-top: 0.75rem;
+}
+.btn-del:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* ── Analytics View ─────────────────────────────────── */
+.analytics-stat-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 900px) {
+  .analytics-stat-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .analytics-stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.back-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  width: fit-content;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-md);
+  transition: all var(--trans-fast);
+}
+.back-row:hover {
+  color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.06);
+}
+
+/* Filter Tabs */
+.filter-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.filter-tab {
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all var(--trans-fast);
+}
+.filter-tab:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+  color: var(--text-primary);
+}
+.filter-tab.active {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.detail-field label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.detail-field span {
+  font-size: 0.9rem;
+  font-weight: 600;
+}

@@ -315,7 +315,7 @@ export function PublishGame() {
             'warning'
           );
           setTimeout(() => {
-            window.location.href = '/pages/publisher/mygames.html';
+            navigate('/publisher/my-games');
           }, 2200);
           return;
         }
@@ -348,7 +348,7 @@ export function PublishGame() {
         } else {
           showToast(`Game submitted with ${achRes.created} achievement(s)! 🎮`, 'success');
           setTimeout(() => {
-            window.location.href = '/pages/publisher/mygames.html';
+            navigate('/publisher/my-games');
           }, 1400);
           return;
         }
@@ -356,7 +356,7 @@ export function PublishGame() {
 
       showToast('Game submitted for review! 🎮', 'success');
       setTimeout(() => {
-        window.location.href = '/pages/publisher/mygames.html';
+        navigate('/publisher/my-games');
       }, 1200);
     } catch (err) {
       console.error('Failed to submit game:', err);

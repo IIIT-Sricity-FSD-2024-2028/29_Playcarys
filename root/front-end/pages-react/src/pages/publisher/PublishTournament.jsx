@@ -16,6 +16,7 @@ export function PublishTournament() {
   // Active view: 'list' | 'editor' | 'mgmt' | 'mgmt-multi'
   const [view, setView] = useState('list');
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Data collections
   const [tournaments, setTournaments] = useState([]);
@@ -80,11 +81,11 @@ export function PublishTournament() {
     const myGames = publisherService.getPublisherApprovedGames(uid);
     setApprovedGames(myGames);
 
-    const localTourns = publisherService.getPublisherTournaments(uid);
-    setTournaments(localTourns);
+    const localTourns = await publisherService.getPublisherTournaments(uid);
+    setTournaments(localTourns || []);
 
     const backendFests = await publisherService.fetchMyFests(uid);
-    setFests(backendFests);
+    setFests(backendFests || []);
 
     setLoading(false);
   };
@@ -306,6 +307,7 @@ export function PublishTournament() {
     setDateOrderError('');
 
     const uid = parseInt(user?.userId || user?.id || 1, 10);
+    setIsSubmitting(true);
 
     // Multi-game fests (backend API)
     if (selectedType === 'multi' && !editId) {
@@ -334,7 +336,7 @@ export function PublishTournament() {
 
       try {
         const created = await publisherService.createMultiGameFest(payload);
-        showToast('Multi-game fest published! 🏅', 'success');
+        showToast(`Multi-game fest published! 🏅 (ID: #${created?.tournament_id || 'saved'})`, 'success');
         if (selectedVisibility === 'private' && created?.invite_code) {
           openConfirm(
             'Invite Code',
@@ -344,40 +346,47 @@ export function PublishTournament() {
             'primary'
           );
         }
+        await loadData();
+        setView('list');
       } catch (e) {
         showToast(e.message || 'Could not publish tournament — is backend running?', 'error');
-        return;
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Single-game (backend API + local DB sync)
+    try {
+      const created = await publisherService.saveSingleTournament(
+        {
+          name: vName,
+          desc: vDesc,
+          prize: vPrize,
+          maxParticipants: maxPlayers,
+          regClose: regDeadline,
+          startDate,
+          endDate,
+          gameId: selectedGameId,
+          visibility: selectedVisibility
+        },
+        editId,
+        uid
+      );
+
+      if (editId) {
+        showToast('Tournament updated! ✅', 'success');
+      } else {
+        showToast(`Tournament published! 🏆 (ID: #${created?.tournament_id || 'saved'})`, 'success');
       }
 
       await loadData();
       setView('list');
-      return;
+    } catch (err) {
+      showToast(err.message || 'Failed to save tournament', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Single-game (local DB flow)
-    publisherService.saveSingleTournament(
-      {
-        name: vName,
-        desc: vDesc,
-        prize: vPrize,
-        maxParticipants: maxPlayers,
-        regClose: regDeadline,
-        startDate,
-        endDate,
-        gameId: selectedGameId
-      },
-      editId,
-      uid
-    );
-
-    if (editId) {
-      showToast('Tournament updated! ✅', 'success');
-    } else {
-      showToast('Tournament published! 🏆', 'success');
-    }
-
-    await loadData();
-    setView('list');
   }
 
   // Delete tournament
@@ -385,10 +394,14 @@ export function PublishTournament() {
     openConfirm(
       'Delete Tournament',
       'Permanently delete this tournament and all its matches? This cannot be undone.',
-      () => {
-        publisherService.deleteSingleTournament(id);
-        showToast('Tournament successfully deleted', 'success');
-        loadData();
+      async () => {
+        try {
+          await publisherService.deleteSingleTournament(id);
+          showToast('Tournament successfully deleted', 'success');
+          await loadData();
+        } catch (e) {
+          showToast(e.message || 'Failed to delete tournament', 'error');
+        }
       },
       'Delete',
       'danger'
@@ -396,16 +409,44 @@ export function PublishTournament() {
   }
 
   // Single-game Management view
-  function handleOpenMgmt(id) {
-    const db = getDatabase();
-    const t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(id));
-    if (!t) return;
+  async function handleOpenMgmt(id) {
+    let t = tournaments.find((x) => String(x.tournament_id || x.id) === String(id));
+    if (!t) {
+      try {
+        t = await publisherService.getTournamentDetails(id);
+      } catch (e) {
+        const db = getDatabase();
+        t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(id));
+      }
+    }
+    if (!t) {
+      showToast('Could not find tournament details.', 'error');
+      return;
+    }
 
     setActiveTournament(t);
-    const matches = (db.tournament_matches || []).filter(
-      (m) => String(m.tournamentId) === String(id)
-    );
-    setActiveMatches(matches);
+
+    // Fetch bracket matches
+    try {
+      const bracketData = await publisherService.getTournamentBracket(id);
+      const bMatches = bracketData?.matches || [];
+      if (bMatches.length > 0) {
+        setActiveMatches(bMatches);
+      } else {
+        const db = getDatabase();
+        const localMatches = (db.tournament_matches || []).filter(
+          (m) => String(m.tournamentId) === String(id)
+        );
+        setActiveMatches(localMatches);
+      }
+    } catch (e) {
+      const db = getDatabase();
+      const localMatches = (db.tournament_matches || []).filter(
+        (m) => String(m.tournamentId) === String(id)
+      );
+      setActiveMatches(localMatches);
+    }
+
     setView('mgmt');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -413,16 +454,17 @@ export function PublishTournament() {
   function handleStartTournament() {
     if (!activeTournament) return;
     const tid = activeTournament.tournament_id || activeTournament.id;
+    const uid = parseInt(user?.userId || user?.id || 1, 10);
 
     openConfirm(
       'Start Tournament',
       'This will generate the bracket and close registration. Continue?',
-      () => {
+      async () => {
         try {
-          publisherService.startSingleTournament(tid);
+          await publisherService.startSingleTournament(tid, uid);
           showToast('Tournament Started! Bracket generated.', 'success');
-          handleOpenMgmt(tid);
-          loadData();
+          await handleOpenMgmt(tid);
+          await loadData();
         } catch (e) {
           showToast(e.message || 'Failed to start tournament', 'error');
         }
@@ -680,6 +722,7 @@ export function PublishTournament() {
           onPrevStep={handlePrevStep}
           onSubmit={handleSubmitTournament}
           onCancel={() => setView('list')}
+          isSubmitting={isSubmitting}
         />
       )}
 

@@ -49,7 +49,8 @@ export function TournamentEditor({
   onNextStep,
   onPrevStep,
   onSubmit,
-  onCancel
+  onCancel,
+  isSubmitting = false
 }) {
   return (
     <div className="pub-shell">
@@ -547,8 +548,13 @@ export function TournamentEditor({
               className="btn btn-green btn-lg"
               id="submit-btn"
               onClick={onSubmit}
+              disabled={isSubmitting}
             >
-              {editId ? '💾 Save Changes' : '🏆 Publish Tournament'}
+              {isSubmitting
+                ? '⏳ Saving...'
+                : editId
+                ? '💾 Save Changes'
+                : '🏆 Publish Tournament'}
             </button>
           </div>
         </div>

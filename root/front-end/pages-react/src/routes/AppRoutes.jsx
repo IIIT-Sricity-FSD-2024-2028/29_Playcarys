@@ -4,6 +4,10 @@ import PublisherLayout from '../layouts/PublisherLayout';
 import Dashboard from '../pages/publisher/Dashboard';
 import PublishGame from '../pages/publisher/PublishGame';
 import PublishTournament from '../pages/publisher/PublishTournament';
+import MyGames from '../pages/publisher/MyGames';
+import PublisherProfile from '../pages/publisher/Profile';
+import Earnings from '../pages/publisher/Earnings';
+
 import PlayerLayout from '../layouts/PlayerLayout';
 import PlayerDashboard from '../pages/player/Dashboard';
 import PlayerGames from '../pages/player/Games';
@@ -11,7 +15,7 @@ import PlayerTournaments from '../pages/player/Tournaments';
 import CreateTournament from '../pages/player/CreateTournament';
 import Community from '../pages/player/Community';
 import Shop from '../pages/player/Shop';
-import Profile from '../pages/player/Profile';
+import PlayerProfile from '../pages/player/Profile';
 import MyTournaments from '../pages/player/MyTournaments';
 import Leaderboard from '../pages/player/Leaderboard';
 import MatchHistory from '../pages/player/MatchHistory';
@@ -29,6 +33,10 @@ export function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="publish" element={<PublishGame />} />
         <Route path="publish-tournament" element={<PublishTournament />} />
+        <Route path="my-games" element={<MyGames />} />
+        <Route path="mygames" element={<Navigate to="/publisher/my-games" replace />} />
+        <Route path="profile" element={<PublisherProfile />} />
+        <Route path="earnings" element={<Earnings />} />
       </Route>
 
       {/* Player routes */}
@@ -46,7 +54,7 @@ export function AppRoutes() {
         <Route path="create-tournament" element={<CreateTournament />} />
         <Route path="community" element={<Community />} />
         <Route path="shop" element={<Shop />} />
-        <Route path="profile" element={<Profile />} />
+        <Route path="profile" element={<PlayerProfile />} />
       </Route>
 
       {/* Fallback to publisher dashboard */}

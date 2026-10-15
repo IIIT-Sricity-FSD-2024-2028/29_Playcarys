@@ -82,7 +82,8 @@ export const authService = {
       console.warn('Failed to parse session from storage', e);
     }
 
-    // In development mode, provide default session if not signed in yet
+    // In development mode, provide default publisher session if not signed in yet
+    // Defaulting to user 6 (IndieDevStudios) who owns Hill Climbing (game 8)
     if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV) {
       if (window.location.pathname.startsWith('/player')) {
         const devPlayerSession = {
