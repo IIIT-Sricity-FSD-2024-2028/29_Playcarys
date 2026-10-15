@@ -446,15 +446,6 @@ export function TournamentDetails({
                     >
                       Field Full
                     </button>
-                  ) : t.status === 'upcoming' && regClosed ? (
-                    <button
-                      className="reg-cta registered"
-                      disabled
-                      style={{ opacity: 0.65, cursor: 'not-allowed' }}
-                      type="button"
-                    >
-                      Registration Closed
-                    </button>
                   ) : t.status === 'upcoming' ? (
                     <button
                       className="reg-cta open"

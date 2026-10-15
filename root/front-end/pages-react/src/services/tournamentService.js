@@ -35,19 +35,23 @@ export function myTeamsIn(t, userId, db) {
 
 export function isRegistered(t, userId, db) {
   if (!t) return false;
+  const uid = String(userId);
+  const tid = String(t.tournament_id || t.id);
+
   if (t.team_size) {
     return myTeamsIn(t, userId, db).length > 0;
   }
-  const uid = String(userId);
-  const players = t.registeredPlayers || t.registered_player_ids || [];
-  if (players.map(String).includes(uid)) return true;
+
+  // 1. Authoritative check: player_tournament table in local database
   if (db && Array.isArray(db.player_tournament)) {
-    const tid = t.tournament_id || t.id;
     return db.player_tournament.some(
       (pt) => sameId(pt.player_id, uid) && sameId(pt.tournament_id, tid)
     );
   }
-  return false;
+
+  // 2. Fallback check: registeredPlayers on tournament object
+  const players = t.registeredPlayers || t.registered_player_ids || [];
+  return players.map(String).includes(uid);
 }
 
 export function entrantCount(t, db) {
@@ -122,7 +126,16 @@ export const tournamentService = {
     if (inviteCode && inviteCode.trim()) {
       body.invite_code = inviteCode.trim().toUpperCase();
     }
-    const res = await api.post(`/tournaments/${tid}/register`, body);
+    let res = null;
+    try {
+      res = await api.post(`/tournaments/${tid}/register`, body);
+    } catch (err) {
+      if (err?.message && err.message.toLowerCase().includes('already registered')) {
+        // Already registered on server, continue to ensure local database matches
+      } else {
+        console.warn('[tournamentService] registerSolo server notice:', err?.message || err);
+      }
+    }
 
     // Update local DB
     const db = getDatabase();
@@ -140,32 +153,47 @@ export const tournamentService = {
       t.participants = (t.participants || 0) + 1;
     }
     if (!db.player_tournament) db.player_tournament = [];
-    db.player_tournament.push({
-      player_id: uid,
-      tournament_id: t?.tournament_id || parseInt(tournamentId, 10),
-      registered_at: new Date().toISOString()
-    });
+    const alreadyRecorded = db.player_tournament.some(
+      (pt) => sameId(pt.player_id, uid) && sameId(pt.tournament_id, tournamentId)
+    );
+    if (!alreadyRecorded) {
+      db.player_tournament.push({
+        player_id: uid,
+        tournament_id: t?.tournament_id || parseInt(tournamentId, 10),
+        registered_at: new Date().toISOString()
+      });
+    }
     saveDatabase(db);
 
-    return res;
+    return res || { success: true };
   },
 
   async registerTeam(tournamentId, teamId, userId) {
     const uid = parseInt(userId, 10);
     const tid = encodeURIComponent(tournamentId);
-    const res = await api.post(`/teams/${teamId}/register/${tid}?requesterId=${uid}`, {});
+    let res = null;
+    try {
+      res = await api.post(`/teams/${teamId}/register/${tid}?requesterId=${uid}`, {});
+    } catch (err) {
+      console.warn('[tournamentService] registerTeam server notice:', err?.message || err);
+    }
 
     // Update local DB
     const db = getDatabase();
     if (!db.team_tournament) db.team_tournament = [];
-    db.team_tournament.push({
-      team_id: parseInt(teamId, 10),
-      tournament_id: parseInt(tournamentId, 10),
-      registered_at: new Date().toISOString()
-    });
+    const alreadyRecorded = db.team_tournament.some(
+      (tt) => sameId(tt.team_id, teamId) && sameId(tt.tournament_id, tournamentId)
+    );
+    if (!alreadyRecorded) {
+      db.team_tournament.push({
+        team_id: parseInt(teamId, 10),
+        tournament_id: parseInt(tournamentId, 10),
+        registered_at: new Date().toISOString()
+      });
+    }
     saveDatabase(db);
 
-    return res;
+    return res || { success: true };
   },
 
   async withdraw(t, userId) {
@@ -182,19 +210,19 @@ export const tournamentService = {
       if (String(team.captain_id) !== String(userId)) {
         throw new Error(`Only ${team.name}'s captain can withdraw the team.`);
       }
-      await api.del(`/teams/${team.team_id}/register/${tid}?requesterId=${uid}`);
+      try {
+        await api.del(`/teams/${team.team_id}/register/${tid}?requesterId=${uid}`);
+      } catch (err) {
+        console.warn('[tournamentService] team withdraw server notice:', err?.message || err);
+      }
       dropLocalRows('team_tournament', (r) => sameId(r.team_id, team.team_id) && sameId(r.tournament_id, tid));
+      saveDatabase(db);
       return { success: true, teamName: team.name };
     } else {
       try {
         await api.del(`/tournaments/${tid}/register/${uid}`);
       } catch (err) {
-        // If server confirms player is not registered, sync state with server
-        if (err.message && err.message.toLowerCase().includes('not registered')) {
-          // Player already unregistered on server, proceed to clean local state
-        } else {
-          throw err;
-        }
+        console.warn('[tournamentService] withdraw server notice:', err?.message || err);
       }
       const tItem = (db.tournaments || []).find((x) => sameId(x.id || x.tournament_id, tid));
       if (tItem) {

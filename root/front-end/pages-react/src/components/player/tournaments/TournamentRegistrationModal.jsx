@@ -122,9 +122,11 @@ export function TournamentRegistrationModal({
           userId,
           inviteCode
         );
-        onShowToast(`Registered for ${t.tournament_name || t.name}! 🏆 Good luck!`, 'success');
+        onShowToast(`Registered for ${t.tournament_name || t.name || 'tournament'}! 🏆 Good luck!`, 'success');
       }
-      onSuccess();
+      if (typeof onSuccess === 'function') {
+        await onSuccess();
+      }
       onClose();
     } catch (err) {
       onShowToast(err.message || 'Could not register for tournament.', 'error');

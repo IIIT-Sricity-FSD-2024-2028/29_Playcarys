@@ -55,13 +55,19 @@ export function Tournaments() {
   // Hydrate tournaments from backend on mount
   useEffect(() => {
     hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament', 'teams', 'games'])
-      .then(() => setDbVersion((v) => v + 1))
+      .then(() => {
+        setDb({ ...getDatabase() });
+        setDbVersion((v) => v + 1);
+      })
       .catch(() => {});
   }, []);
 
   // Listen to cross-tab storage changes and global DB updates
   useEffect(() => {
-    const onStorage = () => setDbVersion((v) => v + 1);
+    const onStorage = () => {
+      setDb({ ...getDatabase() });
+      setDbVersion((v) => v + 1);
+    };
     window.addEventListener('storage', onStorage);
     window.addEventListener('global_db_update', onStorage);
     return () => {
@@ -70,7 +76,7 @@ export function Tournaments() {
     };
   }, []);
 
-  const db = getDatabase();
+  const [db, setDb] = useState(() => ({ ...getDatabase() }));
 
   // Suspended account check
   const dbUser = (db.users || []).find((u) => sameId(u.id || u.user_id, userId));
@@ -142,6 +148,7 @@ export function Tournaments() {
       );
       // Re-hydrate tournament list and registrations from the backend
       await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+      setDb({ ...getDatabase() });
       setDbVersion((v) => v + 1);
     } catch (err) {
       // On failure, display actual error
@@ -169,7 +176,11 @@ export function Tournaments() {
             navigate('/player/tournaments', { replace: true });
           }}
           onOpenRegModal={(t) => setRegModalTournament(t)}
-          onRefresh={() => setDbVersion((v) => v + 1)}
+          onRefresh={async () => {
+            await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+            setDb({ ...getDatabase() });
+            setDbVersion((v) => v + 1);
+          }}
           onShowToast={showToast}
           onWithdraw={handleWithdraw}
           withdrawingId={withdrawingId}
@@ -254,7 +265,11 @@ export function Tournaments() {
           db={db}
           isOpen={true}
           onClose={() => setRegModalTournament(null)}
-          onSuccess={() => setDbVersion((v) => v + 1)}
+          onSuccess={async () => {
+            await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+            setDb({ ...getDatabase() });
+            setDbVersion((v) => v + 1);
+          }}
           onShowToast={showToast}
         />
       )}

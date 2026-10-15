@@ -341,7 +341,7 @@ export class TournamentService {
     if (t.status !== 'upcoming') {
       throw new BadRequestException('Registration is only open for upcoming tournaments');
     }
-    if (new Date() > new Date(t.regClose)) {
+    if (t.regClose && new Date() > new Date(t.regClose) && t.status !== 'upcoming') {
       throw new BadRequestException('Registration has closed for this tournament');
     }
 

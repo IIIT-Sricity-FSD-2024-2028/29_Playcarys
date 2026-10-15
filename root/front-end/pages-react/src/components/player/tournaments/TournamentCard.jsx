@@ -61,8 +61,6 @@ export function TournamentCard({
     );
   } else if (t.status === 'upcoming' && isFull) {
     actionElement = <span className="tc-note">Field is full</span>;
-  } else if (t.status === 'upcoming' && regClosed) {
-    actionElement = <span className="tc-note">Registration closed</span>;
   } else if (t.status === 'upcoming') {
     actionElement = (
       <button
@@ -135,7 +133,7 @@ export function TournamentCard({
               <div className="tcard-bar-fill" style={{ width: `${pct}%` }} />
             </div>
             <span className="tcard-barlabel">
-              {pct}% full · {regClosed ? 'registration closed' : `closes ${formatDate(t.regClose)}`}
+              {pct}% full · {t.regClose ? `closes ${formatDate(t.regClose)}` : 'registration open'}
             </span>
           </div>
         )}

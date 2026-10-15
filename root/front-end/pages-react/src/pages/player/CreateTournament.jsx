@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../../services/api';
+import { GAME_ASSETS } from '../../services/playerService';
 import AuthContext from '../../context/AuthContext';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/create-tournament.css';
@@ -571,22 +572,57 @@ const CreateTournament = () => {
               ) : !isMulti ? (
                 <div>
                   <div className="game-select-grid">
-                    {games.map((g) => {
+                    {games.map((g, idx) => {
                       const gId = g.game_id || g.id;
                       const isSel = Number(selectedGameId) === Number(gId);
+                      const imgKey = g.img || '';
+                      const imgSrc = (imgKey.startsWith('data:image/') || imgKey.startsWith('http'))
+                        ? imgKey
+                        : (GAME_ASSETS.IMG_MAP[imgKey] || g.game_banner || g.banner || g.cover_image || null);
+                      const emoji = GAME_ASSETS.EMOJI_MAP[imgKey] || '🎮';
+                      const bgColor = GAME_ASSETS.COLORS[idx % GAME_ASSETS.COLORS.length] || '#1a2235';
+
                       return (
                         <div
                           key={gId}
                           className={`game-picker-card ${isSel ? 'selected' : ''}`}
                           onClick={() => handleSelectGame(gId)}
                         >
-                          <img
-                            src={g.game_banner || g.banner || g.cover_image || 'https://placehold.co/300x160/1a2235/white?text=Game'}
-                            alt={g.game_title || g.title || 'Game'}
-                            onError={(e) => {
-                              e.target.src = 'https://placehold.co/300x160/1a2235/white?text=Game';
-                            }}
-                          />
+                          <div style={{
+                            width: '100%',
+                            height: '85px',
+                            borderRadius: 'var(--radius-sm, 6px)',
+                            background: bgColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                            position: 'relative'
+                          }}>
+                            {imgSrc ? (
+                              <img
+                                src={imgSrc}
+                                alt={g.game_title || g.title || 'Game'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  if (e.currentTarget.nextElementSibling) {
+                                    e.currentTarget.nextElementSibling.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            ) : null}
+                            <span
+                              style={{
+                                display: imgSrc ? 'none' : 'flex',
+                                fontSize: '2.2rem',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              {emoji}
+                            </span>
+                          </div>
                           <div className="game-opt-name" title={g.game_title || g.title}>
                             {g.game_title || g.title}
                           </div>
@@ -848,18 +884,27 @@ const CreateTournament = () => {
 
           {/* Navigation Buttons */}
           <div className="pub-nav">
-            {currentStep > 1 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <button
                 type="button"
                 className="btn btn-ghost"
                 disabled={submitting}
-                onClick={handleBack}
+                onClick={() => navigate('/player/tournaments')}
+                style={{ color: 'var(--text-secondary)' }}
               >
-                ← Back
+                ✕ Cancel
               </button>
-            ) : (
-              <div />
-            )}
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={submitting}
+                  onClick={handleBack}
+                >
+                  ← Back
+                </button>
+              )}
+            </div>
 
             {currentStep < 4 ? (
               <button
