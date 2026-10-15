@@ -1042,6 +1042,7 @@
   <div class="topnav-meta" id="nav-meta">10+0 · Casual</div>
   <div class="topnav-right">
     <span class="mode-badge" id="nav-mode">In Progress</span>
+    <button onclick="quitToLobby()" style="background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);padding:0.25rem 0.65rem;border-radius:4px;font-family:inherit;font-size:0.75rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.3rem;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">✕ Exit</button>
   </div>
 </nav>
 
@@ -3023,7 +3024,8 @@ function showGameOver(winner, reason) {
   if (gameMode === 'online') {
     var isTourn = new URLSearchParams(window.location.search).get('mode') === 'tournament';
     if (isTourn) {
-      btnHtml += `<button class="go-btn go-primary" onclick="window.location.href='../../pages/player/tournaments.html?id=${new URLSearchParams(window.location.search).get('tournamentId')}'">🏆 Return to Tournament</button>`;
+      var tid = new URLSearchParams(window.location.search).get('tournamentId') || '';
+      btnHtml += `<button class="go-btn go-primary" onclick="quitToLobby()">🏆 Return to Tournament</button>`;
     } else {
       btnHtml += `<button class="go-btn go-primary" onclick="quitToLobby()">🚪 Exit to Sessions</button>`;
     }
@@ -3210,49 +3212,46 @@ function quitToLobby() {
   }
   
   var urlParams = new URLSearchParams(window.location.search);
+  var isReactEnv = window.location.port === '5173' || 
+                   document.referrer.includes('5173') || 
+                   document.referrer.includes('/player/') ||
+                   urlParams.get('from') === 'react' ||
+                   !window.location.origin.includes(':8080');
+
   if (urlParams.get('mode') === 'tournament') {
     var tid = urlParams.get('tournamentId');
-    window.location.href = '../../pages/player/tournaments.html' + (tid ? '?id=' + tid : '');
+    if (isReactEnv) {
+      window.location.href = '/player/tournaments' + (tid ? '?id=' + encodeURIComponent(tid) : '');
+    } else {
+      window.location.href = '../../pages/player/tournaments.html' + (tid ? '?id=' + tid : '');
+    }
+    return;
   } else {
     try {
-      // Auth.SESSION_KEY, not 'playcarys_auth'. Nothing has ever written that
-      // key, so localStorage.getItem() returned null on every single call and
-      // both branches below it were dead code — a moderator or superuser who
-      // opened a board to watch it was dropped on the player pages on the way
-      // out, with no route back to the queue they came from.
       var authRaw = localStorage.getItem('playcarys_session')
                  || sessionStorage.getItem('playcarys_session');
       if (authRaw) {
         var auth = JSON.parse(authRaw);
         if (auth.role === 'moderator') {
-          window.location.href = '../../pages/moderator/sessions.html';
+          window.location.href = isReactEnv ? '/publisher/dashboard' : '../../pages/moderator/sessions.html';
           return;
         } else if (auth.role === 'superuser') {
-          window.location.href = '../../pages/superuser/hub.html';
+          window.location.href = isReactEnv ? '/publisher/dashboard' : '../../pages/superuser/hub.html';
           return;
         }
       }
     } catch(e) {}
 
-    // Default for players.
-    //
-    // join-session.html renders its hero from ?gameId=. Called bare — which is
-    // what this did — it has no game to describe, so it falls back to a generic
-    // "Live Sessions / Browse sessions" panel. Finishing a chess match therefore
-    // landed you on a contextless page that listed nothing, because the match
-    // you just played was the session and _cleanupQPSession() above had already
-    // removed it. It read as "the game vanished".
-    //
-    // CHESS_GAME_ID is this game's row in DB.games and is the same '7' that
-    // game-launch.js maps to the chess engine. Passing it back gets you the
-    // Chess Pro header, its session list, and a Create Session button — i.e. the
-    // page you would have used to start another match.
     var CHESS_GAME_ID = '7';
     var backId = urlParams.get('gameId') || CHESS_GAME_ID;
-    if (onlineSid) {
-      window.location.href = '../../pages/player/join-session.html?gameId=' + encodeURIComponent(backId);
+    if (isReactEnv) {
+      window.location.href = '/player/games?gameId=' + encodeURIComponent(backId);
     } else {
-      window.location.href = '../../pages/player/games.html';
+      if (onlineSid) {
+        window.location.href = '../../pages/player/join-session.html?gameId=' + encodeURIComponent(backId);
+      } else {
+        window.location.href = '../../pages/player/games.html';
+      }
     }
   }
 }

@@ -218,3 +218,18 @@
   transform: translateY(-1px);
 }
 
+/* Responsive Drawer Navigation:
+   On desktop (> 768px), horizontal navbar displays the navigation links,
+   so we keep the sidebar drawer clean by hiding them.
+   When window size is reduced (<= 768px), nav links appear in the sidebar drawer like the HTML page. */
+.drawer-nav-mobile {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .drawer-nav-mobile {
+    display: flex !important;
+  }
+}
+
+

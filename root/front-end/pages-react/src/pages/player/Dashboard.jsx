@@ -77,6 +77,14 @@ export function Dashboard() {
     }
 
     loadDashboard();
+
+    function handleFriendsUpdated() {
+      const freshData = playerService.getDashboardData(currentUid, currentRole);
+      setData(freshData);
+    }
+
+    window.addEventListener('friends-updated', handleFriendsUpdated);
+    return () => window.removeEventListener('friends-updated', handleFriendsUpdated);
   }, [authLoading, user?.userId, user?.id, user?.user_id]);
 
   const navigate = useNavigate();
@@ -92,11 +100,24 @@ export function Dashboard() {
     setFeaturedIndex(idx % data.featuredGames.length);
   }
 
-  // Navigate to Game Details page
+  // Open Game Details Modal
   function handleViewDetails(gameId) {
     const targetId = gameId || (currentFeatGame ? (currentFeatGame.id || currentFeatGame.game_id) : null);
     if (!targetId) return;
-    navigate(`/player/games?id=${targetId}`);
+
+    const allGames = [
+      ...(data?.featuredGames || []),
+      ...(data?.libraryGames || []),
+      ...(getDatabase()?.games || [])
+    ];
+    const foundGame = allGames.find((g) => sameId(g.id || g.game_id, targetId)) || currentFeatGame;
+    if (!foundGame) return;
+
+    const db = getDatabase();
+    const pub = (db?.users || []).find((u) => sameId(u.id, foundGame.publisher_id || foundGame.developer_id));
+    setSelectedPublisher(pub?.username || 'PlayCarys');
+    setSelectedGame(foundGame);
+    setIsModalOpen(true);
   }
 
   function handleCloseModal() {

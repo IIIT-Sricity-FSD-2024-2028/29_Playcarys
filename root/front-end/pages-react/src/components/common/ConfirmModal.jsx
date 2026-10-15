@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export function ConfirmModal({
   isOpen,
@@ -11,39 +12,50 @@ export function ConfirmModal({
   loadingText,
   onConfirm,
   onCancel,
+  onClose,
 }) {
+  const handleCancel = onCancel || onClose;
+
   // Close on Escape key press if not loading
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !loading && onCancel) {
-        onCancel();
+      if (e.key === 'Escape' && !loading && handleCancel) {
+        handleCancel();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, loading, onCancel]);
+  }, [isOpen, loading, handleCancel]);
 
   if (!isOpen) return null;
 
   const isDanger = confirmStyle === 'danger';
   const confirmBtnClass = `btn ${isDanger ? 'btn-red' : 'btn-primary'}`;
 
-  return (
+  const modalNode = (
     <div
-      className="modal-overlay"
-      onClick={loading ? undefined : onCancel}
+      className="modal-overlay show"
+      onClick={loading ? undefined : handleCancel}
       style={{
         position: 'fixed',
         inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
         background: 'rgba(0, 0, 0, 0.78)',
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
-        zIndex: 9999,
+        zIndex: 99999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1rem',
+        opacity: 1,
+        pointerEvents: 'all',
       }}
     >
       <div
@@ -84,7 +96,7 @@ export function ConfirmModal({
           </h3>
           <span
             className="modal-close"
-            onClick={loading ? undefined : onCancel}
+            onClick={loading ? undefined : handleCancel}
             title="Close"
             style={{
               cursor: loading ? 'not-allowed' : 'pointer',
@@ -124,7 +136,7 @@ export function ConfirmModal({
           <button
             type="button"
             className="btn btn-ghost"
-            onClick={onCancel}
+            onClick={handleCancel}
             disabled={loading}
             style={{
               padding: '0.6rem 1.25rem',
@@ -156,6 +168,10 @@ export function ConfirmModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalNode, document.body)
+    : modalNode;
 }
 
 export default ConfirmModal;

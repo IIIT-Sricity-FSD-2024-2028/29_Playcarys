@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../../services/api';
 import {
   tournamentService,
@@ -24,6 +25,8 @@ export function TournamentRegistrationModal({
 
   const t = tournament;
   const isTeam = !!(t && t.team_size);
+
+  if (!isOpen || !t) return null;
 
   // Fetch or resolve user's teams when modal opens for team tournament
   useEffect(() => {
@@ -130,8 +133,23 @@ export function TournamentRegistrationModal({
     }
   }
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
+  return createPortal(
+    <div
+      className="modal-overlay show"
+      style={{
+        display: 'flex',
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 99999,
+        opacity: 1,
+        pointerEvents: 'all',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+      onClick={onClose}
+    >
       <div
         className="modal"
         style={{ maxWidth: '480px' }}
@@ -370,7 +388,8 @@ export function TournamentRegistrationModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

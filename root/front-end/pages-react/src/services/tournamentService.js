@@ -186,7 +186,16 @@ export const tournamentService = {
       dropLocalRows('team_tournament', (r) => sameId(r.team_id, team.team_id) && sameId(r.tournament_id, tid));
       return { success: true, teamName: team.name };
     } else {
-      await api.del(`/tournaments/${tid}/register/${uid}`);
+      try {
+        await api.del(`/tournaments/${tid}/register/${uid}`);
+      } catch (err) {
+        // If server confirms player is not registered, sync state with server
+        if (err.message && err.message.toLowerCase().includes('not registered')) {
+          // Player already unregistered on server, proceed to clean local state
+        } else {
+          throw err;
+        }
+      }
       const tItem = (db.tournaments || []).find((x) => sameId(x.id || x.tournament_id, tid));
       if (tItem) {
         if (tItem.registeredPlayers) {

@@ -149,7 +149,14 @@ function closeSession(reason){
   }
 }
 
-function exitGame(){ closeSession('exit'); location.href = 'games.html'; }
+function exitGame(){
+  closeSession('exit');
+  if (document.referrer && (document.referrer.includes('/player/') || document.referrer.includes(':5173')) && !document.referrer.endsWith('.html')) {
+    location.href = document.referrer;
+  } else {
+    location.href = '/player/games';
+  }
+}
 
 // Closing the tab is just as much an exit as pressing the button.
 window.addEventListener('pagehide', function(){ closeSession('pagehide'); });
@@ -219,20 +226,11 @@ function boot(){
   var playUrl = resolved.url;
   try {
     var u = new URL(resolved.url, location.href);
-    // Keyed on the HOST, not on resolved.kind.
-    //
-    // A "self-hosted" listing is only safe because it lives somewhere else —
-    // but nothing stops a publisher pointing game_url back at US. Game 26 in
-    // the live data does exactly that (http://localhost:8080/games/...), and a
-    // kind-based check waved it straight through onto our origin with
-    // allow-same-origin. Whether the URL is ours is the only question that
-    // matters here.
     if (u.host === location.host) {
-      u.port = (window.PC_GAMES_PORT || 8081);
+      if (location.port !== '5173') {
+        u.port = (window.PC_GAMES_PORT || 8081);
+      }
       playUrl = u.href;
-      // The SDK bridge below rejects any message whose ev.origin does not match
-      // resolved.origin, and replies to that same origin. Moving the frame
-      // without moving this would silently drop every result the game submits.
       resolved.origin = u.origin;
     }
   } catch (e) { /* unparseable — fall back to serving it from here */ }

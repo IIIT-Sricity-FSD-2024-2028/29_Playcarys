@@ -35,8 +35,6 @@ export function FeaturedGame(props) {
     <div
       className="featured"
       id="featured-banner"
-      onClick={onNext}
-      title="Click to see next featured game"
     >
       <div className="featured-bg" id="feat-bg" style={{ background: bg }} />
       <div className="featured-grain" />
@@ -105,21 +103,7 @@ export function FeaturedGame(props) {
         </div>
       </div>
 
-      {totalGames > 1 && (
-        <div className="featured-dots" id="feat-dots">
-          {Array.from({ length: totalGames }).map((_, i) => (
-            <div
-              key={i}
-              className={`fdot ${i === currentIndex ? 'active' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onSelectIndex) onSelectIndex(i);
-              }}
-              title={`Game ${i + 1}`}
-            />
-          ))}
-        </div>
-      )}
+
     </div>
   );
 }

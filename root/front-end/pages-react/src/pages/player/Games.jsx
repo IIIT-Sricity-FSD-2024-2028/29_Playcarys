@@ -46,12 +46,12 @@ export function Games() {
 
   // Hydrate game catalog from backend on mount
   useEffect(() => {
-    hydrateFromServer(['games', 'users'])
+    hydrateFromServer(['games', 'users', 'tournaments', 'player_tournament'])
       .then(() => setDbVersion((v) => v + 1))
       .catch(() => {});
   }, []);
 
-  // Live storage and visibility change listener
+  // Live storage, database updates, and visibility change listener
   useEffect(() => {
     let lastSignature = '';
     const getSignature = () => {
@@ -72,7 +72,12 @@ export function Games() {
       }
     };
 
+    const onDbUpdate = () => {
+      setDbVersion((v) => v + 1);
+    };
+
     window.addEventListener('storage', refreshIfChanged);
+    window.addEventListener('global_db_update', onDbUpdate);
     const onVisibilityChange = () => {
       if (!document.hidden) refreshIfChanged();
     };
@@ -80,6 +85,7 @@ export function Games() {
 
     return () => {
       window.removeEventListener('storage', refreshIfChanged);
+      window.removeEventListener('global_db_update', onDbUpdate);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);

@@ -59,12 +59,14 @@ export function Tournaments() {
       .catch(() => {});
   }, []);
 
-  // Listen to cross-tab storage changes
+  // Listen to cross-tab storage changes and global DB updates
   useEffect(() => {
     const onStorage = () => setDbVersion((v) => v + 1);
     window.addEventListener('storage', onStorage);
+    window.addEventListener('global_db_update', onStorage);
     return () => {
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('global_db_update', onStorage);
     };
   }, []);
 
@@ -138,14 +140,14 @@ export function Tournaments() {
         res.teamName ? `${res.teamName} withdrawn from ${tourneyName}` : `Withdrew from ${tourneyName}`,
         'info'
       );
-      setWithdrawTarget(null);
       // Re-hydrate tournament list and registrations from the backend
       await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
       setDbVersion((v) => v + 1);
     } catch (err) {
-      // On failure, preserve current registration state and display actual error
+      // On failure, display actual error
       showToast(err.message || 'Could not withdraw from tournament.', 'error');
     } finally {
+      setWithdrawTarget(null);
       setWithdrawingId(null);
     }
   }

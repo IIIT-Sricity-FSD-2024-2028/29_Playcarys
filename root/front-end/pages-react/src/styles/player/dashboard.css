@@ -28,7 +28,7 @@
   position: relative;
   height: 420px;
   overflow: hidden;
-  cursor: pointer;
+  cursor: default;
 }
 
 .featured-bg {

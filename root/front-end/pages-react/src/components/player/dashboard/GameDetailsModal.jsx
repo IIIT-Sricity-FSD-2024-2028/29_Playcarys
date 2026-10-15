@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { GAME_ASSETS, formatDate } from '../../../services/playerService';
 
 export function GameDetailsModal(props) {
@@ -20,9 +21,9 @@ export function GameDetailsModal(props) {
   const emoji = GAME_ASSETS.EMOJI_MAP[imgKey] || '🎮';
   const gameId = game.id || game.game_id;
 
-  return (
+  return createPortal(
     <div
-      className="modal-overlay"
+      className="modal-overlay show"
       id="biodata-modal"
       style={{
         display: 'flex',
@@ -30,7 +31,9 @@ export function GameDetailsModal(props) {
         inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(4px)',
-        zIndex: 9999,
+        zIndex: 99999,
+        opacity: 1,
+        pointerEvents: 'all',
         alignItems: 'center',
         justifyContent: 'center'
       }}
@@ -204,7 +207,8 @@ export function GameDetailsModal(props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

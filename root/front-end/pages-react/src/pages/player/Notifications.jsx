@@ -60,11 +60,24 @@ export function Notifications() {
     setTimeout(() => setToast(null), 3500);
   }
 
+  const getClearedSet = (uid) => {
+    try {
+      const raw = localStorage.getItem(`playcarys_cleared_notifs_${uid}`);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  };
+
   const loadNotifications = async () => {
     try {
       setLoading(true);
       const data = await notificationService.getNotifications(userId, roleName);
-      setNotifications(Array.isArray(data) ? data : []);
+      const clearedSet = getClearedSet(userId);
+      const activeList = Array.isArray(data)
+        ? data.filter((n) => !clearedSet.has(n.id) && !clearedSet.has(String(n.id)))
+        : [];
+      setNotifications(activeList);
     } catch (err) {
       console.warn('Failed to load notifications from backend:', err);
       showToast('Could not load notifications.', 'error');
@@ -113,13 +126,28 @@ export function Notifications() {
     if (isClearing) return;
     setIsClearing(true);
     try {
+      // 1. Delete direct notifications on the backend
       const directNotifs = notifications.filter((n) => n.toUser != null);
       for (const n of directNotifs) {
         await notificationService.deleteNotification(n.id, userId, roleName).catch(() => {});
       }
-      await loadNotifications();
+
+      // 2. Add cleared notifications to user-specific cleared set
+      try {
+        const clearedSet = getClearedSet(userId);
+        notifications.forEach((n) => {
+          clearedSet.add(n.id);
+          clearedSet.add(String(n.id));
+        });
+        localStorage.setItem(`playcarys_cleared_notifs_${userId}`, JSON.stringify([...clearedSet]));
+      } catch (e) {
+        console.warn('Could not persist cleared notifications:', e);
+      }
+
+      // 3. Immediately clear notifications from state
+      setNotifications([]);
       setIsClearModalOpen(false);
-      showToast('Notifications cleared', 'info');
+      showToast('All notifications cleared', 'info');
     } catch (err) {
       showToast('Failed to clear notifications', 'error');
     } finally {
@@ -458,7 +486,7 @@ export function Notifications() {
         <ConfirmModal
           isOpen={isClearModalOpen}
           title="Clear Notifications"
-          message="Permanently delete all your direct notifications? Platform announcements will be preserved."
+          message="Are you sure you want to permanently clear all notifications?"
           confirmText="Confirm"
           cancelText="Cancel"
           confirmStyle="danger"

@@ -106,24 +106,109 @@ export function getDatabase() {
   };
 }
 
-export function saveDatabase(db) {
-  if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
+let _sentTables = null;
+let _pendingSync = null;
+
+export const BUILTIN_GAMES = {
+  '7': { slug: 'chess', supportsAi: true, spectator: true },
+  '8': { slug: 'hill_climbing', supportsAi: false, spectator: false }
+};
+
+export const BUNDLED_GAMES = {
+  '16': { slug: 'hexgl-16', play_path: 'games/hexgl-16' },
+  '18': { slug: '2048-18', play_path: 'games/2048-18' },
+  '19': { slug: 'hextris-19', play_path: 'games/hextris-19' },
+  '25': { slug: 'ancient-beast-25', play_path: 'games/ancient-beast-25' }
+};
+
+export function saveDatabase(db, skipSync = false) {
+  if (typeof window !== 'undefined' && window.DB) {
     try {
-      window.DB.save();
-      return;
+      if (typeof window.DB.save === 'function') {
+        window.DB.save();
+      } else {
+        Object.assign(window.DB, db);
+      }
     } catch (e) {
       console.warn('window.DB.save error', e);
     }
   }
+
   try {
     localStorage.setItem(DB_KEY, JSON.stringify(db));
   } catch (e) {
     console.warn('Failed to save DB to localStorage', e);
   }
+
+  if (skipSync) {
+    const nextSent = {};
+    Object.keys(db).forEach((k) => {
+      try { nextSent[k] = JSON.stringify(db[k]); } catch (e) {}
+    });
+    _sentTables = nextSent;
+    return Promise.resolve();
+  }
+
+  // Two-way sync: push modified tables back to NestJS backend /api/v1/db-import
+  const nextSent = {};
+  Object.keys(db).forEach((k) => {
+    try { nextSent[k] = JSON.stringify(db[k]); } catch (e) {}
+  });
+
+  let delta = null;
+  if (_sentTables) {
+    delta = {};
+    let changed = 0;
+    Object.keys(nextSent).forEach((k) => {
+      if (nextSent[k] !== _sentTables[k]) {
+        delta[k] = db[k];
+        changed++;
+      }
+    });
+    if (!changed) {
+      return Promise.resolve();
+    }
+  } else {
+    delta = {};
+    const MUTABLE_TABLES = [
+      'users', 'player_profiles', 'games', 'tournaments',
+      'player_tournament', 'team_tournament', 'matches', 'match_results',
+      'sessions', 'friendships', 'favorites', 'reviews', 'teams', 'groups'
+    ];
+    MUTABLE_TABLES.forEach((table) => {
+      if (db[table] !== undefined) {
+        delta[table] = db[table];
+      }
+    });
+  }
+
+  _sentTables = nextSent;
+
+  try {
+    _pendingSync = api.post('/db-import', delta)
+      .then((res) => {
+        _pendingSync = null;
+        if (typeof window !== 'undefined') {
+          if (window.playcarysSocket && typeof window.playcarysSocket.emit === 'function') {
+            window.playcarysSocket.emit('global_db_update');
+          }
+          window.dispatchEvent(new CustomEvent('global_db_update', { detail: delta }));
+        }
+        return res;
+      })
+      .catch((err) => {
+        _pendingSync = null;
+        console.warn('[PlayCarys] DB sync to backend /db-import failed, cached in localStorage:', err?.message || err);
+      });
+  } catch (e) {
+    _pendingSync = null;
+  }
+
+  return _pendingSync;
 }
 
 /**
- * Fetch the authoritative server state from /db-export and merge it into
+ * Fetch authoritative server state from /db-export and merge it into
  * the local DB cache. Ensures all pages read live backend data rather than
  * stale localStorage on mount.
  *
@@ -157,11 +242,9 @@ export async function hydrateFromServer(tables = [], userId = null) {
           );
           db.tournaments = [...value, ...preservedLocal];
         } else if (key === 'player_tournament') {
-          const freshKeys = new Set(value.map((pt) => `${pt.player_id}|${pt.tournament_id}`));
-          const preservedLocal = (db.player_tournament || []).filter(
-            (pt) => !freshKeys.has(`${pt.player_id}|${pt.tournament_id}`)
-          );
-          db.player_tournament = [...value, ...preservedLocal];
+          db.player_tournament = value;
+        } else if (key === 'team_tournament') {
+          db.team_tournament = value;
         } else {
           db[key] = value;
         }
@@ -174,7 +257,7 @@ export async function hydrateFromServer(tables = [], userId = null) {
         window.DB[key] = value;
       }
     }
-    saveDatabase(db);
+    saveDatabase(db, true);
     return fresh;
   } catch (err) {
     console.warn('[playerService] hydrateFromServer failed:', err);
@@ -202,47 +285,85 @@ export const playerService = {
   },
 
   hasEngine(gameId) {
-    if (typeof window !== 'undefined' && window.GameLaunch) {
-      return window.GameLaunch.hasEngine(gameId);
+    if (typeof window !== 'undefined' && window.GameLaunch && typeof window.GameLaunch.hasEngine === 'function') {
+      try {
+        const val = window.GameLaunch.hasEngine(gameId);
+        if (val != null) return val;
+      } catch (e) {}
     }
-    return ['7', '8'].includes(String(gameId));
+    const gid = String(gameId == null ? '' : gameId).replace(/^g/, '');
+    if (BUILTIN_GAMES[gid] || BUNDLED_GAMES[gid]) return true;
+
+    const db = getDatabase();
+    const g = (db.games || []).find((x) => sameId(x.id || x.game_id, gid));
+    if (!g) return false;
+
+    if (g.play_path || g.playPath || g.game_url || g.gameUrl) return true;
+    return false;
+  },
+
+  resolveGameLaunch(gameId, params = {}) {
+    const gid = String(gameId == null ? '' : gameId).replace(/^g/, '');
+    const db = getDatabase();
+    const g = (db.games || []).find((x) => sameId(x.id || x.game_id, gid)) || {};
+
+    const qs = Object.entries(params)
+      .filter(([_, v]) => v != null && v !== '')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+    const qStr = qs ? `?${qs}` : '';
+
+    if (BUILTIN_GAMES[gid]) {
+      const slug = BUILTIN_GAMES[gid].slug;
+      return {
+        kind: 'builtin',
+        slug,
+        url: `/games/${slug}/index.html${qStr}`,
+        embeddable: false,
+        game: g
+      };
+    }
+
+    const playPath = g.play_path || g.playPath || BUNDLED_GAMES[gid]?.play_path;
+    if (playPath) {
+      const clean = String(playPath).replace(/^\/+|\/+$/g, '');
+      const wrapperParams = { gameId: gid, id: gid, ...params };
+      const wrapperQs = Object.entries(wrapperParams)
+        .filter(([_, v]) => v != null && v !== '')
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join('&');
+      return {
+        kind: 'hosted',
+        slug: clean.replace(/^games\//, ''),
+        url: `/pages/player/play.html?${wrapperQs}`,
+        directUrl: `/${clean}/index.html${qStr}`,
+        embeddable: true,
+        game: g
+      };
+    }
+
+    const gameUrl = g.game_url || g.gameUrl;
+    if (gameUrl) {
+      const wrapperParams = { gameId: gid, id: gid, ...params };
+      const wrapperQs = Object.entries(wrapperParams)
+        .filter(([_, v]) => v != null && v !== '')
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+        .join('&');
+      return {
+        kind: 'selfhosted',
+        slug: null,
+        url: `/pages/player/play.html?${wrapperQs}`,
+        directUrl: gameUrl,
+        embeddable: true,
+        game: g
+      };
+    }
+
+    return null;
   },
 
   playFast(gameId, userId = 7) {
-    const db = getDatabase();
-    const g = (db.games || []).find((x) => sameId(x.id || x.game_id, gameId));
-    if (!g) return false;
-
-    if (!this.hasEngine(gameId)) {
-      return { success: false, reason: 'unsupported' };
-    }
-
-    const uid = String(userId || 7);
-    const newSid = typeof db.startMatch === 'function'
-      ? db.startMatch(g.game_id || g.id, { created_by: uid })
-      : 'M' + Date.now() + Math.floor(Math.random() * 1000);
-
-    // Track view count
-    api.post(`/games/${String(gameId).replace(/^g/, '')}/view`, {}).catch(() => {});
-
-    // GameLaunch launcher
-    if (typeof window !== 'undefined' && window.GameLaunch && typeof window.GameLaunch.launch === 'function') {
-      const launched = window.GameLaunch.launch(g.game_id || g.id, { sid: newSid });
-      if (launched) return { success: true };
-    }
-
-    // Direct path resolver for builtin and hosted games
-    const gidStr = String(g.game_id || g.id);
-    if (gidStr === '7') {
-      window.location.href = `/games/chess/index.html?sid=${newSid}`;
-      return { success: true };
-    } else if (gidStr === '8') {
-      window.location.href = `/games/hill_climbing/index.html?sid=${newSid}`;
-      return { success: true };
-    } else {
-      window.location.href = `/pages/player/play.html?id=${gidStr}&sid=${newSid}`;
-      return { success: true };
-    }
+    return this.launchGame(gameId, userId);
   },
 
   spectate(sessionId) {
@@ -507,63 +628,80 @@ export const playerService = {
         return false;
       }
     }
-    return true;
+    const resolved = this.resolveGameLaunch(gameId);
+    if (!resolved) return false;
+    if (resolved.kind !== 'selfhosted') return true;
+
+    // Probe self-hosted URL
+    try {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 3000);
+      await fetch(resolved.directUrl || resolved.url, {
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: ctrl ? ctrl.signal : undefined
+      });
+      clearTimeout(timer);
+      return true;
+    } catch (e) {
+      return false;
+    }
   },
 
   getMultiplayerMode(gameId) {
     if (typeof window !== 'undefined' && window.GameLaunch && typeof window.GameLaunch.multiplayerMode === 'function') {
-      return window.GameLaunch.multiplayerMode(gameId);
+      try {
+        return window.GameLaunch.multiplayerMode(gameId);
+      } catch (e) {}
     }
-    return String(gameId) === '7' ? 'self' : 'solo';
+    const gid = String(gameId == null ? '' : gameId).replace(/^g/, '');
+    if (gid === '7' || gid === '25') return 'self';
+    const db = getDatabase();
+    const g = (db.games || []).find((x) => sameId(x.id || x.game_id, gid));
+    if (g && g.game_mode) {
+      return g.game_mode === 'multi' ? 'self' : 'solo';
+    }
+    return 'solo';
   },
 
   launchGame(gameId, userId) {
     const db = getDatabase();
     const uid = String(userId || 7);
-    const g = (db.games || []).find(x => sameId(x.id || x.game_id, gameId));
+    const gid = String(gameId == null ? '' : gameId).replace(/^g/, '');
+    let g = (db.games || []).find((x) => sameId(x.id || x.game_id, gid));
+    if (!g && (BUILTIN_GAMES[gid] || BUNDLED_GAMES[gid])) {
+      g = { game_id: gid, id: gid };
+    }
     if (!g) return { success: false, reason: 'Game could not be found.' };
 
-    const gid = String(g.game_id || g.id);
-
-    // Engine availability check
-    if (typeof window !== 'undefined' && window.GameLaunch && typeof window.GameLaunch.hasEngine === 'function') {
-      if (!window.GameLaunch.hasEngine(gid)) {
-        return { success: false, reason: 'Coming Soon! 🚀 This game engine is currently being integrated.' };
-      }
-    } else if (!this.hasEngine(gid)) {
+    if (!this.hasEngine(gid)) {
       return { success: false, reason: 'Coming Soon! 🚀 This game engine is currently being integrated.' };
     }
 
-    const mode = this.getMultiplayerMode(gid);
-    const opts = mode === 'solo'
-      ? { sid: typeof db.startMatch === 'function' ? db.startMatch(gid, { created_by: uid }) : 'M' + Date.now() }
-      : {};
+    const newSid = typeof db.startMatch === 'function'
+      ? db.startMatch(gid, { created_by: uid })
+      : 'M' + Date.now() + Math.floor(Math.random() * 1000);
 
     // Track view count
     api.post(`/games/${gid.replace(/^g/, '')}/view`, {}).catch(() => {});
 
+    // Try global GameLaunch if present
     if (typeof window !== 'undefined' && window.GameLaunch && typeof window.GameLaunch.launch === 'function') {
-      const ok = window.GameLaunch.launch(gid, opts);
-      if (!ok) {
-        const reason = typeof window.GameLaunch.unplayableReason === 'function'
-          ? window.GameLaunch.unplayableReason(gid)
-          : 'Could not launch game';
-        return { success: false, reason };
+      try {
+        const ok = window.GameLaunch.launch(gid, { sid: newSid, userId: uid });
+        if (ok) return { success: true };
+      } catch (e) {
+        console.warn('GameLaunch.launch fallback triggered:', e);
       }
-      return { success: true };
     }
 
-    // Direct fallback
-    if (gid === '7') {
-      window.location.href = opts.sid ? `/games/chess/index.html?sid=${opts.sid}` : `/games/chess/index.html`;
-      return { success: true };
-    } else if (gid === '8') {
-      window.location.href = `/games/hill_climbing/index.html?sid=${opts.sid || ''}`;
-      return { success: true };
-    } else {
-      window.location.href = `/pages/player/play.html?id=${gid}&sid=${opts.sid || ''}`;
-      return { success: true };
+    const resolved = this.resolveGameLaunch(gid, { sid: newSid, userId: uid });
+    if (!resolved) {
+      return { success: false, reason: 'Coming Soon! 🚀 This game engine is currently being integrated.' };
     }
+
+    window.location.href = resolved.url;
+    return { success: true };
   },
 
   async fetchAchievements(gameId, userId) {

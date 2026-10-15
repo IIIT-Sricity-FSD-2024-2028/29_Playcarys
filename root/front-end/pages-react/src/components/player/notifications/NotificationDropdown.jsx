@@ -39,6 +39,16 @@ export function NotificationDropdown({ userId, roleName = 'player' }) {
 
   useEffect(() => {
     refreshNotifications(false);
+
+    const handleEvent = () => refreshNotifications(false);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('notifications-marked-read', handleEvent);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('notifications-marked-read', handleEvent);
+      }
+    };
   }, [uid, role]);
 
   // When dropdown opens, refresh list to ensure latest data
@@ -183,18 +193,25 @@ export function NotificationDropdown({ userId, roleName = 'player' }) {
               {unreadCount > 0 && <span className="notif-chip">{unreadCount} unread</span>}
             </div>
             <div className="notif-panel-actions">
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
-                  onClick={handleMarkAllRead}
-                  disabled={actionLoading}
-                  title="Mark all as read"
-                >
-                  {actionLoading ? 'Marking…' : '✓ Mark all read'}
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{
+                  fontSize: '0.72rem',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '99px',
+                  color: unreadCount > 0 ? 'var(--accent-cyan, #00d4ff)' : 'var(--text-muted, #72809b)',
+                  border: unreadCount > 0 ? '1px solid rgba(0, 212, 255, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  cursor: unreadCount > 0 && !actionLoading ? 'pointer' : 'default',
+                  opacity: unreadCount > 0 ? 1 : 0.6,
+                  fontWeight: 700
+                }}
+                onClick={handleMarkAllRead}
+                disabled={actionLoading || unreadCount === 0}
+                title="Mark all notifications as read"
+              >
+                {actionLoading ? 'Marking…' : '✓ Mark all read'}
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"

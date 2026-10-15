@@ -6,7 +6,7 @@ import {
   myTeamsIn,
   KIND_LABEL
 } from '../../../services/tournamentService';
-import { formatDate } from '../../../services/playerService';
+import { formatDate, sameId } from '../../../services/playerService';
 
 export function TournamentCard({
   tournament,
