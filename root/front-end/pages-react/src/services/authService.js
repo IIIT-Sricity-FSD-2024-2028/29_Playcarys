@@ -215,7 +215,7 @@ export const authService = {
     return session;
   },
 
-  logout() {
+  clearSession() {
     try {
       sessionStorage.removeItem(SESSION_KEY);
       localStorage.removeItem(SESSION_KEY);
@@ -224,7 +224,10 @@ export const authService = {
     } catch (e) {
       // ignore storage errors
     }
-    // Full reload (not a router jump) so every timer and page state of the signed-in user is dropped.
+  },
+
+  logout() {
+    this.clearSession();
     window.location.href = '/';
   }
 };

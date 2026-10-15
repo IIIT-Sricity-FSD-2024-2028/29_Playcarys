@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import authService, { ENABLE_TEMP_DEV_IDENTITY } from '../services/authService';
 
 // TEMPORARY DEVELOPMENT IDENTITY:
@@ -20,6 +20,7 @@ export const AuthContext = createContext({
 
 export function AuthProvider(props) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [devIdentityError, setDevIdentityError] = useState(null);
@@ -88,8 +89,9 @@ export function AuthProvider(props) {
   }
 
   function handleLogout() {
-    authService.logout();
+    authService.clearSession();
     setUser(null);
+    navigate('/');
   }
 
   return (
