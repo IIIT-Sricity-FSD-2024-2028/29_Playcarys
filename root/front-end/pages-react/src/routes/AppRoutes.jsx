@@ -20,6 +20,8 @@ import AdminDashboard from '../pages/admin/Dashboard';
 import Users from '../pages/admin/Users';
 import GameReview from '../pages/admin/GameReview';
 import Hub from '../pages/admin/Hub';
+import StaffLayout from '../layouts/StaffLayout';
+import StaffInbox from '../pages/staff/Inbox';
 
 export function AppRoutes() {
   return (
@@ -57,6 +59,12 @@ export function AppRoutes() {
         <Route path="users" element={<Users />} />
         <Route path="game-review" element={<GameReview />} />
         <Route path="hub" element={<Hub />} />
+      </Route>
+
+      {/* Staff routes (the inbox shared by admin, superuser, moderator and publisher) */}
+      <Route path="/staff" element={<StaffLayout />}>
+        <Route index element={<Navigate to="/staff/inbox" replace />} />
+        <Route path="inbox" element={<StaffInbox />} />
       </Route>
 
       {/* Anything else goes to the landing page */}
