@@ -56,18 +56,20 @@ export function isRegistered(t, userId, db) {
 
 export function entrantCount(t, db) {
   if (!t) return 0;
+  const tid = t.tournament_id || t.id;
   if (t.team_size) {
-    const tid = String(t.tournament_id || t.id);
     return (db?.team_tournament || []).filter((r) => sameId(r.tournament_id, tid)).length;
   }
-  if (t.participants != null && t.participants > 0) {
-    return t.participants;
-  }
-  const players = t.registeredPlayers || t.registered_player_ids || [];
-  if (players.length > 0) return players.length;
   if (db && Array.isArray(db.player_tournament)) {
-    const tid = t.tournament_id || t.id;
-    return db.player_tournament.filter((pt) => sameId(pt.tournament_id, tid)).length;
+    const ptList = db.player_tournament.filter((pt) => sameId(pt.tournament_id, tid));
+    if (ptList.length > 0) return ptList.length;
+  }
+  const players = t.registeredPlayers || t.registered_player_ids;
+  if (Array.isArray(players) && players.length > 0) {
+    return players.length;
+  }
+  if (typeof t.participants === 'number' && t.participants >= 0) {
+    return t.participants;
   }
   return 0;
 }
@@ -215,7 +217,11 @@ export const tournamentService = {
       } catch (err) {
         console.warn('[tournamentService] team withdraw server notice:', err?.message || err);
       }
-      dropLocalRows('team_tournament', (r) => sameId(r.team_id, team.team_id) && sameId(r.tournament_id, tid));
+      if (Array.isArray(db.team_tournament)) {
+        db.team_tournament = db.team_tournament.filter(
+          (r) => !(sameId(r.team_id, team.team_id) && sameId(r.tournament_id, tid))
+        );
+      }
       saveDatabase(db);
       return { success: true, teamName: team.name };
     } else {
@@ -236,7 +242,11 @@ export const tournamentService = {
           tItem.participants -= 1;
         }
       }
-      dropLocalRows('player_tournament', (r) => sameId(r.player_id, uid) && sameId(r.tournament_id, tid));
+      if (Array.isArray(db.player_tournament)) {
+        db.player_tournament = db.player_tournament.filter(
+          (r) => !(sameId(r.player_id, uid) && sameId(r.tournament_id, tid))
+        );
+      }
       saveDatabase(db);
       return { success: true };
     }

@@ -298,12 +298,7 @@ export class AppController {
       // The client tombstones with a `cleared` flag instead of deleting, so
       // treating this as append-only does not break "Clear All".
       notifications: (n) => `${n.id}`,
-      // The history junctions. Everything else that records "this happened" is
-      // append-only here; these two were left on truncate-and-replace, so a
-      // client posting a stale or empty list deleted them for everyone. Seen:
-      // player_session went from 17 rows to 0 on an ordinary sync, taking every
-      // record of who was in which room with it. (That table is gone now.)
-      player_tournament: (r) => `${r.player_id}|${r.tournament_id}`,
+      // player_tournament is NOT append-only because players can withdraw/unregister.
       // An approval decision is a historical fact about who let a build onto
       // the platform. A client may read it; it may never drop one.
       game_reviews: (r) => `${r.review_id}`,

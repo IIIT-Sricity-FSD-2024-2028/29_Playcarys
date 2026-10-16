@@ -550,8 +550,6 @@ const DB = {
   //  Replaces the old registeredPlayers[] arrays on tournaments.
   // ══════════════════════════════════════════════════════════════
   player_tournament: [
-    // Warzone Cup (t1) — DragonSlayer
-    { player_id: 7, tournament_id: 1 },
     // DEADshot League (t2) — NightHawk, PhoenixRise, ShadowMaster
     { player_id: 8, tournament_id: 2 },
     { player_id: 9, tournament_id: 2 },
@@ -802,13 +800,7 @@ const DB = {
     // within seconds. Unioning by id keeps every message; "Clear All" now
     // tombstones with `cleared` instead of splicing, so clearing still works.
     notifications: n => String(n.id),
-    // The two history JUNCTIONS. "Player X took part in session Y" / "player X
-    // entered tournament Y" are facts of the same kind as the match_results row
-    // they hang off, but they were the only ones left on truncate-and-replace:
-    // any client that posted a stale or empty list wiped them for everyone, and
-    // that is what emptied player_session during a routine sync. Same union
-    // treatment as the tables above.
-    player_tournament: r => String(r.player_id) + '|' + String(r.tournament_id),
+    // player_tournament is NOT append-only because players can withdraw/unregister.
     // FRIENDSHIPS. The backend has always treated this as append-only; the
     // frontend did not, so a client with a stale copy could delete a friendship
     // for BOTH people just by saving. One row per pair, user_a always the lower

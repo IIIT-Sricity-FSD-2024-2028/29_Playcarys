@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import { getDatabase, sameId, hydrateFromServer } from '../../services/playerService';
+import { getDatabase, saveDatabase, sameId, hydrateFromServer } from '../../services/playerService';
 import {
   kindOf,
   tournamentService
@@ -146,9 +146,32 @@ export function Tournaments() {
         res.teamName ? `${res.teamName} withdrawn from ${tourneyName}` : `Withdrew from ${tourneyName}`,
         'info'
       );
-      // Re-hydrate tournament list and registrations from the backend
-      await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+      // Immediately refresh React state from local storage
       setDb({ ...getDatabase() });
+      setDbVersion((v) => v + 1);
+
+      // Re-hydrate tournament list and registrations from the backend
+      try {
+        await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+      } catch (e) {
+        // network sync notice
+      }
+      // Ensure the withdrawn registration doesn't linger due to backend replication lag
+      const freshDb = getDatabase();
+      if (isTeam && Array.isArray(freshDb.team_tournament)) {
+        const myTeam = (freshDb.teams || []).find((tm) => (tm.member_ids || []).some((m) => sameId(m, userId)));
+        if (myTeam) {
+          freshDb.team_tournament = freshDb.team_tournament.filter(
+            (r) => !(sameId(r.team_id, myTeam.team_id) && sameId(r.tournament_id, tid))
+          );
+        }
+      } else if (Array.isArray(freshDb.player_tournament)) {
+        freshDb.player_tournament = freshDb.player_tournament.filter(
+          (r) => !(sameId(r.player_id, userId) && sameId(r.tournament_id, tid))
+        );
+      }
+      saveDatabase(freshDb, true);
+      setDb({ ...freshDb });
       setDbVersion((v) => v + 1);
     } catch (err) {
       // On failure, display actual error
@@ -266,7 +289,11 @@ export function Tournaments() {
           isOpen={true}
           onClose={() => setRegModalTournament(null)}
           onSuccess={async () => {
-            await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+            setDb({ ...getDatabase() });
+            setDbVersion((v) => v + 1);
+            try {
+              await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+            } catch (e) {}
             setDb({ ...getDatabase() });
             setDbVersion((v) => v + 1);
           }}

@@ -71,18 +71,27 @@ export class TournamentRepository {
   }
 
   registerPlayer(player_id: number, tournament_id: number): PlayerTournament {
+    const existing = player_tournament.find(
+      (pt) => pt.player_id === player_id && pt.tournament_id === tournament_id,
+    );
+    if (existing) return existing;
     const entry = { player_id, tournament_id };
     player_tournament.push(entry);
     return entry;
   }
 
   unregisterPlayer(player_id: number, tournament_id: number): boolean {
-    const idx = player_tournament.findIndex(
-      (pt) => pt.player_id === player_id && pt.tournament_id === tournament_id,
-    );
-    if (idx === -1) return false;
-    player_tournament.splice(idx, 1);
-    return true;
+    let removed = false;
+    for (let i = player_tournament.length - 1; i >= 0; i--) {
+      if (
+        player_tournament[i].player_id === player_id &&
+        player_tournament[i].tournament_id === tournament_id
+      ) {
+        player_tournament.splice(i, 1);
+        removed = true;
+      }
+    }
+    return removed;
   }
 
   getPlayerTournaments(player_id: number): PlayerTournament[] {

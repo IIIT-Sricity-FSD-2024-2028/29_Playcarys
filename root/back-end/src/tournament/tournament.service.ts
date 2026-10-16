@@ -441,8 +441,8 @@ export class TournamentService {
     const t = this.repo.findById(tournamentId);
     if (!t) throw new NotFoundException(`Tournament ${tournamentId} not found`);
 
-    if (t.status !== 'upcoming') {
-      throw new BadRequestException('Cannot withdraw from a tournament that has already started');
+    if (t.status === 'completed') {
+      throw new BadRequestException('Cannot withdraw from a completed tournament');
     }
 
     if (!this.repo.isRegistered(playerId, tournamentId)) {
