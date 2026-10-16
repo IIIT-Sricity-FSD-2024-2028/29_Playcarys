@@ -1,7 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function PublisherDashboardHeader(props) {
   const { username = 'Publisher', pendingCount = 0, liveCount = 0, totalGames = 0 } = props;
+  const navigate = useNavigate();
 
   let subtitle = '';
   const bits = [];
@@ -16,10 +18,6 @@ export function PublisherDashboardHeader(props) {
     subtitle = 'Publish your first game to get started.';
   }
 
-  function handleNavigate(url) {
-    window.location.href = url;
-  }
-
   return (
     <div className="pub-head">
       <div className="pub-head-text">
@@ -30,21 +28,15 @@ export function PublisherDashboardHeader(props) {
       <div className="pub-head-actions">
         <button
           className="btn btn-primary"
-          onClick={() => handleNavigate('/publisher/publish')}
+          onClick={() => navigate('/publisher/publish')}
         >
           🎮 Publish Game
         </button>
         <button
           className="btn btn-purple"
-          onClick={() => handleNavigate('/publisher/publish-tournament')}
+          onClick={() => navigate('/publisher/publish-tournament')}
         >
           🏆 New Tournament
-        </button>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => handleNavigate('/pages/publisher/manage-genres.html')}
-        >
-          🏷️ Genres
         </button>
       </div>
     </div>

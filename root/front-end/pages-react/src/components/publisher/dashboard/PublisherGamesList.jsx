@@ -1,15 +1,17 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import PublisherGameRow from './PublisherGameRow';
 
 export function PublisherGamesList(props) {
   const { games = [] } = props;
+  const navigate = useNavigate();
 
   function handleManageAll() {
-    window.location.href = '/pages/publisher/mygames.html';
+    navigate('/publisher/my-games');
   }
 
   function handlePublishNew() {
-    window.location.href = '/publisher/publish';
+    navigate('/publisher/publish');
   }
 
   return (
