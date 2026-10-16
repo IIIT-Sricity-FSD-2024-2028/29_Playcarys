@@ -7,6 +7,8 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -47,6 +49,23 @@ import { Roles } from '../roles/roles.decorator';
 @Controller()
 export class SocialController {
   constructor(private readonly social: SocialService) {}
+
+  /**
+   * Who is asking is decided by the signed login token, never by a user id in
+   * the URL or body. Those are typed by the caller: with them trusted, any
+   * signed-in player could read another player's private messages
+   * (GET /messages/7/8) or send one as somebody else (POST /messages with
+   * someone else's from_user). The legacy `role` header is not accepted here
+   * either, because anyone can type it.
+   */
+  private asSelf(req: any, userId: number) {
+    if (!req.auth) {
+      throw new ForbiddenException('Sign in to use friends and chat.');
+    }
+    if (Number(req.auth.sub) !== Number(userId)) {
+      throw new ForbiddenException('You can only act as yourself.');
+    }
+  }
 
   // ── search & profiles ─────────────────────────────────────
 
@@ -132,7 +151,9 @@ export class SocialController {
   })
   @ApiParam({ name: 'userId', example: 7 })
   @ApiOkResponse({ description: 'Friends, with presence and unread counts.' })
-  listFriends(@Param('userId', ParseIntPipe) userId: number) {
+  @Roles('player')
+  listFriends(@Param('userId', ParseIntPipe) userId: number, @Req() req: any) {
+    this.asSelf(req, userId); // unread counts and last messages are private
     return this.social.listFriends(userId);
   }
 
@@ -145,7 +166,9 @@ export class SocialController {
   })
   @ApiParam({ name: 'userId', example: 8 })
   @ApiOkResponse({ description: '{ incoming: [...], outgoing: [...] }' })
-  listRequests(@Param('userId', ParseIntPipe) userId: number) {
+  @Roles('player')
+  listRequests(@Param('userId', ParseIntPipe) userId: number, @Req() req: any) {
+    this.asSelf(req, userId);
     return this.social.listRequests(userId);
   }
 
@@ -160,7 +183,8 @@ export class SocialController {
   @ApiCreatedResponse({ description: 'Request created; the recipient is notified.' })
   @ApiBadRequestResponse({ description: 'Already friends, duplicate request, or not a player.' })
   @ApiForbiddenResponse({ description: 'Rejected recently — still inside the cooldown.' })
-  sendRequest(@Body() dto: SendFriendRequestDto) {
+  sendRequest(@Body() dto: SendFriendRequestDto, @Req() req: any) {
+    this.asSelf(req, dto.from_user);
     return this.social.sendRequest(dto.from_user, dto.to_user);
   }
 
@@ -179,7 +203,9 @@ export class SocialController {
   respond(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RespondFriendRequestDto,
+    @Req() req: any,
   ) {
+    this.asSelf(req, dto.user_id);
     return this.social.respondToRequest(id, dto.user_id, dto.action);
   }
 
@@ -197,7 +223,9 @@ export class SocialController {
   removeFriend(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('friendId', ParseIntPipe) friendId: number,
+    @Req() req: any,
   ) {
+    this.asSelf(req, userId);
     return this.social.removeFriend(userId, friendId);
   }
 
@@ -212,10 +240,13 @@ export class SocialController {
       "'read', because we cannot prove a human read anything.",
   })
   @ApiOkResponse({ description: 'The conversation, oldest first.' })
+  @Roles('player')
   getConversation(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('withUserId', ParseIntPipe) withUserId: number,
+    @Req() req: any,
   ) {
+    this.asSelf(req, userId); // a conversation is private to its two players
     return this.social.getConversation(userId, withUserId);
   }
 
@@ -227,7 +258,8 @@ export class SocialController {
   })
   @ApiCreatedResponse({ description: "The stored message, status 'sent'." })
   @ApiForbiddenResponse({ description: 'You can only message your friends.' })
-  sendMessage(@Body() dto: SendMessageDto) {
+  sendMessage(@Body() dto: SendMessageDto, @Req() req: any) {
+    this.asSelf(req, dto.from_user);
     return this.social.sendMessage(dto.from_user, dto.to_user, dto.body);
   }
 
@@ -241,7 +273,8 @@ export class SocialController {
       'than "sent".',
   })
   @ApiOkResponse({ description: '{ delivered: <count> }' })
-  markDelivered(@Body() dto: MarkDeliveredDto) {
+  markDelivered(@Body() dto: MarkDeliveredDto, @Req() req: any) {
+    this.asSelf(req, dto.user_id);
     return this.social.markDelivered(dto.user_id, dto.from_user);
   }
 
@@ -258,7 +291,9 @@ export class SocialController {
   deleteConversation(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('withUserId', ParseIntPipe) withUserId: number,
+    @Req() req: any,
   ) {
+    this.asSelf(req, userId);
     return this.social.deleteConversation(userId, withUserId);
   }
 }

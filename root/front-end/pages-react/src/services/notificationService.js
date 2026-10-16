@@ -50,6 +50,18 @@ export const notificationService = {
   },
 
   /**
+   * Reply on a direct notification (stored on the notification's thread).
+   * POST /notifications/:id/reply
+   */
+  async reply(id, fromUserId, fromName, msg) {
+    return await api.post(`/notifications/${parseInt(id, 10)}/reply`, {
+      fromUserId: parseInt(fromUserId, 10),
+      from: fromName,
+      msg
+    });
+  },
+
+  /**
    * Delete a direct notification (only allowed for direct messages to user).
    * DELETE /notifications/:id
    */

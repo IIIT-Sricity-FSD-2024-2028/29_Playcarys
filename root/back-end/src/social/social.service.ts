@@ -71,7 +71,13 @@ export class SocialService {
     return Math.max(highest + 1, Date.now());
   }
 
-  private notify(toUser: number, fromUser: number, msg: string, type = 'system') {
+  private notify(
+    toUser: number,
+    fromUser: number,
+    msg: string,
+    type = 'system',
+    extra: { request_id?: number } = {},
+  ) {
     const sender = users.find((u) => Number(u.user_id) === Number(fromUser));
     notifications.push({
       id: this.nextId(notifications as { id: number }[]),
@@ -86,6 +92,7 @@ export class SocialService {
       read: false,
       replies: [],
       type,
+      ...extra,
     });
   }
 
@@ -206,6 +213,7 @@ export class SocialService {
       .filter(Boolean)
       .map((u) => ({
         ...this.publicUser(u),
+        last_message: this.lastMessage(userId, Number((u as any).user_id)),
         unread: messages.filter(
           (m) =>
             Number(m.from_user) === Number((u as any).user_id) &&
@@ -214,6 +222,25 @@ export class SocialService {
             !(m.deleted_for ?? []).some((d) => Number(d) === Number(userId)),
         ).length,
       }));
+  }
+
+  /** The newest message between two players that `me` has not cleared, for a preview line. */
+  private lastMessage(me: number, other: number) {
+    let last: (typeof messages)[number] | undefined;
+    for (const m of messages) {
+      const between =
+        (Number(m.from_user) === Number(me) && Number(m.to_user) === Number(other)) ||
+        (Number(m.from_user) === Number(other) && Number(m.to_user) === Number(me));
+      if (!between) continue;
+      if ((m.deleted_for ?? []).some((d) => Number(d) === Number(me))) continue;
+      if (!last || Date.parse(m.sent_at) > Date.parse(last.sent_at)) last = m;
+    }
+    if (!last) return null;
+    return {
+      body: last.body.length > 60 ? last.body.slice(0, 57) + '…' : last.body,
+      sent_at: last.sent_at,
+      mine: Number(last.from_user) === Number(me),
+    };
   }
 
   listRequests(userId: number) {
@@ -299,6 +326,7 @@ export class SocialService {
       fromUser,
       `<b>${me.user_name}</b> wants to add you as a friend.`,
       'friend_request',
+      { request_id: req.id },
     );
 
     return { message: `Friend request sent to ${them.user_name}.`, request: req };
@@ -318,6 +346,20 @@ export class SocialService {
     const me = this.userOrThrow(userId);
     const requester = this.userOrThrow(req.from_user);
     const now = new Date().toISOString();
+
+    // The question has been answered, so the notification that asked it is done.
+    // Without this, the Accept / Decline buttons stayed on screen after the
+    // request was settled, and pressing them again hit "already accepted".
+    for (const n of notifications) {
+      if (
+        n.type === 'friend_request' &&
+        Number(n.toUser) === Number(userId) &&
+        Number(n.fromUserId) === Number(req.from_user) &&
+        !n.read
+      ) {
+        n.read = true;
+      }
+    }
 
     if (action === 'accept') {
       req.status = 'accepted';

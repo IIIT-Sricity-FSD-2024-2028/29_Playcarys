@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import Money from '../../../utils/money';
 
 export function PublisherEarningsSummary(props) {
   const { earningsData, loading, error } = props;
@@ -21,7 +22,7 @@ export function PublisherEarningsSummary(props) {
 
       {!loading && !error && earningsData && (
         <div>
-          <div className="earn-big">{earningsData.balance_display || '₹0'}</div>
+          <div className="earn-big">{Money.formatINR(earningsData.available_paise)}</div>
           <div
             style={{
               fontSize: '0.7rem',
@@ -29,11 +30,15 @@ export function PublisherEarningsSummary(props) {
               marginBottom: '0.6rem'
             }}
           >
-            Available to pay out
+            Available to withdraw
           </div>
           <div className="earn-row">
-            <span>This period</span>
-            <b>{earningsData.unsettled?.net_display || '₹0'}</b>
+            <span>In transit</span>
+            <b>{Money.formatINR(earningsData.in_transit_paise)}</b>
+          </div>
+          <div className="earn-row">
+            <span>Paid out</span>
+            <b>{Money.formatINR(earningsData.paid_out_paise)}</b>
           </div>
           <div className="earn-row">
             <span>Your share</span>
@@ -48,7 +53,7 @@ export function PublisherEarningsSummary(props) {
             style={{ width: '100%', marginTop: '0.7rem' }}
             onClick={handleOpenEarnings}
           >
-            Open earnings →
+            {earningsData.withdraw?.can_withdraw ? 'Withdraw →' : 'Open earnings →'}
           </button>
         </div>
       )}

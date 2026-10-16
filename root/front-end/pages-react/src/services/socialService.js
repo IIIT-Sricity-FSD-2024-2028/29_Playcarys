@@ -69,61 +69,61 @@ export const socialService = {
   },
 
   /**
-   * Send a friend request
+   * Send a friend request. Throws if the server refuses (already friends,
+   * cooldown after a rejection ...) — the caller shows the reason. There is no
+   * local fallback: a request stored only in this browser reaches nobody.
    */
   async sendFriendRequest(fromUserId, toUserId) {
-    try {
-      return await api.post('/friends/request', {
-        from_user: Number(fromUserId),
-        to_user: Number(toUserId)
-      });
-    } catch (err) {
-      console.warn('[socialService] Fallback local sendFriendRequest:', err);
-      const db = getDatabase();
-      if (!db.notifications) db.notifications = [];
-      const fromUser = (db.users || []).find((u) => sameId(u.id || u.user_id, fromUserId));
-      db.notifications.push({
-        id: Date.now(),
-        type: 'friend_request',
-        fromUserId: Number(fromUserId),
-        from: fromUser?.user_name || fromUser?.username || 'Player',
-        toUser: Number(toUserId),
-        msg: `${fromUser?.user_name || 'A player'} sent you a friend request.`,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        read: false
-      });
-      saveDatabase(db);
-      return { message: 'Friend request sent.' };
-    }
+    return api.post('/friends/request', {
+      from_user: Number(fromUserId),
+      to_user: Number(toUserId)
+    });
   },
+
+  /** Accounts the player is friends with, from the server (presence, unread, last message). */
+  async listFriends(userId) {
+    const rows = await api.get(`/friends/${userId}`);
+    return (Array.isArray(rows) ? rows : []).map((f) => {
+      const p = f.presence || {};
+      const playing = p.state === 'playing';
+      return {
+        id: f.user_id,
+        user_id: f.user_id,
+        name: f.user_name,
+        username: f.user_name,
+        avatar: f.avatar || String(f.user_name || '?').slice(0, 2).toUpperCase(),
+        presence: playing
+          ? { label: `Playing ${p.game || ''}`.trim(), color: '#00d4ff', state: 'playing' }
+          : { label: 'Offline', color: '#72809b', state: 'offline' },
+        unread: f.unread || 0,
+        lastMessage: f.last_message || null
+      };
+    });
+  },
+
+  /** Pending friend requests in both directions. */
+  async listRequests(userId) {
+    const data = await api.get(`/friends/${userId}/requests`);
+    return { incoming: data?.incoming || [], outgoing: data?.outgoing || [] };
+  },
+
+  /** Answer a friend request: action is 'accept' or 'reject'. */
+  async respondToRequest(requestId, userId, action) {
+    return api.post(`/friends/requests/${requestId}/respond`, {
+      user_id: Number(userId),
+      action
+    });
+  },
+
   /**
    * Fetch 1-on-1 conversation messages between two users
    */
   async getConversation(userId, friendId) {
     if (!userId || !friendId) return [];
-    try {
-      const data = await api.get(`/messages/${userId}/${friendId}`);
-      if (Array.isArray(data)) {
-        return data;
-      }
-    } catch (err) {
-      console.warn('[socialService] Failed to fetch conversation from API, falling back to local store:', err);
-    }
-
-    // Local fallback
-    const db = getDatabase();
-    const msgs = (db?.messages || []).filter(
-      (m) =>
-        (sameId(m.from_user, userId) && sameId(m.to_user, friendId)) ||
-        (sameId(m.from_user, friendId) && sameId(m.to_user, userId))
-    );
-    return msgs
-      .filter((m) => !(m.deleted_for || []).some((d) => sameId(d, userId)))
-      .sort((a, b) => new Date(a.sent_at || 0) - new Date(b.sent_at || 0))
-      .map((m) => ({
-        ...m,
-        status: m.delivered_at ? 'delivered' : 'sent'
-      }));
+    // Errors propagate: showing a stale local copy as if it were the
+    // conversation hid the fact that the server could not be reached.
+    const data = await api.get(`/messages/${userId}/${friendId}`);
+    return Array.isArray(data) ? data : [];
   },
 
   /**
@@ -133,29 +133,14 @@ export const socialService = {
     const text = String(body || '').trim();
     if (!text) throw new Error('Message cannot be empty.');
 
-    try {
-      return await api.post('/messages', {
-        from_user: Number(fromUserId),
-        to_user: Number(toUserId),
-        body: text
-      });
-    } catch (err) {
-      console.warn('[socialService] Failed to post message via API, storing locally:', err);
-      const db = getDatabase();
-      if (!db.messages) db.messages = [];
-      const newMsg = {
-        id: Date.now(),
-        from_user: Number(fromUserId),
-        to_user: Number(toUserId),
-        body: text,
-        sent_at: new Date().toISOString(),
-        delivered_at: null,
-        status: 'sent',
-        deleted_for: []
-      };
-      db.messages.push(newMsg);
-      return newMsg;
-    }
+    // No local fallback. The old one stored the message in this browser and
+    // returned it as if it had been sent, so the sender saw a delivered-looking
+    // message that the recipient could never receive.
+    return api.post('/messages', {
+      from_user: Number(fromUserId),
+      to_user: Number(toUserId),
+      body: text
+    });
   },
 
   /**
@@ -176,38 +161,19 @@ export const socialService = {
    * Clear conversation for current user
    */
   async deleteConversation(userId, friendId) {
-    try {
-      return await api.delete(`/messages/${userId}/${friendId}`);
-    } catch (err) {
-      console.warn('[socialService] Fallback local delete conversation:', err);
-      const db = getDatabase();
-      (db?.messages || []).forEach((m) => {
-        const isBetween =
-          (sameId(m.from_user, userId) && sameId(m.to_user, friendId)) ||
-          (sameId(m.from_user, friendId) && sameId(m.to_user, userId));
-        if (isBetween) {
-          if (!m.deleted_for) m.deleted_for = [];
-          if (!m.deleted_for.some((d) => sameId(d, userId))) {
-            m.deleted_for.push(Number(userId));
-          }
-        }
-      });
-      return { message: 'Conversation cleared for you.' };
-    }
+    return api.delete(`/messages/${userId}/${friendId}`);
   },
 
   /**
    * Remove friend
    */
   async removeFriend(userId, friendId) {
-    let apiResult = null;
-    try {
-      apiResult = await api.delete(`/friends/${userId}/${friendId}`);
-    } catch (err) {
-      console.warn('[socialService] Fallback local remove friend:', err);
-    }
+    // Throws if the server refuses. The old version swallowed that and edited
+    // the local copy anyway, so the UI said "removed" while the server still
+    // had the two as friends (and kept delivering messages between them).
+    const apiResult = await api.delete(`/friends/${userId}/${friendId}`);
 
-    // Always update local database and persist so UI reflects removal immediately
+    // The server agreed: bring the local cache in line so nothing else shows a stale friend
     const db = getDatabase();
     if (db && Array.isArray(db.friendships)) {
       const f = db.friendships.find(

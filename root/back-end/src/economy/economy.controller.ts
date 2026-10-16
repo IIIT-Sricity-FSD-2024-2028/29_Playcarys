@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EconomyService } from './economy.service';
@@ -18,6 +20,7 @@ import {
   EquipCosmeticDto,
   PurchaseCosmeticDto,
   SubscribeDto,
+  WithdrawDto,
 } from './economy.dto';
 
 @ApiTags('economy')
@@ -152,12 +155,49 @@ export class EconomyController {
     return this.payouts.close(publisherId, dto.period, dto.min_paise);
   }
 
+  /**
+   * POST /economy/publishers/:id/withdraw
+   *
+   * A studio withdraws its own available earnings. Answers at once with the
+   * payout in `processing`; the transfer finishes in the background and the
+   * page follows it with GET /economy/payouts/:payoutId.
+   *
+   * Money leaves the platform here, so unlike most routes this one does NOT
+   * accept the legacy `role` header: anyone can type that. It needs a signed
+   * login token, and the token's user must BE the publisher in the URL — one
+   * studio cannot withdraw another's money, and the destination is the
+   * caller's own choice only once they have proven who they are.
+   */
+  @Post('publishers/:id/withdraw')
+  @Roles('publisher')
+  @ApiOperation({ summary: 'Withdraw available earnings to a UPI id or bank account' })
+  withdraw(
+    @Param('id', ParseIntPipe) publisherId: number,
+    @Body() dto: WithdrawDto,
+    @Req() req: any,
+  ) {
+    if (!req.auth) {
+      throw new ForbiddenException('Withdrawing needs a signed session. Please sign in again.');
+    }
+    if (Number(req.auth.sub) !== publisherId) {
+      throw new ForbiddenException('You can only withdraw your own earnings.');
+    }
+    return this.payouts.withdraw(publisherId, dto);
+  }
+
   // POST /economy/payouts/:payoutId/paid
   @Post('payouts/:payoutId/paid')
   @Roles('admin', 'superuser')
   @ApiOperation({ summary: 'Mark a payout sent (simulated)' })
   markPaid(@Param('payoutId', ParseIntPipe) payoutId: number) {
     return this.payouts.markPaid(payoutId);
+  }
+
+  // GET /economy/payouts/:payoutId — used by the page to follow a withdrawal
+  @Get('payouts/:payoutId')
+  @ApiOperation({ summary: 'One payout, with its current status' })
+  getPayout(@Param('payoutId', ParseIntPipe) payoutId: number) {
+    return this.payouts.get(payoutId);
   }
 
   // GET /economy/payouts?publisherId=5

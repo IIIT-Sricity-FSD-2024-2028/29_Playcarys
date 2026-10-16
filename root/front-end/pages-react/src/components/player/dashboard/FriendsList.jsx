@@ -6,7 +6,10 @@ import ConfirmModal from '../../common/ConfirmModal';
 
 export function FriendsList(props) {
   const { friends = [], isGuest = false, onSpectate } = props;
-  const { openProfile, openChat } = useChat();
+  const { openProfile, openChat, friends: serverFriends } = useChat();
+  // Unread counts come from the server (this list itself still carries the
+  // live-match info the Watch button needs).
+  const unreadOf = (id) => (serverFriends.find((x) => String(x.id) === String(id)) || {}).unread || 0;
   const { user } = useContext(AuthContext);
   const [friendToRemove, setFriendToRemove] = useState(null);
 
@@ -86,7 +89,7 @@ export function FriendsList(props) {
                         openChat(f);
                       }}
                     >
-                      Chat
+                      Chat{unreadOf(f.id) > 0 ? ` · ${unreadOf(f.id)} new` : ''}
                     </button>
 
                     <button

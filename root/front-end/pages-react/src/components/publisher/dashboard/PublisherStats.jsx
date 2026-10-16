@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import Money from '../../../utils/money';
 
 export function PublisherStats(props) {
   const navigate = useNavigate();
@@ -19,11 +20,14 @@ export function PublisherStats(props) {
   let earningsSub = `${revenuePcp.toLocaleString('en-IN')} Carys earned`;
 
   if (!earningsLoading && earningsData) {
-    earningsValue = earningsData.balance_display || '₹0';
-    if (earningsData.unsettled) {
-      earningsSub = earningsData.unsettled.payable
-        ? `${earningsData.unsettled.net_display} ready to pay out`
-        : `${earningsData.unsettled.net_display} pending · min ${earningsData.min_payout_display}`;
+    // Same figure as the Earnings page's "Available to withdraw".
+    earningsValue = Money.formatINR(earningsData.available_paise);
+    if (earningsData.withdraw) {
+      earningsSub = earningsData.withdraw.can_withdraw
+        ? 'Ready to withdraw'
+        : earningsData.active_payout
+          ? 'Withdrawal in progress'
+          : `Withdraw from ${earningsData.min_payout_display}`;
     }
   } else if (!earningsLoading && !earningsData) {
     earningsValue = '—';

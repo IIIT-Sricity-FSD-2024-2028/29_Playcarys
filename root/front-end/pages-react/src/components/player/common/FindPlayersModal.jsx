@@ -17,6 +17,7 @@ export function FindPlayersModal({
   const [hasSearched, setHasSearched] = useState(false);
   const [sentRequests, setSentRequests] = useState({});
   const [playerToRemove, setPlayerToRemove] = useState(null);
+  const [notice, setNotice] = useState('');
   const timerRef = useRef(null);
   const navigate = useNavigate();
 
@@ -28,6 +29,7 @@ export function FindPlayersModal({
       setHasSearched(false);
       setSentRequests({});
       setPlayerToRemove(null);
+      setNotice('');
     }
   }, [isOpen]);
 
@@ -66,14 +68,18 @@ export function FindPlayersModal({
 
   async function handleAddFriend(player, ev) {
     ev.stopPropagation();
+    setNotice('');
+    setSentRequests((prev) => ({ ...prev, [player.user_id]: true }));
     try {
-      setSentRequests((prev) => ({ ...prev, [player.user_id]: true }));
       await socialService.sendFriendRequest(currentUserId, player.user_id);
       if (typeof window !== 'undefined' && window.dispatchEvent) {
         window.dispatchEvent(new CustomEvent('friends-updated'));
       }
     } catch (err) {
-      console.error('Add friend error:', err);
+      // The server said no (already friends, cooldown after a rejection ...):
+      // take the optimistic "Sent" back and say why.
+      setSentRequests((prev) => ({ ...prev, [player.user_id]: false }));
+      setNotice(err.message || 'Could not send the request.');
     }
   }
 
@@ -93,7 +99,8 @@ export function FindPlayersModal({
       }
       setPlayerToRemove(null);
     } catch (err) {
-      console.error('Unfriend error:', err);
+      setPlayerToRemove(null);
+      setNotice(err.message || 'Could not remove this friend.');
     }
   }
 
@@ -227,6 +234,23 @@ export function FindPlayersModal({
             />
           </div>
         </div>
+
+        {notice && (
+          <div
+            role="alert"
+            style={{
+              margin: '0.4rem 1.4rem 0',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              color: '#f87171',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.35)'
+            }}
+          >
+            {notice}
+          </div>
+        )}
 
         {/* Results Container */}
         <div

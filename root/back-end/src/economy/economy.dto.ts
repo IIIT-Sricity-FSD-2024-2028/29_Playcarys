@@ -86,6 +86,27 @@ export class SubscribeDto {
   plan_id!: string;
 }
 
+export class WithdrawDto {
+  @ApiProperty({ enum: ['upi', 'bank'], description: 'How to receive the money' })
+  @IsIn(['upi', 'bank'])
+  method!: 'upi' | 'bank';
+
+  @ApiProperty({ required: false, example: 'studio@okbank', description: 'Required when method is "upi"' })
+  @IsOptional()
+  @IsString()
+  upi_id?: string;
+
+  @ApiProperty({ required: false, example: '123456789012', description: 'Required when method is "bank" (9-18 digits)' })
+  @IsOptional()
+  @IsString()
+  account_number?: string;
+
+  @ApiProperty({ required: false, example: 'HDFC0001234', description: 'Required when method is "bank"' })
+  @IsOptional()
+  @IsString()
+  ifsc?: string;
+}
+
 export class ClosePayoutDto {
   @ApiProperty({ description: 'Label for the period being closed, e.g. "2026-08"' })
   @IsString()

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import notificationService from '../../services/notificationService';
+import socialService from '../../services/socialService';
+import { useChat } from '../../context/ChatContext';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import '../../styles/player/notifications-hub.css';
 
@@ -45,6 +47,7 @@ export function Notifications() {
   const { user } = useContext(AuthContext);
   const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
   const roleName = user?.role || 'player';
+  const { respondToRequest } = useChat();
 
   const [notifications, setNotifications] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
@@ -155,7 +158,36 @@ export function Notifications() {
     }
   };
 
-  const handleSendReply = (notifId) => {
+  // Accept / Decline a friend request. Before this, both buttons only marked
+  // the notification read and showed a success toast — the request itself was
+  // never answered, so the two players never became friends.
+  const handleFriendRequest = async (n, action) => {
+    try {
+      let requestId = n.request_id;
+      if (!requestId) {
+        // Notifications raised before request ids existed: find the pending
+        // request from that sender instead.
+        const { incoming } = await socialService.listRequests(userId);
+        const match = incoming.find((r) => String(r.from_user) === String(n.fromUserId));
+        requestId = match ? match.id : null;
+      }
+      if (!requestId) {
+        setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+        showToast('That request was already answered.', 'info');
+        return;
+      }
+      await respondToRequest(requestId, action);
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      showToast(
+        action === 'accept' ? `You are now friends with ${n.from}.` : 'Friend request declined.',
+        action === 'accept' ? 'success' : 'info'
+      );
+    } catch (err) {
+      showToast(err.message || 'Could not answer the friend request.', 'error');
+    }
+  };
+
+  const handleSendReply = async (notifId) => {
     const txt = (replyText[notifId] || '').trim();
     if (!txt) {
       showToast('Reply cannot be empty', 'error');
@@ -168,19 +200,19 @@ export function Notifications() {
       return;
     }
 
-    const updatedReplies = notif.replies ? [...notif.replies] : [];
-    updatedReplies.push({
-      from: user?.username || 'You',
-      msg: txt,
-      time: new Date().toISOString()
-    });
-
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notifId ? { ...n, replies: updatedReplies } : n))
-    );
-    setReplyText((prev) => ({ ...prev, [notifId]: '' }));
-    setReplyOpenId(null);
-    showToast('Reply sent successfully', 'success');
+    try {
+      // Stored by the server. The old version only changed this page's state and
+      // then said "sent", so a reload made the reply vanish.
+      const saved = await notificationService.reply(notifId, userId, user?.username || 'You', txt);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notifId ? { ...n, replies: saved?.replies || n.replies } : n))
+      );
+      setReplyText((prev) => ({ ...prev, [notifId]: '' }));
+      setReplyOpenId(null);
+      showToast('Reply sent', 'success');
+    } catch (err) {
+      showToast(err.message || 'Could not send the reply', 'error');
+    }
   };
 
   // Category counts
@@ -382,20 +414,14 @@ export function Notifications() {
                           <button
                             type="button"
                             className="btn btn-sm btn-primary"
-                            onClick={() => {
-                              handleMarkRead(n.id);
-                              showToast('Friend request accepted', 'success');
-                            }}
+                            onClick={() => handleFriendRequest(n, 'accept')}
                           >
                             Accept
                           </button>
                           <button
                             type="button"
                             className="btn btn-sm btn-ghost"
-                            onClick={() => {
-                              handleMarkRead(n.id);
-                              showToast('Friend request declined', 'info');
-                            }}
+                            onClick={() => handleFriendRequest(n, 'reject')}
                           >
                             Decline
                           </button>

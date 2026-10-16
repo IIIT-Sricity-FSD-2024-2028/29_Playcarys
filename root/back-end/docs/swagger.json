@@ -2023,6 +2023,40 @@
         ]
       }
     },
+    "/api/v1/economy/publishers/{id}/withdraw": {
+      "post": {
+        "operationId": "EconomyController_withdraw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Withdraw available earnings to a UPI id or bank account",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
     "/api/v1/economy/payouts/{payoutId}/paid": {
       "post": {
         "operationId": "EconomyController_markPaid",
@@ -2042,6 +2076,30 @@
           }
         },
         "summary": "Mark a payout sent (simulated)",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/payouts/{payoutId}": {
+      "get": {
+        "operationId": "EconomyController_getPayout",
+        "parameters": [
+          {
+            "name": "payoutId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One payout, with its current status",
         "tags": [
           "economy"
         ]
@@ -5600,6 +5658,37 @@
         },
         "required": [
           "period"
+        ]
+      },
+      "WithdrawDto": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "upi",
+              "bank"
+            ],
+            "description": "How to receive the money"
+          },
+          "upi_id": {
+            "type": "string",
+            "example": "studio@okbank",
+            "description": "Required when method is \"upi\""
+          },
+          "account_number": {
+            "type": "string",
+            "example": "123456789012",
+            "description": "Required when method is \"bank\" (9-18 digits)"
+          },
+          "ifsc": {
+            "type": "string",
+            "example": "HDFC0001234",
+            "description": "Required when method is \"bank\""
+          }
+        },
+        "required": [
+          "method"
         ]
       },
       "CreateGroupDto": {

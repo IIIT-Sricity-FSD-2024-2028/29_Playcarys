@@ -677,6 +677,14 @@ export interface Notification {
   /** Set on notifications raised about a specific match. */
   sessionId?: number | string | null;
 
+  /**
+   * On a 'friend_request' notification: the friend_requests row it is about.
+   * Lets Accept / Decline answer exactly that request instead of guessing it
+   * from the sender, and lets the server clear the notification when the
+   * request is answered from anywhere (the drawer or the notifications page).
+   */
+  request_id?: number;
+
   /** Chosen category on a message to staff ("Bug Report", "General Inquiry"). */
   subject?: string;
 }
@@ -1490,6 +1498,14 @@ export interface CarysLedgerEntry {
  * A publisher payout. Append-only: a payout is a historical fact, and the
  * row stays exactly as written even if the studio's balance later changes.
  */
+/**
+ * One closed period of earnings, moving to a studio.
+ *
+ * Lifecycle:
+ *   admin closes a period  : pending ──(admin marks paid)──────────▶ paid
+ *   studio withdraws       : processing ──(gateway says ok)────────▶ paid
+ *                                       └─(gateway declines)───────▶ failed (money returned)
+ */
 export interface Payout {
   payout_id: number;
   publisher_id: number;
@@ -1497,9 +1513,26 @@ export interface Payout {
   gross_paise: number;
   platform_cut_paise: number;
   net_paise: number;
-  status: 'pending' | 'paid' | 'failed';
+  status: 'pending' | 'processing' | 'paid' | 'failed';
   created_at: string;
   paid_at?: string | null;
+
+  /** 'admin' = a staff member closed the period; 'withdrawal' = the studio asked for it. */
+  source?: 'admin' | 'withdrawal';
+  /** How the money was sent, for a withdrawal. */
+  method?: 'upi' | 'bank';
+  /** Where it went, with the middle hidden ("ak****@okbank"). The full number is never stored. */
+  destination_masked?: string;
+  /** The payment partner's own reference for the transfer. */
+  gateway_ref?: string | null;
+  /** Why a transfer was declined. */
+  failure_reason?: string | null;
+  /**
+   * What this payout consumed, so a declined transfer can hand exactly that
+   * back (rewind the "already settled" marks) instead of losing the money.
+   */
+  royalty_carys?: number;
+  rake_paise?: number;
 }
 
 export const cosmetic_items: CosmeticItem[] = loadedData.cosmetic_items || [];
@@ -1661,9 +1694,11 @@ function migrateEconomyToInr(): void {
     if (p.revenue_pcp === undefined) p.revenue_pcp = 0;
     if (p.balance_paise === undefined) p.balance_paise = 0;
     if (p.lifetime_earned_paise === undefined) p.lifetime_earned_paise = 0;
-    // Everything earned before payouts existed is treated as already settled,
-    // so switching this on does not retroactively owe two studios ₹4,500.
-    if (p.settled_pcp === undefined) p.settled_pcp = p.revenue_pcp || 0;
+    // Royalty is derived from each game's sessions (see PayoutService), so the
+    // "already settled" mark starts at nothing: a studio's real play counts.
+    // (It used to start at revenue_pcp, a counter that is 0 in a fresh database,
+    // which is why sessions showed up in the table but never in the totals.)
+    if (p.settled_pcp === undefined) p.settled_pcp = 0;
     if (p.settled_rake_paise === undefined) p.settled_rake_paise = 0;
   }
 }

@@ -4,6 +4,7 @@ import AuthContext from '../../context/AuthContext';
 import publisherService from '../../services/publisherService';
 import Money from '../../utils/money';
 import LoadingState from '../../components/common/LoadingState';
+import WithdrawModal from '../../components/publisher/earnings/WithdrawModal';
 import '../../styles/publisher/earnings.css';
 
 export function Earnings() {
@@ -13,10 +14,13 @@ export function Earnings() {
   const [earnData, setEarnData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
-  async function loadEarnings() {
+  // `quiet` refreshes the numbers in place (after a withdrawal) without
+  // swapping the whole page for the loading screen.
+  async function loadEarnings(quiet = false) {
     if (!user || user.role !== 'publisher') return;
-    setLoading(true);
+    if (!quiet) setLoading(true);
     setError(null);
 
     try {
@@ -70,6 +74,7 @@ export function Earnings() {
     : 'What your games have earned';
 
   const u = earnData?.unsettled;
+  const w = earnData?.withdraw || {};
   const platformPct = earnData ? 100 - earnData.share_pct : 30;
 
   return (
@@ -107,7 +112,7 @@ export function Earnings() {
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                onClick={loadEarnings}
+                onClick={() => loadEarnings()}
               >
                 Retry
               </button>
@@ -120,50 +125,77 @@ export function Earnings() {
         </div>
       ) : (
         <div id="earn-root">
-          {/* 1. Four Summary Cards */}
+          {/* 1. Where the money is: available, in transit, paid out, lifetime */}
           <div className="earn-hero">
             <div className="earn-stat highlight">
               <div className="earn-val" style={{ color: '#10b981' }}>
-                {u.net_display}
+                {Money.formatINR(earnData.available_paise)}
               </div>
-              <div className="earn-lbl">Ready to pay out</div>
-              <div className="earn-sub">
-                {u.payable
-                  ? 'Above the minimum'
-                  : `Below the ${earnData.min_payout_display} minimum`}
-              </div>
+              <div className="earn-lbl">Available to withdraw</div>
+              {w.can_withdraw ? (
+                <button
+                  type="button"
+                  id="withdraw-btn"
+                  className="btn btn-primary btn-sm earn-withdraw"
+                  onClick={() => setShowWithdraw(true)}
+                >
+                  Withdraw {Money.formatINR(earnData.available_paise)}
+                </button>
+              ) : (
+                <>
+                  <div className="earn-progress" title={`${w.progress_pct}% of the minimum`}>
+                    <div className="earn-progress-fill" style={{ width: `${w.progress_pct}%` }} />
+                  </div>
+                  <div className="earn-sub">{w.reason}</div>
+                </>
+              )}
             </div>
 
             <div className="earn-stat">
-              <div className="earn-val">{earnData.balance_display}</div>
-              <div className="earn-lbl">Awaiting transfer</div>
-              <div className="earn-sub">Closed, not yet sent</div>
+              <div className="earn-val">{Money.formatINR(earnData.in_transit_paise)}</div>
+              <div className="earn-lbl">In transit</div>
+              <div className="earn-sub">Withdrawn, not yet delivered</div>
             </div>
 
             <div className="earn-stat">
-              <div className="earn-val">{earnData.lifetime_earned_display}</div>
+              <div className="earn-val">{Money.formatINR(earnData.paid_out_paise)}</div>
+              <div className="earn-lbl">Paid out</div>
+              <div className="earn-sub">Delivered to you</div>
+            </div>
+
+            <div className="earn-stat">
+              <div className="earn-val">{Money.formatINR(earnData.lifetime_earned_paise)}</div>
               <div className="earn-lbl">Lifetime earned</div>
-            </div>
-
-            <div className="earn-stat">
-              <div className="earn-val">
-                {Money.formatCarys(earnData.revenue_pcp)}
+              <div className="earn-sub">
+                {earnData.reconciled
+                  ? '✓ Available + in transit + paid out'
+                  : 'Figures are being reconciled'}
               </div>
-              <div className="earn-lbl">Session royalty (Carys)</div>
-              <div className="earn-sub">Engagement counter, all time</div>
             </div>
           </div>
 
+          {/* A transfer already under way (survives a page reload) */}
+          {earnData.active_payout && !showWithdraw && (
+            <div className="earn-note earn-note-live">
+              <strong>Withdrawal in progress.</strong>{' '}
+              {Money.formatINR(earnData.active_payout.net_paise)} is on its way to{' '}
+              {earnData.active_payout.destination_masked}.{' '}
+              <button type="button" className="earn-link" onClick={() => setShowWithdraw(true)}>
+                Track it
+              </button>
+            </div>
+          )}
+
           {/* 2. How This Period Splits */}
           <div className="earn-section">
-            <h2>How this period splits</h2>
+            <h2>How your available amount splits</h2>
             <p className="lead">
               You keep {earnData.share_pct}% of everything attributable to your games. The platform keeps{' '}
               {platformPct}% to run review, moderation and hosting.
             </p>
             <div className="split-bar">
               <div className="split-you" style={{ width: `${earnData.share_pct}%` }}>
-                You — {u.net_display} ({earnData.share_pct}%)
+                You — {Money.formatINR(u.net_paise)} ({earnData.share_pct}%)
               </div>
               <div className="split-platform" style={{ width: `${platformPct}%` }}>
                 Platform — {Money.formatINR(u.platform_cut_paise)} ({platformPct}%)
@@ -184,7 +216,7 @@ export function Earnings() {
                   </tr>
                   <tr>
                     <td>
-                      <strong>Gross this period</strong>
+                      <strong>Gross since last withdrawal</strong>
                     </td>
                     <td className="num"></td>
                     <td className="num">
@@ -236,7 +268,7 @@ export function Earnings() {
           <div className="earn-section">
             <h2>Payout history</h2>
             <p className="lead">
-              Each row is a closed period. A payout is a historical record and is never edited.
+              Each row is one withdrawal or closed period. Only its status ever changes.
             </p>
             <div className="card-box">
               {earnData.history && earnData.history.length > 0 ? (
@@ -248,17 +280,28 @@ export function Earnings() {
                       <th className="num">Platform</th>
                       <th className="num">You receive</th>
                       <th>Status</th>
-                      <th>Closed</th>
+                      <th>Date</th>
                     </tr>
                   </thead>
                   <tbody>
                     {earnData.history.map((p) => (
                       <tr key={p.payout_id || p.period}>
-                        <td>{p.period}</td>
+                        <td>
+                          {p.period}
+                          {p.destination_masked && (
+                            <div className="earn-subline">
+                              {p.method === 'bank' ? 'Bank' : 'UPI'} · {p.destination_masked}
+                              {p.gateway_ref ? ` · ${p.gateway_ref}` : ''}
+                            </div>
+                          )}
+                          {p.status === 'failed' && p.failure_reason && (
+                            <div className="earn-subline bad">{p.failure_reason}</div>
+                          )}
+                        </td>
                         <td className="num">{Money.formatINR(p.gross_paise)}</td>
                         <td className="num">{Money.formatINR(p.platform_cut_paise)}</td>
                         <td className="num">
-                          <strong>{p.net_display}</strong>
+                          <strong>{Money.formatINR(p.net_paise)}</strong>
                         </td>
                         <td>
                           <span className={`pill ${p.status}`}>{p.status}</span>
@@ -269,7 +312,7 @@ export function Earnings() {
                   </tbody>
                 </table>
               ) : (
-                <div className="earn-empty">No payouts closed yet.</div>
+                <div className="earn-empty">No withdrawals yet.</div>
               )}
             </div>
           </div>
@@ -277,11 +320,24 @@ export function Earnings() {
           {/* 5. How You Get Paid Note */}
           <div className="earn-note">
             <strong>How you get paid.</strong> Revenue accrues continuously as your games are played and
-            your tournaments run. An admin closes a period, which moves your {earnData.share_pct}% share into
-            "awaiting transfer". Nothing under {earnData.min_payout_display} is sent — it costs more to transfer
-            than it is worth, so it simply rolls into the next period.
+            your tournaments run, and your {earnData.share_pct}% share shows up as "available". Once it
+            reaches {earnData.min_payout_display} you can withdraw it yourself to a UPI id or bank account.
+            Below that it simply keeps growing — it costs more to transfer a few rupees than they are worth.
+            If a transfer is declined, nothing is lost: the money returns to "available".
           </div>
         </div>
+      )}
+
+      {showWithdraw && earnData && (
+        <WithdrawModal
+          userId={user.userId || user.id}
+          amountPaise={earnData.available_paise}
+          resumePayout={earnData.active_payout}
+          onClose={(changed) => {
+            setShowWithdraw(false);
+            if (changed) loadEarnings(true);
+          }}
+        />
       )}
     </div>
   );
