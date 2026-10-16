@@ -50,7 +50,7 @@ export class NotificationService {
   static readonly CONTACTABLE: Record<string, string[]> = {
     superuser: ['admin', 'moderator', 'publisher'],
     admin: ['moderator', 'publisher'],
-    moderator: ['player', 'admin'],
+    moderator: ['player', 'admin', 'superuser'],
     publisher: ['admin', 'superuser'],
     player: [],
   };

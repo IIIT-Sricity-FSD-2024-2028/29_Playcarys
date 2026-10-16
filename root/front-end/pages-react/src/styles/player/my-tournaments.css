@@ -1,0 +1,221 @@
+/* ── Competitive Center / My Tournaments Styles ── */
+
+.comp-tabs {
+  display: flex;
+  gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 0.3rem;
+  margin-bottom: 2rem;
+  max-width: 420px;
+}
+
+.comp-tab {
+  flex: 1;
+  text-align: center;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  letter-spacing: 0.03em;
+}
+
+.comp-tab.active {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3);
+}
+
+.comp-tab:hover:not(.active) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Stats Strip */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-strip-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  text-align: center;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.stat-strip-card:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.stat-strip-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.stat-strip-lbl {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.2rem;
+}
+
+@media (max-width: 640px) {
+  .stats-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+  .stat-strip-card {
+    padding: 0.85rem 0.6rem;
+  }
+  .stat-strip-val {
+    font-size: 1.3rem;
+  }
+  .stat-strip-lbl {
+    font-size: 0.62rem;
+  }
+}
+
+/* Tournament Card */
+.my-tourn-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  transition: all 0.2s;
+}
+
+.my-tourn-card:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.my-tourn-header {
+  padding: 1.5rem;
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.my-tourn-body {
+  padding: 1.25rem 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.tourn-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tourn-meta-lbl {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.tourn-meta-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.my-tourn-footer {
+  padding: 0.85rem 1.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Status chips */
+.status-live {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 99px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-live::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulsedot 1s ease-in-out infinite;
+}
+
+@keyframes pulsedot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Placement badge for archive */
+.placement-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', monospace;
+  font-weight: 900;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.place-1 {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--accent-yellow);
+  border: 2px solid var(--accent-yellow);
+}
+
+.place-2 {
+  background: rgba(192, 192, 192, 0.15);
+  color: #c0c0c0;
+  border: 2px solid #c0c0c0;
+}
+
+.place-other {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 2px solid var(--border-primary);
+}
+
+/* Rank progress in header */
+.rank-badge {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(139, 92, 246, 0.15));
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  color: var(--accent-cyan);
+}

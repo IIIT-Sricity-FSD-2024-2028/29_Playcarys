@@ -1,0 +1,899 @@
+/* Landing / login page styles.
+ * Copied from the <style> block of the old page; every selector is prefixed with :where(.landing-root)
+ * (zero extra specificity, so the cascade behaves exactly as in the old page)
+ * and cannot change any other page. */
+/* Landing specific */
+    :where(.landing-root) .landing-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2.5rem;
+      height: 64px;
+      background: rgba(13, 15, 20, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    :where(.landing-root) .landing-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    :where(.landing-root) .landing-nav-links a {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color var(--trans-fast);
+      cursor: pointer;
+    }
+
+    :where(.landing-root) .landing-nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    /* Nav right section with distinct sign-in areas */
+    :where(.landing-root) .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Publisher nav button */
+    :where(.landing-root) .nav-publisher-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(124, 58, 237, 0.15);
+      border: 1px solid rgba(124, 58, 237, 0.4);
+      color: #a78bfa;
+      padding: 0.4rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans-fast);
+    }
+
+    :where(.landing-root) .nav-publisher-btn:hover {
+      background: rgba(124, 58, 237, 0.28);
+      border-color: rgba(124, 58, 237, 0.7);
+    }
+
+    /* Team dropdown */
+    :where(.landing-root) .nav-team-wrap {
+      position: relative;
+    }
+
+    :where(.landing-root) .nav-team-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: transparent;
+      border: 1px solid var(--border-primary);
+      color: var(--text-secondary);
+      padding: 0.4rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans-fast);
+    }
+
+    :where(.landing-root) .nav-team-btn:hover {
+      border-color: rgba(0, 212, 255, 0.4);
+      color: var(--text-primary);
+    }
+
+    :where(.landing-root) .nav-team-btn.open {
+      border-color: rgba(0, 212, 255, 0.5);
+      color: var(--text-primary);
+      background: rgba(0, 212, 255, 0.06);
+    }
+
+    :where(.landing-root) .nav-team-dropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      min-width: 170px;
+      padding: 0.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 300;
+    }
+
+    :where(.landing-root) .nav-team-dropdown.open {
+      display: block;
+    }
+
+    :where(.landing-root) .nav-team-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 0.85rem;
+      border-radius: var(--radius-md);
+      font-size: 0.83rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--trans-fast);
+    }
+
+    :where(.landing-root) .nav-team-item:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    /* Sign In button */
+    :where(.landing-root) .nav-signin-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--gradient-brand);
+      color: #fff;
+      padding: 0.4rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: transform var(--trans-fast), box-shadow var(--trans-fast);
+    }
+
+    :where(.landing-root) .nav-signin-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+    }
+
+    /* Hero */
+    :where(.landing-root) .hero {
+      padding: 9rem 2rem 5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    :where(.landing-root) .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(0, 212, 255, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    :where(.landing-root) .hero h1 {
+      font-size: clamp(2.8rem, 7vw, 5rem);
+      font-weight: 900;
+      background: var(--gradient-brand);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.05;
+    }
+
+    :where(.landing-root) .hero-sub {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 1.25rem auto 0;
+      line-height: 1.7;
+    }
+
+    :where(.landing-root) .hero-btns {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2.5rem;
+      flex-wrap: wrap;
+    }
+
+    :where(.landing-root) .hero-btn-primary {
+      background: var(--gradient-brand);
+      color: #fff;
+      padding: 0.85rem 2.25rem;
+      border-radius: var(--radius-md);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: transform var(--trans-fast), box-shadow var(--trans-fast);
+    }
+
+    :where(.landing-root) .hero-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0, 212, 255, 0.3);
+    }
+
+    :where(.landing-root) .hero-btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      padding: 0.85rem 2.25rem;
+      border-radius: var(--radius-md);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border-primary);
+      transition: all var(--trans-fast);
+    }
+
+    :where(.landing-root) .hero-btn-secondary:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    :where(.landing-root) .section {
+      padding: 5rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    :where(.landing-root) .about-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+      margin-top: 3rem;
+    }
+
+    :where(.landing-root) .about-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      text-align: center;
+      transition: all var(--trans-med);
+    }
+
+    :where(.landing-root) .about-card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    :where(.landing-root) .about-card-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      margin: 0 auto 1rem;
+    }
+
+    :where(.landing-root) .about-card h3 {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+
+    :where(.landing-root) .about-card p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    :where(.landing-root) .stats-section {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-primary);
+      border-bottom: 1px solid var(--border-primary);
+      padding: 3rem 2rem;
+    }
+
+    :where(.landing-root) .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    :where(.landing-root) .stat-item .val {
+      font-family: 'Orbitron', monospace;
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: var(--gradient-brand);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    :where(.landing-root) .stat-item .lbl {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    :where(.landing-root) .trending-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin-top: 2.5rem;
+    }
+
+    :where(.landing-root) .trending-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all var(--trans-med);
+      position: relative;
+    }
+
+    :where(.landing-root) .trending-card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    :where(.landing-root) .trending-badge {
+      position: absolute;
+      top: 0.75rem;
+      left: 0.75rem;
+      background: var(--gradient-brand);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 99px;
+    }
+
+    :where(.landing-root) .trending-img-placeholder {
+      height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+
+    :where(.landing-root) .trending-card-body {
+      padding: 1rem;
+    }
+
+    :where(.landing-root) .trending-card-body h3 {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.9rem;
+    }
+
+    :where(.landing-root) .trending-card-body p {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+    }
+
+    :where(.landing-root) .trending-card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    :where(.landing-root) .publisher-section {
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%);
+      border-top: 1px solid var(--border-primary);
+      border-bottom: 1px solid var(--border-primary);
+      padding: 5rem 2rem;
+    }
+
+    :where(.landing-root) .publisher-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      margin-top: 2.5rem;
+      text-align: center;
+    }
+
+    :where(.landing-root) .publisher-feature {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    :where(.landing-root) .publisher-feature-icon {
+      width: 56px;
+      height: 56px;
+      background: rgba(124, 58, 237, 0.2);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    :where(.landing-root) .publisher-feature h3 {
+      font-size: 0.95rem;
+    }
+
+    :where(.landing-root) .publisher-feature p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    :where(.landing-root) .cta-section {
+      padding: 5rem 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    :where(.landing-root) .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(0, 212, 255, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    :where(.landing-root) .cta-section h2 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+    }
+
+    :where(.landing-root) .cta-section p {
+      color: var(--text-secondary);
+      max-width: 480px;
+      margin: 1rem auto 2rem;
+    }
+
+    :where(.landing-root) .team-section {
+      padding: 3rem 2rem 5rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    :where(.landing-root) .team-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    :where(.landing-root) .team-card {
+      text-align: center;
+    }
+
+    :where(.landing-root) .team-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: var(--gradient-brand);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin: 0 auto 0.75rem;
+      border: 2px solid var(--border-primary);
+    }
+
+    :where(.landing-root) .team-card h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    :where(.landing-root) .team-card p {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    :where(.landing-root) footer {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-primary);
+      padding: 2rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* ── Login Panel (replaces single modal — role-specific panels) ── */
+    :where(.landing-root) .login-panel-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(6px);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    :where(.landing-root) .login-panel-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    :where(.landing-root) .login-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-xl);
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+      animation: none;
+    }
+
+    :where(.landing-root) .login-panel-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      min-height: 520px;
+    }
+
+    /* Left column — Player */
+    :where(.landing-root) .lp-col {
+      padding: 2rem 1.5rem;
+      border-right: 1px solid var(--border-primary);
+    }
+
+    :where(.landing-root) .lp-col:last-child {
+      border-right: none;
+    }
+
+    :where(.landing-root) .lp-col-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+
+    :where(.landing-root) .lp-col-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    :where(.landing-root) .lp-col-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+
+    :where(.landing-root) .lp-divider {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin: 1rem 0;
+      position: relative;
+    }
+
+    :where(.landing-root) .lp-divider::before,
+:where(.landing-root) .lp-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 42%;
+      height: 1px;
+      background: var(--border-primary);
+    }
+
+    :where(.landing-root) .lp-divider::before {
+      left: 0;
+    }
+
+    :where(.landing-root) .lp-divider::after {
+      right: 0;
+    }
+
+    :where(.landing-root) .demo-accounts {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 0.85rem;
+      margin-top: 1rem;
+    }
+
+    :where(.landing-root) .demo-accounts h4 {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    :where(.landing-root) .demo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid var(--border-primary);
+      font-size: 0.78rem;
+    }
+
+    :where(.landing-root) .demo-row:last-child {
+      border-bottom: none;
+    }
+
+    :where(.landing-root) .demo-role {
+      color: var(--text-secondary);
+    }
+
+    :where(.landing-root) .demo-fill {
+      color: var(--accent-cyan);
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    :where(.landing-root) .demo-fill:hover {
+      text-decoration: underline;
+    }
+
+    :where(.landing-root) .lp-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: 32px;
+      height: 32px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--text-secondary);
+      transition: all var(--trans-fast);
+      z-index: 10;
+    }
+
+    :where(.landing-root) .lp-close:hover {
+      color: var(--text-primary);
+      background: var(--bg-card);
+    }
+
+    :where(.landing-root) .login-panel-wrap {
+      position: relative;
+    }
+
+    /* Staff column (Admin + Moderator stacked) */
+    :where(.landing-root) .lp-staff-col {
+      padding: 0;
+      border-right: none;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :where(.landing-root) .lp-staff-sub {
+      padding: 1.5rem;
+      flex: 1;
+    }
+
+    :where(.landing-root) .lp-staff-sub+.lp-staff-sub {
+      border-top: 1px solid var(--border-primary);
+    }
+
+    /* Register modal */
+    :where(.landing-root) .login-modal .modal {
+      max-width: 460px;
+    }
+
+    :where(.landing-root) .role-select-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    :where(.landing-root) .role-option {
+      background: var(--bg-input);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-md);
+      padding: 0.85rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--trans-fast);
+    }
+
+    :where(.landing-root) .role-option:hover {
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    :where(.landing-root) .role-option.selected {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    :where(.landing-root) .role-option .role-icon {
+      font-size: 1.5rem;
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    :where(.landing-root) .role-option .role-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    @media(max-width:900px) {
+      :where(.landing-root) .about-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      :where(.landing-root) .trending-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      :where(.landing-root) .publisher-grid {
+        grid-template-columns: 1fr;
+      }
+
+      :where(.landing-root) .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      :where(.landing-root) .team-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      :where(.landing-root) .login-panel-inner {
+        grid-template-columns: 1fr;
+      }
+
+      :where(.landing-root) .lp-col {
+        border-right: none;
+        border-bottom: 1px solid var(--border-primary);
+      }
+
+      :where(.landing-root) .lp-col:last-child {
+        border-bottom: none;
+      }
+    }
+
+    @media(max-width:600px) {
+      :where(.landing-root) .trending-grid {
+        grid-template-columns: 1fr;
+      }
+
+      :where(.landing-root) .about-grid {
+        grid-template-columns: 1fr;
+      }
+
+      :where(.landing-root) .landing-nav-links {
+        display: none;
+      }
+    }
+
+/* Guard: player/create-tournament.css has an unscoped `.section-title { color: #fff }` that leaks
+ * onto every page. The old landing title used the normal heading colour, so say so here
+ * (more specific than the leak, so it wins whatever the load order). */
+.landing-root h2.section-title {
+  color: var(--text-primary);
+}
+
+/* The team's global.css restyles forms and modals (with !important). The old landing page used
+ * the original variables.css look, so put it back here, for the landing page only.
+ * `.landing-root` in front gives these rules more weight than the global ones. */
+.landing-root .form-input,
+.landing-root .form-select,
+.landing-root .form-textarea {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.9rem !important;
+  transition: border-color var(--trans-fast), box-shadow var(--trans-fast), background var(--trans-fast) !important;
+}
+.landing-root .form-input:hover,
+.landing-root .form-select:hover,
+.landing-root .form-textarea:hover {
+  border-color: rgba(0, 212, 255, 0.2) !important;
+}
+.landing-root .form-input:focus,
+.landing-root .form-select:focus,
+.landing-root .form-textarea:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.12), 0 0 16px rgba(0, 212, 255, 0.06) !important;
+  background: #090c14 !important;
+}
+.landing-root .form-input.error,
+.landing-root .form-select.error,
+.landing-root .form-textarea.error {
+  border-color: var(--accent-red) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+.landing-root .form-label {
+  font-size: 0.78rem !important;
+  margin-bottom: 0;
+  display: inline;
+}
+.landing-root .form-error {
+  font-size: 0.78rem !important;
+  font-weight: 400 !important;
+  display: none;
+}
+.landing-root .form-error.show {
+  display: block;
+}
+
+/* Dialog look: the old page runs ensureOverlayBaseStyles() (js/utils.js), which adds these rules
+ * after variables.css, so its sign-up boxes are narrower and plainer than variables.css alone.
+ * The same rules are copied here (see also styles/admin/admin-overlay.css), scoped to the landing page. */
+.landing-root .modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0, 0, 0, .65);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  align-items: center;
+  justify-content: center;
+}
+.landing-root .modal-overlay.show {
+  display: flex;
+}
+.landing-root .modal {
+  background: #141a2a !important;
+  border: 1px solid #26304a !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-modal) !important;
+  padding: 1.25rem 1.5rem;
+  max-width: 420px;
+  color: #e9edf7;
+  font-family: inherit;
+}
+.landing-root .modal::before {
+  right: auto;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle at 0% 0%, rgba(0, 212, 255, 0.07) 0%, transparent 65%);
+}
+.landing-root .modal-title {
+  margin: 0 0 .5rem;
+  font-size: 1rem;
+}
+.landing-root .modal-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.landing-root .modal-close {
+  cursor: pointer;
+  opacity: .7;
+}
+.landing-root .modal-footer {
+  gap: .5rem;
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Guard: player/tournaments.css has unscoped .modal / .modal-header / .modal-title / .modal-footer /
+ * .modal-close rules that leak onto every page. Put the old values back for the landing dialogs. */
+.landing-root .modal {
+  animation: none;
+}
+.landing-root .modal-header,
+.landing-root .modal-footer {
+  padding: 0;
+}
+.landing-root .modal-title {
+  font-weight: 600;
+  color: inherit;
+}
+.landing-root .modal-close {
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+}

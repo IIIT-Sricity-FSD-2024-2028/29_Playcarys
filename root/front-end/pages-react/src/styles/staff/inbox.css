@@ -1,0 +1,103 @@
+/* Staff inbox page styles.
+ * Copied from the <style> block of the old page; every selector is prefixed with :where(.staff-root)
+ * (zero extra specificity, so the cascade behaves exactly as in the old page)
+ * and cannot change any other page. */
+/* Two columns: the conversation list, and who you are allowed to talk to.
+       Staff previously had no notifications page at all — only the nav drawer,
+       which shows a count and a stub list and offers no way to reply or to
+       start anything. */
+    :where(.staff-root) .inbox-grid {
+      display: grid; grid-template-columns: minmax(0, 1fr) 20rem;
+      gap: 1.25rem; align-items: start;
+    }
+    @media (max-width: 900px) { :where(.staff-root) .inbox-grid { grid-template-columns: 1fr; } }
+
+    :where(.staff-root) .note {
+      display: flex; gap: .8rem; padding: .85rem 1rem;
+      border: 1px solid var(--border-primary, rgba(255,255,255,.08));
+      border-radius: 12px; margin-bottom: .6rem;
+      background: var(--bg-card, rgba(255,255,255,.02));
+    }
+    /* Unread is a left edge, not a background wash — a list where half the rows
+       are tinted stops reading as "these need you". */
+    :where(.staff-root) .note.unread { border-left: 3px solid var(--accent-cyan, #00d4ff); }
+    :where(.staff-root) .note-av {
+      width: 38px; height: 38px; border-radius: 50%; flex: none;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .8rem; color: #fff;
+      background: linear-gradient(135deg, #7c3aed, #00d4ff);
+    }
+    :where(.staff-root) .note-body { min-width: 0; flex: 1; }
+    :where(.staff-root) .note-top { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+    :where(.staff-root) .note-from { font-weight: 700; font-size: .85rem; color: var(--text-primary, #e9edf7); }
+    :where(.staff-root) .note-role {
+      font-size: .58rem; font-weight: 800; letter-spacing: .06em;
+      padding: .12rem .35rem; border-radius: 4px; text-transform: uppercase;
+      background: rgba(124,58,237,.2); color: #c4b5fd;
+      border: 1px solid rgba(124,58,237,.35);
+    }
+    :where(.staff-root) .note-time { font-size: .68rem; color: var(--text-secondary, #8b96ad); margin-left: auto; }
+    :where(.staff-root) .note-msg { font-size: .82rem; line-height: 1.5; color: var(--text-secondary, #cbd5e1); margin-top: .25rem; }
+    :where(.staff-root) .note-actions { display: flex; gap: .4rem; margin-top: .5rem; }
+
+    :where(.staff-root) .dir-group { margin-bottom: 1rem; }
+    :where(.staff-root) .dir-role {
+      font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--text-secondary, #8b96ad); margin-bottom: .35rem;
+    }
+    :where(.staff-root) .dir-person {
+      display: flex; align-items: center; gap: .5rem; width: 100%;
+      padding: .45rem .6rem; margin-bottom: .25rem; cursor: pointer;
+      border: 1px solid var(--border-primary, rgba(255,255,255,.07));
+      border-radius: 9px; background: transparent; text-align: left;
+      color: var(--text-primary, #e9edf7); font-size: .78rem;
+    }
+    :where(.staff-root) .dir-person:hover { border-color: rgba(0,212,255,.45); }
+    :where(.staff-root) .dir-person.selected { border-color: #00d4ff; background: rgba(0,212,255,.1); }
+    :where(.staff-root) .dir-empty { font-size: .74rem; color: var(--text-secondary, #8b96ad); line-height: 1.5; }
+    :where(.staff-root) .inbox-empty { padding: 2.5rem 1rem; text-align: center; color: var(--text-secondary, #8b96ad); }
+
+/* The team's global.css restyles forms (with !important). The old inbox page used
+ * the original variables.css look, so put it back here, for the admin pages only.
+ * `.staff-root` in front gives these rules more weight than the global ones. */
+.staff-root .form-input,
+.staff-root .form-select,
+.staff-root .form-textarea {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.9rem !important;
+  transition: border-color var(--trans-fast), box-shadow var(--trans-fast), background var(--trans-fast) !important;
+}
+.staff-root .form-input:hover,
+.staff-root .form-select:hover,
+.staff-root .form-textarea:hover {
+  border-color: rgba(0, 212, 255, 0.2) !important;
+}
+.staff-root .form-input:focus,
+.staff-root .form-select:focus,
+.staff-root .form-textarea:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.12), 0 0 16px rgba(0, 212, 255, 0.06) !important;
+  background: #090c14 !important;
+}
+.staff-root .form-input.error,
+.staff-root .form-select.error,
+.staff-root .form-textarea.error {
+  border-color: var(--accent-red) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+.staff-root .form-label {
+  font-size: 0.78rem !important;
+  margin-bottom: 0;
+  display: inline;
+}
+.staff-root .form-error {
+  font-size: 0.78rem !important;
+  font-weight: 400 !important;
+  display: none;
+}
+.staff-root .form-error.show {
+  display: block;
+}

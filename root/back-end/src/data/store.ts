@@ -756,11 +756,11 @@ export const games: Game[] = loadedData.games || [
 ];
 
 export const tournaments: Tournament[] = loadedData.tournaments || [
-  { tournament_id: 1, game_id: 1, tournament_name: 'Call of Duty Warzone Cup', desc: 'Ultimate tactical FPS tournament for competitive shooters', participants: 1, maxParticipants: 64, status: 'in-progress', start_date: '2026-03-09', end_date: '2026-04-09', regClose: '2026-03-08', prize: '$2000', organizer: 5 },
-  { tournament_id: 2, game_id: 2, tournament_name: 'DEADshot Precision League', desc: 'Test your sniper accuracy in this elite marksmanship tournament', participants: 3, maxParticipants: 32, status: 'upcoming', start_date: '2026-03-16', end_date: '2026-04-16', regClose: '2026-03-14', prize: '$1000', organizer: 5 },
-  { tournament_id: 3, game_id: 3, tournament_name: 'Carrom World Championship', desc: 'Compete against the best carrom players from around the globe', participants: 2, maxParticipants: 16, status: 'upcoming', start_date: '2026-03-23', end_date: '2026-04-23', regClose: '2026-03-19', prize: '$500', organizer: 6 },
+  { tournament_id: 1, game_id: 1, tournament_name: 'Call of Duty Warzone Cup', desc: 'Ultimate tactical FPS tournament for competitive shooters', participants: 1, maxParticipants: 64, status: 'upcoming', start_date: '2026-11-15', end_date: '2026-12-15', regClose: '2026-11-14', prize: '$2000', organizer: 5 },
+  { tournament_id: 2, game_id: 2, tournament_name: 'DEADshot Precision League', desc: 'Test your sniper accuracy in this elite marksmanship tournament', participants: 3, maxParticipants: 32, status: 'upcoming', start_date: '2026-11-16', end_date: '2026-12-16', regClose: '2026-11-14', prize: '$1000', organizer: 5 },
+  { tournament_id: 3, game_id: 3, tournament_name: 'Carrom World Championship', desc: 'Compete against the best carrom players from around the globe', participants: 2, maxParticipants: 16, status: 'upcoming', start_date: '2026-11-23', end_date: '2026-12-23', regClose: '2026-11-20', prize: '$500', organizer: 6 },
   { tournament_id: 4, game_id: 4, tournament_name: 'HorrorEscape Survival Marathon', desc: 'Survive the longest inside the haunted mansion to claim victory', participants: 8, maxParticipants: 24, status: 'completed', start_date: '2026-02-20', end_date: '2026-03-20', regClose: '2026-02-18', prize: '$300', organizer: 6 },
-  { tournament_id: 5, game_id: 5, tournament_name: 'F1 2022 World Grand Prix', desc: 'Race across iconic circuits to be crowned the ultimate F1 champion', participants: 4, maxParticipants: 20, status: 'upcoming', start_date: '2026-04-05', end_date: '2026-05-05', regClose: '2026-04-02', prize: '$1500', organizer: 5 },
+  { tournament_id: 5, game_id: 5, tournament_name: 'F1 2022 World Grand Prix', desc: 'Race across iconic circuits to be crowned the ultimate F1 champion', participants: 4, maxParticipants: 20, status: 'upcoming', start_date: '2026-12-05', end_date: '2027-01-05', regClose: '2026-12-02', prize: '$1500', organizer: 5 },
 ];
 
 export const sessions: GameSession[] = loadedData.sessions || [
@@ -802,7 +802,6 @@ export const moderator_actions: ModeratorAction[] = loadedData.moderator_actions
 ];
 
 export const player_tournament: PlayerTournament[] = loadedData.player_tournament || [
-  { player_id: 7, tournament_id: 1 },
   { player_id: 8, tournament_id: 2 },
   { player_id: 9, tournament_id: 2 },
   { player_id: 10, tournament_id: 2 },

@@ -317,7 +317,7 @@
   </div>
 
   <div id="top-bar">
-    <button class="btn" id="btn-leave" onclick="history.back()">← Leave</button>
+    <button class="btn" id="btn-leave" onclick="leaveHillClimbing()">← Leave</button>
     <span id="game-title">Hill Climbing</span>
     <div class="bar-right">
       <span class="hint">← / →  or  A / D</span>
@@ -496,6 +496,32 @@
     })();
   </script>
   <script>
+    function leaveHillClimbing() {
+      var params = new URLSearchParams(window.location.search);
+      var tournId = params.get('tournamentId');
+      var isReactEnv = window.location.port === '5173' || 
+                       document.referrer.includes('5173') || 
+                       document.referrer.includes('/player/') ||
+                       params.get('from') === 'react' ||
+                       !window.location.origin.includes(':8080');
+
+      if (tournId) {
+        if (isReactEnv) {
+          window.location.href = '/player/tournaments?id=' + encodeURIComponent(tournId);
+        } else {
+          window.location.href = '../../pages/player/tournaments.html?highlight=' + encodeURIComponent(tournId);
+        }
+        return;
+      }
+      if (isReactEnv) {
+        window.location.href = '/player/games';
+      } else if (document.referrer) {
+        window.location.href = document.referrer;
+      } else {
+        window.location.href = '../../pages/player/games.html';
+      }
+    }
+
     (function(){
       var params = new URLSearchParams(window.location.search);
       var tournId = params.get('tournamentId');
@@ -505,7 +531,7 @@
           document.getElementById('game-title').textContent = '🏔️ ' + t.name;
           var leaveBtn = document.getElementById('btn-leave');
           leaveBtn.textContent = '← Tournament';
-          leaveBtn.onclick = function(){ window.location.href = '../../pages/player/tournaments.html?highlight=' + tournId; };
+          leaveBtn.onclick = leaveHillClimbing;
         }
       }
     })();

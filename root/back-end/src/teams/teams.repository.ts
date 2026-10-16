@@ -51,17 +51,26 @@ export class TeamsRepository {
   }
 
   register(team_id: number, tournament_id: number): TeamTournament {
+    const existing = team_tournament.find(
+      (r) => r.team_id === team_id && r.tournament_id === tournament_id,
+    );
+    if (existing) return existing;
     const entry = { team_id, tournament_id };
     team_tournament.push(entry);
     return entry;
   }
 
   unregister(team_id: number, tournament_id: number): boolean {
-    const idx = team_tournament.findIndex(
-      (r) => r.team_id === team_id && r.tournament_id === tournament_id,
-    );
-    if (idx === -1) return false;
-    team_tournament.splice(idx, 1);
-    return true;
+    let removed = false;
+    for (let i = team_tournament.length - 1; i >= 0; i--) {
+      if (
+        team_tournament[i].team_id === team_id &&
+        team_tournament[i].tournament_id === tournament_id
+      ) {
+        team_tournament.splice(i, 1);
+        removed = true;
+      }
+    }
+    return removed;
   }
 }

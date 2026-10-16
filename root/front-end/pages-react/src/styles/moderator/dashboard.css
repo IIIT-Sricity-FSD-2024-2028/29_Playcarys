@@ -1,0 +1,305 @@
+/* PlayCarys — Moderator Dashboard Styles */
+
+.mod-hero {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(0, 212, 255, 0.06) 100%);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem 2rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.mod-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+}
+
+.mod-hero-shield {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #00d4ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: 0 0 24px rgba(124, 58, 237, 0.4);
+  flex-shrink: 0;
+}
+
+.mod-hero-body {
+  flex: 1;
+}
+
+.mod-hero-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-bottom: 0.2rem;
+}
+
+.mod-hero-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.mod-hero-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* ── Stats Row ────────── */
+.mod-stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1000px) {
+  .mod-stats-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .mod-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.mod-stat {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.mod-stat:hover {
+  border-color: rgba(0, 212, 255, 0.25);
+  box-shadow: var(--shadow-glow);
+}
+
+.mod-stat.stat-link {
+  cursor: pointer;
+}
+
+.mod-stat.stat-urgent {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.mod-stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.mod-stat-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.7rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mod-stat-sub {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  margin-top: 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ── Grid Layout ─────── */
+.mod-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .mod-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Activity Timeline ── */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tl-item {
+  display: flex;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
+}
+
+.tl-item:last-child {
+  border-bottom: none;
+}
+
+.tl-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tl-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.tl-time {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}
+
+/* ── Quick Actions ─────── */
+.qa-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.qa-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.qa-btn:hover {
+  background: rgba(0, 212, 255, 0.07);
+  border-color: rgba(0, 212, 255, 0.25);
+}
+
+.qa-btn-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.qa-btn-text .title {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.qa-btn-text .sub {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  margin-top: 0.1rem;
+}
+
+/* ── Mod Performance Card ── */
+.perf-ring-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.perf-stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.perf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.perf-bar-wrap {
+  flex: 1;
+  margin: 0 0.75rem;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.perf-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+/* ── Chart Card ─────── */
+.chart-card {
+  height: 260px;
+  position: relative;
+}
+
+/* ── Recent Reports Item ── */
+.recent-report-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.recent-report-item:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 600px) {
+  .mod-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem;
+  }
+
+  .mod-hero-actions {
+    width: 100%;
+  }
+
+  .mod-hero-actions button {
+    flex: 1;
+  }
+
+  .qa-grid {
+    grid-template-columns: 1fr;
+  }
+}

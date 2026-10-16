@@ -1,0 +1,209 @@
+/* ── Notification Hub Page Styles ── */
+
+.notif-shell {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* Category Tabs */
+.notif-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.notif-tab {
+  padding: 0.45rem 1.1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.notif-tab:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+  color: var(--text-primary);
+}
+
+.notif-tab.active {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.notif-tab .tab-count {
+  display: inline-block;
+  background: var(--accent-cyan);
+  color: #000;
+  border-radius: 99px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  padding: 0.05rem 0.38rem;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+
+.notif-tab.active .tab-count {
+  background: var(--accent-purple);
+  color: #fff;
+}
+
+/* Notification Item */
+.notif-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.notif-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--border-primary);
+  border-radius: 3px 0 0 3px;
+}
+
+.notif-item.unread {
+  background: rgba(0, 212, 255, 0.02);
+}
+
+.notif-item.unread::before {
+  background: var(--accent-cyan);
+}
+
+.notif-item.type-warning::before { background: var(--accent-yellow); }
+.notif-item.type-ban::before { background: var(--accent-red); }
+.notif-item.type-reward::before { background: var(--accent-green); }
+.notif-item.type-tournament::before { background: var(--accent-purple); }
+
+.notif-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.notif-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-msg {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.notif-meta {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.notif-from-badge {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  padding: 0.1rem 0.5rem;
+  font-weight: 600;
+}
+
+.notif-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.notif-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  flex-shrink: 0;
+  margin-top: 0.4rem;
+}
+
+.notif-reply-input {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  resize: none;
+  margin-top: 0.5rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.notif-reply-input:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+}
+
+/* Stats bar */
+.notif-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.7rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .notif-stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.notif-stat {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+}
+
+.notif-stat-val {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.notif-stat-lbl {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}

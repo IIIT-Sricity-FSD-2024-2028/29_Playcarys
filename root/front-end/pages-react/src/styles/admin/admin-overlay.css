@@ -1,0 +1,198 @@
+/* Dialog look used by the old admin pages.
+ *
+ * The old pages run ensureOverlayBaseStyles() (js/utils.js) on load, which adds
+ * these rules after variables.css, so every old dialog (add user, create tournament,
+ * confirm) is narrower and plainer than variables.css alone would make it.
+ * The same rules are copied here, scoped to .admin-root so other roles' pages are not changed.
+ */
+/* In the old pages, dialogs sit outside .page-wrapper because its entrance animation (variables.css:
+ * `animation: pageEnter ... both` + will-change: transform) leaves a transform behind, and a transformed
+ * ancestor makes `position: fixed` mean "relative to that element" instead of "relative to the screen".
+ * In React the dialogs are rendered inside the page, so keep the same fade-in but do not hold its last
+ * frame: after the animation there is no transform and fixed dialogs again cover the whole screen. */
+.admin-root .dash-shell,
+.admin-root .page-wrapper {
+  animation-fill-mode: backwards;
+  will-change: auto;
+}
+/* player/dashboard.css has an unscoped `.dash-shell { padding-top: var(--nav-height); ... }` for the
+ * player dashboard grid. Admin pages use the same class name only for the entrance animation, so
+ * the extra 64px (the page-wrapper already pads for the navbar) must not apply here. */
+.admin-root .dash-shell {
+  padding-top: 0;
+}
+
+.admin-root .modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0, 0, 0, .65);
+  align-items: center;
+  justify-content: center;
+}
+.admin-root .modal-overlay.show {
+  display: flex;
+}
+.admin-root .modal {
+  background: #141a2a;
+  border: 1px solid #26304a;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  max-width: 420px;
+  color: #e9edf7;
+  font-family: inherit;
+}
+.admin-root .modal-title {
+  margin: 0 0 .5rem;
+  font-size: 1rem;
+}
+.admin-root .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-root .modal-close {
+  cursor: pointer;
+  opacity: .7;
+}
+.admin-root .modal-footer {
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+/* Guards against the unscoped form/dialog rules in global.css and player/*.css (same block as
+ * landing/landing.css, scoped to .admin-root): put the old pages' look back for admin dialogs and forms. */
+/* The team's global.css restyles forms and modals (with !important). The old admin pages used
+ * the original variables.css look, so put it back here, for the admin pages only.
+ * `.admin-root` in front gives these rules more weight than the global ones. */
+.admin-root .form-input,
+.admin-root .form-select,
+.admin-root .form-textarea {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.9rem !important;
+  transition: border-color var(--trans-fast), box-shadow var(--trans-fast), background var(--trans-fast) !important;
+}
+.admin-root .form-input:hover,
+.admin-root .form-select:hover,
+.admin-root .form-textarea:hover {
+  border-color: rgba(0, 212, 255, 0.2) !important;
+}
+.admin-root .form-input:focus,
+.admin-root .form-select:focus,
+.admin-root .form-textarea:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.12), 0 0 16px rgba(0, 212, 255, 0.06) !important;
+  background: #090c14 !important;
+}
+.admin-root .form-input.error,
+.admin-root .form-select.error,
+.admin-root .form-textarea.error {
+  border-color: var(--accent-red) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+.admin-root .form-label {
+  font-size: 0.78rem !important;
+  margin-bottom: 0;
+  display: inline;
+}
+.admin-root .form-error {
+  font-size: 0.78rem !important;
+  font-weight: 400 !important;
+  display: none;
+}
+.admin-root .form-error.show {
+  display: block;
+}
+
+/* Dialog look: the old page runs ensureOverlayBaseStyles() (js/utils.js), which adds these rules
+ * after variables.css, so its sign-up boxes are narrower and plainer than variables.css alone.
+ * The same rules are copied here (see also styles/admin/admin-overlay.css), scoped to the admin pages. */
+.admin-root .modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(0, 0, 0, .65);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  align-items: center;
+  justify-content: center;
+}
+.admin-root .modal-overlay.show {
+  display: flex;
+}
+.admin-root .modal {
+  background: #141a2a !important;
+  border: 1px solid #26304a !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-modal) !important;
+  padding: 1.25rem 1.5rem;
+  max-width: 420px;
+  color: #e9edf7;
+  font-family: inherit;
+}
+.admin-root .modal::before {
+  right: auto;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle at 0% 0%, rgba(0, 212, 255, 0.07) 0%, transparent 65%);
+}
+.admin-root .modal-title {
+  margin: 0 0 .5rem;
+  font-size: 1rem;
+}
+.admin-root .modal-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.admin-root .modal-close {
+  cursor: pointer;
+  opacity: .7;
+}
+.admin-root .modal-footer {
+  gap: .5rem;
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Guard: player/tournaments.css has unscoped .modal / .modal-header / .modal-title / .modal-footer /
+ * .modal-close rules that leak onto every page. Put the old values back for the admin dialogs. */
+.admin-root .modal {
+  animation: none;
+}
+.admin-root .modal-header,
+.admin-root .modal-footer {
+  padding: 0;
+}
+.admin-root .modal-title {
+  font-weight: 600;
+  color: inherit;
+}
+.admin-root .modal-close {
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+}
+
+/* player/create-tournament.css has an unscoped `.form-hint { margin-top: .25rem }`. */
+.admin-root .form-hint {
+  margin-top: 0;
+}
+
+/* ...and an unscoped `.form-group { margin-bottom: 1.1rem }`. The old pages space groups with the
+ * .mb-1 / .mb-2 helper classes, so only groups without one go back to 0. */
+.admin-root .form-group:not([class*="mb-"]) {
+  margin-bottom: 0;
+}
+
+/* The admin avatar is not clickable (no profile popup for admins), so it should not look clickable. */
+.admin-root .nav-avatar {
+  cursor: default;
+}

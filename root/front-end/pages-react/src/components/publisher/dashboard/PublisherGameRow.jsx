@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getGameVisualInfo, getStatusBadgeData } from '../../../services/publisherService';
 
 export function PublisherGameRow(props) {
   const { game, index = 0, onClick } = props;
+  const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
 
   const statusKey = game.game_approval_status || game.status || 'pending';
@@ -29,7 +31,7 @@ export function PublisherGameRow(props) {
     if (onClick) {
       onClick(game);
     } else {
-      window.location.href = '/pages/publisher/mygames.html';
+      navigate('/publisher/my-games');
     }
   }
 

@@ -1,13 +1,21 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import PlayerNavbar from '../components/player/common/PlayerNavbar';
+import { ChatProvider } from '../context/ChatContext';
 
 export function PlayerLayout() {
+  const location = useLocation();
+  const activePage = location.pathname.split('/')[2] || 'dashboard';
+
   return (
-    <div className="dash-shell">
-      <main className="page-wrapper">
-        <Outlet />
-      </main>
-    </div>
+    <ChatProvider>
+      <div className="player-layout-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <PlayerNavbar activePage={activePage} />
+        <div style={{ flex: 1 }}>
+          <Outlet />
+        </div>
+      </div>
+    </ChatProvider>
   );
 }
 

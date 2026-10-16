@@ -196,6 +196,10 @@ export class UpdateTournamentDto {
   @IsString()
   prize?: string;
 
+  @IsOptional()
+  @IsIn(['upcoming', 'in-progress', 'completed'])
+  status?: 'upcoming' | 'in-progress' | 'completed';
+
   /**
    * Visibility can be flipped after creation (e.g. a private friends-only
    * tournament opened up to the public later). `type` (single/multi) is
