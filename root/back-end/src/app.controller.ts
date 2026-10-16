@@ -616,6 +616,35 @@ export class AppController {
           }
         }
 
+        // ── A studio's money fields are NOT client-writable ────
+        // Same hole as carys_points above, and a bigger one: these decide what
+        // the platform pays out. A browser posting `balance_paise: 9999999`
+        // or lowering `settled_pcp` (which makes old revenue payable again)
+        // would mint real money. Only PayoutService writes them.
+        if (table === 'publisher_profiles') {
+          const MONEY_FIELDS = [
+            'balance_paise', 'lifetime_earned_paise', 'settled_pcp',
+            'settled_rake_paise', 'revenue_pcp',
+          ];
+          const held = new Map(
+            (storeUtils.publisher_profiles as any[]).map((p) => [String(p.user_id), p]),
+          );
+          for (const row of body[table] as any[]) {
+            if (!row) continue;
+            const server = held.get(String(row.user_id));
+            for (const key of MONEY_FIELDS) {
+              if (server) {
+                if (row[key] !== undefined && Number(row[key]) !== Number(server[key] ?? 0)) {
+                  console.warn(`[db-import] refused ${key} change for publisher ${row.user_id}`);
+                }
+                row[key] = server[key] ?? 0;
+              } else {
+                row[key] = 0; // a studio the server has never seen starts with nothing
+              }
+            }
+          }
+        }
+
         // Delivery fields describe how a game is launched. `games` is
         // truncate-and-replace here, so any client syncing a game list it
         // captured before a bundle upload (or before a publisher set a
@@ -638,6 +667,9 @@ export class AppController {
           const REVIEW_FIELDS = [
             'scan', 'bundle_hash', 'approved_bundle_hash', 'approved_game_url',
             'approved_by', 'approved_at', 'review_note', 'review_required_reason',
+            // `sessions` is counted by the server when a match is played, and
+            // a studio's royalty is derived from it — so it is money too.
+            'sessions',
           ];
           const byId = new Map((arr as any[]).map((g) => [String(g.game_id), g]));
 

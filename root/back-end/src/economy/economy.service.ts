@@ -26,6 +26,7 @@ import {
   formatPaise,
 } from '../data/store';
 import { balanceOf, creditCarys, ledgerFor } from './carys.ledger';
+import { royaltyLifetimeCarys, rakeLifetimePaise, split as splitShare } from './payout.service';
 import {
   AwardMatchDto,
   ClaimStipendDto,
@@ -281,18 +282,22 @@ export class EconomyService {
     const paidOut = payouts
       .filter((p) => p.status === 'paid')
       .reduce((a, p) => a + paise(p.net_paise), 0);
+    // Closed or withdrawn but not yet delivered (a withdrawal is "processing").
     const pendingOut = payouts
-      .filter((p) => p.status === 'pending')
+      .filter((p) => p.status === 'pending' || p.status === 'processing')
       .reduce((a, p) => a + paise(p.net_paise), 0);
 
     // Earned by studios but never closed into a payout row. This is a real
     // liability — money the platform holds and owes — and it is invisible in
     // the payouts table precisely because it has not been closed yet.
+    //
+    // Computed with the very same helpers the studio's Earnings page uses, so
+    // the platform's "owed to studios" and each studio's "available" can never
+    // disagree.
     const unsettled = publisher_profiles.reduce((a, p) => {
-      const owedCarys = (p.revenue_pcp ?? 0) - (p.settled_pcp ?? 0);
-      const gross = Math.max(0, owedCarys) * PAISE_PER_CARYS +
-                    ((p.balance_paise ?? 0) === 0 ? 0 : 0);
-      return a + Math.round((gross * PUBLISHER_REVENUE_SHARE_PCT) / 100);
+      const royalty = Math.max(0, royaltyLifetimeCarys(p.user_id) - (Number(p.settled_pcp) || 0));
+      const rake = Math.max(0, rakeLifetimePaise(p.user_id) - (Number(p.settled_rake_paise) || 0));
+      return a + splitShare(royalty * PAISE_PER_CARYS + rake).net;
     }, 0);
     const heldBalances = publisher_profiles.reduce((a, p) => a + paise(p.balance_paise), 0);
 

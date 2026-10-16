@@ -213,6 +213,19 @@ export const publisherService = {
     return api.get(`/economy/publishers/${userId}/earnings`);
   },
 
+  /**
+   * Withdraw everything currently available.
+   * `details` is { method: 'upi', upi_id } or { method: 'bank', account_number, ifsc }.
+   * Resolves at once with the payout in "processing"; follow it with getPayout().
+   */
+  async withdraw(userId, details) {
+    return api.post(`/economy/publishers/${userId}/withdraw`, details);
+  },
+
+  async getPayout(payoutId) {
+    return api.get(`/economy/payouts/${payoutId}`);
+  },
+
   fireLiveEvent(gameId, eventCode) {
     if (typeof window !== 'undefined' && window.DB && typeof window.DB.fireLiveEvent === 'function') {
       window.DB.fireLiveEvent(gameId, eventCode);
