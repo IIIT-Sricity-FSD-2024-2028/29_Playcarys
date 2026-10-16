@@ -18,8 +18,20 @@ export function ReportCard(props) {
       ? 'Under Review'
       : status.charAt(0).toUpperCase() + status.slice(1);
 
-  const reporterInitials = (report.reporterName || '??').slice(0, 2).toUpperCase();
-  const reportedInitials = (report.reportedName || '??').slice(0, 2).toUpperCase();
+  const reporterName =
+    report.reporterName ||
+    report.reporter_name ||
+    report.reporter ||
+    (report.reported_by ? `Player #${report.reported_by}` : 'Anonymous');
+
+  const reportedName =
+    report.reportedName ||
+    report.reported_name ||
+    report.reported ||
+    (report.reported_user ? `Player #${report.reported_user}` : 'Unknown User');
+
+  const reporterInitials = (reporterName || '??').slice(0, 2).toUpperCase();
+  const reportedInitials = (reportedName || '??').slice(0, 2).toUpperCase();
 
   return (
     <div className="list-item">
@@ -31,13 +43,13 @@ export function ReportCard(props) {
         </div>
         <div className="list-item-sub mt-1">
           <div className="avatar avatar-sm">{reporterInitials}</div>
-          <strong>{report.reporterName}</strong>
+          <strong>{reporterName}</strong>
           <span>reported</span>
           <div className="avatar avatar-sm">{reportedInitials}</div>
-          <strong>{report.reportedName}</strong>
+          <strong>{reportedName}</strong>
           <span>· {report.time}</span>
         </div>
-        <div className="text-sm text-muted mt-1">{report.desc}</div>
+        <div className="text-sm text-muted mt-1">{report.desc || report.reason}</div>
         {report.actionNote ? (
           <div className="text-xs text-muted mt-1">📝 Note: {report.actionNote}</div>
         ) : null}

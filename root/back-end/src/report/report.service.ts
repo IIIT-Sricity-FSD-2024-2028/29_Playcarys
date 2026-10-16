@@ -132,10 +132,14 @@ export class ReportService {
     if (!report) return report;
     const reporter = users.find((u) => u.user_id === report.reported_by);
     const reported = users.find((u) => u.user_id === report.reported_user);
+    const reporterName = reporter?.user_name ?? 'Unknown';
+    const reportedName = reported?.user_name ?? 'Unknown';
     return {
       ...report,
-      reporter_name: reporter?.user_name ?? 'Unknown',
-      reported_name: reported?.user_name ?? 'Unknown',
+      reporter_name: reporterName,
+      reported_name: reportedName,
+      reporterName,
+      reportedName,
     };
   }
 

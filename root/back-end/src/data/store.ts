@@ -754,14 +754,34 @@ export const publisher_profiles: PublisherProfile[] = loadedData.publisher_profi
   { user_id: 6, total_games: 3, approved_games: 2, active_games: 2 },
 ];
 
-export const games: Game[] = loadedData.games || [
-  { game_id: 1, game_name: 'Call of Duty', game_type: 'FPS', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 5, desc: 'Intense tactical FPS warfare with realistic combat mechanics and squad-based multiplayer action', players: '2-64', img: 'call_of_duty', rating: 4.8, views: 58200, submittedDate: '2025-11-15', sessions: 14 },
-  { game_id: 2, game_name: 'DEADshot', game_type: 'FPS', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 5, desc: 'Stealth sniper gameplay in a cyberpunk world — precision kills and tactical assassinations', players: '2-16', img: 'deadshot', rating: 4.6, views: 34700, submittedDate: '2025-12-01', sessions: 10 },
-  { game_id: 3, game_name: 'Carrom', game_type: 'Puzzle', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 6, desc: 'Classic Indian board game brought online — flick the striker and pocket all your coins to win', players: '2-4', img: 'carrom', rating: 4.4, views: 22400, submittedDate: '2025-12-20', sessions: 7 },
-  { game_id: 4, game_name: 'HorrorEscape', game_type: 'Horror', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 6, desc: 'Survive a haunted mansion filled with puzzles, traps and terrifying creatures lurking in shadows', players: '1-6', img: 'horror_escape', rating: 4.5, views: 19800, submittedDate: '2026-01-08', sessions: 5 },
-  { game_id: 5, game_name: 'F1 2022', game_type: 'Racing', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 5, desc: 'High-octane Formula 1 racing with realistic physics, pit strategies and iconic global circuits', players: '2-20', img: 'f1_2022', rating: 4.7, views: 41500, submittedDate: '2026-02-01', sessions: 8 },
+const defaultGames: Game[] = [
+  { game_id: 1, game_name: 'Call of Duty', game_type: 'FPS', game_status: 'disabled', game_approval_status: 'pending', game_publisher: 5, desc: 'Intense tactical FPS warfare with realistic combat mechanics and squad-based multiplayer action', players: '2-64', img: 'call_of_duty', rating: 4.8, views: 58200, submittedDate: '2025-11-15', sessions: 14 },
+  { game_id: 2, game_name: 'DEADshot', game_type: 'FPS', game_status: 'disabled', game_approval_status: 'pending', game_publisher: 5, desc: 'Stealth sniper gameplay in a cyberpunk world — precision kills and tactical assassinations', players: '2-16', img: 'deadshot', rating: 4.6, views: 34700, submittedDate: '2025-12-01', sessions: 10 },
+  { game_id: 3, game_name: 'Carrom', game_type: 'Puzzle', game_status: 'disabled', game_approval_status: 'pending', game_publisher: 6, desc: 'Classic Indian board game brought online — flick the striker and pocket all your coins to win', players: '2-4', img: 'carrom', rating: 4.4, views: 22400, submittedDate: '2025-12-20', sessions: 7 },
+  { game_id: 4, game_name: 'HorrorEscape', game_type: 'Horror', game_status: 'disabled', game_approval_status: 'pending', game_publisher: 6, desc: 'Survive a haunted mansion filled with puzzles, traps and terrifying creatures lurking in shadows', players: '1-6', img: 'horror_escape', rating: 4.5, views: 19800, submittedDate: '2026-01-08', sessions: 5 },
+  { game_id: 5, game_name: 'F1 2022', game_type: 'Racing', game_status: 'disabled', game_approval_status: 'pending', game_publisher: 5, desc: 'High-octane Formula 1 racing with realistic physics, pit strategies and iconic global circuits', players: '2-20', img: 'f1_2022', rating: 4.7, views: 41500, submittedDate: '2026-02-01', sessions: 8 },
   { game_id: 6, game_name: 'PUBG Lite', game_type: 'Battle Royale', game_status: 'disabled', game_approval_status: 'pending', game_publisher: 6, desc: 'Experience intense Battle Royale action optimized for lighter devices with classic maps and modes.', players: '1-60', img: 'pubg_lite', rating: 0, views: 0, submittedDate: '2026-03-31', sessions: 0 },
+  { game_id: 7, game_name: 'Chess Pro', game_type: 'Board', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 5, desc: 'Classic game of strategy. Play against friends or challenge the grandmaster engine.', players: '2', img: 'chess', rating: 4.9, views: 10400, submittedDate: '2026-04-01', sessions: 3 },
+  { game_id: 8, game_name: 'Hill Climbing', game_type: 'Racing', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 6, desc: 'Master high-torque physics and precise throttle control on treacherous off-road terrain. Push your limits and conquer the ultimate peaks.', players: '1', img: 'hill_climbing', rating: 4.6, views: 8200, submittedDate: '2026-04-02', sessions: 1 },
+  { game_id: 9, game_name: 'Candy Crush Clone', game_type: 'Puzzle', game_status: 'disabled', game_approval_status: 'pending', game_publisher: 5, desc: 'Match 3 colorful candies to progress through beautifully sweet puzzle levels.', players: '1', img: 'candy_crush', rating: 0, views: 0, submittedDate: '2026-04-03', sessions: 0 },
+  { game_id: 16, game_name: 'HexGL', game_type: 'Racing', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 5, desc: 'A futuristic anti-gravity racing game built on WebGL. Blistering speed, neon tracks and full 3D graphics running natively in the browser.', players: '1', img: 'hexgl', rating: 4.8, views: 12500, submittedDate: '2026-04-10', sessions: 15, hosting_type: 'hosted', play_path: 'games/hexgl-16' },
+  { game_id: 18, game_name: '2048', game_type: 'Puzzle', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 6, desc: 'Slide the numbered tiles together to combine them. Simple to learn, genuinely hard to finish — join the tiles and reach 2048.', players: '1', img: 'game_2048', rating: 4.7, views: 18900, submittedDate: '2026-04-12', sessions: 24, hosting_type: 'hosted', play_path: 'games/2048-18' },
+  { game_id: 19, game_name: 'Hextris', game_type: 'Puzzle', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 6, desc: 'An addictive arcade puzzler inspired by Tetris. Rotate the hexagon to stack falling blocks by colour before they pile up.', players: '1', img: 'hextris', rating: 4.5, views: 9400, submittedDate: '2026-04-15', sessions: 12, hosting_type: 'hosted', play_path: 'games/hextris-19' },
+  { game_id: 25, game_name: 'Ancient Beast', game_type: 'Strategy', game_status: 'enabled', game_approval_status: 'approved', game_publisher: 5, desc: 'A turn-based strategy game — master your beasts across 1v1 and 2v2 matches. Materialize units with plasma and out-think your opponent.', players: '1-4', img: 'ancient_beast', rating: 4.8, views: 6700, submittedDate: '2026-04-20', sessions: 8, hosting_type: 'hosted', play_path: 'games/ancient-beast-25' },
 ];
+
+function initGames(): Game[] {
+  const loaded: Game[] = loadedData.games || [];
+  const map = new Map<number, Game>();
+  defaultGames.forEach((g) => map.set(g.game_id, g));
+  loaded.forEach((g) => {
+    const existing = map.get(g.game_id);
+    map.set(g.game_id, existing ? { ...existing, ...g } : g);
+  });
+  return Array.from(map.values());
+}
+
+export const games: Game[] = initGames();
 
 export const tournaments: Tournament[] = loadedData.tournaments || [
   { tournament_id: 1, game_id: 1, tournament_name: 'Call of Duty Warzone Cup', desc: 'Ultimate tactical FPS tournament for competitive shooters', participants: 1, maxParticipants: 64, status: 'upcoming', start_date: '2026-11-15', end_date: '2026-12-15', regClose: '2026-11-14', prize: '$2000', organizer: 5 },

@@ -851,13 +851,29 @@ export class AppController {
           }
         } else {
           arr.length = 0;
+          let incomingRows = body[table];
+          if (!Array.isArray(incomingRows)) {
+            if (table === 'favorites' && typeof incomingRows === 'object' && incomingRows !== null) {
+              const converted: any[] = [];
+              for (const [uId, gameIds] of Object.entries(incomingRows)) {
+                if (Array.isArray(gameIds)) {
+                  for (const gId of gameIds) {
+                    converted.push({ user_id: Number(uId), game_id: Number(gId) });
+                  }
+                }
+              }
+              incomingRows = converted;
+            } else {
+              incomingRows = [];
+            }
+          }
           // Same filter on the plain-replace path (publisher_profiles,
           // player_session, reviews, ...) — a deleted studio must not keep a
           // profile, and a deleted player must not keep rows in the junctions.
           arr.push(
             ...(USER_REF_FIELDS[table]
-              ? body[table].filter((r: any) => !isRejected(r, table))
-              : body[table]),
+              ? incomingRows.filter((r: any) => !isRejected(r, table))
+              : incomingRows),
           );
         }
       }

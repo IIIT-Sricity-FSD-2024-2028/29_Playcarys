@@ -122,17 +122,34 @@ function getUID(){const s=Auth.getSession();return s ? String(s.userId) : 'u7';}
 //
 // Presence still knows what someone is playing, via DB.liveMatchOf().
 
-function getFavs(){ return (DB.favorites[getUID()] || []).map(String); }
+function getFavs(){
+  const uid = String(getUID() || 7);
+  let list = [];
+  if (Array.isArray(DB.favorites)) {
+    list = DB.favorites.filter(f => String(f.user_id || f.userId) === uid).map(f => String(f.game_id || f.gameId));
+  } else if (DB.favorites && typeof DB.favorites === 'object') {
+    list = (DB.favorites[uid] || []).map(String);
+  }
+  if (!list.length && uid === '7') list = ['1', '2'];
+  return list;
+}
 function isFav(id){ return getFavs().includes(String(id)); }
 
 
 function toggleFav(id, e){
   e?.stopPropagation();
   const sid = String(id);
+  const uid = String(getUID() || 7);
   let f = getFavs();
   if(f.includes(sid)) f = f.filter(x => x !== sid);
   else f.push(sid);
-  DB.favorites[getUID()] = f;
+  if (Array.isArray(DB.favorites)) {
+    DB.favorites = DB.favorites.filter(r => String(r.user_id || r.userId) !== uid);
+    f.forEach(gid => DB.favorites.push({ user_id: Number(uid), game_id: Number(gid) }));
+  } else {
+    if (!DB.favorites || typeof DB.favorites !== 'object') DB.favorites = {};
+    DB.favorites[uid] = f;
+  }
   DB.save();
   updateFavCount();
   if(typeof applyFilters === 'function') applyFilters();

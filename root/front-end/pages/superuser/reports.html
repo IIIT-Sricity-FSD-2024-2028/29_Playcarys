@@ -147,7 +147,14 @@ function renderReports() {
   if (statusF) reports = reports.filter(r=>r.status===statusF);
   if (typeF)   reports = reports.filter(r=>r.type===typeF);
 
-  document.getElementById('reports-list').innerHTML = reports.length ? reports.map(r=>`
+  document.getElementById('reports-list').innerHTML = reports.length ? reports.map(r=>{
+    const reporterName = r.reporterName || r.reporter_name || r.reporter || (r.reported_by ? `Player #${r.reported_by}` : 'Anonymous');
+    const reportedName = r.reportedName || r.reported_name || r.reported || (r.reported_user ? `Player #${r.reported_user}` : 'Unknown User');
+    const reporterInitials = (reporterName || '??').slice(0, 2).toUpperCase();
+    const reportedInitials = (reportedName || '??').slice(0, 2).toUpperCase();
+    const desc = r.desc || r.reason || '';
+    const banTargetId = r.reportedId || r.reported_user || '';
+    return `
     <div class="list-item">
       <div class="list-item-info">
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
@@ -155,12 +162,12 @@ function renderReports() {
           ${badgeHTML(r.status)} <span class="tag">${r.type}</span>
         </div>
         <div class="list-item-sub mt-1">
-          ${avatarHTML(r.reporterName.slice(0,2),'sm')} <strong>${r.reporterName}</strong>
+          ${avatarHTML(reporterInitials,'sm')} <strong>${reporterName}</strong>
           <span>reported</span>
-          ${avatarHTML(r.reportedName.slice(0,2),'sm')} <strong>${r.reportedName}</strong>
+          ${avatarHTML(reportedInitials,'sm')} <strong>${reportedName}</strong>
           <span>· ${r.time}</span>
         </div>
-        <div class="text-sm text-muted mt-1">${r.desc}</div>
+        <div class="text-sm text-muted mt-1">${desc}</div>
         ${r.actionNote ? `<div class="text-xs text-muted mt-1">📝 Note: ${r.actionNote}</div>` : ''}
       </div>
       <div class="list-item-actions">
@@ -168,9 +175,10 @@ function renderReports() {
           <button class="btn btn-yellow btn-sm" onclick="openResolveModal('${r.id}','resolve')">✓ Resolve</button>
           <button class="btn btn-ghost btn-sm" onclick="openResolveModal('${r.id}','dismiss')">✕ Dismiss</button>
         ` : `<button class="btn btn-ghost btn-sm" onclick="reopenReport('${r.id}')">↩ Reopen</button>`}
-        <button class="btn btn-red btn-sm" onclick="openBanModal('${r.reportedId}')">🚫 Ban</button>
+        <button class="btn btn-red btn-sm" onclick="openBanModal('${banTargetId}')">🚫 Ban</button>
       </div>
-    </div>`).join('') : `<div class="empty-state"><div class="icon">✅</div><h3>No reports found</h3><p>No reports match your filters</p></div>`;
+    </div>`;
+  }).join('') : `<div class="empty-state"><div class="icon">✅</div><h3>No reports found</h3><p>No reports match your filters</p></div>`;
 }
 
 function renderBans() {

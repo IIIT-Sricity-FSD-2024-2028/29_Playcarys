@@ -43,16 +43,21 @@ export function GameFilters({
         </div>
 
         <button
-          className="btn btn-ghost btn-sm"
+          className={`btn btn-ghost btn-sm ${showingFavs ? 'active' : ''}`}
           id="fav-btn"
           onClick={onToggleFavView}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.4rem',
-            border: '1px solid var(--border-primary)',
+            border: showingFavs ? '1px solid #ec4899' : '1px solid var(--border-primary)',
+            background: showingFavs ? 'rgba(236, 72, 153, 0.18)' : 'transparent',
+            color: showingFavs ? '#f472b6' : 'inherit',
+            fontWeight: showingFavs ? 700 : 'normal',
             padding: '0.45rem 0.9rem',
-            cursor: 'pointer'
+            borderRadius: 'var(--radius-md)',
+            cursor: 'pointer',
+            transition: 'all var(--trans-fast)'
           }}
         >
           {showingFavs ? (
