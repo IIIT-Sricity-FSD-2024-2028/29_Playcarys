@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function ModeratorStatsRow(props) {
+  const navigate = useNavigate();
   const {
     pendingReports = 0,
     reviewReports = 0,
@@ -21,7 +23,7 @@ export function ModeratorStatsRow(props) {
         : todayReports
         ? `${todayReports} filed today`
         : 'carried over from earlier',
-      href: '/pages/moderator/reports.html',
+      href: '/moderator/reports',
       urgent: pendingReports > 0
     },
     {
@@ -30,7 +32,7 @@ export function ModeratorStatsRow(props) {
       color: 'var(--accent-purple)',
       icon: '🔍',
       sub: 'being handled now',
-      href: '/pages/moderator/reports.html'
+      href: '/moderator/reports'
     },
     {
       label: 'Resolved Total',
@@ -45,7 +47,7 @@ export function ModeratorStatsRow(props) {
       color: 'var(--accent-cyan)',
       icon: '🎮',
       sub: liveNow ? 'playing right now' : 'nothing live',
-      href: '/pages/moderator/sessions.html'
+      href: '/moderator/sessions'
     },
     {
       label: 'Banned Players',
@@ -53,7 +55,7 @@ export function ModeratorStatsRow(props) {
       color: 'var(--accent-red)',
       icon: '🚫',
       sub: 'bans in force',
-      href: '/pages/moderator/bans.html'
+      href: '/moderator/bans'
     }
   ];
 
@@ -81,7 +83,7 @@ export function ModeratorStatsRow(props) {
               key={index}
               className={cardClasses}
               onClick={() => {
-                window.location.href = d.href;
+                navigate(d.href);
               }}
               title={`Open ${d.label.toLowerCase()}`}
             >

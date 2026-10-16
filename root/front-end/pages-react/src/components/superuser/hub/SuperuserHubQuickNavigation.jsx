@@ -10,39 +10,34 @@ export function SuperuserHubQuickNavigation() {
       title: 'All Users',
       desc: 'Manage every user across all roles — create, edit, ban, promote',
       page: '/superuser/users',
-      isReact: true,
       c: 'rgba(0,212,255,0.3)'
     },
     {
       icon: '🎮',
       title: 'Game Control',
       desc: 'Approve, reject, enable or remove any game on the platform',
-      page: '/pages/superuser/games.html',
-      isReact: false,
+      page: '/superuser/games',
       c: 'rgba(16,185,129,0.3)'
     },
     {
       icon: '⚠️',
       title: 'Reports & Bans',
       desc: 'Override moderator actions, resolve reports, lift or apply bans',
-      page: '/pages/superuser/reports.html',
-      isReact: false,
+      page: '/superuser/reports',
       c: 'rgba(239,68,68,0.3)'
     },
     {
       icon: '👑',
       title: 'Admin Management',
       desc: 'Create, promote or demote Admin and Moderator accounts',
-      page: '/pages/superuser/admins.html',
-      isReact: false,
+      page: '/superuser/admins',
       c: 'rgba(245,158,11,0.3)'
     },
     {
       icon: '⚙️',
       title: 'System Settings',
       desc: 'Configure all global platform settings and feature toggles',
-      page: '/pages/superuser/settings.html',
-      isReact: false,
+      page: '/superuser/settings',
       c: 'rgba(124,58,237,0.3)'
     }
   ];
@@ -53,13 +48,7 @@ export function SuperuserHubQuickNavigation() {
         <div
           key={q.title}
           className="quick-card"
-          onClick={() => {
-            if (q.isReact) {
-              navigate(q.page);
-            } else {
-              window.location.href = q.page;
-            }
-          }}
+          onClick={() => navigate(q.page)}
           style={{ '--qc': q.c }}
         >
           <div className="quick-card-icon">{q.icon}</div>

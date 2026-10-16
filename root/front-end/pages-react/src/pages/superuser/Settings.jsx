@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   getSettings,
@@ -33,6 +34,7 @@ function escapeCSV(val) {
 }
 
 export function Settings() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -434,7 +436,7 @@ export function Settings() {
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              window.location.href = '/index.html';
+              navigate('/');
             }}
           >
             Return to Login

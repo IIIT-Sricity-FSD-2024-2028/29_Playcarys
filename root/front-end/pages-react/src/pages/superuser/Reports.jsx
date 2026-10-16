@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   fetchReports,
@@ -19,6 +20,7 @@ import Toast from '../../components/common/Toast';
 import '../../styles/superuser/reports.css';
 
 export function Reports() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -225,7 +227,7 @@ export function Reports() {
         <p className="text-muted">You must be logged in as a Superuser to view this page.</p>
         <button
           className="btn btn-primary mt-3"
-          onClick={() => (window.location.href = '/pages/auth/login.html')}
+          onClick={() => navigate('/')}
         >
           Go to Sign In
         </button>

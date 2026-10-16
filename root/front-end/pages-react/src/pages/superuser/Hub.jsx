@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   fetchPlatformStats,
@@ -14,6 +15,7 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/superuser/hub.css';
 
 export function Hub() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -89,7 +91,7 @@ export function Hub() {
           <button
             className="btn btn-primary"
             onClick={() => {
-              window.location.href = '/index.html';
+              navigate('/');
             }}
           >
             Return to Login

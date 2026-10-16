@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatActivityTime } from '../../../services/superuserService';
 
 const ACTIVITY_ICONS = {
@@ -11,12 +12,13 @@ const ACTIVITY_ICONS = {
 
 export function SuperuserRecentActivity(props) {
   const { activity = [], onViewApprovals } = props;
+  const navigate = useNavigate();
 
   const handleViewApprovals = () => {
     if (onViewApprovals) {
       onViewApprovals();
     } else {
-      window.location.href = '/pages/admin/approvals.html';
+      navigate('/admin/approvals');
     }
   };
 

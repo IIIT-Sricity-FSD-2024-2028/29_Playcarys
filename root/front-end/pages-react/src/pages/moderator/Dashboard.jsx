@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   fetchModeratorDashboardData,
@@ -43,6 +44,7 @@ const DEFAULT_DASHBOARD_STATE = {
 };
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -132,7 +134,7 @@ export function Dashboard() {
         <button
           className="btn btn-primary mt-3"
           onClick={() => {
-            window.location.href = '/pages/auth/login.html';
+            navigate('/');
           }}
         >
           Go to Sign In

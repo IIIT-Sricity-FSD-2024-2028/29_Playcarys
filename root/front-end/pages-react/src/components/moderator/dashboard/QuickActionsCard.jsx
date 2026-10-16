@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function QuickActionsCard(props) {
+  const navigate = useNavigate();
   const { pendingReports = 0, liveSessions = 0, activeBans = 0, onContactAdmin } = props;
 
   return (
@@ -22,7 +24,7 @@ export function QuickActionsCard(props) {
         <div
           className="qa-btn"
           onClick={() => {
-            window.location.href = '/pages/moderator/reports.html';
+            navigate('/moderator/reports');
           }}
           title="Open Reports"
         >
@@ -38,7 +40,7 @@ export function QuickActionsCard(props) {
         <div
           className="qa-btn"
           onClick={() => {
-            window.location.href = '/pages/moderator/sessions.html';
+            navigate('/moderator/sessions');
           }}
           title="Open Sessions"
         >
@@ -54,7 +56,7 @@ export function QuickActionsCard(props) {
         <div
           className="qa-btn"
           onClick={() => {
-            window.location.href = '/pages/moderator/bans.html';
+            navigate('/moderator/bans');
           }}
           title="Open Bans"
         >

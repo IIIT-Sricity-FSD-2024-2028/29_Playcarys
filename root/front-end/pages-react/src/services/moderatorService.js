@@ -242,10 +242,15 @@ export async function sendContactAdminNotification({ subject, msg, priority, ses
     admins = [{ user_id: 1, username: 'SuperAdmin' }, { user_id: 0, username: 'GodMode' }];
   }
 
+  const avatar = session?.avatar || fromUsername.slice(0, 2).toUpperCase() || 'M1';
+
   const notificationPayloads = admins.map((admin) => ({
-    user_id: admin.user_id != null ? admin.user_id : admin.id,
-    title: `[${priority.toUpperCase()} - Contact Admin] ${subject}`,
-    message: `${msg}\n\n— Sent by Moderator ${fromUsername} (ID: ${fromUserId})`,
+    toUser: Number(admin.user_id != null ? admin.user_id : admin.id),
+    from: fromUsername,
+    fromUserId: fromUserId,
+    fromRole: 'moderator',
+    avatar: avatar,
+    msg: `[${priority.toUpperCase()} - Contact Admin] ${subject}\n\n${msg}`,
     type: 'admin_contact'
   }));
 

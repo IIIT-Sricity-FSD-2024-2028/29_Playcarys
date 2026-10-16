@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   fetchModeratorReports,
@@ -15,6 +16,7 @@ import Toast from '../../components/common/Toast';
 import '../../styles/moderator/reports.css';
 
 export function Reports() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -211,7 +213,7 @@ export function Reports() {
 
   // Action: Escalate to Ban
   function handleEscalateToBan() {
-    window.location.href = '/pages/moderator/bans.html';
+    navigate('/moderator/bans');
   }
 
   // Action: Open Warn Player Modal

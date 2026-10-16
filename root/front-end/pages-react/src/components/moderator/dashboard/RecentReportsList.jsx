@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export function RecentReportsList(props) {
   const { reports = [] } = props;
@@ -14,9 +15,9 @@ export function RecentReportsList(props) {
         }}
       >
         <h3>⚠️ Recent Reports</h3>
-        <a href="/pages/moderator/reports.html" className="btn btn-ghost btn-sm">
+        <Link to="/moderator/reports" className="btn btn-ghost btn-sm">
           View All →
-        </a>
+        </Link>
       </div>
 
       <div id="recent-reports">
@@ -71,13 +72,13 @@ export function RecentReportsList(props) {
                   <span className={`badge ${badgeCls}`}>{statusLabel}</span>
                 </div>
                 {(status === 'pending' || status === 'under-review') && (
-                  <a
-                    href="/pages/moderator/reports.html"
+                  <Link
+                    to="/moderator/reports"
                     className="btn btn-outline btn-sm"
                     style={{ marginLeft: '0.5rem', fontSize: '0.68rem', padding: '0.25rem 0.5rem' }}
                   >
                     Review
-                  </a>
+                  </Link>
                 )}
               </div>
             );

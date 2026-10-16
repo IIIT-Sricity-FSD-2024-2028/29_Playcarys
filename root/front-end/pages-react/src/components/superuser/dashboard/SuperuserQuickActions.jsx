@@ -5,10 +5,6 @@ export function SuperuserQuickActions(props) {
   const { pendingGames = 0 } = props;
   const navigate = useNavigate();
 
-  const navigateTo = (url) => {
-    window.location.href = url;
-  };
-
   return (
     <div className="section-cards mt-3" id="quick-actions">
       <div
@@ -44,7 +40,7 @@ export function SuperuserQuickActions(props) {
       <div
         className="section-card"
         style={{ cursor: 'pointer' }}
-        onClick={() => navigateTo('/pages/admin/approvals.html')}
+        onClick={() => navigate('/admin/approvals')}
       >
         <div className="section-card-icon">✅</div>
         <h3>Game Approvals</h3>
@@ -59,7 +55,7 @@ export function SuperuserQuickActions(props) {
       <div
         className="section-card"
         style={{ cursor: 'pointer' }}
-        onClick={() => navigateTo('/pages/superuser/settings.html')}
+        onClick={() => navigate('/superuser/settings')}
       >
         <div className="section-card-icon">⚙️</div>
         <h3>System Settings</h3>

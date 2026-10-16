@@ -11,6 +11,7 @@
  * one built for the admin pages: notifications, replies and messages work for any staff role.
  */
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../../context/AuthContext';
 import AdminContext from '../../../context/AdminContext';
 import AdminDrawer from '../../admin/common/AdminDrawer';
@@ -67,17 +68,19 @@ export function StaffNavbar(props) {
     logout();
   }
 
-  const links = NAV_LINKS[user.role] || [];
-  const unread = unreadNotifications(user.userId, user.role).length;
+  const navigate = useNavigate();
+  const links = NAV_LINKS[user?.role] || [];
+  const unread = user ? unreadNotifications(user.userId, user.role).length : 0;
 
-  // These roles have no React pages yet, so a link opens the older page (the old navigate()).
-  function openOldPage(page) {
-    window.location.href = '/pages/' + user.role + '/' + page + '.html';
+  function openPage(page) {
+    if (!user?.role) return;
+    navigate('/' + user.role + '/' + page);
   }
 
-  // The logo goes to your own home: the superuser's is the control hub (Auth.gotoDashboard).
+  // The logo goes to your own home: the superuser's is the control hub, moderator to dashboard.
   function goToDashboard() {
-    openOldPage(user.role === 'superuser' ? 'hub' : 'dashboard');
+    if (!user?.role) return;
+    openPage(user.role === 'superuser' ? 'hub' : 'dashboard');
   }
 
   const username = user.username;
@@ -137,7 +140,7 @@ export function StaffNavbar(props) {
               key={link.id}
               className={'nav-link' + (activePage === link.id ? ' active' : '')}
               data-page={link.id}
-              onClick={() => openOldPage(link.page)}
+              onClick={() => openPage(link.page)}
             >
               {link.icon} {link.label}
             </div>
@@ -162,7 +165,7 @@ export function StaffNavbar(props) {
         onClose={() => setDrawerOpen(false)}
         links={links}
         activePage={activePage}
-        onNavigate={(link) => openOldPage(link.page)}
+        onNavigate={(link) => openPage(link.page)}
         session={user}
         unreadLabel={countUpdated ? unread + ' new' : String(unread)}
         onChanged={handleChanged}

@@ -21,11 +21,11 @@ export function SuperuserNavbar(props) {
   ];
 
   const adminLinks = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠', isReactRoute: true, path: '/superuser/dashboard' },
-    { id: 'hub', label: 'Control Hub', icon: '⚡', isReactRoute: false, path: '/pages/admin/hub.html' },
-    { id: 'users', label: 'Users', icon: '👥', isReactRoute: false, path: '/pages/admin/users.html' },
-    { id: 'approvals', label: 'Approvals', icon: '✅', isReactRoute: false, path: '/pages/admin/approvals.html' },
-    { id: 'settings', label: 'Settings', icon: '⚙️', isReactRoute: false, path: '/pages/admin/settings.html' }
+    { id: 'dashboard', label: 'Dashboard', icon: '🏠', isReactRoute: true, path: '/admin/dashboard' },
+    { id: 'hub', label: 'Control Hub', icon: '⚡', isReactRoute: true, path: '/admin/hub' },
+    { id: 'users', label: 'Users', icon: '👥', isReactRoute: true, path: '/admin/users' },
+    { id: 'approvals', label: 'Approvals', icon: '✅', isReactRoute: true, path: '/admin/approvals' },
+    { id: 'settings', label: 'Settings', icon: '⚙️', isReactRoute: true, path: '/admin/settings' }
   ];
 
   const links = role === 'admin' ? adminLinks : superuserLinks;

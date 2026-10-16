@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import authService, { ENABLE_TEMP_DEV_IDENTITY } from '../services/authService';
 
 // TEMPORARY DEVELOPMENT IDENTITY:
@@ -55,7 +56,7 @@ export function AuthProvider(props) {
           }
         }
 
-        if (isPlayerRoute || !existingSession || existingSession.role === 'player') {
+        if (isPlayerRoute || (existingSession && existingSession.role === 'player')) {
           try {
             const resolved = await authService.resolveDragonSlayerIdentity();
             setUser(resolved);
@@ -66,8 +67,8 @@ export function AuthProvider(props) {
           return;
         }
 
-        // Publisher, Moderator, Superuser, or other role session
-        setUser(existingSession);
+        // Publisher, Moderator, Superuser, or other role session, or unauthenticated (null)
+        setUser(existingSession || null);
       } else {
         const sess = authService.getSession();
         setUser(sess);
@@ -88,7 +89,17 @@ export function AuthProvider(props) {
     setUser(sessionData);
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    try {
+      const sess = authService.getSession();
+      const uid = Number(user?.user_id ?? user?.userId ?? user?.id ?? sess?.userId ?? sess?.user_id);
+      const sToken = user?.session_token ?? user?.sessionToken ?? sess?.sessionToken ?? sess?.session_token;
+      if (uid && sToken) {
+        await api.post('/auth/release', { user_id: uid, session_token: sToken });
+      }
+    } catch (e) {
+      // ignore network errors on logout
+    }
     authService.clearSession();
     setUser(null);
     navigate('/');

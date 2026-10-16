@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export function ModeratorHero(props) {
   const { username = 'Moderator', onContactAdmin } = props;
@@ -30,12 +31,12 @@ export function ModeratorHero(props) {
         >
           📨 Contact Admin
         </button>
-        <a
-          href="/pages/moderator/reports.html"
+        <Link
+          to="/moderator/reports"
           className="btn btn-ghost btn-sm"
         >
           ⚠️ View Reports
-        </a>
+        </Link>
       </div>
     </div>
   );

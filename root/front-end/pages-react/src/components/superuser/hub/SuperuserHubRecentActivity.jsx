@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { formatActivityTime } from '../../../services/superuserService';
 
 const ACTIVITY_COLORS = {
@@ -12,6 +13,7 @@ const ACTIVITY_COLORS = {
 
 export function SuperuserHubRecentActivity(props) {
   const { feed = [] } = props;
+  const navigate = useNavigate();
 
   return (
     <div className="card">
@@ -20,7 +22,7 @@ export function SuperuserHubRecentActivity(props) {
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => {
-            window.location.href = '/pages/superuser/reports.html';
+            navigate('/superuser/reports');
           }}
         >
           All Reports →

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   fetchUsers,
@@ -20,6 +21,7 @@ function capitalize(str) {
 }
 
 export function Users() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [users, setUsers] = useState([]);
@@ -202,7 +204,7 @@ export function Users() {
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              window.location.href = '/index.html';
+              navigate('/');
             }}
           >
             Return to Login

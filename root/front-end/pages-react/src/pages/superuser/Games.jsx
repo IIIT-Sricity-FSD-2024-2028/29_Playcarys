@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   fetchGames,
@@ -13,6 +14,7 @@ import Toast from '../../components/common/Toast';
 import '../../styles/superuser/games.css';
 
 export function Games() {
+  const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [games, setGames] = useState([]);
@@ -96,7 +98,7 @@ export function Games() {
   function handleOpenReview(game) {
     setSelectedGame(null);
     const id = game.id ?? game.game_id;
-    window.location.href = `/pages/admin/game-review.html?gameId=${encodeURIComponent(id)}`;
+    navigate(`/admin/game-review?gameId=${encodeURIComponent(id)}`);
   }
 
   // Toggle Blacklist / Enable
@@ -149,7 +151,7 @@ export function Games() {
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              window.location.href = '/index.html';
+              navigate('/');
             }}
           >
             Return to Login

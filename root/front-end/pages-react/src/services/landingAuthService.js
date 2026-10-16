@@ -90,12 +90,11 @@ export const STAFF_TABS = {
   }
 };
 
-// Where each role lands after signing in. A path starting with /pages/ is an old .html page
-// (moderator and superuser have no React pages yet); everything else is a React route.
+// Where each role lands after signing in. All roles route to their respective React pages.
 export const HOME_PAGE = {
-  superuser: '/pages/superuser/hub.html',
+  superuser: '/superuser/dashboard',
   admin: '/admin/dashboard',
-  moderator: '/pages/moderator/dashboard.html',
+  moderator: '/moderator/dashboard',
   publisher: '/publisher/dashboard',
   player: '/player/dashboard',
   guest: '/player/dashboard'
@@ -273,12 +272,16 @@ export async function resolveSessionConflict(user, askToSignInHere) {
 
 // The session object the rest of the app reads (same shape as the old Auth.login).
 export function buildSession(user, sessionToken) {
+  const uid = user.user_id ?? user.id;
+  const sToken = sessionToken || user.session_token || null;
   return {
-    userId: user.user_id ?? user.id,
+    userId: uid,
+    user_id: uid,
     role: user.role,
     username: user.user_name || user.username,
     avatar: user.avatar,
-    sessionToken: sessionToken || null
+    sessionToken: sToken,
+    session_token: sToken
   };
 }
 

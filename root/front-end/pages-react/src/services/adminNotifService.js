@@ -71,7 +71,7 @@ export function canReplyTo(n, role) {
   if (isBroadcastNotif(n)) return false;
   if (role === 'player' && n.fromRole !== 'player') return false;
   if (role === 'publisher' && n.fromRole !== 'admin') return false;
-  if (role === 'moderator' && ['superuser', 'publisher'].includes(n.fromRole)) return false;
+  if (role === 'moderator' && n.fromRole === 'publisher') return false;
   return true;
 }
 
@@ -90,8 +90,8 @@ export function sendReply(n, rawText, session) {
   const targetRole = n.fromRole;
   if (senderRole === 'player' && targetRole !== 'player') return 'Players can only reply to other players.';
   if (senderRole === 'publisher' && targetRole !== 'admin') return 'Publishers can only reply to admins.';
-  if (senderRole === 'moderator' && ['superuser', 'publisher'].includes(targetRole)) {
-    return 'Moderators cannot reply to superusers or publishers.';
+  if (senderRole === 'moderator' && targetRole === 'publisher') {
+    return 'Moderators cannot reply to publishers.';
   }
   // Never write a reply into a shared broadcast row: the whole role would read it.
   if (isBroadcastNotif(n)) {
