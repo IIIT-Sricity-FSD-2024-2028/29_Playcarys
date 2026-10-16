@@ -262,6 +262,38 @@ const DB = {
       game_publisher: 5,
       desc: "Match 3 colorful candies to progress through beautifully sweet puzzle levels.",
       players: "1", img: "candy_crush", rating: 0, views: 0, submittedDate: "2026-04-03", sessions: 0
+    },
+    {
+      game_id: 16, game_name: "HexGL",
+      game_type: "Racing", game_status: "enabled", game_approval_status: "approved",
+      game_publisher: 5,
+      desc: "A futuristic anti-gravity racing game built on WebGL. Blistering speed, neon tracks and full 3D graphics running natively in the browser.",
+      players: "1", img: "hexgl", rating: 4.8, views: 3200, submittedDate: "2026-08-02", sessions: 0,
+      hosting_type: "hosted", play_path: "games/hexgl-16"
+    },
+    {
+      game_id: 18, game_name: "2048",
+      game_type: "Puzzle", game_status: "enabled", game_approval_status: "approved",
+      game_publisher: 6,
+      desc: "Slide the numbered tiles together to combine them. Simple to learn, genuinely hard to finish — join the tiles and reach 2048.",
+      players: "1", img: "game_2048", rating: 4.7, views: 4500, submittedDate: "2026-08-02", sessions: 0,
+      hosting_type: "hosted", play_path: "games/2048-18"
+    },
+    {
+      game_id: 19, game_name: "Hextris",
+      game_type: "Puzzle", game_status: "enabled", game_approval_status: "approved",
+      game_publisher: 6,
+      desc: "An addictive arcade puzzler inspired by Tetris. Rotate the hexagon to stack falling blocks by colour before they pile up.",
+      players: "1", img: "hextris", rating: 4.5, views: 2900, submittedDate: "2026-08-02", sessions: 0,
+      hosting_type: "hosted", play_path: "games/hextris-19"
+    },
+    {
+      game_id: 25, game_name: "Ancient Beast",
+      game_type: "Strategy", game_status: "enabled", game_approval_status: "approved",
+      game_publisher: 5,
+      desc: "A turn-based strategy game — master your beasts across 1v1 and 2v2 matches. Materialize units with plasma and out-think your opponent.",
+      players: "1-4", img: "ancient_beast", rating: 4.6, views: 1800, submittedDate: "2026-08-08", sessions: 0,
+      hosting_type: "hosted", play_path: "games/ancient-beast-25"
     }
   ],
 
@@ -630,10 +662,10 @@ const DB = {
   // ── Favourites — UI convenience (not a DB table) ─────────────
   // Structure: { userId: [gameId, gameId, ...] }
   favorites: {
-    7: ["7", "8"],
-    8: ["7"],
-    9: ["8"],
-    10: ["7"]
+    7: ["1", "2"],
+    8: ["1"],
+    9: ["2"],
+    10: ["1"]
   },
 
   // ── Activity Log — UI convenience (not a DB table) ───────────

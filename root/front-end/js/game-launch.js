@@ -33,6 +33,15 @@
     '8': { slug: 'hill_climbing', supportsAi: false, spectator: false }
   };
 
+  /* Games unpacked directly into front-end/games/ directory.
+     Fallback mapping if the game row is missing or unhydrated. */
+  var BUNDLED = {
+    '16': { slug: 'hexgl-16',         play_path: 'games/hexgl-16'         },
+    '18': { slug: '2048-18',           play_path: 'games/2048-18'           },
+    '19': { slug: 'hextris-19',        play_path: 'games/hextris-19'        },
+    '25': { slug: 'ancient-beast-25',  play_path: 'games/ancient-beast-25'  }
+  };
+
   /* ── How a game does multiplayer ────────────────────────────
    *
    * The platform has its own matchmaker: quick-play parks a waiter in
@@ -154,6 +163,7 @@
 
   var GameLaunch = {
     BUILTIN: BUILTIN,
+    BUNDLED: BUNDLED,
 
     /**
      * Resolve how a game is played.
@@ -173,6 +183,17 @@
           embeddable: false, // navigated to directly, exactly as before
           origin: global.location.origin,
           game: game
+        };
+      }
+
+      if (!game && BUNDLED[gid]) {
+        game = {
+          game_id: Number(gid),
+          game_name: BUNDLED[gid].slug,
+          game_approval_status: 'approved',
+          game_status: 'enabled',
+          play_path: BUNDLED[gid].play_path,
+          hosting_type: 'hosted'
         };
       }
 

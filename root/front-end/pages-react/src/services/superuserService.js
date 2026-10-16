@@ -760,6 +760,7 @@ export function normalizeReport(r, users = []) {
   const id = r.report_id != null ? r.report_id : (r.id != null ? r.id : Date.now());
   const type = r.type || 'Behavior';
   const reason = r.reason || r.action_reason || 'Reported for community violation';
+  const desc = r.desc || reason;
   const status = (r.status || 'pending').toLowerCase();
   const reportDate = r.report_date || r.reportDate || r.created_at || new Date().toISOString().slice(0, 10);
   const time = r.time || 'recently';
@@ -767,7 +768,7 @@ export function normalizeReport(r, users = []) {
   const actionNote = r.actionNote || '';
 
   // Reporter lookup
-  let reporterName = r.reporter_name || r.reporter;
+  let reporterName = r.reporterName || r.reporter_name || r.reporter;
   if (!reporterName && r.reported_by != null) {
     const u = users.find(x => String(x.user_id ?? x.id) === String(r.reported_by));
     reporterName = u ? (u.username || u.user_name) : `Player #${r.reported_by}`;
@@ -775,12 +776,15 @@ export function normalizeReport(r, users = []) {
   if (!reporterName) reporterName = 'Anonymous';
 
   // Reported user lookup
-  let reportedName = r.reported_name || r.reported;
+  let reportedName = r.reportedName || r.reported_name || r.reported;
   if (!reportedName && r.reported_user != null) {
     const u = users.find(x => String(x.user_id ?? x.id) === String(r.reported_user));
     reportedName = u ? (u.username || u.user_name) : `Player #${r.reported_user}`;
   }
   if (!reportedName) reportedName = 'Unknown User';
+
+  const reporterId = r.reported_by != null ? String(r.reported_by) : (r.reporterId != null ? String(r.reporterId) : null);
+  const reportedId = r.reported_user != null ? String(r.reported_user) : (r.reportedId != null ? String(r.reportedId) : null);
 
   return {
     ...r,
@@ -788,13 +792,18 @@ export function normalizeReport(r, users = []) {
     report_id: id,
     reported_by: r.reported_by,
     reported_user: r.reported_user,
+    reporterId,
+    reportedId,
     type,
     reason,
+    desc,
     status,
     report_date: reportDate,
     time,
     session,
     actionNote,
+    reporterName,
+    reportedName,
     reporter_name: reporterName,
     reported_name: reportedName
   };

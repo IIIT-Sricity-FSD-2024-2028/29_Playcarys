@@ -245,6 +245,11 @@ export async function hydrateFromServer(tables = [], userId = null) {
           db.player_tournament = value;
         } else if (key === 'team_tournament') {
           db.team_tournament = value;
+        } else if (key === 'favorites') {
+          // Only update if server actually returns valid non-empty favorites
+          if (Array.isArray(value) && value.length > 0) {
+            db.favorites = value;
+          }
         } else {
           db[key] = value;
         }
@@ -601,21 +606,111 @@ export const playerService = {
   getFavorites(userId) {
     const db = getDatabase();
     const uid = String(userId || 7);
-    return (db.favorites && db.favorites[uid] ? db.favorites[uid] : []).map(String);
+    let favList = [];
+
+    // 1. Try persistent localStorage first
+    try {
+      const stored = localStorage.getItem(`playcarys_favs_${uid}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          favList = parsed;
+        }
+      }
+    } catch (e) {}
+
+    // 2. Check db.favorites
+    if (!favList || !favList.length) {
+      if (db.favorites) {
+        if (Array.isArray(db.favorites)) {
+          // Relational format: [{ user_id: 7, game_id: 1 }]
+          favList = db.favorites
+            .filter((f) => String(f.user_id || f.userId) === uid)
+            .map((f) => String(f.game_id || f.gameId));
+        } else if (typeof db.favorites === 'object') {
+          // Dictionary format: { "7": ["1", "2"] }
+          favList = Array.isArray(db.favorites[uid]) ? db.favorites[uid] : [];
+        }
+      }
+    }
+
+    // 3. Fallback to default seed favorites if empty for default player 7
+    if (!favList || !favList.length) {
+      if (uid === '7') {
+        favList = ['1', '2'];
+      }
+    }
+
+    // 4. Cleanse phantom IDs (e.g. legacy 7, 8) that don't correspond to real games
+    const allGames = db.games || [];
+    if (allGames.length > 0) {
+      const validGameIds = new Set(allGames.map((g) => String(g.id || g.game_id)));
+      const cleaned = favList.filter((id) => validGameIds.has(String(id)));
+      if (cleaned.length > 0) {
+        favList = cleaned;
+      } else if (uid === '7' && validGameIds.size > 0) {
+        // If all favorites were phantom, point to the first approved games
+        const approved = allGames.filter(
+          (g) => (g.status === 'approved' || g.game_approval_status === 'approved') && g.enabled !== false
+        );
+        favList = approved.slice(0, 2).map((g) => String(g.id || g.game_id));
+      }
+    }
+
+    // Keep localStorage backup updated
+    try {
+      localStorage.setItem(`playcarys_favs_${uid}`, JSON.stringify(favList));
+    } catch (e) {}
+
+    return (favList || []).map(String);
   },
 
   toggleFavorite(gameId, userId) {
     const db = getDatabase();
     const uid = String(userId || 7);
-    if (!db.favorites) db.favorites = {};
-    let list = (db.favorites[uid] || []).map(String);
     const sid = String(gameId);
+    let list = this.getFavorites(uid);
+
     if (list.includes(sid)) {
-      list = list.filter(id => id !== sid);
+      list = list.filter((id) => id !== sid);
     } else {
       list.push(sid);
     }
-    db.favorites[uid] = list;
+
+    // Keep localStorage in sync immediately
+    try {
+      localStorage.setItem(`playcarys_favs_${uid}`, JSON.stringify(list));
+    } catch (e) {}
+
+    // Update db.favorites in both dictionary and relational format
+    if (!db.favorites || typeof db.favorites !== 'object') {
+      db.favorites = {};
+    }
+
+    if (Array.isArray(db.favorites)) {
+      db.favorites = db.favorites.filter((f) => String(f.user_id || f.userId) !== uid);
+      list.forEach((gid) => {
+        db.favorites.push({ user_id: Number(uid), game_id: Number(gid) });
+      });
+    } else {
+      db.favorites[uid] = list;
+    }
+
+    // Mirror to window.DB if present
+    if (typeof window !== 'undefined' && window.DB) {
+      if (!window.DB.favorites || typeof window.DB.favorites !== 'object') {
+        window.DB.favorites = {};
+      }
+      if (Array.isArray(window.DB.favorites)) {
+        window.DB.favorites = window.DB.favorites.filter((f) => String(f.user_id || f.userId) !== uid);
+        list.forEach((gid) => {
+          window.DB.favorites.push({ user_id: Number(uid), game_id: Number(gid) });
+        });
+      } else {
+        window.DB.favorites[uid] = list;
+      }
+    }
+
     saveDatabase(db);
     return list;
   },

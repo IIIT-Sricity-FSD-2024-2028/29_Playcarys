@@ -227,7 +227,13 @@ export function Games() {
             genres={genres}
             showingFavs={showingFavs}
             favCount={favs.length}
-            onToggleFavView={() => setShowingFavs(!showingFavs)}
+            onToggleFavView={() => {
+              if (!showingFavs) {
+                setSearchQuery('');
+                setSelectedGenre('');
+              }
+              setShowingFavs(!showingFavs);
+            }}
           />
 
           <GamesGrid
@@ -235,6 +241,7 @@ export function Games() {
             favs={favs}
             showingFavs={showingFavs}
             onToggleFav={handleToggleFav}
+            onToggleFavView={() => setShowingFavs(false)}
             onSelectGame={(gid) => {
               setSelectedGameId(gid);
               navigate(`/player/games?id=${gid}`);

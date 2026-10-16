@@ -96,7 +96,7 @@ export function ResolveReportModal(props) {
             <span className="tag">{report.type}</span>
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            {report.desc}
+            {report.desc || report.reason}
           </div>
         </div>
 

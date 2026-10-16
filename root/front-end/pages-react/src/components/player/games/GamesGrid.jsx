@@ -6,6 +6,7 @@ export function GamesGrid({
   favs = [],
   showingFavs = false,
   onToggleFav,
+  onToggleFavView,
   onSelectGame,
   onLaunch,
   offlineMap = {}
@@ -30,8 +31,17 @@ export function GamesGrid({
           {showingFavs ? 'No favourites yet' : 'No games found'}
         </h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-          {showingFavs ? 'Add games to favourites to see them here' : 'Try adjusting your filters'}
+          {showingFavs ? 'Click the heart icon on any game to add it to your favourites' : 'Try adjusting your filters'}
         </p>
+        {showingFavs && onToggleFavView && (
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={onToggleFavView}
+            style={{ marginTop: '1.25rem', cursor: 'pointer' }}
+          >
+            ← Browse All Games
+          </button>
+        )}
       </div>
     );
   }
