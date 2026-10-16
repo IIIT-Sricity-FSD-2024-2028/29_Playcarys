@@ -677,6 +677,14 @@ export interface Notification {
   /** Set on notifications raised about a specific match. */
   sessionId?: number | string | null;
 
+  /**
+   * On a 'friend_request' notification: the friend_requests row it is about.
+   * Lets Accept / Decline answer exactly that request instead of guessing it
+   * from the sender, and lets the server clear the notification when the
+   * request is answered from anywhere (the drawer or the notifications page).
+   */
+  request_id?: number;
+
   /** Chosen category on a message to staff ("Bug Report", "General Inquiry"). */
   subject?: string;
 }

@@ -7,7 +7,8 @@ export function ChatWindow({
   isOpen = false,
   friend = null,
   currentUserId,
-  onClose
+  onClose,
+  onRead
 }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
@@ -15,47 +16,71 @@ export function ChatWindow({
   const [sending, setSending] = useState(false);
   const [showEmotes, setShowEmotes] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
+  const friendIdRef = useRef(null);
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
 
   const friendId = friend?.id || friend?.user_id;
   const friendName = friend?.name || friend?.username || 'Friend';
   const friendAvatar = friend?.avatar || friendName.slice(0, 2).toUpperCase();
-  const presence = friend?.presence || { label: 'Online', color: '#10b981' };
+  const presence = friend?.presence || { label: 'Offline', color: '#72809b' };
+  friendIdRef.current = friendId;
 
   // Scroll to bottom helper
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fetch conversation
-  async function loadConversation(silently = false) {
-    if (!currentUserId || !friendId) return;
-    if (!silently) setLoading(true);
-
-    try {
-      const rows = await socialService.getConversation(currentUserId, friendId);
-      setMessages(rows);
-      // Mark messages as delivered for the current user
-      socialService.markDelivered(currentUserId, friendId);
-    } catch (err) {
-      console.warn('[ChatWindow] Error fetching conversation:', err);
-    } finally {
-      if (!silently) setLoading(false);
-    }
-  }
-
-  // Initial load and periodic poll
+  // Load the conversation, then poll it. Everything async here checks
+  // `cancelled`, which flips when the chat switches to another friend or
+  // closes: before that, a slow reply for the PREVIOUS friend could land after
+  // the switch and put their messages in the new friend's window.
   useEffect(() => {
-    if (!isOpen || !friendId) return;
-    loadConversation();
+    if (!isOpen || !friendId || !currentUserId) return undefined;
+    let cancelled = false;
+    setMessages([]);
+    setError('');
 
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        loadConversation(true);
+    async function load(silently) {
+      if (!silently) setLoading(true);
+      try {
+        const rows = await socialService.getConversation(currentUserId, friendId);
+        if (cancelled) return;
+        setMessages(rows);
+        setError('');
+        // Acknowledge receipt only when there is something to acknowledge.
+        const hasNew = rows.some(
+          (m) => String(m.to_user) === String(currentUserId) && !m.delivered_at
+        );
+        if (hasNew) {
+          socialService.markDelivered(currentUserId, friendId).then(() => {
+            if (!cancelled && onReadRef.current) onReadRef.current();
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err.status === 403
+              ? 'Sign in again to use chat.'
+              : 'Could not load this conversation. Retrying…'
+          );
+        }
+      } finally {
+        if (!cancelled && !silently) setLoading(false);
       }
+    }
+
+    load(false);
+    const interval = setInterval(() => {
+      if (!document.hidden) load(true);
     }, 3500);
 
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [isOpen, friendId, currentUserId]);
 
   // Auto scroll on message update
@@ -70,15 +95,22 @@ export function ChatWindow({
     const trimmed = text.trim();
     if (!trimmed || sending || !currentUserId || !friendId) return;
 
+    const target = friendId;
     setSending(true);
     setText('');
+    setError('');
     try {
-      const newMsg = await socialService.sendMessage(currentUserId, friendId, trimmed);
-      setMessages((prev) => [...prev, newMsg]);
-      scrollToBottom();
+      const newMsg = await socialService.sendMessage(currentUserId, target, trimmed);
+      // Only show it if this window is still talking to the same person, and
+      // never twice (the poll may have fetched it already).
+      if (String(friendIdRef.current) === String(target)) {
+        setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
+        scrollToBottom();
+      }
     } catch (err) {
-      console.error('[ChatWindow] Failed to send message:', err);
-      setText(trimmed); // restore text on failure
+      // Say what went wrong and give the text back — the message did NOT go.
+      setError(err.message || 'Message not sent.');
+      setText(trimmed);
     } finally {
       setSending(false);
     }
@@ -93,8 +125,10 @@ export function ChatWindow({
       await socialService.deleteConversation(currentUserId, friendId);
       setMessages([]);
       setIsDeleteModalOpen(false);
+      if (onReadRef.current) onReadRef.current();
     } catch (err) {
-      console.error('[ChatWindow] Failed to delete conversation:', err);
+      setIsDeleteModalOpen(false);
+      setError(err.message || 'Could not clear the conversation.');
     }
   }
 
@@ -306,6 +340,21 @@ export function ChatWindow({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          style={{
+            padding: '0.4rem 0.85rem',
+            fontSize: '0.74rem',
+            color: '#f87171',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderTop: '1px solid rgba(239, 68, 68, 0.3)'
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {/* ── Quick Emote Drawer ── */}
       {showEmotes && (

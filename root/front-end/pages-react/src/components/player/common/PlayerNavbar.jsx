@@ -1,101 +1,137 @@
-import React, { useState, useEffect, useContext } from 'react';
+/*
+ * Concepts used: functional component, props, Context (Auth + Chat), useState,
+ * useEffect with cleanup (window events, Escape key), useMemo, lists with keys,
+ * conditional rendering, react-router Link/useNavigate.
+ */
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../../context/AuthContext';
 import NotificationDropdown from '../notifications/NotificationDropdown';
 import ConfirmModal from '../../common/ConfirmModal';
 import FindPlayersModal from './FindPlayersModal';
 import { useChat } from '../../../context/ChatContext';
-import { getDatabase, sameId } from '../../../services/playerService';
 import socialService from '../../../services/socialService';
-import notificationService from '../../../services/notificationService';
+import '../../../styles/player/drawer.css';
+
+// Every player page, in the order a player thinks of them. The top bar only has
+// room for the main six; the drawer lists them all.
+const PLAYER_LINKS = [
+  { id: 'dashboard', label: 'Dashboard', icon: '🏠', path: '/player/dashboard', inTopBar: true },
+  { id: 'games', label: 'Games', icon: '🎮', path: '/player/games', inTopBar: true },
+  { id: 'tournaments', label: 'Tournaments', icon: '🏆', path: '/player/tournaments', inTopBar: true },
+  { id: 'my-tournaments', label: 'My Events', icon: '🎯', path: '/player/my-tournaments' },
+  { id: 'leaderboard', label: 'Leaderboard', icon: '👑', path: '/player/leaderboard' },
+  { id: 'match-history', label: 'Match History', icon: '📊', path: '/player/match-history' },
+  { id: 'community', label: 'Community', icon: '🛡️', path: '/player/community', inTopBar: true },
+  { id: 'shop', label: 'Shop', icon: '🛍️', path: '/player/shop', inTopBar: true },
+  { id: 'notifications', label: 'Notifications', icon: '🔔', path: '/player/notifications' },
+  { id: 'profile', label: 'Profile', icon: '👤', path: '/player/profile', inTopBar: true }
+];
+
+const GUEST_LINKS = [
+  { id: 'dashboard', label: 'Dashboard', icon: '🏠', path: '/player/dashboard', inTopBar: true },
+  { id: 'games', label: 'Games', icon: '🎮', path: '/player/games', inTopBar: true },
+  { id: 'register', label: 'Create Account Now', icon: '✨', path: '/index.html?action=register', external: true, inTopBar: true }
+];
+
+function initials(name) {
+  return String(name || '?').slice(0, 2).toUpperCase();
+}
 
 export function PlayerNavbar(props) {
   const { activePage = 'dashboard' } = props;
   const { user, logout } = useContext(AuthContext);
-  const { openChat, openProfile } = useChat();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [friendsVersion, setFriendsVersion] = useState(0);
-  const [friendToRemove, setFriendToRemove] = useState(null);
-  const [isFriendsSearchOpen, setIsFriendsSearchOpen] = useState(false);
-  const [friendsSearchQuery, setFriendsSearchQuery] = useState('');
-  const [isFindPlayersModalOpen, setIsFindPlayersModalOpen] = useState(false);
+  const {
+    openChat,
+    openProfile,
+    friends,
+    incomingRequests,
+    unreadTotal,
+    socialStatus,
+    respondToRequest,
+    refreshSocial
+  } = useChat();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    function onFriendsUpdated() {
-      setFriendsVersion((v) => v + 1);
-    }
-    window.addEventListener('friends-updated', onFriendsUpdated);
-    return () => window.removeEventListener('friends-updated', onFriendsUpdated);
-  }, []);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [friendToRemove, setFriendToRemove] = useState(null);
+  const [filter, setFilter] = useState('');
+  const [isFindPlayersModalOpen, setIsFindPlayersModalOpen] = useState(false);
+  const [busyRequest, setBusyRequest] = useState(null);
+  const [notice, setNotice] = useState('');
 
   const role = user?.role === 'guest' ? 'guest' : 'player';
   const roleBadge = role === 'guest' ? 'GUEST' : 'PLAYER';
-  const currentUid = user?.userId ?? user?.id ?? user?.user_id ?? 7;
+  // No fallback id: chat and friends act as whoever is actually signed in.
+  const currentUid = user?.userId ?? user?.id ?? user?.user_id ?? null;
+  const links = role === 'guest' ? GUEST_LINKS : PLAYER_LINKS;
+  const username = user?.username || (role === 'guest' ? 'Guest Player' : 'Player');
+  const avatarText = user?.avatar || initials(username);
 
-  const db = getDatabase();
-  const friendRows = (db?.friendships || []).filter(
-    (f) => (sameId(f.user_a, currentUid) || sameId(f.user_b, currentUid)) && !f.removed_at
-  );
-  const myFriends = friendRows.map((f) => {
-    const friendId = sameId(f.user_a, currentUid) ? f.user_b : f.user_a;
-    const fu = (db?.users || []).find((u) => sameId(u.id || u.user_id, friendId));
-    const name = fu?.user_name || fu?.username || 'Friend';
-
-    const liveMatch = (db?.matches || []).find(
-      (m) =>
-        m.status === 'in-progress' &&
-        ((m.participants || []).some((p) => sameId(p, friendId)) || sameId(m.created_by, friendId))
-    );
-    const presence = liveMatch
-      ? { label: `Playing ${liveMatch.game_name || 'Chess Pro'}`, color: '#00d4ff' }
-      : { label: 'Offline', color: '#72809b' };
-
-    return {
-      id: friendId,
-      name,
-      avatar: fu?.avatar || name.slice(0, 2).toUpperCase(),
-      presence
+  // Open from outside (the Quick Access "Chat" button asks for this) and close on Escape.
+  useEffect(() => {
+    function open() {
+      setDrawerOpen(true);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setDrawerOpen(false);
+    }
+    window.addEventListener('open-friends-panel', open);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('open-friends-panel', open);
+      window.removeEventListener('keydown', onKey);
     };
-  });
+  }, []);
 
-  const displayedFriends = friendsSearchQuery.trim()
-    ? myFriends.filter((f) =>
-        f.name.toLowerCase().includes(friendsSearchQuery.trim().toLowerCase())
-      )
-    : myFriends;
+  // Friends: people who need an answer first, then who is playing, then the
+  // most recent conversation, then A–Z.
+  const shownFriends = useMemo(() => {
+    const term = filter.trim().toLowerCase();
+    const rows = term ? friends.filter((f) => f.name.toLowerCase().includes(term)) : friends;
+    return rows.slice().sort((a, b) => {
+      if ((b.unread || 0) !== (a.unread || 0)) return (b.unread || 0) - (a.unread || 0);
+      const pa = a.presence?.state === 'playing' ? 1 : 0;
+      const pb = b.presence?.state === 'playing' ? 1 : 0;
+      if (pb !== pa) return pb - pa;
+      const ta = a.lastMessage ? Date.parse(a.lastMessage.sent_at) : 0;
+      const tb = b.lastMessage ? Date.parse(b.lastMessage.sent_at) : 0;
+      if (tb !== ta) return tb - ta;
+      return a.name.localeCompare(b.name);
+    });
+  }, [friends, filter]);
 
-  async function executeRemoveFriend() {
-    if (!friendToRemove) return;
+  const badgeCount = unreadTotal + incomingRequests.length;
+
+  function closeDrawer() {
+    setDrawerOpen(false);
+  }
+
+  async function answerRequest(request, action) {
+    setBusyRequest(request.id);
+    setNotice('');
     try {
-      await socialService.removeFriend(currentUid, friendToRemove.id);
-      setFriendsVersion((v) => v + 1);
-      if (typeof window !== 'undefined' && window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('friends-updated'));
-      }
-      setFriendToRemove(null);
+      await respondToRequest(request.id, action);
     } catch (err) {
-      console.error('Failed to unfriend:', err);
+      setNotice(err.message || 'Could not answer the request.');
+    } finally {
+      setBusyRequest(null);
     }
   }
 
-  const playerLinks = role === 'guest'
-    ? [
-        { id: 'dashboard', label: 'Dashboard', icon: '🏠', isReactRoute: true, path: '/player/dashboard' },
-        { id: 'games', label: 'Games', icon: '🎮', isReactRoute: true, path: '/player/games' },
-        { id: 'register', label: 'Create Account Now', icon: '✨', isReactRoute: false, path: '/index.html?action=register' }
-      ]
-    : [
-        { id: 'dashboard', label: 'Dashboard', icon: '🏠', isReactRoute: true, path: '/player/dashboard' },
-        { id: 'games', label: 'Games', icon: '🎮', isReactRoute: true, path: '/player/games' },
-        { id: 'tournaments', label: 'Tournaments', icon: '🏆', isReactRoute: true, path: '/player/tournaments' },
-        { id: 'community', label: 'Community', icon: '🛡️', isReactRoute: true, path: '/player/community' },
-        { id: 'shop', label: 'Shop', icon: '🛍️', isReactRoute: true, path: '/player/shop' },
-        { id: 'profile', label: 'Profile', icon: '👤', isReactRoute: true, path: '/player/profile' }
-      ];
-
-  const username = user?.username || (role === 'guest' ? 'Guest Player' : 'Player');
-  const avatarText = user?.avatar || username.slice(0, 2).toUpperCase();
+  async function executeRemoveFriend() {
+    if (!friendToRemove) return;
+    const target = friendToRemove;
+    setFriendToRemove(null);
+    setNotice('');
+    try {
+      await socialService.removeFriend(currentUid, target.id);
+      window.dispatchEvent(new CustomEvent('friends-updated'));
+      await refreshSocial();
+    } catch (err) {
+      setNotice(err.message || 'Could not remove this friend.');
+    }
+  }
 
   function handleProfileClick(e) {
     if (typeof window !== 'undefined' && typeof window.showUserProfile === 'function') {
@@ -105,21 +141,46 @@ export function PlayerNavbar(props) {
     }
   }
 
+  function renderLink(link, extraClass = '') {
+    const className = `nav-link ${activePage === link.id ? 'active' : ''} ${extraClass}`;
+    const content = (
+      <>
+        <span>{link.icon}</span>
+        <span>{link.label}</span>
+      </>
+    );
+    if (link.external) {
+      return (
+        <a key={link.id} href={link.path} className={className} data-page={link.id}>
+          {content}
+        </a>
+      );
+    }
+    return (
+      <Link key={link.id} to={link.path} className={className} data-page={link.id}>
+        {content}
+      </Link>
+    );
+  }
+
   return (
     <>
       <div id="navbar" className="navbar" data-role={role}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span
-            className="hamburger-btn"
-            style={{ position: 'relative', cursor: 'pointer', marginRight: '0.4rem' }}
+          <button
+            type="button"
+            className="hamburger-btn pdr-burger"
             onClick={(e) => {
               e.stopPropagation();
-              setDrawerOpen(!drawerOpen);
+              setDrawerOpen((open) => !open);
             }}
-            title="Menu"
+            title="Menu, friends and chat"
+            aria-label="Open menu"
+            aria-expanded={drawerOpen}
           >
             ☰
-          </span>
+            {badgeCount > 0 && <span className="pdr-burger-badge">{badgeCount > 9 ? '9+' : badgeCount}</span>}
+          </button>
           <Link
             to="/player/dashboard"
             className="nav-brand"
@@ -132,41 +193,10 @@ export function PlayerNavbar(props) {
           </Link>
         </div>
 
-        <nav className="nav-links">
-          {playerLinks.map((link) => {
-            const isActive = activePage === link.id;
-            const className = `nav-link ${isActive ? 'active' : ''}`;
-
-            if (link.isReactRoute) {
-              return (
-                <Link
-                  key={link.id}
-                  to={link.path}
-                  className={className}
-                  data-page={link.id}
-                >
-                  <span>{link.icon}</span>
-                  <span>{link.label}</span>
-                </Link>
-              );
-            }
-
-            return (
-              <a
-                key={link.id}
-                href={link.path}
-                className={className}
-                data-page={link.id}
-              >
-                <span>{link.icon}</span>
-                <span>{link.label}</span>
-              </a>
-            );
-          })}
-        </nav>
+        <nav className="nav-links">{links.filter((l) => l.inTopBar).map((l) => renderLink(l))}</nav>
 
         <div className="nav-user">
-          <NotificationDropdown userId={user?.userId ?? user?.id ?? 7} roleName={role} />
+          <NotificationDropdown userId={currentUid} roleName={role} />
           <div style={{ textAlign: 'right' }}>
             <div className="nav-username">{username}</div>
             <div className="nav-role">{roleBadge}</div>
@@ -180,374 +210,215 @@ export function PlayerNavbar(props) {
           >
             {avatarText}
           </div>
-          <span
-            className="nav-logout"
-            onClick={logout}
-            title="Logout"
-            style={{ cursor: 'pointer' }}
-          >
+          <span className="nav-logout" onClick={logout} title="Logout" style={{ cursor: 'pointer' }}>
             ⬅️
           </span>
         </div>
       </div>
 
-      {/* Mobile drawer if toggled */}
       {drawerOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.7)',
-            zIndex: 9998
-          }}
-          onClick={() => setDrawerOpen(false)}
-        >
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              bottom: 0,
-              width: '260px',
-              background: 'var(--bg-secondary)',
-              borderRight: '1px solid var(--border-primary)',
-              padding: '1.5rem',
-              zIndex: 9999,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <Link
-                to="/player/dashboard"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
-                onClick={() => setDrawerOpen(false)}
-              >
-                <span style={{ fontSize: '1.4rem' }}>🎮</span>
-                <span style={{ fontFamily: 'Orbitron, monospace', fontWeight: 800, color: 'var(--accent-cyan)' }}>PlayCarys</span>
+        <div className="pdr-backdrop" onClick={closeDrawer}>
+          <aside className="pdr-drawer" role="dialog" aria-label="Menu" onClick={(e) => e.stopPropagation()}>
+            <div className="pdr-head">
+              <Link to="/player/dashboard" className="pdr-brand" onClick={closeDrawer}>
+                <span>🎮</span>
+                <span>PlayCarys</span>
               </Link>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setDrawerOpen(false)}
-              >
+              <button type="button" className="pdr-close" onClick={closeDrawer} aria-label="Close menu">
                 ✕
               </button>
             </div>
 
-            {/* Page navigation: displayed in drawer ONLY on reduced screens (< 768px). On desktop it is hidden so drawer remains a focused friends panel */}
-            <div className="drawer-nav-mobile" style={{ flexDirection: 'column', gap: '0.4rem' }}>
-              {playerLinks.map((link) => {
-                const isActive = activePage === link.id;
-                const className = `nav-link ${isActive ? 'active' : ''}`;
-
-                if (link.isReactRoute) {
-                  return (
-                    <Link
-                      key={link.id}
-                      to={link.path}
-                      className={className}
-                      style={{ padding: '0.75rem 1rem' }}
-                      onClick={() => setDrawerOpen(false)}
-                    >
-                      <span>{link.icon}</span>
-                      <span>{link.label}</span>
-                    </Link>
-                  );
-                }
-
-                return (
-                  <a
-                    key={link.id}
-                    href={link.path}
-                    className={className}
-                    style={{ padding: '0.75rem 1rem' }}
-                    onClick={() => setDrawerOpen(false)}
-                  >
-                    <span>{link.icon}</span>
-                    <span>{link.label}</span>
-                  </a>
-                );
-              })}
-            </div>
-
-            {/* Friends Section Matching Photo 1 */}
-            {role !== 'guest' && (
-              <div
-                style={{
-                  marginTop: '0.75rem',
-                  borderTop: '1px solid var(--border-primary, rgba(255,255,255,0.08))',
-                  paddingTop: '0.85rem'
+            <div className="pdr-scroll">
+              {/* Who is signed in */}
+              <button
+                type="button"
+                className="pdr-me"
+                onClick={() => {
+                  closeDrawer();
+                  navigate('/player/profile');
                 }}
               >
-                {/* Header: 👥 FRIENDS [5] ... [🔍 Find] */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.85rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.05rem' }}>👥</span>
-                    <span
-                      style={{
-                        fontFamily: "'Orbitron', sans-serif",
-                        fontSize: '0.85rem',
-                        fontWeight: 800,
-                        color: '#fff',
-                        letterSpacing: '0.5px'
-                      }}
-                    >
-                      FRIENDS
-                    </span>
-                    <span
-                      style={{
-                        background: '#0284c7',
-                        color: '#fff',
-                        borderRadius: '99px',
-                        padding: '0.08rem 0.55rem',
-                        fontSize: '0.68rem',
-                        fontWeight: 800
-                      }}
-                    >
-                      {myFriends.length}
-                    </span>
-                  </div>
+                <span className="pdr-avatar">{avatarText}</span>
+                <span className="pdr-me-text">
+                  <span className="pdr-me-name">{username}</span>
+                  <span className="pdr-me-role">{roleBadge} · view profile</span>
+                </span>
+              </button>
 
-                  {/* 🔍 Find Button: Toggles quick inline search to filter current friends */}
-                  <button
-                    type="button"
-                    style={{
-                      background: isFriendsSearchOpen ? 'rgba(0, 212, 255, 0.15)' : 'rgba(255, 255, 255, 0.08)',
-                      border: isFriendsSearchOpen ? '1px solid rgba(0, 212, 255, 0.4)' : 'none',
-                      color: isFriendsSearchOpen ? 'var(--accent-cyan, #00d4ff)' : '#93a0bd',
-                      borderRadius: '99px',
-                      padding: '0.2rem 0.65rem',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem'
-                    }}
-                    onClick={() => {
-                      setIsFriendsSearchOpen(!isFriendsSearchOpen);
-                      if (isFriendsSearchOpen) setFriendsSearchQuery('');
-                    }}
-                    title={isFriendsSearchOpen ? 'Close search' : 'Filter your friends list'}
-                  >
-                    <span>🔍</span>
-                    <span>{isFriendsSearchOpen ? 'Close' : 'Find'}</span>
-                  </button>
-                </div>
-
-                {/* Inline Friends Filter Bar */}
-                {isFriendsSearchOpen && (
-                  <div style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder="Filter friends by name..."
-                      value={friendsSearchQuery}
-                      onChange={(e) => setFriendsSearchQuery(e.target.value)}
-                      className="form-input"
-                      style={{
-                        width: '100%',
-                        height: '30px',
-                        fontSize: '0.78rem',
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: '8px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(0, 212, 255, 0.3)'
-                      }}
-                    />
-                    {friendsSearchQuery && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        style={{ height: '30px', padding: '0 0.45rem', fontSize: '0.75rem', color: '#93a0bd' }}
-                        onClick={() => setFriendsSearchQuery('')}
-                        title="Clear filter"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Friend Rows */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', maxHeight: '210px', overflowY: 'auto' }}>
-                  {displayedFriends.length > 0 ? (
-                    displayedFriends.map((f) => (
-                      <div
-                        key={f.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.65rem'
-                        }}
-                      >
-                        {/* Circular Gradient Avatar */}
-                        <div
-                          style={{
-                            width: '38px',
-                            height: '38px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #00d4ff, #7c3aed)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#fff',
-                            fontWeight: 800,
-                            fontSize: '0.82rem',
-                            flexShrink: 0
-                          }}
-                        >
-                          {f.avatar}
-                        </div>
-
-                        {/* Name + Status */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: '0.9rem',
-                              fontWeight: 700,
-                              color: '#fff',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              cursor: 'pointer'
-                            }}
-                            onClick={() => {
-                              openProfile(f);
-                              setDrawerOpen(false);
-                            }}
-                            title="View profile"
-                          >
-                            {f.name}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.7rem',
-                              color: f.presence?.label?.startsWith('Playing') ? '#00d4ff' : '#72809b',
-                              marginTop: '0.1rem',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}
-                          >
-                            ● {f.presence?.label || 'Offline'}
-                          </div>
-                        </div>
-
-                        {/* Solid Cyan Pill Chat Button */}
-                        <button
-                          type="button"
-                          style={{
-                            background: 'var(--accent-cyan, #00d4ff)',
-                            color: '#000',
-                            fontWeight: 800,
-                            borderRadius: '99px',
-                            padding: '0.35rem 0.9rem',
-                            border: 'none',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            boxShadow: '0 2px 8px rgba(0, 212, 255, 0.35)'
-                          }}
-                          onClick={() => {
-                            openChat(f);
-                            setDrawerOpen(false);
-                          }}
-                        >
-                          Chat
-                        </button>
-
-                        {/* Red Circular ✕ Unfriend Button */}
-                        <button
-                          type="button"
-                          title={`Remove ${f.name}`}
-                          style={{
-                            width: '28px',
-                            height: '28px',
-                            borderRadius: '50%',
-                            border: '1px solid rgba(239, 68, 68, 0.4)',
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            color: '#f87171',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            padding: 0,
-                            lineHeight: 1
-                          }}
-                          onClick={() => setFriendToRemove(f)}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))
+              {/* Every page */}
+              <div className="pdr-label">Menu</div>
+              <nav className="pdr-menu">
+                {links.map((link) => {
+                  const className = `pdr-item ${activePage === link.id ? 'active' : ''}`;
+                  const inner = (
+                    <>
+                      <span className="pdr-item-icon">{link.icon}</span>
+                      <span>{link.label}</span>
+                    </>
+                  );
+                  return link.external ? (
+                    <a key={link.id} href={link.path} className={className} onClick={closeDrawer}>
+                      {inner}
+                    </a>
                   ) : (
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #72809b)', padding: '0.5rem 0' }}>
-                      No friends yet
+                    <Link key={link.id} to={link.path} className={className} onClick={closeDrawer}>
+                      {inner}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {role !== 'guest' && (
+                <section className="pdr-friends">
+                  <div className="pdr-label pdr-label-row">
+                    <span>
+                      Friends <span className="pdr-count">{friends.length}</span>
+                    </span>
+                    {unreadTotal > 0 && <span className="pdr-unread-chip">{unreadTotal} unread</span>}
+                  </div>
+
+                  {socialStatus === 'signin' && (
+                    <div className="pdr-note warn">
+                      Sign in to see your friends and chat. (You are using a development session with no login.)
                     </div>
                   )}
-                </div>
+                  {socialStatus === 'error' && (
+                    <div className="pdr-note warn">Can’t reach the server. Friends will refresh when it’s back.</div>
+                  )}
+                  {notice && <div className="pdr-note bad">{notice}</div>}
 
-                {/* Bottom Full-Width Cyan Pill "Find players" Button */}
-                <button
-                  type="button"
-                  style={{
-                    width: '100%',
-                    background: 'var(--accent-cyan, #00d4ff)',
-                    color: '#000',
-                    fontWeight: 800,
-                    borderRadius: '99px',
-                    padding: '0.65rem 1rem',
-                    border: 'none',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    marginTop: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.45rem',
-                    boxShadow: '0 4px 12px rgba(0, 212, 255, 0.3)'
-                  }}
-                  onClick={() => {
-                    setIsFindPlayersModalOpen(true);
-                    setDrawerOpen(false);
-                  }}
-                  title="Search and connect with players across PlayCarys"
-                >
-                  <span>🔍</span>
-                  <span>Find players</span>
-                </button>
-              </div>
-            )}
+                  {/* People waiting for an answer */}
+                  {incomingRequests.length > 0 && (
+                    <div className="pdr-requests">
+                      <div className="pdr-sub-label">Friend requests</div>
+                      {incomingRequests.map((r) => {
+                        const name = r.other?.user_name || 'Player';
+                        return (
+                          <div className="pdr-row" key={r.id}>
+                            <span className="pdr-avatar sm">{r.other?.avatar || initials(name)}</span>
+                            <span className="pdr-row-text">
+                              <span className="pdr-row-name">{name}</span>
+                              <span className="pdr-row-sub">wants to be friends</span>
+                            </span>
+                            <button
+                              type="button"
+                              className="pdr-btn go"
+                              disabled={busyRequest === r.id}
+                              onClick={() => answerRequest(r, 'accept')}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              className="pdr-icon-btn"
+                              title="Decline"
+                              disabled={busyRequest === r.id}
+                              onClick={() => answerRequest(r, 'reject')}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
-            <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{username}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{roleBadge}</div>
-              </div>
-              <span className="nav-logout" onClick={logout} title="Logout" style={{ cursor: 'pointer' }}>⬅️</span>
+                  {friends.length > 4 && (
+                    <input
+                      type="text"
+                      className="pdr-filter"
+                      placeholder="Filter friends…"
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                    />
+                  )}
+
+                  <div className="pdr-list">
+                    {shownFriends.map((f) => {
+                      const playing = f.presence?.state === 'playing';
+                      const preview = f.lastMessage
+                        ? `${f.lastMessage.mine ? 'You: ' : ''}${f.lastMessage.body}`
+                        : f.presence?.label || 'Offline';
+                      return (
+                        <div className="pdr-row" key={f.id}>
+                          <button
+                            type="button"
+                            className="pdr-avatar-btn"
+                            title="View profile"
+                            onClick={() => {
+                              openProfile(f);
+                              closeDrawer();
+                            }}
+                          >
+                            <span className="pdr-avatar sm">{f.avatar}</span>
+                            <span className={`pdr-dot ${playing ? 'playing' : ''}`} />
+                          </button>
+                          <span className="pdr-row-text">
+                            <span className="pdr-row-name">{f.name}</span>
+                            <span className={`pdr-row-sub ${f.unread ? 'strong' : ''} ${playing && !f.lastMessage ? 'playing' : ''}`}>
+                              {preview}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            className="pdr-btn go"
+                            onClick={() => {
+                              openChat(f);
+                              closeDrawer();
+                            }}
+                          >
+                            Chat
+                            {f.unread > 0 && <span className="pdr-pill">{f.unread}</span>}
+                          </button>
+                          <button
+                            type="button"
+                            className="pdr-icon-btn danger"
+                            title={`Remove ${f.name}`}
+                            onClick={() => setFriendToRemove(f)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {friends.length === 0 && socialStatus === 'ok' && (
+                      <div className="pdr-empty">No friends yet. Find players to add some.</div>
+                    )}
+                    {friends.length > 0 && shownFriends.length === 0 && (
+                      <div className="pdr-empty">No friend matches “{filter}”.</div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="pdr-find"
+                    onClick={() => {
+                      setIsFindPlayersModalOpen(true);
+                      closeDrawer();
+                    }}
+                  >
+                    🔍 Find players
+                  </button>
+                </section>
+              )}
             </div>
-          </div>
+
+            <div className="pdr-foot">
+              <button type="button" className="pdr-logout" onClick={logout}>
+                ⬅️ Log out
+              </button>
+            </div>
+          </aside>
         </div>
       )}
 
-      {/* Styled PlayCarys Modal Card for Removing Friend */}
       <ConfirmModal
         isOpen={Boolean(friendToRemove)}
         title="Remove Friend"
         message={
           friendToRemove
-            ? `Are you sure you want to remove ${friendToRemove.name} from your friends? This will end your friendship and clear the conversation.`
+            ? `Are you sure you want to remove ${friendToRemove.name} from your friends? This will end your friendship and clear the conversation for both of you.`
             : ''
         }
         confirmText="Remove Friend"
@@ -556,18 +427,17 @@ export function PlayerNavbar(props) {
         onClose={() => setFriendToRemove(null)}
       />
 
-      {/* Dedicated Find Players Modal */}
       <FindPlayersModal
         isOpen={isFindPlayersModalOpen}
         onClose={() => setIsFindPlayersModalOpen(false)}
         currentUserId={currentUid}
         onMessage={(f) => {
           openChat(f);
-          setDrawerOpen(false);
+          closeDrawer();
         }}
         onViewProfile={(p) => {
           openProfile(p);
-          setDrawerOpen(false);
+          closeDrawer();
         }}
       />
     </>
