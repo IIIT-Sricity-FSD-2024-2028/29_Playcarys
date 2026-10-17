@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import api from '../../services/api';
 import AuthContext from '../../context/AuthContext';
-import { getDatabase, saveDatabase } from '../../services/playerService';
+import { getDatabase, saveDatabase, hydrateFromServer } from '../../services/playerService';
 import authService from '../../services/authService';
 import Toast from '../../components/common/Toast';
 import Avatar3DViewer from '../../components/player/profile/Avatar3DViewer';
@@ -179,20 +179,34 @@ export function Profile() {
         ...new Set(
           (db.match_results || [])
             .filter((r) => String(r.player_id) === String(uid))
-            .map((r) => String(r.game_id))
-            .filter(Boolean)
+            .map((r) => {
+              if (r.game_id) return r.game_id;
+              const session = (db.sessions || []).find((s) => String(s.session_id) === String(r.session_id));
+              if (session?.game_id) return session.game_id;
+              const match = (db.matches || []).find((m) => String(m.match_id) === String(r.session_id));
+              return match?.game_id;
+            })
+            .concat(
+              (db.matches || [])
+                .filter((m) => Array.isArray(m.participants) && m.participants.some((p) => String(p) === String(uid)))
+                .map((m) => m.game_id)
+            )
+            .filter((gid) => gid != null && gid !== '' && gid !== 'undefined' && !isNaN(Number(gid)))
+            .map((gid) => Number(gid))
         ),
       ];
       const earnedIds = new Set(earned.map((a) => a.achievement_id));
 
-      const lists = await Promise.all(
-        playedGameIds.map((gid) =>
-          api
-            .get(`/games/${gid}/achievements?viewerId=${uid}`)
-            .then((res) => (Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []))
-            .catch(() => [])
-        )
-      );
+      const lists = playedGameIds.length > 0
+        ? await Promise.all(
+            playedGameIds.map((gid) =>
+              api
+                .get(`/games/${gid}/achievements?viewerId=${uid}`)
+                .then((res) => (Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []))
+                .catch(() => [])
+            )
+          )
+        : [];
       const locked = lists.flat().filter((a) => !a.unlocked && !earnedIds.has(a.achievement_id));
       setLockedAchievements(locked);
     } catch (err) {
@@ -219,6 +233,24 @@ export function Profile() {
       console.warn('Could not load linked accounts:', err);
     }
   };
+
+  // Hydrate DB tables from server on mount
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await hydrateFromServer(['player_profiles', 'users', 'match_results', 'sessions', 'matches', 'games']);
+        if (mounted) {
+          setDbVersion((v) => v + 1);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [uid]);
 
   // On mount and when dbVersion changes
   useEffect(() => {

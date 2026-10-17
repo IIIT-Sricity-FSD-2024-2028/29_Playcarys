@@ -800,6 +800,9 @@ export const playerService = {
   },
 
   async fetchAchievements(gameId, userId) {
+    if (!gameId || gameId === 'undefined' || isNaN(Number(String(gameId).replace(/^g/, '')))) {
+      return [];
+    }
     const gid = encodeURIComponent(String(gameId).replace(/^g/, ''));
     const uid = encodeURIComponent(String(userId || 7));
     try {
