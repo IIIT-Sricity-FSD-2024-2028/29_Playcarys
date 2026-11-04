@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import AuthContext from '../../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import publisherService, { getDatabase } from '../../services/publisherService';
 import TournamentCard from '../../components/publisher/tournament/TournamentCard';
 import TournamentEditor from '../../components/publisher/tournament/TournamentEditor';
@@ -11,7 +11,12 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/tournament.css';
 
 export function PublishTournament() {
-  const { user, loading: authLoading } = useContext(AuthContext);
+  const {
+    user,
+    publisherId,
+    isPublisher,
+    authLoading
+  } = usePublisherAuth();
 
   // Active view: 'list' | 'editor' | 'mgmt' | 'mgmt-multi'
   const [view, setView] = useState('list');
@@ -71,7 +76,7 @@ export function PublishTournament() {
 
   // Load initial publisher tournament data
   const loadData = async () => {
-    if (!user || user.role !== 'publisher') return;
+    if (!isPublisher) return;
     setLoading(true);
 
     const db = getDatabase();
@@ -91,10 +96,10 @@ export function PublishTournament() {
   };
 
   useEffect(() => {
-    if (!authLoading && user && user.role === 'publisher') {
+    if (!authLoading && isPublisher) {
       loadData();
     }
-  }, [authLoading, user]);
+  }, [authLoading, isPublisher]);
 
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -635,7 +640,7 @@ export function PublishTournament() {
     return <LoadingState message="Loading Publisher Studio…" />;
   }
 
-  if (!authLoading && (!user || user.role !== 'publisher')) {
+  if (!authLoading && !isPublisher) {
     return (
       <div className="page-content" style={{ textAlign: 'center', padding: '5rem 1rem' }}>
         <h2>Publisher Access Required</h2>

@@ -51,8 +51,8 @@ export function TournamentDetails({
   const isScoreContest = t.format
     ? t.format === 'score'
     : gameOf && gameOf.game_mode
-    ? gameOf.game_mode === 'single'
-    : String(t.game_id) === '8';
+      ? gameOf.game_mode === 'single'
+      : String(t.game_id) === '8';
 
   const publisherUser = (db.users || []).find((u) => sameId(u.user_id || u.id, t.publisherId || t.organizer));
 
@@ -147,10 +147,10 @@ export function TournamentDetails({
   let rawStages = (Array.isArray(t.games) && t.games.length > 0)
     ? t.games
     : (Array.isArray(t.stages) && t.stages.length > 0)
-    ? t.stages
-    : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
-    ? t.stage_games
-    : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
+      ? t.stages
+      : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
+        ? t.stage_games
+        : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
 
   const isMultiTitle = (t.tournament_name || t.name || '').toLowerCase().includes('multi');
   if (rawStages.length < 2 && (t.type === 'multi' || isMultiTitle)) {
@@ -167,33 +167,33 @@ export function TournamentDetails({
 
   const tournamentGamesList = isMultiGame
     ? rawStages.map((s, idx) => {
-        const sGameId = s.game_id || s.gameId;
-        const gObj = (db.games || []).find((g) => sameId(g.game_id || g.id, sGameId));
-        const gName = gObj?.game_name || gObj?.name || gObj?.title || s.game_name || s.name || (t.game ? `${t.game} Stage ${idx + 1}` : `Stage ${idx + 1} Game`);
-        const isSc = s.format === 'score' || (!s.format && isScoreContest);
-        return {
-          name: gName,
-          subLabel: `Stage ${s.stage_order || idx + 1}${s.metric_label ? ` · ${s.metric_label}` : ''}`,
-          emoji: helperGetGameEmoji(gObj),
-          imgSrc: helperGetGameImage(gObj),
-          formatBadge: isSc ? 'Score Attack' : 'Knockout',
-          formatBadgeBg: isSc ? 'rgba(245, 158, 11, 0.12)' : 'rgba(6, 182, 212, 0.12)',
-          formatBadgeColor: isSc ? 'var(--accent-yellow)' : 'var(--accent-cyan)',
-          formatBadgeBorder: isSc ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'
-        };
-      })
+      const sGameId = s.game_id || s.gameId;
+      const gObj = (db.games || []).find((g) => sameId(g.game_id || g.id, sGameId));
+      const gName = gObj?.game_name || gObj?.name || gObj?.title || s.game_name || s.name || (t.game ? `${t.game} Stage ${idx + 1}` : `Stage ${idx + 1} Game`);
+      const isSc = s.format === 'score' || (!s.format && isScoreContest);
+      return {
+        name: gName,
+        subLabel: `Stage ${s.stage_order || idx + 1}${s.metric_label ? ` · ${s.metric_label}` : ''}`,
+        emoji: helperGetGameEmoji(gObj),
+        imgSrc: helperGetGameImage(gObj),
+        formatBadge: isSc ? 'Score Attack' : 'Knockout',
+        formatBadgeBg: isSc ? 'rgba(245, 158, 11, 0.12)' : 'rgba(6, 182, 212, 0.12)',
+        formatBadgeColor: isSc ? 'var(--accent-yellow)' : 'var(--accent-cyan)',
+        formatBadgeBorder: isSc ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'
+      };
+    })
     : [
-        {
-          name: gameOf?.game_name || gameOf?.name || gameOf?.title || t.game || 'Tournament Arena Game',
-          subLabel: gameOf?.category ? `${gameOf.category.toUpperCase()} · Mode: ${gameOf.game_mode || 'standard'}` : (t.format ? `Format: ${t.format}` : null),
-          emoji: helperGetGameEmoji(gameOf),
-          imgSrc: helperGetGameImage(gameOf),
-          formatBadge: isScoreContest ? 'Score Attack' : 'Knockout 1v1',
-          formatBadgeBg: isScoreContest ? 'rgba(245, 158, 11, 0.12)' : 'rgba(6, 182, 212, 0.12)',
-          formatBadgeColor: isScoreContest ? 'var(--accent-yellow)' : 'var(--accent-cyan)',
-          formatBadgeBorder: isScoreContest ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'
-        }
-      ];
+      {
+        name: gameOf?.game_name || gameOf?.name || gameOf?.title || t.game || 'Tournament Arena Game',
+        subLabel: gameOf?.category ? `${gameOf.category.toUpperCase()} · Mode: ${gameOf.game_mode || 'standard'}` : (t.format ? `Format: ${t.format}` : null),
+        emoji: helperGetGameEmoji(gameOf),
+        imgSrc: helperGetGameImage(gameOf),
+        formatBadge: isScoreContest ? 'Score Attack' : 'Knockout 1v1',
+        formatBadgeBg: isScoreContest ? 'rgba(245, 158, 11, 0.12)' : 'rgba(6, 182, 212, 0.12)',
+        formatBadgeColor: isScoreContest ? 'var(--accent-yellow)' : 'var(--accent-cyan)',
+        formatBadgeBorder: isScoreContest ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'
+      }
+    ];
 
   const singleGameCategory = !isMultiGame && gameOf?.category ? gameOf.category : null;
 
@@ -261,8 +261,8 @@ export function TournamentDetails({
   const organizerRoleTitle = isCommunityTourn
     ? 'Community Organizer'
     : isPublisherTourn
-    ? 'Tournament Publisher'
-    : 'Tournament Organizer';
+      ? 'Tournament Publisher'
+      : 'Tournament Organizer';
 
   function handleDisputeResult(mid) {
     tournamentService.disputeResult(mid);
@@ -353,27 +353,26 @@ export function TournamentDetails({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                   <span
-                    className={`badge badge-${
-                      t.status === 'in-progress'
+                    className={`badge badge-${t.status === 'in-progress'
                         ? 'progress'
                         : t.status === 'completed'
-                        ? 'approved'
-                        : t.status === 'paused'
-                        ? 'waiting'
-                        : t.status === 'cancelled'
-                        ? 'rejected'
-                        : 'upcoming'
-                    }`}
+                          ? 'approved'
+                          : t.status === 'paused'
+                            ? 'waiting'
+                            : t.status === 'cancelled'
+                              ? 'rejected'
+                              : 'upcoming'
+                      }`}
                   >
                     {t.status === 'in-progress'
                       ? 'In Progress'
                       : t.status === 'completed'
-                      ? 'Completed'
-                      : t.status === 'paused'
-                      ? 'Paused'
-                      : t.status === 'cancelled'
-                      ? 'Cancelled'
-                      : 'Upcoming'}
+                        ? 'Completed'
+                        : t.status === 'paused'
+                          ? 'Paused'
+                          : t.status === 'cancelled'
+                            ? 'Cancelled'
+                            : 'Upcoming'}
                   </span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                     ID: {t.tournament_id || t.id}
@@ -760,8 +759,8 @@ export function TournamentDetails({
                       {t.status === 'in-progress'
                         ? 'In Progress'
                         : t.status === 'completed'
-                        ? 'Completed'
-                        : 'Registration Closed'}
+                          ? 'Completed'
+                          : 'Registration Closed'}
                     </button>
                   )}
 

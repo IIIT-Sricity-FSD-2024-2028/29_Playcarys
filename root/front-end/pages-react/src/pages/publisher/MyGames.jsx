@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AuthContext from '../../context/AuthContext';
+import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import publisherService from '../../services/publisherService';
 import PublisherGameRow from '../../components/publisher/mygames/PublisherGameRow';
 import PublisherGameEdit from '../../components/publisher/mygames/PublisherGameEdit';
@@ -11,7 +11,12 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/mygames.css';
 
 export function MyGames() {
-  const { user, loading: authLoading } = useContext(AuthContext);
+  const {
+    user,
+    publisherId,
+    isPublisher,
+    authLoading
+  } = usePublisherAuth();
   const navigate = useNavigate();
 
   // Active view: 'main' | 'edit' | 'analytics'
@@ -59,7 +64,7 @@ export function MyGames() {
 
   // Load publisher games
   const loadGames = async () => {
-    if (!user || user.role !== 'publisher') return;
+    if (!isPublisher) return;
     setLoading(true);
 
     const uid = user.userId || user.id;
@@ -73,10 +78,10 @@ export function MyGames() {
   };
 
   useEffect(() => {
-    if (!authLoading && user && user.role === 'publisher') {
+    if (!authLoading && isPublisher) {
       loadGames();
     }
-  }, [authLoading, user]);
+  }, [authLoading, isPublisher]);
 
   // Filtered games list
   const filteredGames = games.filter((g) => {
@@ -172,7 +177,7 @@ export function MyGames() {
     return <LoadingState message="Checking publisher credentials…" minHeight="60vh" />;
   }
 
-  if (!user || user.role !== 'publisher') {
+  if (!isPublisher) {
     return (
       <div className="page-content" style={{ textAlign: 'center', paddingTop: '4rem' }}>
         <div className="card" style={{ maxWidth: '500px', margin: '0 auto', padding: '2rem' }}>

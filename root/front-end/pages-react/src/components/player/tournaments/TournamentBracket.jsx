@@ -13,10 +13,10 @@ export function TournamentBracket({ tournament, db }) {
   const rawStages = (Array.isArray(t?.games) && t.games.length > 0)
     ? t.games
     : (Array.isArray(t?.stages) && t.stages.length > 0)
-    ? t.stages
-    : (Array.isArray(t?.stage_games) && t.stage_games.length > 0)
-    ? t.stage_games
-    : (db?.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
+      ? t.stages
+      : (Array.isArray(t?.stage_games) && t.stage_games.length > 0)
+        ? t.stage_games
+        : (db?.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
 
   const isMultiTitle = (t?.tournament_name || t?.name || '').toLowerCase().includes('multi');
   let effectiveStages = rawStages;
@@ -34,11 +34,11 @@ export function TournamentBracket({ tournament, db }) {
 
   const stageOptions = isMultiStage
     ? effectiveStages.map((s, idx) => {
-        const order = s.stage_order || (idx + 1);
-        const gObj = (db?.games || []).find((g) => sameId(g.game_id || g.id, s.game_id || s.gameId));
-        const name = gObj?.game_name || gObj?.name || s.game_name || s.name || `Stage ${order}`;
-        return { order, name, stageId: s.tournament_game_id || s.id || s.stageId || order, format: s.format || 'Knockout' };
-      })
+      const order = s.stage_order || (idx + 1);
+      const gObj = (db?.games || []).find((g) => sameId(g.game_id || g.id, s.game_id || s.gameId));
+      const name = gObj?.game_name || gObj?.name || s.game_name || s.name || `Stage ${order}`;
+      return { order, name, stageId: s.tournament_game_id || s.id || s.stageId || order, format: s.format || 'Knockout' };
+    })
     : [];
 
   // Try fetching bracket from API, fallback to local DB matches
@@ -89,8 +89,8 @@ export function TournamentBracket({ tournament, db }) {
 
   const matchesToDisplay = isMultiStage && stageOptions.length > 1
     ? (bracketMatches.some((m) => Number(m.stage_order) === Number(selectedStageOrder))
-        ? bracketMatches.filter((m) => Number(m.stage_order) === Number(selectedStageOrder))
-        : (Number(selectedStageOrder) === 1 ? bracketMatches : []))
+      ? bracketMatches.filter((m) => Number(m.stage_order) === Number(selectedStageOrder))
+      : (Number(selectedStageOrder) === 1 ? bracketMatches : []))
     : bracketMatches;
 
   const rounds = [...new Set(matchesToDisplay.map((m) => m.round))].sort((a, b) => a - b);
@@ -134,63 +134,62 @@ export function TournamentBracket({ tournament, db }) {
           </button>
         </div>
       ) : (
-      <div className="bracket-scroll">
-        {rounds.map((round) => {
-          const roundMatches = matchesToDisplay.filter((m) => m.round === round);
-          const roundLabel = round === rounds.length ? 'Final' : `Round ${round}`;
+        <div className="bracket-scroll">
+          {rounds.map((round) => {
+            const roundMatches = matchesToDisplay.filter((m) => m.round === round);
+            const roundLabel = round === rounds.length ? 'Final' : `Round ${round}`;
 
-          return (
-            <div key={round} className="bracket-round">
-              <div className="bracket-label">{roundLabel}</div>
-              <div className="bracket-stage">
-                {roundMatches.map((m, idx) => {
-                  const p1 = entrantName(t, m.player1, db);
-                  const p2 = entrantName(t, m.player2, db);
-                  const isFinal = round === rounds.length;
-                  const p1Winner = m.winnerId && sameId(m.winnerId, m.player1);
-                  const p2Winner = m.winnerId && sameId(m.winnerId, m.player2);
+            return (
+              <div key={round} className="bracket-round">
+                <div className="bracket-label">{roundLabel}</div>
+                <div className="bracket-stage">
+                  {roundMatches.map((m, idx) => {
+                    const p1 = entrantName(t, m.player1, db);
+                    const p2 = entrantName(t, m.player2, db);
+                    const isFinal = round === rounds.length;
+                    const p1Winner = m.winnerId && sameId(m.winnerId, m.player1);
+                    const p2Winner = m.winnerId && sameId(m.winnerId, m.player2);
 
-                  return (
-                    <div
-                      key={m.match_id || m.id || idx}
-                      className={`bracket-match ${isFinal ? 'final' : ''} ${
-                        m.status === 'completed' ? 'winner' : ''
-                      }`}
-                    >
+                    return (
                       <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '0.25rem 0',
-                          borderBottom: '1px dashed var(--border-primary)',
-                          color: p1Winner ? 'var(--accent-green)' : 'inherit',
-                          fontWeight: p1Winner ? 700 : 400
-                        }}
+                        key={m.match_id || m.id || idx}
+                        className={`bracket-match ${isFinal ? 'final' : ''} ${m.status === 'completed' ? 'winner' : ''
+                          }`}
                       >
-                        <span>{p1}</span>
-                        <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{m.score1 ?? '—'}</span>
-                      </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            padding: '0.25rem 0',
+                            borderBottom: '1px dashed var(--border-primary)',
+                            color: p1Winner ? 'var(--accent-green)' : 'inherit',
+                            fontWeight: p1Winner ? 700 : 400
+                          }}
+                        >
+                          <span>{p1}</span>
+                          <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{m.score1 ?? '—'}</span>
+                        </div>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '0.25rem 0',
-                          color: p2Winner ? 'var(--accent-green)' : 'inherit',
-                          fontWeight: p2Winner ? 700 : 400
-                        }}
-                      >
-                        <span>{p2}</span>
-                        <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{m.score2 ?? '—'}</span>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            padding: '0.25rem 0',
+                            color: p2Winner ? 'var(--accent-green)' : 'inherit',
+                            fontWeight: p2Winner ? 700 : 400
+                          }}
+                        >
+                          <span>{p2}</span>
+                          <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>{m.score2 ?? '—'}</span>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

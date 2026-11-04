@@ -1,10 +1,10 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import AuthContext from '../../../context/AuthContext';
+import { usePublisherAuth } from '../../../hooks/usePublisherAuth';
 
 export function PublisherNavbar(props) {
   const { activePage = 'dashboard' } = props;
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout } = usePublisherAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const publisherLinks = [

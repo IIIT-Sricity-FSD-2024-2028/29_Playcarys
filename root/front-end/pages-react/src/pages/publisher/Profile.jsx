@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import AuthContext from '../../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import publisherService from '../../services/publisherService';
 import PublisherProfileCard from '../../components/publisher/profile/PublisherProfileCard';
 import StudioStatistics from '../../components/publisher/profile/StudioStatistics';
@@ -9,7 +9,13 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/profile.css';
 
 export function Profile() {
-  const { user, loading: authLoading, login } = useContext(AuthContext);
+  const {
+    user,
+    login,
+    publisherId,
+    isPublisher,
+    authLoading
+  } = usePublisherAuth();
 
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +29,7 @@ export function Profile() {
 
   // Load publisher profile & statistics
   async function loadProfile() {
-    if (!user || user.role !== 'publisher') return;
+    if (!isPublisher) return;
     setLoading(true);
 
     try {
@@ -39,10 +45,10 @@ export function Profile() {
   }
 
   useEffect(() => {
-    if (!authLoading && user && user.role === 'publisher') {
+    if (!authLoading && isPublisher) {
       loadProfile();
     }
-  }, [authLoading, user]);
+  }, [authLoading, isPublisher]);
 
   // Handle saving edited details
   async function handleSaveProfile(updateData, onError) {
@@ -84,7 +90,7 @@ export function Profile() {
     return <LoadingState message="Checking publisher credentials…" minHeight="60vh" />;
   }
 
-  if (!user || user.role !== 'publisher') {
+  if (!isPublisher) {
     return (
       <div className="page-content" style={{ textAlign: 'center', paddingTop: '4rem' }}>
         <div className="card" style={{ maxWidth: '500px', margin: '0 auto', padding: '2rem' }}>

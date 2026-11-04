@@ -178,7 +178,7 @@ export function Community() {
       console.error('Failed to load group detail:', err);
       const dbInstance = getDatabase();
       const local = groups.find((g) => sameId(g.group_id || g.id, gid)) ||
-                    (dbInstance?.groups || []).find((g) => sameId(g.group_id || g.id, gid));
+        (dbInstance?.groups || []).find((g) => sameId(g.group_id || g.id, gid));
       if (local) {
         setActiveGroup(local);
       } else {
@@ -2266,10 +2266,10 @@ export function Community() {
                 let rawMgmtStages = (Array.isArray(manageTourn?.games) && manageTourn.games.length > 0)
                   ? manageTourn.games
                   : (Array.isArray(manageTourn?.stages) && manageTourn.stages.length > 0)
-                  ? manageTourn.stages
-                  : (Array.isArray(manageTourn?.stage_games) && manageTourn.stage_games.length > 0)
-                  ? manageTourn.stage_games
-                  : (db?.tournament_games || []).filter((tg) => sameId(tg.tournament_id, manageTourn?.tournament_id || manageTourn?.id));
+                    ? manageTourn.stages
+                    : (Array.isArray(manageTourn?.stage_games) && manageTourn.stage_games.length > 0)
+                      ? manageTourn.stage_games
+                      : (db?.tournament_games || []).filter((tg) => sameId(tg.tournament_id, manageTourn?.tournament_id || manageTourn?.id));
 
                 const isMultiName = (manageTourn?.tournament_name || manageTourn?.name || '').toLowerCase().includes('multi');
                 if (rawMgmtStages.length < 2 && (manageTourn?.type === 'multi' || isMultiName)) {
@@ -2285,11 +2285,11 @@ export function Community() {
                 const isMgmtMulti = manageTourn?.type === 'multi' || isMultiName || rawMgmtStages.length > 1;
                 const mgmtStageOptions = isMgmtMulti
                   ? rawMgmtStages.map((s, idx) => {
-                      const order = s.stage_order || (idx + 1);
-                      const gObj = (db?.games || []).find((g) => sameId(g.game_id || g.id, s.game_id || s.gameId));
-                      const name = gObj?.game_name || gObj?.name || s.game_name || s.name || `Stage ${order}`;
-                      return { order, name };
-                    })
+                    const order = s.stage_order || (idx + 1);
+                    const gObj = (db?.games || []).find((g) => sameId(g.game_id || g.id, s.game_id || s.gameId));
+                    const name = gObj?.game_name || gObj?.name || s.game_name || s.name || `Stage ${order}`;
+                    return { order, name };
+                  })
                   : [];
 
                 const filteredMatches = manageStageFilter === 'all'

@@ -60,7 +60,7 @@ export function Tournaments() {
         setDb({ ...getDatabase() });
         setDbVersion((v) => v + 1);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Listen to cross-tab storage changes and global DB updates
@@ -308,7 +308,7 @@ export function Tournaments() {
             setDbVersion((v) => v + 1);
             try {
               await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
-            } catch (e) {}
+            } catch (e) { }
             setDb({ ...getDatabase() });
             setDbVersion((v) => v + 1);
           }}

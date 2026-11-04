@@ -617,7 +617,7 @@ const CreateTournament = () => {
                             {imgSrc ? (
                               <img
                                 src={imgSrc}
-                                alt={g.game_title || g.title || 'Game'}
+                                alt={g.game_name || g.name || g.game_title || g.title || 'Game'}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
@@ -638,8 +638,8 @@ const CreateTournament = () => {
                               {emoji}
                             </span>
                           </div>
-                          <div className="game-opt-name" title={g.game_title || g.title}>
-                            {g.game_title || g.title}
+                          <div className="game-opt-name" title={g.game_name || g.name || g.game_title || g.title || `Game #${g.game_id || g.id}`}>
+                            {g.game_name || g.name || g.game_title || g.title || `Game #${g.game_id || g.id}`}
                           </div>
                           <div className="game-opt-mode">
                             {(g.game_mode || g.mode || 'Single').toUpperCase()}
@@ -701,7 +701,7 @@ const CreateTournament = () => {
                           >
                             {games.map((g) => (
                               <option key={g.game_id || g.id} value={g.game_id || g.id}>
-                                {g.game_title || g.title}
+                                {g.game_name || g.name || g.game_title || g.title || `Game #${g.game_id || g.id}`}
                               </option>
                             ))}
                           </select>

@@ -200,10 +200,10 @@ export function generateBracketLocally(tournamentId, dbInstance = null) {
   let rawStages = (Array.isArray(t.games) && t.games.length > 0)
     ? t.games
     : (Array.isArray(t.stages) && t.stages.length > 0)
-    ? t.stages
-    : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
-    ? t.stage_games
-    : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
+      ? t.stages
+      : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
+        ? t.stage_games
+        : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
 
   const isMultiTitle = (t.tournament_name || t.name || '').toLowerCase().includes('multi');
   if (rawStages.length < 2 && (t.type === 'multi' || isMultiTitle)) {
@@ -223,28 +223,28 @@ export function generateBracketLocally(tournamentId, dbInstance = null) {
   const isMulti = t.type === 'multi' || isMultiTitle || rawStages.length > 1;
   const stagesToGenerate = isMulti && rawStages.length > 0
     ? rawStages.map((s, idx) => {
-        const order = s.stage_order || (idx + 1);
-        const stageId = s.tournament_game_id || s.id || s.stageId || order;
-        const gId = s.game_id || s.gameId;
-        const gObj = (db.games || []).find((g) => sameId(g.game_id || g.id, gId));
-        const stageName = gObj?.game_name || gObj?.name || s.name || s.game_name || `Stage ${order}`;
-        return {
-          order,
-          stageId,
-          stageName,
-          gameId: gId,
-          format: s.format || 'bracket'
-        };
-      })
+      const order = s.stage_order || (idx + 1);
+      const stageId = s.tournament_game_id || s.id || s.stageId || order;
+      const gId = s.game_id || s.gameId;
+      const gObj = (db.games || []).find((g) => sameId(g.game_id || g.id, gId));
+      const stageName = gObj?.game_name || gObj?.name || s.name || s.game_name || `Stage ${order}`;
+      return {
+        order,
+        stageId,
+        stageName,
+        gameId: gId,
+        format: s.format || 'bracket'
+      };
+    })
     : [
-        {
-          order: 1,
-          stageId: 1,
-          stageName: t.tournament_name || t.name || 'Tournament',
-          gameId: t.game_id || t.gameId,
-          format: t.format || 'bracket'
-        }
-      ];
+      {
+        order: 1,
+        stageId: 1,
+        stageName: t.tournament_name || t.name || 'Tournament',
+        gameId: t.game_id || t.gameId,
+        format: t.format || 'bracket'
+      }
+    ];
 
   // 4. Build match structure round-by-round for EACH stage
   for (const st of stagesToGenerate) {
@@ -421,10 +421,10 @@ export function sanitizeTournamentMatches(tournamentId, dbInstance = null) {
     let rawStages = (Array.isArray(t.games) && t.games.length > 0)
       ? t.games
       : (Array.isArray(t.stages) && t.stages.length > 0)
-      ? t.stages
-      : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
-      ? t.stage_games
-      : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
+        ? t.stages
+        : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
+          ? t.stage_games
+          : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
 
     const isMultiTitle = (t.tournament_name || t.name || '').toLowerCase().includes('multi');
     if (rawStages.length < 2 && (t.type === 'multi' || isMultiTitle)) {
