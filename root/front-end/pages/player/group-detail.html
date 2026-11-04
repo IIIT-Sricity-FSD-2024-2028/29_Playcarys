@@ -33,6 +33,15 @@
 .chat-msg { max-width:75%; padding:0.5rem 0.75rem; border-radius:var(--radius-md); font-size:0.83rem; background:var(--bg-card); align-self:flex-start; }
 .chat-msg.mine { align-self:flex-end; background:rgba(0,212,255,0.12); }
 .chat-msg .who { font-size:0.68rem; color:var(--text-secondary); margin-bottom:0.15rem; font-weight:700; }
+
+.prize-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; }
+.btn-rupee-toggle { font-size: 0.72rem; padding: 0.15rem 0.5rem; border: 1px solid var(--border-primary); border-radius: var(--radius-sm); color: var(--accent-yellow); cursor: pointer; background: transparent; transition: all .16s; }
+.btn-rupee-toggle:hover { background: rgba(245,158,11,0.1); border-color: var(--accent-yellow); }
+.prize-hint { font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+.pill { font-size:0.65rem; font-weight:800; border-radius:99px; padding:0.15rem 0.55rem; white-space:nowrap; }
+.pill-public { background:rgba(0,212,255,0.12); border:1px solid rgba(0,212,255,0.3); color:var(--accent-cyan); }
+.pill-private { background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.3); color:var(--accent-yellow); }
 </style>
 </head>
 <body>
@@ -55,6 +64,120 @@
   <div id="tab-requests" class="tab-content hidden"></div>
 </div>
 </div>
+
+<!-- EDIT GROUP MODAL -->
+<div class="modal-overlay" id="edit-group-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>Edit Group Details</h3>
+      <button class="modal-close" onclick="Modal.close('edit-group-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Group Name <span class="required">*</span></label>
+        <input class="form-input" id="edit-grp-name" maxlength="100" placeholder="e.g. Shadow Syndicate"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-input" id="edit-grp-desc" rows="3" placeholder="What is this group about?"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Visibility</label>
+        <select class="form-input" id="edit-grp-visibility">
+          <option value="public">🌐 Public — listed for anyone to find</option>
+          <option value="private">🔒 Private — hidden from browse</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Who can join?</label>
+        <select class="form-input" id="edit-grp-joinmode">
+          <option value="open">Open — instant join</option>
+          <option value="request">Request — owner/officers approve</option>
+          <option value="invite_only">Invite-only — no self-serve join</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('edit-group-modal')">Cancel</button>
+      <button class="btn btn-yellow" onclick="saveGroupDetails()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT TOURNAMENT MODAL -->
+<div class="modal-overlay" id="edit-tournament-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h3>Edit Tournament</h3>
+      <button class="modal-close" onclick="Modal.close('edit-tournament-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Tournament Name <span class="required">*</span></label>
+        <input class="form-input" id="edit-t-name" maxlength="100" placeholder="e.g. Friday Night Brawl"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description <span class="required">*</span></label>
+        <textarea class="form-input" id="edit-t-desc" rows="3" placeholder="Brief summary, rules, or details"></textarea>
+      </div>
+      <div class="form-group">
+        <div class="prize-header-row">
+          <label class="form-label" style="margin:0;">Prize Pool <span class="required">*</span></label>
+          <button type="button" class="btn-rupee-toggle" id="btn-toggle-rupee" onclick="toggleRupeeSymbol()">
+            Remove ₹
+          </button>
+        </div>
+        <input class="form-input" id="edit-t-prize" placeholder="e.g. ₹5,000 or ₹10,000" onfocus="handlePrizeFocus(this)" oninput="handlePrizeInput(this)"/>
+        <div class="prize-hint">
+          Rupee symbol (₹) is the default currency. You can edit the amount or click 'Remove ₹' to customize.
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Max Participants <span class="required">*</span></label>
+        <input class="form-input" id="edit-t-max" type="number" min="2" max="256"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;">
+        <div class="form-group">
+          <label class="form-label">Reg. Closes</label>
+          <input class="form-input" id="edit-t-regclose" type="date"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Start Date</label>
+          <input class="form-input" id="edit-t-start" type="date"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Date</label>
+          <input class="form-input" id="edit-t-end" type="date"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('edit-tournament-modal')">Cancel</button>
+      <button class="btn btn-yellow" onclick="saveTournamentEdit()">Save Tournament</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE TOURNAMENT MODAL -->
+<div class="modal-overlay" id="manage-tournament-modal">
+  <div class="modal" style="max-width:740px;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="modal-header">
+      <div style="min-width:0;flex:1">
+        <h3 id="mgmt-title" style="margin:0;font-size:1.15rem;">Manage Tournament</h3>
+        <div id="mgmt-sub" style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;"></div>
+      </div>
+      <button class="modal-close" onclick="Modal.close('manage-tournament-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="mgmt-body" style="overflow-y:auto;flex:1;padding-right:0.5rem;">
+      <!-- Content populated dynamically -->
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-ghost" onclick="Modal.close('manage-tournament-modal')">Close</button>
+      <div id="mgmt-footer-actions"></div>
+    </div>
+  </div>
+</div>
+
 <div id="toast-container"></div>
   <!-- Partial sync. db.js reads this before it hydrates; a page that declares
        nothing still pulls the whole database, which is what every unconverted
@@ -84,21 +207,29 @@
 function uid() { const s = Auth.getSession(); return parseInt(s.userId, 10); }
 const groupId = parseInt(new URLSearchParams(location.search).get('id'), 10);
 let group = null;
+let activeEditTournId = null;
+let activeMgmtTournId = null;
 
 function isStaff() { return group && (Number(group.owner_id) === uid() || (group.officer_ids||[]).includes(uid())); }
 function isMember() { return group && (group.member_ids||[]).includes(uid()); }
 
 async function loadGroup() {
   try { group = await API.get(`/groups/${groupId}`); }
-  catch (e) { Toast.error('Group not found.'); return; }
+  catch (e) {
+    if (typeof DB !== 'undefined' && DB.groups) {
+      group = DB.groups.find(g => Number(g.group_id || g.id) === groupId);
+    }
+    if (!group) { Toast.error('Group not found.'); return; }
+  }
   renderHero();
   document.getElementById('requests-tab').classList.toggle('hidden', !isStaff());
   renderRoster();
 }
 
 function renderHero() {
+  const isOwner = Number(group.owner_id) === uid();
   const joinBtn = isMember()
-    ? (Number(group.owner_id) === uid()
+    ? (isOwner
         ? '<span class="badge badge-warning">👑 You own this group</span>'
         : `<button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="leaveGroup()">Leave Group</button>`)
     : `<button class="btn btn-yellow btn-sm" onclick="joinGroup()">${group.join_mode === 'request' ? '📥 Request to Join' : group.join_mode === 'invite_only' ? '🔒 Invite Only' : '✅ Join Group'}</button>`;
@@ -110,9 +241,17 @@ function renderHero() {
       <div style="flex:1;min-width:200px">
         <h1 style="margin-bottom:0.2rem">${group.name}</h1>
         <p class="text-muted" style="margin:0">${group.desc || 'No description yet.'}</p>
-        <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.4rem">👥 ${group.member_count} member${group.member_count === 1 ? '' : 's'} · 🏆 ${group.tournament_count} tournament${group.tournament_count === 1 ? '' : 's'} · ${group.visibility === 'private' ? '🔒 Private' : '🌐 Public'}</div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.4rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <span>👥 ${group.member_count ?? (group.member_ids||[]).length} member${(group.member_count ?? (group.member_ids||[]).length) === 1 ? '' : 's'}</span>
+          <span>🏆 ${group.tournament_count || 0} tournament${(group.tournament_count || 0) === 1 ? '' : 's'}</span>
+          <span class="pill pill-${group.visibility || 'public'}">${group.visibility === 'private' ? '🔒 Private' : '🌐 Public'}</span>
+          <span>🚪 ${group.join_mode === 'request' ? 'Request to Join' : group.join_mode === 'invite_only' ? 'Invite Only' : 'Open'}</span>
+        </div>
       </div>
-      <div ${joinDisabled}>${joinBtn}</div>
+      <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+        ${isOwner ? `<button class="btn btn-outline btn-sm" onclick="openEditGroupModal()">✏️ Edit Details</button>` : ''}
+        <div ${joinDisabled}>${joinBtn}</div>
+      </div>
     </div>`;
 }
 
@@ -125,7 +264,17 @@ function setTab(name) {
 }
 
 function renderRoster() {
-  document.getElementById('tab-roster').innerHTML = group.members.map(m => `
+  const members = group.members || (group.member_ids || []).map(id => {
+    const u = (typeof DB !== 'undefined' ? DB.users?.find(x => Number(x.id || x.user_id) === Number(id)) : null);
+    return {
+      user_id: id,
+      user_name: u?.user_name || `Player ${id}`,
+      avatar: u?.avatar || '??',
+      role: Number(id) === Number(group.owner_id) ? 'owner' : (group.officer_ids||[]).includes(Number(id)) ? 'officer' : 'member'
+    };
+  });
+
+  document.getElementById('tab-roster').innerHTML = members.map(m => `
     <div class="member-row">
       <div class="member-avatar">${m.avatar || '??'}</div>
       <div style="flex:1">
@@ -170,6 +319,62 @@ async function leaveGroup() {
   });
 }
 
+// ── Group Details Editing ────────────────────
+function openEditGroupModal() {
+  if (!group || Number(group.owner_id) !== uid()) return;
+  document.getElementById('edit-grp-name').value = group.name || '';
+  document.getElementById('edit-grp-desc').value = group.desc || '';
+  document.getElementById('edit-grp-visibility').value = group.visibility || 'public';
+  document.getElementById('edit-grp-joinmode').value = group.join_mode || 'open';
+  Modal.open('edit-group-modal');
+}
+
+async function saveGroupDetails() {
+  const name = document.getElementById('edit-grp-name').value.trim();
+  const desc = document.getElementById('edit-grp-desc').value.trim();
+  const visibility = document.getElementById('edit-grp-visibility').value;
+  const join_mode = document.getElementById('edit-grp-joinmode').value;
+
+  if (!name) { Toast.error('Group name is required.'); return; }
+
+  try {
+    const updated = await API.patch(`/groups/${groupId}?requesterId=${uid()}`, {
+      name, desc, visibility, join_mode
+    });
+    group = updated || { ...group, name, desc, visibility, join_mode };
+  } catch (e) {
+    if (typeof DB !== 'undefined' && DB.groups) {
+      const dbGrp = DB.groups.find(g => Number(g.group_id || g.id) === Number(groupId));
+      if (dbGrp) {
+        dbGrp.name = name;
+        dbGrp.desc = desc;
+        dbGrp.visibility = visibility;
+        dbGrp.join_mode = join_mode;
+        DB.save();
+        group = { ...group, name, desc, visibility, join_mode };
+      }
+    } else {
+      Toast.error(e.message || 'Failed to update group details.');
+      return;
+    }
+  }
+
+  if (typeof DB !== 'undefined' && DB.groups) {
+    const dbGrp = DB.groups.find(g => Number(g.group_id || g.id) === Number(groupId));
+    if (dbGrp) {
+      dbGrp.name = name;
+      dbGrp.desc = desc;
+      dbGrp.visibility = visibility;
+      dbGrp.join_mode = join_mode;
+      DB.save();
+    }
+  }
+
+  Modal.close('edit-group-modal');
+  Toast.success('Group details updated! 🛡️');
+  renderHero();
+}
+
 // ── Chat ──────────────────────────────
 async function renderChat() {
   const box = document.getElementById('tab-chat');
@@ -205,18 +410,420 @@ async function sendChat() {
 async function renderTournaments() {
   let list = [];
   try { list = await API.get(`/groups/${groupId}/tournaments`); } catch (e) { list = []; }
+  if ((!list || !list.length) && typeof DB !== 'undefined' && DB.tournaments) {
+    list = DB.tournaments.filter(t => Number(t.group_id) === groupId);
+  }
+
+  const isOwner = Number(group.owner_id) === uid();
   const createBtn = isStaff()
-    ? `<button class="btn btn-yellow btn-sm" onclick="window.location.href='create-tournament.html'">+ New Community Tournament</button>`
+    ? `<button class="btn btn-yellow btn-sm" onclick="window.location.href='create-tournament.html?groupId=${groupId}'">+ New Community Tournament</button>`
     : '';
+
   document.getElementById('tab-tournaments').innerHTML = `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">${createBtn}</div>
-    ${list.length ? list.map(t => `
-      <div class="member-row" style="cursor:pointer" onclick="window.location.href='tournaments.html'">
-        <div style="flex:1">
-          <div style="font-weight:700">${t.tournament_name}</div>
-          <div style="font-size:0.75rem;color:var(--text-secondary)">${badgeHTML(t.status)} · 👥 ${t.participants}/${t.maxParticipants}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+      <div style="font-size:0.9rem;font-weight:700">Tournaments in ${group.name}</div>
+      ${createBtn}
+    </div>
+    ${list.length ? list.map(t => {
+      const tid = t.tournament_id || t.id;
+      const canManage = isOwner || Number(t.organizer) === uid() || (group.officer_ids||[]).includes(uid());
+      const gameObj = typeof DB !== 'undefined' ? (DB.games || []).find(g => Number(g.id || g.game_id) === Number(t.game_id)) : null;
+      const gameName = gameObj?.game_name || t.game_name || (t.type === 'multi' ? 'Multi-game fest' : 'Casual Game');
+      const entrants = t.participants != null ? t.participants : (t.entrant_ids ? t.entrant_ids.length : 0);
+      const isUpcoming = t.status === 'upcoming';
+      const isInProgress = t.status === 'in-progress';
+
+      return `
+      <div class="member-row tourn-card-row" style="border-left-color:var(--accent-cyan);align-items:center;gap:1rem;padding:0.9rem 1.15rem;margin-bottom:0.75rem;">
+        <div style="width:42px;height:42px;border-radius:var(--radius-md);background:linear-gradient(135deg,#00d4ff,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">
+          🏆
         </div>
-      </div>`).join('') : `<div class="text-muted" style="padding:1rem">No Community tournaments yet.${isStaff() ? ' Create one above.' : ''}</div>`}`;
+        <div style="flex:1;min-width:200px">
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+            <span style="font-weight:800;font-size:0.95rem">${t.tournament_name || t.name}</span>
+            ${badgeHTML(t.status)}
+            ${t.visibility === 'private' ? '<span class="pill pill-private">🔒 Private</span>' : ''}
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.3rem;display:flex;gap:0.85rem;flex-wrap:wrap">
+            <span>🎮 ${gameName}</span>
+            <span>💰 ${t.prize || 'No prize pool'}</span>
+            <span>👥 ${entrants}/${t.maxParticipants} entrants</span>
+            ${t.start_date ? `<span>📅 ${formatDate(t.start_date)}</span>` : ''}
+          </div>
+          ${t.desc ? `<div style="font-size:0.73rem;color:var(--text-muted);margin-top:0.25rem;line-height:1.3">${t.desc}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+          ${canManage ? `
+            <button class="btn btn-primary btn-sm" onclick="openManageTournamentModal(${tid})">⚙️ Manage</button>
+            <button class="btn btn-ghost btn-sm" onclick="openEditTournamentModal(${tid})">✏️ Edit</button>
+            ${!isInProgress ? `<button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="deleteCommunityTournament(${tid})">🗑️ Delete</button>` : ''}
+          ` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="window.location.href='tournaments.html?id=${tid}'">View</button>
+        </div>
+      </div>`;
+    }).join('') : `<div class="text-muted" style="padding:1.5rem;text-align:center;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:var(--radius-lg)">No Community tournaments yet.${isStaff() ? ' Create one with the button above.' : ''}</div>`}`;
+}
+
+// ── Edit Tournament ───────────────────
+async function openEditTournamentModal(tid) {
+  activeEditTournId = tid;
+  let t = null;
+  try { t = await API.get(`/tournaments/${tid}`); } catch (e) { }
+  if (!t && typeof DB !== 'undefined' && DB.tournaments) {
+    t = DB.tournaments.find(x => Number(x.tournament_id || x.id) === Number(tid));
+  }
+  if (!t) { Toast.error('Tournament not found.'); return; }
+
+  document.getElementById('edit-t-name').value = t.tournament_name || t.name || '';
+  document.getElementById('edit-t-desc').value = t.desc || '';
+
+  let prizeVal = t.prize || '₹';
+  if (!prizeVal.includes('₹') && prizeVal.trim() !== '') {
+    prizeVal = '₹' + prizeVal;
+  }
+  document.getElementById('edit-t-prize').value = prizeVal;
+  updateRupeeToggleBtn(prizeVal);
+
+  document.getElementById('edit-t-max').value = t.maxParticipants || 16;
+  document.getElementById('edit-t-regclose').value = (t.regClose || '').split('T')[0];
+  document.getElementById('edit-t-start').value = (t.start_date || '').split('T')[0];
+  document.getElementById('edit-t-end').value = (t.end_date || '').split('T')[0];
+
+  Modal.open('edit-tournament-modal');
+}
+
+function toggleRupeeSymbol() {
+  const prizeInput = document.getElementById('edit-t-prize');
+  if (!prizeInput) return;
+  let val = prizeInput.value;
+  if (val.includes('₹')) {
+    val = val.replace(/₹/g, '').trim();
+  } else {
+    val = '₹' + val.trim();
+  }
+  prizeInput.value = val;
+  updateRupeeToggleBtn(val);
+  prizeInput.focus();
+}
+
+function updateRupeeToggleBtn(val) {
+  const btn = document.getElementById('btn-toggle-rupee');
+  if (!btn) return;
+  const hasRupee = (val || '').includes('₹');
+  btn.textContent = hasRupee ? 'Remove ₹' : '+ Add ₹';
+  btn.title = hasRupee ? 'Remove the ₹ currency symbol' : 'Add the ₹ currency symbol';
+}
+
+function handlePrizeFocus(input) {
+  if (input.value === '₹') {
+    setTimeout(() => {
+      input.setSelectionRange(1, 1);
+    }, 10);
+  }
+}
+
+function handlePrizeInput(input) {
+  updateRupeeToggleBtn(input.value);
+}
+
+async function saveTournamentEdit() {
+  const tid = activeEditTournId;
+  if (!tid) return;
+
+  const vName = document.getElementById('edit-t-name').value.trim();
+  const vDesc = document.getElementById('edit-t-desc').value.trim();
+  let vPrize = document.getElementById('edit-t-prize').value.trim();
+  const vMax = parseInt(document.getElementById('edit-t-max').value, 10);
+  const vReg = document.getElementById('edit-t-regclose').value;
+  const vStart = document.getElementById('edit-t-start').value;
+  const vEnd = document.getElementById('edit-t-end').value;
+
+  if (!vName) { Toast.error('Tournament name is required.'); return; }
+  if (!vDesc) { Toast.error('Description is required.'); return; }
+  if (!vPrize || vPrize === '₹') { Toast.error('Please enter a prize pool amount.'); return; }
+  if (!vMax || vMax < 2) { Toast.error('Max participants must be at least 2.'); return; }
+  if (vStart && vEnd && new Date(vStart) > new Date(vEnd)) {
+    Toast.error('Start date cannot be after end date.'); return;
+  }
+  if (vReg && vStart && new Date(vReg) > new Date(vStart)) {
+    Toast.error('Registration deadline must be before or on the start date.'); return;
+  }
+
+  const payload = {
+    tournament_name: vName,
+    desc: vDesc,
+    prize: vPrize,
+    maxParticipants: vMax,
+  };
+  if (vReg) payload.regClose = vReg;
+  if (vStart) payload.start_date = vStart;
+  if (vEnd) payload.end_date = vEnd;
+
+  try {
+    await API.patch(`/tournaments/${tid}`, payload);
+  } catch (e) {
+    if (typeof DB !== 'undefined' && DB.tournaments) {
+      const dbT = DB.tournaments.find(x => Number(x.tournament_id || x.id) === Number(tid));
+      if (dbT) {
+        Object.assign(dbT, payload);
+        DB.save();
+      }
+    } else {
+      Toast.error(e.message || 'Failed to update tournament.');
+      return;
+    }
+  }
+
+  if (typeof DB !== 'undefined' && DB.tournaments) {
+    const dbT = DB.tournaments.find(x => Number(x.tournament_id || x.id) === Number(tid));
+    if (dbT) {
+      Object.assign(dbT, payload);
+      DB.save();
+    }
+  }
+
+  Modal.close('edit-tournament-modal');
+  Toast.success('Tournament updated! 🏆');
+  await renderTournaments();
+}
+
+// ── Manage Tournament ────────────────
+async function openManageTournamentModal(tid) {
+  activeMgmtTournId = tid;
+  Modal.open('manage-tournament-modal');
+  await renderManageModalContent(tid);
+}
+
+async function renderManageModalContent(tid) {
+  let t = null;
+  try { t = await API.get(`/tournaments/${tid}`); } catch (e) { }
+  if (!t && typeof DB !== 'undefined' && DB.tournaments) {
+    t = DB.tournaments.find(x => Number(x.tournament_id || x.id) === Number(tid));
+  }
+  if (!t) return;
+
+  const titleEl = document.getElementById('mgmt-title');
+  const subEl = document.getElementById('mgmt-sub');
+  const bodyEl = document.getElementById('mgmt-body');
+  const footerEl = document.getElementById('mgmt-footer-actions');
+
+  titleEl.innerHTML = `⚙️ Manage: ${t.tournament_name || t.name}`;
+  const gameObj = typeof DB !== 'undefined' ? (DB.games || []).find(g => Number(g.id || g.game_id) === Number(t.game_id)) : null;
+  const gameName = gameObj?.game_name || t.game_name || 'Knockout';
+  const entrants = t.participants != null ? t.participants : (t.entrant_ids ? t.entrant_ids.length : 0);
+
+  subEl.innerHTML = `${badgeHTML(t.status)} · 🎮 ${gameName} · 👥 ${entrants}/${t.maxParticipants} entrants · Prize: ${t.prize || 'None'}`;
+
+  // Controls box
+  let controlsHtml = '';
+  if (t.status === 'upcoming') {
+    controlsHtml = `
+      <div style="background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.25);border-radius:var(--radius-md);padding:1rem;margin-bottom:1.2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem">
+        <div>
+          <div style="font-weight:700;font-size:0.92rem">Ready to Start Tournament?</div>
+          <div style="font-size:0.76rem;color:var(--text-secondary)">Starting generates the knockout tournament bracket and locks registrations.</div>
+        </div>
+        <button class="btn btn-yellow btn-md" onclick="startCommunityTournament(${tid})">🚀 Start Tournament Now</button>
+      </div>`;
+    footerEl.innerHTML = ``;
+  } else if (t.status === 'in-progress') {
+    const curRound = t.currentRound || 1;
+    controlsHtml = `
+      <div style="background:var(--bg-card);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:1rem;margin-bottom:1.2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem">
+        <div>
+          <div style="font-weight:800;font-size:0.95rem">🏆 Live Bracket: Round ${curRound}</div>
+          <div style="font-size:0.76rem;color:var(--text-secondary)">Set match winners below to progress through rounds.</div>
+        </div>
+        <button class="btn btn-purple btn-sm" onclick="advanceCommunityRound(${tid})">Advance Next Round →</button>
+      </div>`;
+    footerEl.innerHTML = `<button class="btn btn-purple btn-sm" onclick="advanceCommunityRound(${tid})">Advance Next Round →</button>`;
+  } else {
+    controlsHtml = `
+      <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:var(--radius-md);padding:0.9rem;margin-bottom:1.2rem;text-align:center;color:var(--accent-green);font-weight:700">
+        🎉 Tournament Complete! All matches have been decided.
+      </div>`;
+    footerEl.innerHTML = ``;
+  }
+
+  // Load matches
+  let matches = [];
+  try {
+    const res = await API.get(`/tournaments/${tid}/bracket`);
+    matches = res?.matches || [];
+  } catch (e) { }
+  if ((!matches || !matches.length) && typeof DB !== 'undefined' && DB.tournament_matches) {
+    matches = DB.tournament_matches.filter(m => String(m.tournamentId) === String(tid));
+  }
+
+  let matchesHtml = '';
+  if (t.status === 'upcoming' && !matches.length) {
+    matchesHtml = `
+      <div style="text-align:center;padding:1.5rem;color:var(--text-secondary);background:var(--bg-secondary);border-radius:var(--radius-md)">
+        The tournament bracket has not been generated yet.<br/>
+        Click <strong>"🚀 Start Tournament Now"</strong> above once players have registered to seed the matches.
+      </div>`;
+  } else if (!matches.length) {
+    matchesHtml = `
+      <div style="text-align:center;padding:1.5rem;color:var(--text-secondary);background:var(--bg-secondary);border-radius:var(--radius-md)">
+        No bracket matches found for this tournament.
+      </div>`;
+  } else {
+    matches.sort((a,b) => (a.round - b.round) || String(a.match_id).localeCompare(String(b.match_id)));
+    matchesHtml = `
+      <div style="font-weight:700;font-size:0.85rem;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary)">Matches & Results</div>
+      <div style="display:flex;flex-direction:column;gap:0.6rem">
+        ${matches.map(m => {
+          const p1 = m.player1_name || (typeof DB !== 'undefined' ? DB.users?.find(u => String(u.id || u.user_id) === String(m.player1))?.user_name : null) || (m.player1 === 'BYE' ? 'BYE' : m.player1) || 'TBD';
+          const p2 = m.player2_name || (typeof DB !== 'undefined' ? DB.users?.find(u => String(u.id || u.user_id) === String(m.player2))?.user_name : null) || (m.player2 === 'BYE' ? 'BYE' : m.player2) || 'TBD';
+          const isDone = m.status === 'completed';
+          const isPlayable = !isDone && m.player1 && m.player2 && m.player1 !== 'BYE' && m.player2 !== 'BYE';
+          const winnerName = m.winner_name || (String(m.winnerId) === String(m.player1) ? p1 : String(m.winnerId) === String(m.player2) ? p2 : (m.winnerId || ''));
+
+          return `
+          <div style="background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:var(--radius-md);padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+            <div style="min-width:180px">
+              <div style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:0.25rem">
+                ${m.match_id} · Round ${m.round}
+                ${m.status === 'disputed' ? '<span class="badge badge-error">DISPUTED</span>' : m.status === 'pending' ? '<span class="badge badge-warning">PENDING</span>' : isDone ? '<span class="badge badge-success">COMPLETED</span>' : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:0.75rem;font-size:0.88rem">
+                <span style="font-weight:700;${m.winnerId && String(m.winnerId) === String(m.player1) ? 'color:var(--accent-green);font-weight:800' : ''}">${p1}</span>
+                <span style="color:var(--text-muted);font-size:0.75rem">vs</span>
+                <span style="font-weight:700;${m.winnerId && String(m.winnerId) === String(m.player2) ? 'color:var(--accent-green);font-weight:800' : ''}">${p2}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:0.4rem;align-items:center">
+              ${isDone ? `<span style="color:var(--accent-green);font-size:0.8rem;font-weight:700">🏆 Winner: ${winnerName}</span>` : ''}
+              ${isPlayable ? `
+                <button class="btn btn-primary btn-sm" onclick="forceCommunityWinner('${m.match_id}', '${m.player1}', '${p1}', ${tid})">🏆 Win P1</button>
+                <button class="btn btn-primary btn-sm" onclick="forceCommunityWinner('${m.match_id}', '${m.player2}', '${p2}', ${tid})">🏆 Win P2</button>
+              ` : ''}
+              ${!isDone && !isPlayable ? `<span class="text-muted" style="font-size:0.75rem">Awaiting previous match</span>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  bodyEl.innerHTML = controlsHtml + matchesHtml;
+}
+
+async function startCommunityTournament(tid) {
+  confirmAction('Start Tournament', 'This will generate the tournament bracket and close registration. Continue?', async () => {
+    try {
+      await API.post(`/tournaments/${tid}/start`, { organizer_id: uid() });
+      Toast.success('Tournament Started! Bracket generated. 🚀');
+    } catch (e) {
+      if (typeof DB !== 'undefined' && DB.generateBracket) {
+        try {
+          DB.generateBracket(tid);
+          Toast.success('Tournament Started! Bracket generated.');
+        } catch (err) {
+          Toast.error(err.message || e.message);
+          return;
+        }
+      } else {
+        Toast.error(e.message);
+        return;
+      }
+    }
+    if (typeof DB !== 'undefined' && DB.tournaments) {
+      const dbT = DB.tournaments.find(x => Number(x.tournament_id || x.id) === Number(tid));
+      if (dbT) { dbT.status = 'in-progress'; dbT.currentRound = 1; DB.save(); }
+    }
+    await renderManageModalContent(tid);
+    await renderTournaments();
+  });
+}
+
+async function forceCommunityWinner(mid, wid, wname, tid) {
+  confirmAction('Declare Winner', `Declare ${wname || wid} as the winner of this match?`, async () => {
+    try {
+      await API.post(`/tournaments/matches/${mid}/resolve`, { organizer_id: uid(), winner_id: wid });
+      Toast.success(`Winner recorded for ${mid}! 🏆`);
+    } catch (e) {
+      if (typeof DB !== 'undefined' && DB.advanceMatch) {
+        DB.advanceMatch(mid, wid);
+        Toast.success(`Winner recorded for ${mid}! 🏆`);
+      } else {
+        Toast.error(e.message);
+      }
+    }
+    if (typeof DB !== 'undefined' && DB.advanceMatch) {
+      try { DB.advanceMatch(mid, wid); } catch (e) { }
+    }
+    await renderManageModalContent(tid);
+    await renderTournaments();
+  });
+}
+
+async function advanceCommunityRound(tid) {
+  let matches = [];
+  try {
+    const res = await API.get(`/tournaments/${tid}/bracket`);
+    matches = res?.matches || [];
+  } catch (e) { }
+  if ((!matches || !matches.length) && typeof DB !== 'undefined' && DB.tournament_matches) {
+    matches = DB.tournament_matches.filter(m => String(m.tournamentId) === String(tid));
+  }
+  let t = null;
+  if (typeof DB !== 'undefined' && DB.tournaments) {
+    t = DB.tournaments.find(x => Number(x.tournament_id || x.id) === Number(tid));
+  }
+  const round = t?.currentRound || 1;
+  const thisRound = matches.filter(m => Number(m.round) === Number(round));
+  if (!thisRound.length) { Toast.warning(`Round ${round} has no matches.`); return; }
+
+  const pending = thisRound.filter(m => m.status !== 'completed');
+  if (pending.length) {
+    Toast.warning(`${pending.length} match${pending.length > 1 ? 'es' : ''} in Round ${round} still need a winner.`);
+    return;
+  }
+
+  const nextRound = matches.filter(m => Number(m.round) === Number(round) + 1);
+  if (!nextRound.length) {
+    confirmAction('Complete Tournament', 'All matches finished! Mark tournament as completed?', async () => {
+      try { await API.patch(`/tournaments/${tid}`, { status: 'completed' }); } catch (e) { }
+      if (t) { t.status = 'completed'; DB.save(); }
+      Toast.success('Final round complete — tournament finished! 🏆');
+      await renderManageModalContent(tid);
+      await renderTournaments();
+    }, 'primary');
+    return;
+  }
+
+  confirmAction('Advance Round', `Close Round ${round} and open Round ${round + 1}?`, async () => {
+    if (t) {
+      t.currentRound = round + 1;
+      DB.save();
+    }
+    Toast.success(`Round ${round + 1} is now live!`);
+    await renderManageModalContent(tid);
+    await renderTournaments();
+  }, 'primary');
+}
+
+async function deleteCommunityTournament(tid) {
+  confirmAction('Delete Tournament', 'Are you sure you want to delete this tournament? This cannot be undone.', async () => {
+    try {
+      await API.del(`/tournaments/${tid}`);
+    } catch (e) {
+      if (e.message && e.message.includes('in progress')) {
+        Toast.error(e.message);
+        return;
+      }
+    }
+    if (typeof DB !== 'undefined' && DB.tournaments) {
+      const idx = DB.tournaments.findIndex(x => Number(x.tournament_id || x.id) === Number(tid));
+      if (idx !== -1) {
+        DB.tournaments.splice(idx, 1);
+        DB.tournament_matches = (DB.tournament_matches || []).filter(m => Number(m.tournamentId) !== Number(tid));
+        DB.save();
+      }
+    }
+    Toast.info('Tournament deleted.');
+    await renderTournaments();
+  });
 }
 
 // ── Join requests (staff only) ────────
@@ -246,7 +853,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!session) return;
   if (!groupId) { Toast.error('No group specified.'); return; }
   buildNavbar('player','community');
-  loadGroup();
+  loadGroup().then(() => {
+    const tabParam = new URLSearchParams(location.search).get('tab');
+    if (tabParam && ['roster','chat','tournaments','requests'].includes(tabParam)) {
+      setTab(tabParam);
+    }
+  });
 });
 </script>
 </body>

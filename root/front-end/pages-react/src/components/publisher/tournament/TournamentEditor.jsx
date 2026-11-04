@@ -409,18 +409,49 @@ export function TournamentEditor({
 
               <div className="form-2col">
                 <div className="form-group">
-                  <label className="form-label">
-                    Prize Pool <span className="required">*</span>
-                  </label>
+                  <div className="prize-header-row">
+                    <label className="form-label" style={{ marginBottom: 0 }}>
+                      Prize Pool <span className="required">*</span>
+                    </label>
+                    {(prize || '').includes('₹') ? (
+                      <button
+                        type="button"
+                        className="btn-rupee-toggle"
+                        onClick={() => onChangePrize((prize || '').replace(/₹\s?/, ''))}
+                        title="Remove Rupee symbol"
+                      >
+                        Remove ₹
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-rupee-toggle"
+                        style={{ color: 'var(--accent-cyan, #00d4ff)' }}
+                        onClick={() => onChangePrize('₹' + (prize || ''))}
+                        title="Add Rupee symbol"
+                      >
+                        + Add ₹
+                      </button>
+                    )}
+                  </div>
                   <input
                     className={`form-input ${prizeError ? 'error' : ''}`}
                     id="t-prize"
                     placeholder="e.g. ₹50,000 or $5,000"
                     value={prize}
                     onChange={(e) => onChangePrize(e.target.value)}
+                    onFocus={(e) => {
+                      if (e.target.value === '₹') {
+                        const len = e.target.value.length;
+                        e.target.setSelectionRange(len, len);
+                      }
+                    }}
                   />
+                  <span className="prize-hint">
+                    Default is ₹ (Rupee). Keep it, edit it, or remove it.
+                  </span>
                   {prizeError && (
-                    <span className="form-error show" style={{ display: 'block' }}>
+                    <span className="form-error show" style={{ display: 'block', marginTop: '0.25rem' }}>
                       {prizeError}
                     </span>
                   )}

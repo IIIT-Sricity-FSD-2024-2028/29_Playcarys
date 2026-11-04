@@ -6,6 +6,11 @@ export function GameAchievements({ gameId, userId }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!gameId || gameId === 'undefined') {
+      setAchievements([]);
+      setLoading(false);
+      return;
+    }
     let isCurrent = true;
     setLoading(true);
 

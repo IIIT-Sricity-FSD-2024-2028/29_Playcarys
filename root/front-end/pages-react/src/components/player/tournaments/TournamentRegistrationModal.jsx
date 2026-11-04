@@ -4,6 +4,7 @@ import api from '../../../services/api';
 import {
   tournamentService,
   seedOf,
+  isCommunityMember,
   myTeamsIn
 } from '../../../services/tournamentService';
 import { formatDate, sameId } from '../../../services/playerService';
@@ -100,12 +101,19 @@ export function TournamentRegistrationModal({
     : [];
 
   const groupTag = t.group_id != null
-    ? (db.groups || []).find((g) => Number(g.group_id) === Number(t.group_id))
+    ? (db?.groups || []).find((g) => sameId(g.group_id || g.id, t.group_id))
     : null;
+
+  const isCommunityMemberUser = t.group_id != null
+    ? isCommunityMember(t.group_id, userId, db) || sameId(t.organizer || t.organizer_id, userId)
+    : true;
 
   async function handleRegister() {
     setSubmitting(true);
     try {
+      if (!isCommunityMemberUser) {
+        throw new Error(`Only members of "${groupTag?.name || 'this community'}" can register for this tournament.`);
+      }
       if (isTeam) {
         if (!selectedTeamId) {
           throw new Error('Please select a team.');
@@ -202,6 +210,24 @@ export function TournamentRegistrationModal({
               </div>
             )}
           </div>
+
+          {!isCommunityMemberUser && (
+            <div
+              className="alert alert-warning"
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                padding: '0.85rem',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--accent-yellow)',
+                fontSize: '0.85rem',
+                lineHeight: 1.5,
+                marginBottom: '1rem'
+              }}
+            >
+              🔒 <strong>Community Members Only:</strong> This tournament is private to members of <b>{groupTag?.name || 'this community'}</b>. You must join the community group before you can register.
+            </div>
+          )}
 
           {/* Body Content */}
           {isTeam ? (
@@ -376,6 +402,15 @@ export function TournamentRegistrationModal({
               type="button"
             >
               Manage My Teams →
+            </button>
+          ) : !isCommunityMemberUser ? (
+            <button
+              className="btn btn-purple"
+              disabled
+              style={{ opacity: 0.65, cursor: 'not-allowed' }}
+              type="button"
+            >
+              🔒 Community Members Only
             </button>
           ) : (
             <button

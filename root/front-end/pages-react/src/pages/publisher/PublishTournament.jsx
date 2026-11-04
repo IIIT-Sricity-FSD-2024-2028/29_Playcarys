@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import AuthContext from '../../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import publisherService, { getDatabase } from '../../services/publisherService';
 import TournamentCard from '../../components/publisher/tournament/TournamentCard';
 import TournamentEditor from '../../components/publisher/tournament/TournamentEditor';
@@ -11,7 +11,12 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/tournament.css';
 
 export function PublishTournament() {
-  const { user, loading: authLoading } = useContext(AuthContext);
+  const {
+    user,
+    publisherId,
+    isPublisher,
+    authLoading
+  } = usePublisherAuth();
 
   // Active view: 'list' | 'editor' | 'mgmt' | 'mgmt-multi'
   const [view, setView] = useState('list');
@@ -48,7 +53,7 @@ export function PublishTournament() {
   const [nameError, setNameError] = useState('');
   const [description, setDescription] = useState('');
   const [descriptionError, setDescriptionError] = useState('');
-  const [prize, setPrize] = useState('');
+  const [prize, setPrize] = useState('₹');
   const [prizeError, setPrizeError] = useState('');
   const [maxPlayers, setMaxPlayers] = useState('32');
   const [maxPlayersError, setMaxPlayersError] = useState('');
@@ -71,7 +76,7 @@ export function PublishTournament() {
 
   // Load initial publisher tournament data
   const loadData = async () => {
-    if (!user || user.role !== 'publisher') return;
+    if (!isPublisher) return;
     setLoading(true);
 
     const db = getDatabase();
@@ -91,10 +96,10 @@ export function PublishTournament() {
   };
 
   useEffect(() => {
-    if (!authLoading && user && user.role === 'publisher') {
+    if (!authLoading && isPublisher) {
       loadData();
     }
-  }, [authLoading, user]);
+  }, [authLoading, isPublisher]);
 
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -136,7 +141,7 @@ export function PublishTournament() {
       setSelectedGameId(approvedGames.length > 0 ? String(approvedGames[0].id || approvedGames[0].game_id) : '');
       setName('');
       setDescription('');
-      setPrize('');
+      setPrize('₹');
       setMaxPlayers('32');
       setRegDeadline('');
       setStartDate('');
@@ -148,7 +153,7 @@ export function PublishTournament() {
         setSelectedGameId(String(t.game_id));
         setName(t.tournament_name || t.name || '');
         setDescription(t.desc || '');
-        setPrize(t.prize || '');
+        setPrize(t.prize || '₹');
         setMaxPlayers(String(t.maxParticipants || 32));
         setRegDeadline(t.regClose || '');
         setStartDate(t.start_date || t.startDate || '');
@@ -243,7 +248,8 @@ export function PublishTournament() {
         setDescriptionError('');
       }
 
-      if (!prize.trim()) {
+      const pTrim = prize.trim();
+      if (!pTrim || pTrim === '₹') {
         setPrizeError('Prize pool is required');
         valid = false;
       } else {
@@ -284,7 +290,7 @@ export function PublishTournament() {
     const vName = name.trim();
     const vDesc = description.trim();
     const vPrize = prize.trim();
-    if (!vName || !vDesc || !vPrize) {
+    if (!vName || !vDesc || !vPrize || vPrize === '₹') {
       showToast('All details in Step 3 are required', 'error');
       return;
     }
@@ -485,7 +491,7 @@ export function PublishTournament() {
       `Close Round ${round} and open Round ${round + 1}?`,
       () => {
         try {
-          const res = publisherService.advanceSingleTournamentRound(tid, activeMatches);
+          const res = publisherService.advanceSingleTournamentRound(tid);
           if (res.completed) {
             showToast('Final round complete — tournament finished!', 'success');
           } else {
@@ -512,8 +518,7 @@ export function PublishTournament() {
         const m = activeMatches.find((x) => x.match_id === matchId);
         if (!m) return;
 
-        const uid = parseInt(user?.userId || user?.id || 1, 10);
-        await publisherService.forceMatchWinner(matchId, winnerId, m.player1, uid);
+        await publisherService.forceMatchWinner(matchId, winnerId, m.player1, tid);
         showToast('Match result recorded!', 'success');
         await handleOpenMgmt(tid);
         await loadData();
@@ -523,7 +528,70 @@ export function PublishTournament() {
     );
   }
 
-  // Multi-game Fest Management view
+  async function handlePauseTournament() {
+    if (!activeTournament) return;
+    const tid = activeTournament.tournament_id || activeTournament.id;
+    try {
+      await publisherService.pauseSingleTournament(tid);
+      showToast('Tournament paused ⏸️', 'info');
+      await handleOpenMgmt(tid);
+      await loadData();
+    } catch (e) {
+      showToast(e.message || 'Failed to pause tournament', 'error');
+    }
+  }
+
+  async function handleResumeTournament() {
+    if (!activeTournament) return;
+    const tid = activeTournament.tournament_id || activeTournament.id;
+    try {
+      await publisherService.resumeSingleTournament(tid);
+      showToast('Tournament resumed! ▶️', 'success');
+      await handleOpenMgmt(tid);
+      await loadData();
+    } catch (e) {
+      showToast(e.message || 'Failed to resume tournament', 'error');
+    }
+  }
+
+  async function handleCancelTournament(reason) {
+    if (!activeTournament) return;
+    const tid = activeTournament.tournament_id || activeTournament.id;
+    try {
+      await publisherService.cancelSingleTournament(tid, reason);
+      showToast('Tournament cancelled 🛑', 'info');
+      await handleOpenMgmt(tid);
+      await loadData();
+    } catch (e) {
+      showToast(e.message || 'Failed to cancel tournament', 'error');
+    }
+  }
+
+  async function handleDeclareWinner(winnerId, winnerName) {
+    if (!activeTournament) return;
+    const tid = activeTournament.tournament_id || activeTournament.id;
+    try {
+      await publisherService.declareSingleTournamentWinner(tid, winnerId, winnerName);
+      showToast(`Winner declared: ${winnerName}! 🏆 Tournament completed.`, 'success');
+      await handleOpenMgmt(tid);
+      await loadData();
+    } catch (e) {
+      showToast(e.message || 'Failed to declare winner', 'error');
+    }
+  }
+
+  async function handleExtendDeadline(newDeadline) {
+    if (!activeTournament) return;
+    const tid = activeTournament.tournament_id || activeTournament.id;
+    try {
+      await publisherService.extendSingleTournamentDeadline(tid, newDeadline);
+      showToast('Registration deadline extended! 📅', 'success');
+      await handleOpenMgmt(tid);
+      await loadData();
+    } catch (e) {
+      showToast(e.message || 'Failed to extend deadline', 'error');
+    }
+  }
   async function handleOpenMgmtMulti(id) {
     try {
       const details = await publisherService.getFestDetails(id);
@@ -574,7 +642,7 @@ export function PublishTournament() {
     return <LoadingState message="Loading Publisher Studio…" />;
   }
 
-  if (!authLoading && (!user || user.role !== 'publisher')) {
+  if (!authLoading && !isPublisher) {
     return (
       <div className="page-content" style={{ textAlign: 'center', padding: '5rem 1rem' }}>
         <h2>Publisher Access Required</h2>
@@ -745,6 +813,11 @@ export function PublishTournament() {
           onAdvanceRound={handleAdvanceRound}
           onForceWinner={handleForceWinner}
           onExportResults={() => showToast('Downloading match logs…', 'info')}
+          onPauseTournament={handlePauseTournament}
+          onResumeTournament={handleResumeTournament}
+          onCancelTournament={handleCancelTournament}
+          onDeclareWinner={handleDeclareWinner}
+          onExtendDeadline={handleExtendDeadline}
         />
       )}
 

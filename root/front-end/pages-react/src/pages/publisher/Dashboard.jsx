@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
-import AuthContext from '../../context/AuthContext';
-import publisherService from '../../services/publisherService';
+import React from 'react';
+import { usePublisherAuth } from '../../hooks/usePublisherAuth';
+import { usePublisherDashboardData } from '../../hooks/usePublisherDashboardData';
 import PublisherDashboardHeader from '../../components/publisher/dashboard/PublisherDashboardHeader';
 import PublisherStats from '../../components/publisher/dashboard/PublisherStats';
 import PublisherGamesList from '../../components/publisher/dashboard/PublisherGamesList';
@@ -8,46 +8,32 @@ import PublisherEarningsSummary from '../../components/publisher/dashboard/Publi
 import PublisherTournaments from '../../components/publisher/dashboard/PublisherTournaments';
 import PublisherSessionChart from '../../components/publisher/dashboard/PublisherSessionChart';
 import PublisherViewsChart from '../../components/publisher/dashboard/PublisherViewsChart';
-import PublisherLiveTelemetry from '../../components/publisher/dashboard/PublisherLiveTelemetry';
 import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/dashboard.css';
 
 export function Dashboard() {
-  const { user, loading: authLoading } = useContext(AuthContext);
+  const {
+    user,
+    publisherId,
+    isPublisher,
+    authLoading
+  } = usePublisherAuth();
 
-  const [dashData, setDashData] = useState(null);
-  const [earningsData, setEarningsData] = useState(null);
-  const [earningsLoading, setEarningsLoading] = useState(true);
-  const [earningsError, setEarningsError] = useState(null);
-
-  // Initialize publisher data once auth user is known
-  useEffect(() => {
-    if (!user || user.role !== 'publisher') return;
-
-    const data = publisherService.getDashboardData(user.userId);
-    setDashData(data);
-
-    // Fetch authoritative earnings from backend API
-    setEarningsLoading(true);
-    setEarningsError(null);
-    publisherService
-      .getEarnings(user.userId)
-      .then((res) => {
-        setEarningsData(res);
-        setEarningsLoading(false);
-      })
-      .catch((err) => {
-        console.warn('Authoritative earnings API failed or offline:', err);
-        setEarningsError(err);
-        setEarningsLoading(false);
-      });
-  }, [user]);
+  const {
+    dashData,
+    earningsData,
+    earningsLoading,
+    earningsError
+  } = usePublisherDashboardData(
+    publisherId,
+    isPublisher
+  );
 
   if (authLoading) {
     return <LoadingState message="Checking publisher credentials..." minHeight="60vh" />;
   }
 
-  if (!user || user.role !== 'publisher') {
+  if (!isPublisher) {
     return (
       <div className="page-content" style={{ textAlign: 'center', paddingTop: '4rem' }}>
         <div className="card" style={{ maxWidth: '500px', margin: '0 auto', padding: '2rem' }}>
@@ -59,7 +45,7 @@ export function Dashboard() {
           <button
             className="btn btn-primary"
             onClick={() => {
-              window.location.href = '/index.html';
+              window.location.href = '/';
             }}
           >
             Return to Login
@@ -77,7 +63,7 @@ export function Dashboard() {
     <div className="page-content">
       {/* ── Header ───────────────────────────────── */}
       <PublisherDashboardHeader
-        username={user.username}
+        username={user?.username}
         pendingCount={dashData.pending.length}
         liveCount={dashData.liveCount}
         totalGames={dashData.myGames.length}
@@ -117,8 +103,6 @@ export function Dashboard() {
         <PublisherViewsChart games={dashData.myGames} />
       </div>
 
-      {/* ── Live Telemetry Panel ─────────────────── */}
-      <PublisherLiveTelemetry hasHillClimbing={dashData.hasHillClimbing} />
     </div>
   );
 }

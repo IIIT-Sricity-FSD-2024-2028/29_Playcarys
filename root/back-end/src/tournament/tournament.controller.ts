@@ -104,6 +104,12 @@ export class TournamentController {
     return this.tournamentService.unregisterPlayer(id, playerId);
   }
 
+  // POST /tournaments/:id/start — Start tournament & lock registrations
+  @Post(':id/start')
+  startTournament(@Param('id', ParseIntPipe) id: number) {
+    return this.tournamentService.startTournament(id);
+  }
+
   // PATCH /tournaments/:id
   @Patch(':id')
   update(

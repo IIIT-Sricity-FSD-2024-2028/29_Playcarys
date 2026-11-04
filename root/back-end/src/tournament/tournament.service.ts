@@ -13,7 +13,7 @@ import {
   CreateTournamentGameDto,
 } from './tournament.dto';
 import {
-  games, player_profiles, team_tournament, teams, users, roles, notifications,
+  games, player_profiles, team_tournament, teams, users, roles, groups, notifications,
   tournament_matches, tournament_results,
   DEFAULT_RAKE_PCT, formatPaise, Transaction, TournamentPrizeShare,
 } from '../data/store';
@@ -363,6 +363,16 @@ export class TournamentService {
     return this.enrich(updated);
   }
 
+  startTournament(id: number) {
+    const t = this.repo.findById(id);
+    if (!t) throw new NotFoundException(`Tournament ${id} not found`);
+    if (t.status === 'completed' || t.status === 'cancelled') {
+      throw new BadRequestException('Cannot start a completed or cancelled tournament');
+    }
+    const updated = this.repo.update(id, { status: 'in-progress' });
+    return this.enrich(updated);
+  }
+
   // Workflow: Register player for a tournament
   registerPlayer(tournamentId: number, dto: RegisterPlayerDto) {
     const t = this.repo.findById(tournamentId);
@@ -383,7 +393,21 @@ export class TournamentService {
       );
     }
 
+
     // R-TRN-9
+    // R-TRN-COMMUNITY: Only members of this community group can join
+    if (t.group_id != null) {
+      const g = groups.find((grp) => Number(grp.group_id) === Number(t.group_id));
+      const isMember = g && (
+        Number(g.owner_id) === Number(dto.player_id) ||
+        (g.officer_ids || []).map(Number).includes(Number(dto.player_id)) ||
+        (g.member_ids || []).map(Number).includes(Number(dto.player_id))
+      );
+      if (!isMember) {
+        throw new ForbiddenException('Only community members can join this tournament.');
+      }
+    }
+
     if (t.visibility === 'private') {
       if (!dto.invite_code || dto.invite_code.toUpperCase() !== (t.invite_code ?? '').toUpperCase()) {
         throw new ForbiddenException('This is a private tournament. A valid invite code is required to join.');
@@ -407,6 +431,7 @@ export class TournamentService {
     if (currentCount >= t.maxParticipants) {
       throw new BadRequestException('Tournament is full');
     }
+
 
     // R-TRN-9: a seat costs what the organiser said it costs.
     //

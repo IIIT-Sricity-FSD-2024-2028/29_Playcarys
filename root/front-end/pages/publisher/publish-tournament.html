@@ -179,6 +179,15 @@
   transition:all var(--trans-fast);
 }
 .back-row:hover { color:var(--accent-yellow); background:rgba(245,158,11,0.06); }
+
+/* Prize Input Helper & Rupee Toggle */
+.prize-header-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem; }
+.btn-rupee-toggle {
+  background:none; border:none; color:var(--accent-yellow,#f59e0b); font-size:0.75rem;
+  font-weight:600; cursor:pointer; padding:0; text-decoration:underline; transition:all var(--trans-fast);
+}
+.btn-rupee-toggle:hover { filter:brightness(1.2); }
+.prize-hint { font-size:0.72rem; color:var(--text-secondary); margin-top:0.3rem; display:block; }
 </style>
 </head>
 <body>
@@ -312,8 +321,12 @@
           </div>
           <div class="form-2col">
             <div class="form-group">
-              <label class="form-label">Prize Pool <span class="required">*</span></label>
-              <input class="form-input" id="t-prize" placeholder="e.g. ₹50,000 or $5,000"/>
+              <div class="prize-header-row">
+                <label class="form-label" style="margin-bottom:0">Prize Pool <span class="required">*</span></label>
+                <button type="button" class="btn-rupee-toggle" id="btn-toggle-rupee" onclick="toggleRupeeSymbol()" title="Remove Rupee symbol">Remove ₹</button>
+              </div>
+              <input class="form-input" id="t-prize" placeholder="e.g. ₹50,000 or $5,000" value="₹" oninput="updateRupeeToggleBtn()" onfocus="if(this.value==='₹'){const l=this.value.length;this.setSelectionRange(l,l)}"/>
+              <span class="prize-hint">Default is ₹ (Rupee). Keep it, edit it, or remove it.</span>
               <span class="form-error"></span>
             </div>
             <div class="form-group">
@@ -482,6 +495,34 @@ function showView(id) {
   } else {
     ALL_VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
   }
+}
+
+/* ── Rupee Symbol Controls ───────────────── */
+function updateRupeeToggleBtn() {
+  const prizeInput = document.getElementById('t-prize');
+  const btn = document.getElementById('btn-toggle-rupee');
+  if (!prizeInput || !btn) return;
+  if (prizeInput.value.includes('₹')) {
+    btn.textContent = 'Remove ₹';
+    btn.style.color = 'var(--accent-yellow, #f59e0b)';
+    btn.title = 'Remove Rupee symbol';
+  } else {
+    btn.textContent = '+ Add ₹';
+    btn.style.color = 'var(--accent-cyan, #00d4ff)';
+    btn.title = 'Add Rupee symbol';
+  }
+}
+
+function toggleRupeeSymbol() {
+  const prizeInput = document.getElementById('t-prize');
+  if (!prizeInput) return;
+  if (prizeInput.value.includes('₹')) {
+    prizeInput.value = prizeInput.value.replace(/₹\s?/, '');
+  } else {
+    prizeInput.value = '₹' + prizeInput.value;
+  }
+  updateRupeeToggleBtn();
+  prizeInput.focus();
 }
 
 /* ── Multi-game fest management (backend-driven) ─────────── */
@@ -713,7 +754,8 @@ function showEditor(id = null) {
 
   if (!id) {
     selectedGameId = '';
-    ['t-name','t-desc','t-prize','t-regclose','t-start','t-end'].forEach(i => document.getElementById(i).value = '');
+    ['t-name','t-desc','t-regclose','t-start','t-end'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('t-prize').value = '₹';
     document.getElementById('t-max').value = '32';
   } else {
     // Editing is only supported for local (single-game, legacy) tournaments —
@@ -723,7 +765,7 @@ function showEditor(id = null) {
       selectedGameId = String(t.game_id);
       document.getElementById('t-name').value   = t.tournament_name || t.name;
       document.getElementById('t-desc').value   = t.desc;
-      document.getElementById('t-prize').value  = t.prize;
+      document.getElementById('t-prize').value  = t.prize || '₹';
       document.getElementById('t-max').value    = t.maxParticipants;
       document.getElementById('t-regclose').value = t.regClose;
       document.getElementById('t-start').value  = t.start_date || t.startDate;
@@ -731,6 +773,7 @@ function showEditor(id = null) {
     }
   }
 
+  updateRupeeToggleBtn();
   currentStep = 1;
   [1,2,3,4].forEach(i => document.getElementById('step-'+i).classList.toggle('hidden', i !== 1));
   renderRail();
@@ -774,7 +817,7 @@ function nextStep(n) {
     const valid = Validate.form([
       { el: document.getElementById('t-name'),  rules: [{type:'required'}] },
       { el: document.getElementById('t-desc'),  rules: [{type:'required'}] },
-      { el: document.getElementById('t-prize'), rules: [{type:'required'}] }
+      { el: document.getElementById('t-prize'), rules: [{type:'required'}, {type:'custom', fn: v => v.trim() !== '₹', msg: 'Please enter a prize amount'}] }
     ]);
     if (!valid) return;
   }
@@ -799,7 +842,7 @@ async function submitTournament() {
   const vName = document.getElementById('t-name').value.trim();
   const vDesc = document.getElementById('t-desc').value.trim();
   const vPrize = document.getElementById('t-prize').value.trim();
-  if (!vName || !vDesc || !vPrize) { Toast.error('All details in Step 3 are required'); return; }
+  if (!vName || !vDesc || !vPrize || vPrize === '₹') { Toast.error('All details in Step 3 are required'); return; }
 
   const vReg = document.getElementById('t-regclose').value;
   const vStart = document.getElementById('t-start').value;
@@ -1024,7 +1067,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
-
-
-

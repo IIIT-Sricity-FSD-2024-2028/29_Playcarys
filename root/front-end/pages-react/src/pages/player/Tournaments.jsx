@@ -4,6 +4,7 @@ import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, sameId, hydrateFromServer } from '../../services/playerService';
 import {
   kindOf,
+  isCommunityMember,
   tournamentService
 } from '../../services/tournamentService';
 import TournamentFilters from '../../components/player/tournaments/TournamentFilters';
@@ -54,12 +55,12 @@ export function Tournaments() {
 
   // Hydrate tournaments from backend on mount
   useEffect(() => {
-    hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament', 'teams', 'games'])
+    hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament', 'teams', 'games', 'tournament_games', 'tournament_matches'])
       .then(() => {
         setDb({ ...getDatabase() });
         setDbVersion((v) => v + 1);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Listen to cross-tab storage changes and global DB updates
@@ -98,10 +99,24 @@ export function Tournaments() {
 
   // Visibility filtering (private tournaments visible only to organizer or registered)
   const isVisible = (t) => {
-    if (t.visibility !== 'private') return true;
     const isOrg = sameId(t.organizer || t.organizer_id, userId);
     const inReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
-    return isOrg || inReg;
+
+    // Community tournaments are visible only to members of that specific community group
+    if (t.group_id != null) {
+      const isMember = isCommunityMember(t.group_id, userId, db);
+      if (!isMember && !isOrg && !inReg) {
+        return false;
+      }
+    }
+
+    if (t.visibility === 'private') return isOrg || inReg;
+    return true;
+  };
+  const _unused = (t) => {
+    const isOrg = sameId(t.organizer || t.organizer_id, userId);
+    const inReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
+
   };
 
   let allTournaments = (db.tournaments || []).filter(isVisible);
@@ -293,7 +308,7 @@ export function Tournaments() {
             setDbVersion((v) => v + 1);
             try {
               await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
-            } catch (e) {}
+            } catch (e) { }
             setDb({ ...getDatabase() });
             setDbVersion((v) => v + 1);
           }}

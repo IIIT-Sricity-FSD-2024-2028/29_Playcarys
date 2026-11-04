@@ -93,6 +93,15 @@ const CreateTournament = () => {
     };
   }, []);
 
+  // Preselect community kind if groupId query param is present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gId = params.get('groupId') || params.get('group');
+    if (gId) {
+      setKind('community');
+    }
+  }, []);
+
   // When kind changes to community, load user's groups
   useEffect(() => {
     if (kind !== 'community') return;
@@ -110,7 +119,13 @@ const CreateTournament = () => {
         if (isMounted) {
           setGroups(filtered);
           if (filtered.length > 0) {
-            setGroupId(filtered[0].id || filtered[0].group_id);
+            const params = new URLSearchParams(window.location.search);
+            const gId = params.get('groupId') || params.get('group');
+            if (gId && filtered.some((g) => Number(g.id || g.group_id) === Number(gId))) {
+              setGroupId(Number(gId));
+            } else {
+              setGroupId(filtered[0].id || filtered[0].group_id);
+            }
           } else {
             setGroupId('');
           }
@@ -602,7 +617,7 @@ const CreateTournament = () => {
                             {imgSrc ? (
                               <img
                                 src={imgSrc}
-                                alt={g.game_title || g.title || 'Game'}
+                                alt={g.game_name || g.name || g.game_title || g.title || 'Game'}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
@@ -623,8 +638,8 @@ const CreateTournament = () => {
                               {emoji}
                             </span>
                           </div>
-                          <div className="game-opt-name" title={g.game_title || g.title}>
-                            {g.game_title || g.title}
+                          <div className="game-opt-name" title={g.game_name || g.name || g.game_title || g.title || `Game #${g.game_id || g.id}`}>
+                            {g.game_name || g.name || g.game_title || g.title || `Game #${g.game_id || g.id}`}
                           </div>
                           <div className="game-opt-mode">
                             {(g.game_mode || g.mode || 'Single').toUpperCase()}
@@ -686,7 +701,7 @@ const CreateTournament = () => {
                           >
                             {games.map((g) => (
                               <option key={g.game_id || g.id} value={g.game_id || g.id}>
-                                {g.game_title || g.title}
+                                {g.game_name || g.name || g.game_title || g.title || `Game #${g.game_id || g.id}`}
                               </option>
                             ))}
                           </select>

@@ -332,7 +332,13 @@ async function loadMyGroupsForPicker() {
     return;
   }
   sel.innerHTML = mine.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
-  selectedGroupId = mine[0].group_id;
+  const urlGroupId = parseInt(new URLSearchParams(location.search).get('groupId') || new URLSearchParams(location.search).get('group'), 10);
+  if (urlGroupId && mine.some(g => Number(g.group_id) === urlGroupId)) {
+    selectedGroupId = urlGroupId;
+    sel.value = urlGroupId;
+  } else {
+    selectedGroupId = mine[0].group_id;
+  }
   sel.onchange = () => { selectedGroupId = sel.value; };
 }
 
@@ -578,6 +584,10 @@ document.addEventListener('DOMContentLoaded', () => {
   buildNavbar('player','tournaments');
   renderRail();
   renderGamesSelection();
+  const urlGroupId = parseInt(new URLSearchParams(location.search).get('groupId') || new URLSearchParams(location.search).get('group'), 10);
+  if (urlGroupId) {
+    selectKind('community');
+  }
 });
 </script>
 </body>

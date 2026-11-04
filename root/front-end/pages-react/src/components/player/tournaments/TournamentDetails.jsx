@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   isRegistered,
   myTeamsIn,
   entrantName,
   entrantCount,
+  isCommunityMember,
+  sanitizeTournamentMatches,
   tournamentService
 } from '../../../services/tournamentService';
-import { formatDate, sameId } from '../../../services/playerService';
+import { formatDate, sameId, GAME_ASSETS } from '../../../services/playerService';
 import TournamentOrganizerPanel from './TournamentOrganizerPanel';
 import TournamentTabs from './TournamentTabs';
 import TournamentBracket from './TournamentBracket';
@@ -31,6 +33,13 @@ export function TournamentDetails({
 
   const tid = t.tournament_id || t.id;
   const uid = String(userId);
+
+  // Automatically heal any falsely disputed or unplayed pending matches
+  useEffect(() => {
+    if (!t) return;
+    sanitizeTournamentMatches(tid, db);
+  }, [tid, db]);
+
   const reg = isRegistered(t, userId, db);
   const entrants = entrantCount(t, db);
   const max = t.maxParticipants || t.max_participants || 16;
@@ -42,10 +51,151 @@ export function TournamentDetails({
   const isScoreContest = t.format
     ? t.format === 'score'
     : gameOf && gameOf.game_mode
-    ? gameOf.game_mode === 'single'
-    : String(t.game_id) === '8';
+      ? gameOf.game_mode === 'single'
+      : String(t.game_id) === '8';
 
   const publisherUser = (db.users || []).find((u) => sameId(u.user_id || u.id, t.publisherId || t.organizer));
+
+  // Creator & Organizer resolution (never 'PlayCarys')
+  const organizerId = t.organizer ?? t.organizer_id ?? t.publisherId ?? t.publisher_id ?? t.created_by ?? t.createdBy ?? t.user_id;
+  const creatorUser = (db.users || []).find((u) => sameId(u.user_id || u.id, organizerId));
+  const groupObj = t.group_id != null ? (db.groups || []).find((g) => sameId(g.group_id || g.id, t.group_id)) : null;
+  const groupOwnerUser = groupObj ? (db.users || []).find((u) => sameId(u.user_id || u.id, groupObj.owner_id)) : null;
+  const pubProf = (db.publisher_profiles || []).find((p) => sameId(p.user_id, organizerId));
+
+  const isPlayCarys = (str) => !str || /^playcarys$/i.test(String(str).trim());
+
+  let creatorDisplayName = null;
+  if (creatorUser?.user_name && !isPlayCarys(creatorUser.user_name)) creatorDisplayName = creatorUser.user_name;
+  else if (creatorUser?.username && !isPlayCarys(creatorUser.username)) creatorDisplayName = creatorUser.username;
+  else if (creatorUser?.name && !isPlayCarys(creatorUser.name)) creatorDisplayName = creatorUser.name;
+  else if (pubProf?.studio_name && !isPlayCarys(pubProf.studio_name)) creatorDisplayName = pubProf.studio_name;
+  else if (pubProf?.company_name && !isPlayCarys(pubProf.company_name)) creatorDisplayName = pubProf.company_name;
+  else if (t.organizer_name && !isPlayCarys(t.organizer_name)) creatorDisplayName = t.organizer_name.trim();
+  else if (t.publisherName && !isPlayCarys(t.publisherName)) creatorDisplayName = t.publisherName.trim();
+  else if (groupOwnerUser?.user_name && !isPlayCarys(groupOwnerUser.user_name)) creatorDisplayName = groupOwnerUser.user_name;
+  else if (groupOwnerUser?.username && !isPlayCarys(groupOwnerUser.username)) creatorDisplayName = groupOwnerUser.username;
+  else if (groupObj?.owner_name && !isPlayCarys(groupObj.owner_name)) creatorDisplayName = groupObj.owner_name.trim();
+  else if (t.author && !isPlayCarys(t.author)) creatorDisplayName = t.author.trim();
+  else if (creatorUser?.role === 'publisher') creatorDisplayName = `Publisher #${organizerId || '1'}`;
+  else if (groupObj) creatorDisplayName = `${groupObj.name} Host`;
+  else if (organizerId != null && String(organizerId) !== '') creatorDisplayName = `Player #${organizerId}`;
+  else creatorDisplayName = 'Tournament Creator';
+
+  const isCommunityTourn = t.group_id != null || t.kind === 'community' || (groupObj && sameId(groupObj.owner_id, organizerId));
+  const isPublisherTourn = creatorUser?.role === 'publisher' || t.organizer_role === 'publisher' || t.kind === 'official' || t.publisherId != null;
+  const isAdminTourn = creatorUser?.role === 'admin';
+
+  let creatorRoleSubtitle = 'Verified Player ✓';
+  let creatorRoleColor = 'var(--accent-green, #10b981)';
+  let creatorGradient = 'linear-gradient(135deg, #059669, #10b981)';
+  let creatorGlowColor = 'rgba(16, 185, 129, 0.25)';
+
+  if (isCommunityTourn) {
+    creatorRoleSubtitle = 'Community Owner ✓';
+    creatorRoleColor = 'var(--accent-yellow, #f59e0b)';
+    creatorGradient = 'linear-gradient(135deg, #d97706, #f59e0b)';
+    creatorGlowColor = 'rgba(245, 158, 11, 0.25)';
+  } else if (isPublisherTourn) {
+    creatorRoleSubtitle = 'Verified Publisher ✓';
+    creatorRoleColor = 'var(--accent-cyan, #06b6d4)';
+    creatorGradient = 'linear-gradient(135deg, var(--accent-purple, #8b5cf6), var(--accent-cyan, #06b6d4))';
+    creatorGlowColor = 'rgba(6, 182, 212, 0.25)';
+  } else if (isAdminTourn) {
+    creatorRoleSubtitle = 'Platform Admin ✓';
+    creatorRoleColor = '#a78bfa';
+    creatorGradient = 'linear-gradient(135deg, #7c3aed, #a78bfa)';
+    creatorGlowColor = 'rgba(167, 139, 250, 0.25)';
+  }
+
+  const creatorAvatar =
+    creatorUser?.avatar ||
+    groupOwnerUser?.avatar ||
+    (creatorDisplayName ? creatorDisplayName.slice(0, 2).toUpperCase() : '👤');
+
+  const helperGetGameEmoji = (g) => {
+    if (!g) return '🎮';
+    const imgKey = g.img || '';
+    if (GAME_ASSETS?.EMOJI_MAP?.[imgKey]) return GAME_ASSETS.EMOJI_MAP[imgKey];
+    if (g.icon) return g.icon;
+    const cat = (g.category || g.game_type || '').toLowerCase();
+    const gName = (g.game_name || g.name || g.title || '').toLowerCase();
+    if (gName.includes('chess')) return '♟️';
+    if (gName.includes('carrom')) return '🎲';
+    if (gName.includes('deadshot')) return '🎯';
+    if (gName.includes('hill')) return '🚙';
+    if (gName.includes('hexgl')) return '🛸';
+    if (gName.includes('2048')) return '🔢';
+    if (gName.includes('hextris')) return '⬡';
+    if (gName.includes('ancient')) return '🐉';
+    if (cat.includes('rac')) return '🏎️';
+    if (cat.includes('shoot') || cat.includes('fps') || cat.includes('action')) return '🎯';
+    if (cat.includes('puzz') || cat.includes('logic')) return '🧩';
+    if (cat.includes('sport')) return '🎱';
+    if (cat.includes('strat') || cat.includes('board')) return '♟️';
+    return '🎮';
+  };
+
+  const helperGetGameImage = (g) => {
+    if (!g || !g.img) return null;
+    const imgKey = g.img;
+    if (imgKey.startsWith('http') || imgKey.startsWith('/') || imgKey.startsWith('data:image/')) return imgKey;
+    if (GAME_ASSETS?.IMG_MAP?.[imgKey]) return GAME_ASSETS.IMG_MAP[imgKey];
+    return null;
+  };
+
+  let rawStages = (Array.isArray(t.games) && t.games.length > 0)
+    ? t.games
+    : (Array.isArray(t.stages) && t.stages.length > 0)
+      ? t.stages
+      : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
+        ? t.stage_games
+        : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
+
+  const isMultiTitle = (t.tournament_name || t.name || '').toLowerCase().includes('multi');
+  if (rawStages.length < 2 && (t.type === 'multi' || isMultiTitle)) {
+    const gList = db.games || [];
+    const chessG = gList.find((g) => (g.game_name || g.name || '').toLowerCase().includes('chess')) || gList[0] || { game_id: 7, game_name: 'Chess Pro' };
+    const hextrisG = gList.find((g) => (g.game_name || g.name || '').toLowerCase().includes('hextris')) || gList[1] || { game_id: 8, game_name: 'Hextris' };
+    rawStages = [
+      { order: 1, stage_order: 1, stageId: chessG.game_id || 7, game_id: chessG.game_id || 7, game_name: chessG.game_name || chessG.name || 'Chess Pro', name: chessG.game_name || chessG.name || 'Chess Pro', format: 'score' },
+      { order: 2, stage_order: 2, stageId: hextrisG.game_id || 8, game_id: hextrisG.game_id || 8, game_name: hextrisG.game_name || hextrisG.name || 'Hextris', name: hextrisG.game_name || hextrisG.name || 'Hextris', format: 'score' }
+    ];
+  }
+
+  const isMultiGame = t.type === 'multi' || isMultiTitle || rawStages.length > 1;
+
+  const tournamentGamesList = isMultiGame
+    ? rawStages.map((s, idx) => {
+      const sGameId = s.game_id || s.gameId;
+      const gObj = (db.games || []).find((g) => sameId(g.game_id || g.id, sGameId));
+      const gName = gObj?.game_name || gObj?.name || gObj?.title || s.game_name || s.name || (t.game ? `${t.game} Stage ${idx + 1}` : `Stage ${idx + 1} Game`);
+      const isSc = s.format === 'score' || (!s.format && isScoreContest);
+      return {
+        name: gName,
+        subLabel: `Stage ${s.stage_order || idx + 1}${s.metric_label ? ` · ${s.metric_label}` : ''}`,
+        emoji: helperGetGameEmoji(gObj),
+        imgSrc: helperGetGameImage(gObj),
+        formatBadge: isSc ? 'Score Attack' : 'Knockout',
+        formatBadgeBg: isSc ? 'rgba(245, 158, 11, 0.12)' : 'rgba(6, 182, 212, 0.12)',
+        formatBadgeColor: isSc ? 'var(--accent-yellow)' : 'var(--accent-cyan)',
+        formatBadgeBorder: isSc ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'
+      };
+    })
+    : [
+      {
+        name: gameOf?.game_name || gameOf?.name || gameOf?.title || t.game || 'Tournament Arena Game',
+        subLabel: gameOf?.category ? `${gameOf.category.toUpperCase()} · Mode: ${gameOf.game_mode || 'standard'}` : (t.format ? `Format: ${t.format}` : null),
+        emoji: helperGetGameEmoji(gameOf),
+        imgSrc: helperGetGameImage(gameOf),
+        formatBadge: isScoreContest ? 'Score Attack' : 'Knockout 1v1',
+        formatBadgeBg: isScoreContest ? 'rgba(245, 158, 11, 0.12)' : 'rgba(6, 182, 212, 0.12)',
+        formatBadgeColor: isScoreContest ? 'var(--accent-yellow)' : 'var(--accent-cyan)',
+        formatBadgeBorder: isScoreContest ? 'rgba(245, 158, 11, 0.3)' : 'rgba(6, 182, 212, 0.3)'
+      }
+    ];
+
+  const singleGameCategory = !isMultiGame && gameOf?.category ? gameOf.category : null;
 
   // My current ready match
   const mySlots = t.team_size
@@ -56,27 +206,33 @@ export function TournamentDetails({
     (m) =>
       sameId(m.tournamentId, t.id || t.tournament_id) &&
       (mySlots.includes(String(m.player1)) || mySlots.includes(String(m.player2))) &&
-      m.status === 'waiting' &&
+      (m.status === 'waiting' || (m.status === 'pending' && !m.reportedWinner && !m.reportedBy)) &&
       m.player1 &&
       m.player2 &&
       m.player1 !== 'BYE' &&
       m.player2 !== 'BYE'
   );
 
-  // Matches pending verification or in dispute
+  // Matches pending verification or in dispute (must have an actual reported winner or reporter)
   const pendingMatch = (db.tournament_matches || []).find(
     (m) =>
       sameId(m.tournamentId, t.id || t.tournament_id) &&
       (sameId(m.player1, uid) || sameId(m.player2, uid)) &&
-      m.status === 'pending'
+      m.status === 'pending' &&
+      (m.reportedWinner != null || m.reportedBy != null)
   );
 
   const disputedMatch = (db.tournament_matches || []).find(
     (m) =>
       sameId(m.tournamentId, t.id || t.tournament_id) &&
-      (sameId(m.player1, uid) || sameId(m.player2, uid)) &&
+      (sameId(m.player1, uid) || sameId(m.player2, uid) || sameId(organizerId, userId)) &&
       m.status === 'disputed'
   );
+
+  // Community membership status
+  const isCommunityMemberUser = t.group_id != null
+    ? isCommunityMember(t.group_id, userId, db) || sameId(organizerId, userId)
+    : true;
 
   // Launch handlers
   function handlePlayGame() {
@@ -102,9 +258,34 @@ export function TournamentDetails({
     onRefresh();
   }
 
+  const organizerRoleTitle = isCommunityTourn
+    ? 'Community Organizer'
+    : isPublisherTourn
+      ? 'Tournament Publisher'
+      : 'Tournament Organizer';
+
   function handleDisputeResult(mid) {
     tournamentService.disputeResult(mid);
-    onShowToast('Match disputed. A moderator has been notified.', 'error');
+    onShowToast(`Match disputed. ${organizerRoleTitle} (${creatorDisplayName}) has been notified to review and resolve the match.`, 'info');
+    onRefresh();
+  }
+
+  function handleResetAndEnterMatch(mid) {
+    tournamentService.resetDispute(mid);
+    onShowToast('Dispute cleared! Entering arena...', 'success');
+    onRefresh();
+    handleEnterMatch(mid);
+  }
+
+  function handleResetDisputeOnly(mid) {
+    tournamentService.resetDispute(mid);
+    onShowToast('Dispute cleared — match is ready to be played.', 'success');
+    onRefresh();
+  }
+
+  function handleResolveDisputeWinner(mid, winnerId) {
+    tournamentService.resolveDisputeWinner(mid, winnerId);
+    onShowToast('Dispute resolved! Winner advanced in bracket.', 'success');
     onRefresh();
   }
 
@@ -178,25 +359,58 @@ export function TournamentDetails({
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                   <span
-                    className={`badge badge-${
-                      t.status === 'in-progress' ? 'progress' : t.status === 'completed' ? 'approved' : 'upcoming'
-                    }`}
+                    className={`badge badge-${t.status === 'in-progress'
+                        ? 'progress'
+                        : t.status === 'completed'
+                          ? 'approved'
+                          : t.status === 'paused'
+                            ? 'waiting'
+                            : t.status === 'cancelled'
+                              ? 'rejected'
+                              : 'upcoming'
+                      }`}
                   >
-                    {t.status === 'in-progress' ? 'In Progress' : t.status === 'completed' ? 'Completed' : 'Upcoming'}
+                    {t.status === 'in-progress'
+                      ? 'In Progress'
+                      : t.status === 'completed'
+                        ? 'Completed'
+                        : t.status === 'paused'
+                          ? 'Paused'
+                          : t.status === 'cancelled'
+                            ? 'Cancelled'
+                            : 'Upcoming'}
                   </span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                     ID: {t.tournament_id || t.id}
                   </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                    👥 {entrants} / {max} {t.team_size ? 'Teams' : 'Players'} Registered
+                  </span>
                 </div>
                 <h1 className="hero-title">{t.tournament_name || t.name || t.desc}</h1>
                 <p className="hero-desc">{t.desc}</p>
+                {t.status === 'cancelled' && (
+                  <div style={{ color: '#f87171', fontSize: '0.88rem', marginTop: '0.4rem', fontWeight: 600 }}>
+                    🛑 Cancelled: {t.cancel_reason || 'This tournament was cancelled by the organizer.'}
+                  </div>
+                )}
+                {t.status === 'completed' && t.winner && (
+                  <div style={{ color: 'var(--accent-green)', fontSize: '0.92rem', marginTop: '0.4rem', fontWeight: 700 }}>
+                    🏆 Champion: {t.winner}
+                  </div>
+                )}
               </div>
 
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                  Prize Pool
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                    Prize Pool
+                  </div>
+                  <div className="hero-prize">{rawPrize}</div>
                 </div>
-                <div className="hero-prize">{rawPrize}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Registered: <strong style={{ color: 'var(--accent-cyan)' }}>{entrants}</strong> / {max} {t.team_size ? 'Teams' : 'Players'}
+                </div>
               </div>
             </div>
           </div>
@@ -277,17 +491,76 @@ export function TournamentDetails({
         {disputedMatch && (
           <div
             className="match-action-bar"
-            style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'var(--accent-red)', animation: 'none' }}
+            style={{
+              background: 'rgba(239,68,68,0.1)',
+              borderColor: 'var(--accent-red)',
+              animation: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+              alignItems: 'flex-start'
+            }}
           >
-            <div>
-              <h3 style={{ color: 'var(--accent-red)', marginBottom: '0.2rem' }}>⚠️ Match in Dispute</h3>
-              <p className="text-sm" style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                A publisher is currently reviewing the logs for match {disputedMatch.match_id}.
-              </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h3 style={{ color: 'var(--accent-red)', marginBottom: '0.2rem' }}>⚠️ Match in Dispute</h3>
+                <p className="text-sm" style={{ margin: 0, color: 'var(--text-secondary)' }}>
+                  Match <strong>{disputedMatch.match_id}</strong> ({entrantName(t, disputedMatch.player1, db)} vs {entrantName(t, disputedMatch.player2, db)}) is under review by <strong>{organizerRoleTitle} ({creatorDisplayName})</strong>.
+                </p>
+              </div>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.6rem',
+                  borderRadius: '6px',
+                  background: 'rgba(239,68,68,0.2)',
+                  color: 'var(--accent-red)',
+                  border: '1px solid rgba(239,68,68,0.4)',
+                  fontWeight: 700
+                }}
+              >
+                In Dispute
+              </span>
             </div>
-            <button className="btn btn-ghost disabled" disabled type="button">
-              Under Review
-            </button>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              {(sameId(disputedMatch.player1, uid) || sameId(disputedMatch.player2, uid)) && (
+                <button
+                  className="btn btn-purple"
+                  onClick={() => handleResetAndEnterMatch(disputedMatch.match_id)}
+                  type="button"
+                >
+                  ⚔️ Reset Dispute & Enter Arena
+                </button>
+              )}
+
+              {sameId(organizerId, userId) && (
+                <>
+                  <button
+                    className="btn btn-ghost"
+                    style={{ borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}
+                    onClick={() => handleResetDisputeOnly(disputedMatch.match_id)}
+                    type="button"
+                  >
+                    🔄 Clear Dispute (Let Players Play)
+                  </button>
+                  <button
+                    className="btn btn-green"
+                    onClick={() => handleResolveDisputeWinner(disputedMatch.match_id, disputedMatch.player1)}
+                    type="button"
+                  >
+                    Award Win to {entrantName(t, disputedMatch.player1, db)}
+                  </button>
+                  <button
+                    className="btn btn-green"
+                    onClick={() => handleResolveDisputeWinner(disputedMatch.match_id, disputedMatch.player2)}
+                    type="button"
+                  >
+                    Award Win to {entrantName(t, disputedMatch.player2, db)}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -351,7 +624,7 @@ export function TournamentDetails({
         />
 
         {/* Navigation Tabs */}
-        <TournamentTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <TournamentTabs activeTab={activeTab} onTabChange={setActiveTab} entrantCount={entrants} />
 
         {/* Tab 1: Overview */}
         {activeTab === 'tab-overview' && (
@@ -453,13 +726,35 @@ export function TournamentDetails({
                       Field Full
                     </button>
                   ) : t.status === 'upcoming' ? (
-                    <button
-                      className="reg-cta open"
-                      onClick={() => onOpenRegModal(t)}
-                      type="button"
-                    >
-                      {t.team_size ? '⚡ Enter a Team' : '⚡ Register Now'}
-                    </button>
+                    !isCommunityMemberUser ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
+                        <button
+                          className="reg-cta registered"
+                          disabled
+                          style={{
+                            opacity: 0.8,
+                            cursor: 'not-allowed',
+                            background: 'rgba(245, 158, 11, 0.12)',
+                            borderColor: 'var(--accent-yellow)',
+                            color: 'var(--accent-yellow)'
+                          }}
+                          type="button"
+                        >
+                          🔒 Community Members Only
+                        </button>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--accent-yellow)', textAlign: 'center', lineHeight: 1.4 }}>
+                          Exclusive to members of <strong>{groupObj?.name || 'this community'}</strong>. Join the community group to participate.
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className="reg-cta open"
+                        onClick={() => onOpenRegModal(t)}
+                        type="button"
+                      >
+                        {t.team_size ? '⚡ Enter a Team' : '⚡ Register Now'}
+                      </button>
+                    )
                   ) : (
                     <button
                       className="reg-cta registered"
@@ -470,8 +765,8 @@ export function TournamentDetails({
                       {t.status === 'in-progress'
                         ? 'In Progress'
                         : t.status === 'completed'
-                        ? 'Completed'
-                        : 'Registration Closed'}
+                          ? 'Completed'
+                          : 'Registration Closed'}
                     </button>
                   )}
 
@@ -492,34 +787,268 @@ export function TournamentDetails({
                 </div>
 
                 <div className="org-card">
-                  <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                    Organized by
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+                  {/* Games in Tournament (Before Created by) */}
+                  <div style={{ marginBottom: '0.85rem' }}>
                     <div
-                      className="avatar"
                       style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-cyan))',
+                        fontSize: '0.68rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.6rem',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '1rem',
-                        color: '#fff'
+                        justifyContent: 'space-between'
                       }}
                     >
-                      {publisherUser?.avatar || '🎮'}
+                      <span>🎮 {isMultiGame ? `Games in Tournament (${tournamentGamesList.length} Stages)` : 'Tournament Game'}</span>
+                      {singleGameCategory && (
+                        <span style={{ fontSize: '0.65rem', textTransform: 'capitalize', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                          {singleGameCategory}
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#fff' }}>
-                        {publisherUser?.username || t.publisherName || 'PlayCarys'}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {tournamentGamesList.map((gItem, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.55rem 0.75rem',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.07)',
+                            borderRadius: 'var(--radius-md, 8px)',
+                            gap: '0.6rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                            <div
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '6px',
+                                background: 'rgba(255, 255, 255, 0.06)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '1.15rem',
+                                flexShrink: 0,
+                                overflow: 'hidden'
+                              }}
+                            >
+                              {gItem.imgSrc ? (
+                                <img
+                                  src={gItem.imgSrc}
+                                  alt={gItem.name}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                />
+                              ) : (
+                                gItem.emoji
+                              )}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: '0.85rem',
+                                  color: '#fff',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}
+                                title={gItem.name}
+                              >
+                                {gItem.name}
+                              </div>
+                              {gItem.subLabel && (
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                  {gItem.subLabel}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 600,
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '99px',
+                              background: gItem.formatBadgeBg,
+                              color: gItem.formatBadgeColor,
+                              border: `1px solid ${gItem.formatBadgeBorder}`,
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
+                            }}
+                          >
+                            {gItem.formatBadge}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section Divider */}
+                  <div
+                    style={{
+                      height: '1px',
+                      background: 'var(--border-primary, rgba(255, 255, 255, 0.08))',
+                      margin: '0.9rem 0'
+                    }}
+                  />
+
+                  {/* Created by */}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.68rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.6rem'
+                      }}
+                    >
+                      Created by :
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div
+                        className="avatar"
+                        style={{
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '50%',
+                          background: creatorGradient,
+                          border: `2px solid ${creatorRoleColor}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: typeof creatorAvatar === 'string' && creatorAvatar.length <= 2 ? '0.88rem' : '1.15rem',
+                          fontWeight: 700,
+                          color: '#fff',
+                          flexShrink: 0,
+                          boxShadow: `0 0 12px ${creatorGlowColor}`
+                        }}
+                      >
+                        {creatorAvatar}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)' }}>
-                        Verified Publisher ✓
+
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: '0.92rem',
+                            color: '#fff',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={creatorDisplayName}
+                        >
+                          {creatorDisplayName}
+                        </div>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            color: creatorRoleColor,
+                            marginTop: '0.15rem'
+                          }}
+                        >
+                          {creatorRoleSubtitle}
+                        </div>
+                        {groupObj?.name && (
+                          <div
+                            style={{
+                              fontSize: '0.7rem',
+                              color: 'var(--text-secondary)',
+                              marginTop: '0.15rem',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                          >
+                            🛡️ Community: <span style={{ color: 'var(--accent-yellow)', fontWeight: 600 }}>{groupObj.name}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Tournament Meta Tags in this section */}
+                  <div
+                    style={{
+                      marginTop: '0.9rem',
+                      paddingTop: '0.75rem',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.45rem'
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid rgba(255, 255, 255, 0.07)'
+                      }}
+                    >
+                      {isMultiGame ? `🎪 Multi-Game (${tournamentGamesList.length} Stages)` : isScoreContest ? '🎯 Score Contest' : '🏆 Knockout 1v1'}
+                    </span>
+
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid rgba(255, 255, 255, 0.07)'
+                      }}
+                    >
+                      {t.team_size ? `👥 Squad (${t.team_size}v${t.team_size})` : '🧍 Solo (1v1)'}
+                    </span>
+
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '6px',
+                        background: t.visibility === 'private' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                        color: t.visibility === 'private' ? 'var(--accent-yellow)' : 'var(--accent-green)',
+                        border: `1px solid ${t.visibility === 'private' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                      }}
+                    >
+                      {t.visibility === 'private' ? `🔒 Private${t.invite_code ? ` · ${t.invite_code}` : ''}` : '🌐 Public'}
+                    </span>
+
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid rgba(255, 255, 255, 0.07)'
+                      }}
+                    >
+                      {t.group_id != null ? '🛡️ Community' : t.organizer_role === 'publisher' || t.kind === 'official' ? '🏢 Official' : '🎲 Casual'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -585,11 +1114,31 @@ export function TournamentDetails({
         {activeTab === 'tab-leaderboard' && (
           <div className="tab-content">
             <div className="info-section">
-              <h3>{isScoreContest ? '🏁 Leaderboard' : '🏆 Official Leaderboard'}</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <h3 style={{ margin: 0 }}>
+                  {isScoreContest ? '🏁 Leaderboard & Participants' : '🏆 Official Leaderboard & Participants'}
+                </h3>
+                <span
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    padding: '0.35rem 0.85rem',
+                    borderRadius: '20px',
+                    background: 'rgba(0, 212, 255, 0.12)',
+                    color: 'var(--accent-cyan)',
+                    border: '1px solid rgba(0, 212, 255, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  👥 {entrants} / {max} {t.team_size ? 'Teams' : 'Players'} Registered
+                </span>
+              </div>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
                 {isScoreContest
-                  ? 'Everyone plays the same game; the best result wins. Play to set your record and climb the board.'
-                  : 'Players are seeded by their global PlayCarys Points (PCP). Win matches to climb the ranks!'}
+                  ? `Everyone plays the same game; highest score wins. Currently ${entrants} of ${max} ${t.team_size ? 'teams' : 'players'} registered.`
+                  : `Players are seeded by their global PlayCarys Points (PCP). Currently ${entrants} of ${max} ${t.team_size ? 'teams' : 'players'} registered.`}
               </p>
               <TournamentLeaderboard
                 tournament={t}

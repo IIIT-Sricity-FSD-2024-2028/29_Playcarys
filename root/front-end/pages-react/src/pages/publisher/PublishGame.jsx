@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AuthContext from '../../context/AuthContext';
+import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import publisherService from '../../services/publisherService';
 import StepRail from '../../components/publisher/publish/StepRail';
 import HostingModeStep from '../../components/publisher/publish/HostingModeStep';
@@ -12,7 +12,12 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/publish.css';
 
 export function PublishGame() {
-  const { user, loading: authLoading } = useContext(AuthContext);
+  const {
+    user,
+    publisherId,
+    isPublisher,
+    authLoading
+  } = usePublisherAuth();
   const navigate = useNavigate();
 
   // Wizard step: 0 to 3
@@ -369,7 +374,7 @@ export function PublishGame() {
     return <LoadingState message="Loading Publisher Studio…" />;
   }
 
-  if (!authLoading && (!user || user.role !== 'publisher')) {
+  if (!authLoading && !isPublisher) {
     return (
       <div className="page-content" style={{ textAlign: 'center', padding: '5rem 1rem' }}>
         <h2>Publisher Access Required</h2>

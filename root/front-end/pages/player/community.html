@@ -203,6 +203,35 @@
   </div>
 </div>
 
+<!-- EDIT GROUP -->
+<div class="modal-overlay" id="edit-group-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><h3>Edit Group Details</h3><button class="modal-close" onclick="Modal.close('edit-group-modal')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-g-id"/>
+      <div class="form-group"><label class="form-label">Name <span class="required">*</span></label>
+        <input class="form-input" id="edit-g-name" placeholder="e.g. Dragon Clan" maxlength="100"/></div>
+      <div class="form-group"><label class="form-label">Description</label>
+        <textarea class="form-textarea" id="edit-g-desc" placeholder="What's this group about?" style="min-height:80px"></textarea></div>
+      <div class="form-group"><label class="form-label">Visibility</label>
+        <select class="form-input" id="edit-g-visibility">
+          <option value="public">🌐 Public — listed for anyone to find</option>
+          <option value="private">🔒 Private — hidden from browse</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Who can join?</label>
+        <select class="form-input" id="edit-g-joinmode">
+          <option value="open">Open — instant join</option>
+          <option value="request">Request — owner/officers approve</option>
+          <option value="invite_only">Invite-only — no self-serve join</option>
+        </select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('edit-group-modal')">Cancel</button>
+      <button class="btn btn-yellow" onclick="saveGroupDetails()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- CREATE TEAM -->
 <div class="modal-overlay" id="create-team-modal">
   <div class="modal" style="max-width:420px">
@@ -263,6 +292,7 @@
 function uid() { const s = Auth.getSession(); return parseInt(s.userId, 10); }
 let activeTeamId = null;
 let linkedMap = {};   // user_id -> linked external game accounts
+let allGroupsList = [];
 
 function setTab(name) {
   document.querySelectorAll('.cm-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
@@ -278,12 +308,18 @@ function groupCard(g, mine) {
   const isOfficer = (g.officer_ids || []).includes(uid());
   const role = isOwner ? '<span class="pill pill-owner">👑 Owner</span>'
              : isOfficer ? '<span class="pill pill-officer">⭐ Officer</span>' : '';
+  const editBtn = isOwner
+    ? `<button class="mini mini-ghost" style="margin-left:auto;padding:0.15rem 0.5rem;font-size:0.72rem" onclick="event.stopPropagation(); openEditGroupModal(${g.group_id})">✏️ Edit</button>`
+    : '';
   return `
   <div class="cm-card" onclick="location.href='group-detail.html?id=${g.group_id}'">
     <div class="cm-card-top">
       <div class="cm-avatar">${(g.name||'?').slice(0,2).toUpperCase()}</div>
-      <div style="min-width:0">
-        <div class="cm-name">${g.name}</div>
+      <div style="min-width:0;flex:1">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem">
+          <div class="cm-name">${g.name}</div>
+          ${editBtn}
+        </div>
         <div class="cm-sub">
           <span class="pill pill-${g.visibility}">${g.visibility === 'private' ? '🔒 Private' : '🌐 Public'}</span>
           ${role}
@@ -293,7 +329,7 @@ function groupCard(g, mine) {
     <p class="cm-desc">${g.desc || 'No description yet.'}</p>
     <div class="cm-foot">
       <span>👥 ${g.member_count} member${g.member_count===1?'':'s'}</span>
-      <span>🏆 ${g.tournament_count} event${g.tournament_count===1?'':'s'}</span>
+      <span style="cursor:pointer;color:var(--accent-yellow)" onclick="event.stopPropagation(); location.href='group-detail.html?id=${g.group_id}&tab=tournaments'">🏆 ${g.tournament_count} event${g.tournament_count===1?'':'s'}</span>
     </div>
   </div>`;
 }
@@ -301,10 +337,14 @@ function groupCard(g, mine) {
 async function renderGroups() {
   let all = [];
   try { all = await API.get(`/groups?viewerId=${uid()}`); }
-  catch (e) { Toast.error('Could not load groups from the backend.'); }
+  catch (e) {
+    if (typeof DB !== 'undefined' && DB.groups) all = DB.groups;
+    else Toast.error('Could not load groups from the backend.');
+  }
 
-  const mine   = all.filter(g => g.member_ids.includes(uid()));
-  const others = all.filter(g => !g.member_ids.includes(uid()));
+  allGroupsList = all;
+  const mine   = all.filter(g => (g.member_ids||[]).includes(uid()));
+  const others = all.filter(g => !(g.member_ids||[]).includes(uid()));
 
   document.getElementById('my-groups').innerHTML = mine.length
     ? mine.map(g => groupCard(g, true)).join('')
@@ -318,6 +358,51 @@ async function renderGroups() {
   document.getElementById('stat-groups').textContent = mine.length;
   document.getElementById('tabn-groups').textContent = mine.length;
   document.getElementById('stat-tourn').textContent = mine.reduce((n,g) => n + (g.tournament_count||0), 0);
+}
+
+function openEditGroupModal(gid) {
+  const g = allGroupsList.find(x => Number(x.group_id || x.id) === Number(gid));
+  if (!g) return;
+  document.getElementById('edit-g-id').value = gid;
+  document.getElementById('edit-g-name').value = g.name || '';
+  document.getElementById('edit-g-desc').value = g.desc || '';
+  document.getElementById('edit-g-visibility').value = g.visibility || 'public';
+  document.getElementById('edit-g-joinmode').value = g.join_mode || 'open';
+  Modal.open('edit-group-modal');
+}
+
+async function saveGroupDetails() {
+  const gid = document.getElementById('edit-g-id').value;
+  const name = document.getElementById('edit-g-name').value.trim();
+  const desc = document.getElementById('edit-g-desc').value.trim();
+  const visibility = document.getElementById('edit-g-visibility').value;
+  const join_mode = document.getElementById('edit-g-joinmode').value;
+
+  if (!name) { Toast.error('Give your group a name.'); return; }
+  try {
+    await API.patch(`/groups/${gid}?requesterId=${uid()}`, {
+      name, desc, visibility, join_mode
+    });
+    Modal.close('edit-group-modal');
+    Toast.success('Group details updated! 🛡️');
+    await renderGroups();
+  } catch (e) {
+    if (typeof DB !== 'undefined' && DB.groups) {
+      const dbG = DB.groups.find(x => Number(x.group_id || x.id) === Number(gid));
+      if (dbG) {
+        dbG.name = name;
+        dbG.desc = desc;
+        dbG.visibility = visibility;
+        dbG.join_mode = join_mode;
+        DB.save();
+        Modal.close('edit-group-modal');
+        Toast.success('Group details updated! 🛡️');
+        await renderGroups();
+        return;
+      }
+    }
+    Toast.error(e.message || 'Could not update group details.');
+  }
 }
 
 async function createGroup() {

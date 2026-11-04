@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AuthContext from '../../context/AuthContext';
+import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import publisherService from '../../services/publisherService';
 import Money from '../../utils/money';
 import LoadingState from '../../components/common/LoadingState';
@@ -9,7 +9,12 @@ import '../../styles/publisher/earnings.css';
 
 export function Earnings() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useContext(AuthContext);
+  const {
+    user,
+    publisherId,
+    isPublisher,
+    authLoading
+  } = usePublisherAuth();
 
   const [earnData, setEarnData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +24,7 @@ export function Earnings() {
   // `quiet` refreshes the numbers in place (after a withdrawal) without
   // swapping the whole page for the loading screen.
   async function loadEarnings(quiet = false) {
-    if (!user || user.role !== 'publisher') return;
+    if (!isPublisher) return;
     if (!quiet) setLoading(true);
     setError(null);
 
@@ -36,17 +41,17 @@ export function Earnings() {
   }
 
   useEffect(() => {
-    if (!authLoading && user && user.role === 'publisher') {
+    if (!authLoading && isPublisher) {
       loadEarnings();
     }
-  }, [authLoading, user]);
+  }, [authLoading, isPublisher]);
 
   // Auth Guard
   if (authLoading) {
     return <LoadingState message="Checking publisher credentials…" minHeight="60vh" />;
   }
 
-  if (!user || user.role !== 'publisher') {
+  if (!isPublisher) {
     return (
       <div className="page-content" style={{ textAlign: 'center', paddingTop: '4rem' }}>
         <div className="card" style={{ maxWidth: '500px', margin: '0 auto', padding: '2rem' }}>

@@ -353,3 +353,34 @@
   color: var(--accent-yellow);
   background: rgba(245, 158, 11, 0.06);
 }
+
+/* Prize Input Helper & Rupee Toggle */
+.prize-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.btn-rupee-toggle {
+  background: none;
+  border: none;
+  color: var(--accent-yellow, #f59e0b);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  transition: all var(--trans-fast, 0.15s ease);
+}
+
+.btn-rupee-toggle:hover {
+  filter: brightness(1.2);
+}
+
+.prize-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #94a3b8);
+  margin-top: 0.3rem;
+  display: block;
+}
