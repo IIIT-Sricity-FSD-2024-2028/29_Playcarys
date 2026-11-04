@@ -8,7 +8,6 @@ import PublisherEarningsSummary from '../../components/publisher/dashboard/Publi
 import PublisherTournaments from '../../components/publisher/dashboard/PublisherTournaments';
 import PublisherSessionChart from '../../components/publisher/dashboard/PublisherSessionChart';
 import PublisherViewsChart from '../../components/publisher/dashboard/PublisherViewsChart';
-import PublisherLiveTelemetry from '../../components/publisher/dashboard/PublisherLiveTelemetry';
 import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/dashboard.css';
 
@@ -104,8 +103,6 @@ export function Dashboard() {
         <PublisherViewsChart games={dashData.myGames} />
       </div>
 
-      {/* ── Live Telemetry Panel ─────────────────── */}
-      <PublisherLiveTelemetry hasHillClimbing={dashData.hasHillClimbing} />
     </div>
   );
 }
