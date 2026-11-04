@@ -24,8 +24,8 @@ export function Approvals() {
   }, []);
 
   const games = getDB().games;
-  const pending = games.filter((g) => g.status === 'pending');
-  const approved = games.filter((g) => g.status === 'approved');
+  const pending = games.filter((g) => (g.game_approval_status || g.status) === 'pending');
+  const approved = games.filter((g) => (g.game_approval_status || g.status) === 'approved');
 
   // Approve / Reject live only in the review console, never on this list.
   function handleReview(gameId) {

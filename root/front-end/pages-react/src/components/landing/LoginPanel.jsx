@@ -148,6 +148,10 @@ export function LoginPanel(props) {
       setError('Cannot reach the server to verify your password. Check your connection and try again.');
       return;
     }
+    if (result.status === 'maintenance') {
+      setError('PlayCarys is under maintenance. Please try again later.');
+      return;
+    }
     if (result.status === 'banned') {
       setError('Your account has been banned. You cannot login.');
       return;

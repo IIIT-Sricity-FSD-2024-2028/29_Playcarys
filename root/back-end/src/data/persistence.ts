@@ -162,6 +162,19 @@ export function currentPassthrough(): Record<string, unknown> {
   return passthrough;
 }
 
+/**
+ * The admin Settings page saves `maintenanceMode` and `registrationOpen` into the
+ * passthrough `settings` table. Read them here so the backend can enforce them;
+ * a missing value means the default (platform open, registration open).
+ */
+export function platformSettings(): { maintenanceMode: boolean; registrationOpen: boolean } {
+  const s = (passthrough.settings ?? {}) as Record<string, unknown>;
+  return {
+    maintenanceMode: s.maintenanceMode === true,
+    registrationOpen: s.registrationOpen !== false,
+  };
+}
+
 export function rememberPassthrough(body: Record<string, unknown>): void {
   if (!body || typeof body !== 'object') return;
   const owned = new Set(Object.keys(storeTables()));

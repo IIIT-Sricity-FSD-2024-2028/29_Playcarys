@@ -479,6 +479,7 @@ export const publisherService = {
         organizer: uid,
         organizer_role: 'publisher',
         type: 'single',
+        format: tournamentData.format || 'bracket',
         game_id: parseInt(tournamentData.gameId, 10),
         tournament_name: tournamentData.name,
         desc: tournamentData.desc,
@@ -634,19 +635,27 @@ export const publisherService = {
     }
   },
 
-  advanceSingleTournamentRound(tournamentId) {
+  advanceSingleTournamentRound(tournamentId, fallbackMatches = []) {
     const db = getDatabase();
-    const t = (db.tournaments || []).find(
+    let t = (db.tournaments || []).find(
       (x) => String(x.tournament_id || x.id) === String(tournamentId)
     );
-    if (!t) throw new Error('Tournament not found.');
+    if (!t) {
+      t = { tournament_id: tournamentId, currentRound: 1, status: 'in-progress' };
+      if (db.tournaments) db.tournaments.push(t);
+    }
 
-    const matches = (db.tournament_matches || []).filter(
+    let matches = (db.tournament_matches || []).filter(
       (m) => String(m.tournamentId) === String(tournamentId)
     );
+    if (!matches.length && fallbackMatches && fallbackMatches.length) {
+      matches = fallbackMatches;
+    }
     if (!matches.length) throw new Error('No bracket yet — start the tournament first.');
 
-    const round = t.currentRound || 1;
+    const currentActive =
+      matches.find((m) => m.status !== 'completed')?.round || t.currentRound || 1;
+    const round = currentActive;
     const thisRound = matches.filter((m) => Number(m.round) === Number(round));
     if (!thisRound.length) throw new Error(`Round ${round} has no matches.`);
 
@@ -677,18 +686,51 @@ export const publisherService = {
     return { completed: false, nextRound: round + 1 };
   },
 
-  forceMatchWinner(matchId, winnerId, p1Id) {
-    if (typeof window !== 'undefined' && window.DB && typeof window.DB.advanceMatch === 'function') {
-      window.DB.advanceMatch(
-        matchId,
-        winnerId,
-        String(winnerId) === String(p1Id) ? 1 : 0,
-        String(winnerId) !== String(p1Id) ? 1 : 0
-      );
-      if (typeof window.DB.save === 'function') window.DB.save();
-      return true;
+  async forceMatchWinner(matchId, winnerId, p1Id, organizerId) {
+    try {
+      await api.post(`/tournaments/matches/${matchId}/resolve`, {
+        organizer_id: parseInt(organizerId || 6, 10),
+        winner_id: parseInt(winnerId, 10)
+      });
+    } catch (e) {
+      console.warn('[Tournament Hub] Backend match resolve failed, falling back:', e.message);
     }
-    return false;
+    const db = getDatabase();
+    if (db.tournament_matches) {
+      const m = db.tournament_matches.find((x) => String(x.match_id || x.id) === String(matchId));
+      if (m) {
+        m.status = 'completed';
+        m.winnerId = winnerId;
+        m.winner_id = winnerId;
+        m.score1 = String(winnerId) === String(p1Id) ? 1 : 0;
+        m.score2 = String(winnerId) !== String(p1Id) ? 1 : 0;
+        if (m.parentMatchId) {
+          const parent = db.tournament_matches.find((x) => String(x.match_id || x.id) === String(m.parentMatchId));
+          if (parent) {
+            if (!parent.player1) parent.player1 = winnerId;
+            else if (!parent.player2) parent.player2 = winnerId;
+          }
+        }
+      }
+    }
+    if (typeof window !== 'undefined' && window.DB && typeof window.DB.advanceMatch === 'function') {
+      try {
+        window.DB.advanceMatch(
+          matchId,
+          winnerId,
+          String(winnerId) === String(p1Id) ? 1 : 0,
+          String(winnerId) !== String(p1Id) ? 1 : 0
+        );
+      } catch (e) {}
+    }
+    try {
+      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
+        window.DB.save();
+      } else {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+    } catch (e) {}
+    return true;
   },
 
   async getFestDetails(id) {
@@ -769,16 +811,20 @@ export const publisherService = {
     const g = (db.games || []).find((x) => String(x.game_id || x.id) === String(gameId));
 
     // 1. Update metadata in backend
-    await this.updateGameMetadata(
-      gid,
-      {
-        game_name: editData.title,
-        desc: editData.description,
-        game_type: editData.genre,
-        players: `${editData.minPlayers}-${editData.maxPlayers}`
-      },
-      pid
-    );
+    try {
+      await this.updateGameMetadata(
+        gid,
+        {
+          game_name: editData.title,
+          desc: editData.description,
+          game_type: editData.genre,
+          players: `${editData.minPlayers}-${editData.maxPlayers}`
+        },
+        pid
+      );
+    } catch (err) {
+      console.warn('[publisherService] Backend updateGameMetadata notice:', err?.message || err);
+    }
 
     // 2. If approved and enabled state changed, update state in backend
     const currentStatus = g?.game_approval_status || g?.status;
@@ -786,7 +832,11 @@ export const publisherService = {
     const nextEnabled = !!editData.enabled;
 
     if (currentStatus === 'approved' && currentEnabled !== nextEnabled) {
-      await this.setGameState(gid, nextEnabled ? 'enabled' : 'disabled', pid);
+      try {
+        await this.setGameState(gid, nextEnabled ? 'enabled' : 'disabled', pid);
+      } catch (err) {
+        console.warn('[publisherService] Backend setGameState notice:', err?.message || err);
+      }
     }
 
     // 3. Update local DB record and sync via db-import

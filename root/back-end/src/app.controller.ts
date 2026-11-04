@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Headers, Query } from '@nestjs/common';
 import { stripScanManifests } from './game/game.util';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
 import * as storeUtils from './data/store';
-import { rememberPassthrough, currentPassthrough } from './data/persistence';
+import { rememberPassthrough, currentPassthrough, platformSettings } from './data/persistence';
 import { bearerFrom, verifyToken } from './auth/token.util';
 
 /**
@@ -31,6 +31,17 @@ export class AppController {
       status: 'success',
       version: 'v1'
     };
+  }
+
+  /**
+   * GET /api/v1/platform-status
+   * The two admin switches that visitors can run into, so the sign-in and
+   * sign-up screens can explain a refusal instead of calling it a bad password.
+   */
+  @Get('platform-status')
+  @ApiOperation({ summary: 'Public: is the platform in maintenance, and is registration open?' })
+  platformStatus() {
+    return platformSettings();
   }
 
   /**
@@ -139,6 +150,10 @@ export class AppController {
   private buildExport() {
     return {
       roles: storeUtils.roles,
+      // Admin Settings (maintenance mode, registration open, ...). Sent so every
+      // browser starts from the server's values; before, each client kept its own
+      // copy and synced the defaults back, undoing what an admin had saved.
+      ...(currentPassthrough().settings ? { settings: currentPassthrough().settings } : {}),
       // Credentials are stripped on the way out. This endpoint is unauthenticated
       // and the frontend calls it on every page load, so the previous version
       // handed every visitor all 24 accounts' plaintext passwords — including
@@ -489,6 +504,21 @@ export class AppController {
             // Staff accounts are still creatable, but only by staff: the
             // superuser pages send their signed token, which lifts the clamp.
             if (!existing) {
+              // Admin Settings: no new accounts while registration is closed or the
+              // platform is in maintenance. The sign-up pages create accounts by
+              // syncing here rather than calling POST /auth/register, so the
+              // switch has to be honoured on this path too. Staff may still create.
+              const gate = platformSettings();
+              if (!staffCaller && (gate.maintenanceMode || !gate.registrationOpen)) {
+                console.warn(
+                  `[db-import] refused new account "${incoming.user_name}": ` +
+                    (gate.maintenanceMode ? 'maintenance mode' : 'registration closed'),
+                );
+                dropDuplicates.add(String(incoming.user_id));
+                // Also drops the profile rows that arrive with it.
+                removedUsers.add(String(incoming.user_id));
+                continue;
+              }
               if (!staffCaller && incoming.role_id != null && ![4, 5].includes(Number(incoming.role_id))) {
                 console.warn(
                   `[db-import] refused unauthenticated creation of role_id ${incoming.role_id}` +
@@ -897,6 +927,13 @@ export class AppController {
     if (incomingSettings && typeof incomingSettings === 'object') {
       const held = (currentPassthrough().settings ?? {}) as Record<string, unknown>;
       const superCaller = !!caller && String(caller.role).toLowerCase() === 'superuser';
+      // Only staff may change settings. Every browser posts its own copy of
+      // `settings` with each sync, so without this any visitor's page load put
+      // maintenanceMode and registrationOpen back to whatever that tab held.
+      if (!staffCaller && Object.keys(held).length) {
+        for (const k of Object.keys(incomingSettings)) delete incomingSettings[k];
+        Object.assign(incomingSettings, held);
+      }
       if (!superCaller && held.platformName !== undefined &&
           incomingSettings.platformName !== held.platformName) {
         console.warn(

@@ -81,8 +81,12 @@ export function Reports() {
   // Filter logic
   const filteredReports = reports.filter((r) => {
     // Status filter
-    if (statusFilter && r.status !== statusFilter) {
-      return false;
+    if (statusFilter) {
+      if (statusFilter === 'dismissed') {
+        if (r.status !== 'dismissed' && r.status !== 'rejected') return false;
+      } else if (r.status !== statusFilter) {
+        return false;
+      }
     }
 
     // Type filter: case-insensitive, matches exact, includes, or startsWith

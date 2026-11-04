@@ -12,7 +12,11 @@ import {
 } from './adminService';
 
 function apiBase() {
-  return window.PC_API;
+  if (typeof window !== 'undefined' && window.PC_API) {
+    return window.PC_API;
+  }
+  const hostname = typeof window !== 'undefined' && window.location ? window.location.hostname : 'localhost';
+  return `http://${hostname || 'localhost'}:3000/api/v1`;
 }
 
 // Headers for admin-only calls. The signed token is the real authorisation; the role

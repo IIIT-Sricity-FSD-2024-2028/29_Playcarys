@@ -33,7 +33,7 @@ import { NextFunction, Request, Response } from 'express';
 import { bearerFrom, verifyToken } from '../auth/token.util';
 
 const WINDOW_MS             = 60_000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 20;   // per user per route
+const MAX_REQUESTS_PER_WINDOW = 60;   // generous per user per route for smooth demo flow
 
 interface Bucket {
   count: number;

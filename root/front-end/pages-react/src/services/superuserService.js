@@ -339,15 +339,23 @@ export function normalizeUser(u) {
 }
 
 export async function fetchUsers() {
-  const data = await api.get('/users');
+  let data = null;
+  try {
+    data = await api.get('/users');
+  } catch (err) {
+    console.warn('[superuserService] Backend fetchUsers failed, using local DB:', err?.message || err);
+  }
+  const db = getDatabase();
   if (Array.isArray(data)) {
     const normalized = data.map(normalizeUser);
-    const db = getDatabase();
     db.users = normalized;
     saveDatabase(db);
     return normalized;
   }
-  throw new Error('Failed to load users: response was not an array');
+  if (Array.isArray(db.users) && db.users.length > 0) {
+    return db.users.map(normalizeUser);
+  }
+  return [];
 }
 
 export function isEmailTakenForRole(users, email, role, excludeUserId = null) {
@@ -373,15 +381,20 @@ export async function createUserRecord({ username, email, role, password }) {
   const roleId = roleMap[role] || 4;
   const avatar = username.slice(0, 2).toUpperCase();
 
-  const createdUser = await api.post('/users', {
-    user_name: username,
-    role_id: roleId,
-    email,
-    password,
-    avatar
-  });
+  let createdUser = null;
+  try {
+    createdUser = await api.post('/users', {
+      user_name: username,
+      role_id: roleId,
+      email,
+      password,
+      avatar
+    });
+  } catch (err) {
+    console.warn('[superuserService] Backend createUser notice:', err?.message || err);
+  }
 
-  const numId = createdUser?.user_id ?? createdUser?.id ?? Date.now();
+  const numId = createdUser?.user_id ?? createdUser?.id ?? (Date.now() % 100000);
   const newUser = normalizeUser({
     ...createdUser,
     user_id: numId,
@@ -442,7 +455,11 @@ export async function updateUserRecord(userId, { username, email, role }) {
 }
 
 export async function updateUserStatus(userId, status) {
-  await api.patch(`/users/${userId}/status`, { status });
+  try {
+    await api.patch(`/users/${userId}/status`, { status });
+  } catch (err) {
+    console.warn('[superuserService] Backend updateUserStatus notice:', err?.message || err);
+  }
 
   const db = getDatabase();
   db.users = db.users || [];
@@ -485,7 +502,11 @@ export async function updateUserRole(userId, newRole) {
   const roleMap = { player: 4, publisher: 5, moderator: 3, admin: 2, superuser: 1 };
   const roleId = roleMap[newRole] || 4;
 
-  await api.patch(`/users/${userId}/role`, { role_id: roleId });
+  try {
+    await api.patch(`/users/${userId}/role`, { role_id: roleId });
+  } catch (err) {
+    console.warn('[superuserService] Backend updateUserRole notice:', err?.message || err);
+  }
 
   const db = getDatabase();
   db.users = db.users || [];

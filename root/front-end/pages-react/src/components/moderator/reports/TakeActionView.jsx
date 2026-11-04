@@ -10,6 +10,7 @@ function getStatusBadgeClass(status) {
     case 'resolved':
       return 'badge-resolved';
     case 'dismissed':
+    case 'rejected':
       return 'badge-dismissed';
     default:
       return 'badge-active';
@@ -20,7 +21,7 @@ function getStatusLabel(status) {
   if (status === 'under-review') return 'Under Review';
   if (status === 'pending') return 'Pending';
   if (status === 'resolved') return 'Resolved';
-  if (status === 'dismissed') return 'Dismissed';
+  if (status === 'dismissed' || status === 'rejected') return 'Dismissed';
   return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending';
 }
 

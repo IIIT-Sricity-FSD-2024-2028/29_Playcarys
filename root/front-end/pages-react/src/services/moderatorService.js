@@ -364,21 +364,25 @@ export function safeReport(r, users = []) {
 }
 
 export async function fetchModeratorReports() {
-  const [reportsRes, usersRes] = await Promise.all([
-    api.get('/reports'),
-    api.get('/users').catch(() => [])
-  ]);
-
-  const users = Array.isArray(usersRes) ? usersRes : [];
-  if (Array.isArray(reportsRes)) {
-    const normalized = reportsRes.map((r) => safeReport(r, users));
-    const db = getDatabase();
-    db.reports = normalized;
-    if (users.length) db.users = users;
-    saveDatabase(db);
-    return { reports: normalized, users };
+  let reportsRes = null;
+  let usersRes = [];
+  try {
+    [reportsRes, usersRes] = await Promise.all([
+      api.get('/reports'),
+      api.get('/users').catch(() => [])
+    ]);
+  } catch (err) {
+    console.warn('[moderatorService] Backend fetch reports failed, using local DB:', err?.message || err);
   }
-  throw new Error('Failed to load moderator reports: invalid response from server');
+
+  const db = getDatabase();
+  const users = Array.isArray(usersRes) && usersRes.length > 0 ? usersRes : (db.users || []);
+  const rawReports = Array.isArray(reportsRes) ? reportsRes : (db.reports || []);
+  const normalized = rawReports.map((r) => safeReport(r, users));
+  db.reports = normalized;
+  if (users.length) db.users = users;
+  saveDatabase(db);
+  return { reports: normalized, users };
 }
 
 export async function reviewReportAction(reportId, session, reportObj) {
@@ -390,11 +394,15 @@ export async function reviewReportAction(reportId, session, reportObj) {
 
   // API call to PATCH /reports/:id/status
   if (!isNaN(numId)) {
-    await api.patch(`/reports/${numId}/status`, {
-      requester_user_id: requesterUserId,
-      status: 'under-review',
-      actionNote: `Under review by Moderator ${sName}`
-    });
+    try {
+      await api.patch(`/reports/${numId}/status`, {
+        requester_user_id: requesterUserId,
+        status: 'under-review',
+        actionNote: `Under review by Moderator ${sName}`
+      });
+    } catch (err) {
+      console.warn('[moderatorService] Backend review notice:', err?.message || err);
+    }
   }
 
   const db = getDatabase();
@@ -424,11 +432,15 @@ export async function resolveReportAction({ reportId, notes, severity = 'medium'
 
   // API call to PATCH /reports/:id/status
   if (!isNaN(numId)) {
-    await api.patch(`/reports/${numId}/status`, {
-      requester_user_id: requesterUserId,
-      status: 'resolved',
-      actionNote: notes
-    });
+    try {
+      await api.patch(`/reports/${numId}/status`, {
+        requester_user_id: requesterUserId,
+        status: 'resolved',
+        actionNote: notes
+      });
+    } catch (err) {
+      console.warn('[moderatorService] Backend resolve notice:', err?.message || err);
+    }
   }
 
   const db = getDatabase();
@@ -472,11 +484,15 @@ export async function dismissReportAction({ reportId, notes, session, report }) 
 
   // Backend DTO allows 'rejected'
   if (!isNaN(numId)) {
-    await api.patch(`/reports/${numId}/status`, {
-      requester_user_id: requesterUserId,
-      status: 'rejected',
-      actionNote: notes
-    });
+    try {
+      await api.patch(`/reports/${numId}/status`, {
+        requester_user_id: requesterUserId,
+        status: 'rejected',
+        actionNote: notes
+      });
+    } catch (err) {
+      console.warn('[moderatorService] Backend dismiss notice:', err?.message || err);
+    }
   }
 
   const db = getDatabase();
@@ -515,13 +531,17 @@ export async function submitPlayerWarning({ reportId, customMsg, session, report
     : report.reported_user;
 
   if (targetUserId && !isNaN(Number(targetUserId)) && !isNaN(numId)) {
-    await api.post('/moderator-actions/act-on-report', {
-      moderator_id: requesterUserId,
-      report_id: numId,
-      action_type: 'warning',
-      action_reason: msg,
-      target_user_id: Number(targetUserId)
-    });
+    try {
+      await api.post('/moderator-actions/act-on-report', {
+        moderator_id: requesterUserId,
+        report_id: numId,
+        action_type: 'warning',
+        action_reason: msg,
+        target_user_id: Number(targetUserId)
+      });
+    } catch (err) {
+      console.warn('[moderatorService] Backend act-on-report notice:', err?.message || err);
+    }
   }
 
   const db = getDatabase();

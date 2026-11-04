@@ -160,7 +160,7 @@ export function findLoginUser(inputVal, expectedRole) {
 }
 
 // The password is checked by the server (POST /auth/login), which also claims the
-// one-account-one-session slot. Returns { status: 'ok' | 'conflict' | 'banned' | 'bad' | 'offline', data? }.
+// one-account-one-session slot. Returns { status: 'ok' | 'conflict' | 'banned' | 'bad' | 'maintenance' | 'offline', data? }.
 export async function serverLogin(body) {
   let res;
   try {
@@ -178,6 +178,9 @@ export async function serverLogin(body) {
   }
   if (res.status === 409) {
     return { status: 'conflict' };
+  }
+  if (res.status === 503) {
+    return { status: 'maintenance' };
   }
   let message = '';
   try {
@@ -338,6 +341,26 @@ function firstError(checks) {
     if (msg) errors[field] = msg;
   });
   return errors;
+}
+
+// Admin Settings switches (maintenance mode, registration open). If the server cannot be
+// reached the answer is "open": the real refusal still comes from the server on sync.
+export async function fetchPlatformStatus() {
+  try {
+    const res = await fetch(window.PC_API + '/platform-status');
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline
+  }
+  return { maintenanceMode: false, registrationOpen: true };
+}
+
+// The message shown when sign-up is switched off, or '' when it is allowed.
+export async function signUpBlockedReason() {
+  const status = await fetchPlatformStatus();
+  if (status.maintenanceMode) return 'PlayCarys is under maintenance. Please try again later.';
+  if (!status.registrationOpen) return 'New registrations are currently closed.';
+  return '';
 }
 
 export function registerPlayer(values) {

@@ -16,6 +16,21 @@
         ]
       }
     },
+    "/api/v1/platform-status": {
+      "get": {
+        "operationId": "AppController_platformStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Public: is the platform in maintenance, and is registration open?",
+        "tags": [
+          "root"
+        ]
+      }
+    },
     "/api/v1/db-export": {
       "get": {
         "operationId": "AppController_exportDb",

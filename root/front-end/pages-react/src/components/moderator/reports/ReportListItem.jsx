@@ -14,6 +14,7 @@ function getStatusBadgeClass(status) {
     case 'resolved':
       return 'badge-resolved';
     case 'dismissed':
+    case 'rejected':
       return 'badge-dismissed';
     default:
       return 'badge-active';
@@ -24,7 +25,7 @@ function getStatusLabel(status) {
   if (status === 'under-review') return 'Under Review';
   if (status === 'pending') return 'Pending';
   if (status === 'resolved') return 'Resolved';
-  if (status === 'dismissed') return 'Dismissed';
+  if (status === 'dismissed' || status === 'rejected') return 'Dismissed';
   return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending';
 }
 
@@ -32,7 +33,7 @@ export function ReportListItem({ report, onReview, onTakeAction, onWarn }) {
   const rInitials = getInitials(report.reporterName);
   const dInitials = getInitials(report.reportedName);
 
-  const canReview = report.status !== 'resolved' && report.status !== 'dismissed';
+  const canReview = report.status !== 'resolved' && report.status !== 'dismissed' && report.status !== 'rejected';
   const canActOrWarn = report.status === 'pending' || report.status === 'under-review';
 
   return (

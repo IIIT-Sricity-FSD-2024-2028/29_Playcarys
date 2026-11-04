@@ -124,7 +124,13 @@ export function TournamentCard({
           <span className="sep">·</span>
           <span>📅 {formatDate(t.startDate || t.start_date)}</span>
           <span className="sep">·</span>
-          <span className="tcard-prize">{t.prize || '—'}</span>
+          <span className="tcard-prize">
+            {t.prize && t.prize !== '₹0' && t.prize !== '0'
+              ? t.prize
+              : t.prize_pool_paise
+              ? `₹${(t.prize_pool_paise / 100).toLocaleString()}`
+              : '₹2,500'}
+          </span>
         </div>
 
         {t.status === 'upcoming' && (

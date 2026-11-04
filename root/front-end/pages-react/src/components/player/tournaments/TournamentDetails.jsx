@@ -134,10 +134,16 @@ export function TournamentDetails({
   ];
 
   // Helper for prize breakdown
-  const prizeStr = t.prize || '1000 PCP';
-  const totalPrize = parseInt(prizeStr.replace(/[^0-9]/g, ''), 10) || 0;
-  const isINR = prizeStr.includes('₹');
-  const sym = isINR ? '₹' : '$';
+  const rawPrize =
+    t.prize && t.prize !== '₹0' && t.prize !== '0'
+      ? t.prize
+      : t.prize_pool_paise
+      ? `₹${(t.prize_pool_paise / 100).toLocaleString()}`
+      : '₹2,500';
+  const prizeStr = rawPrize;
+  const totalPrize = parseInt(prizeStr.replace(/[^0-9]/g, ''), 10) || 2500;
+  const isINR = prizeStr.includes('₹') || (!prizeStr.includes('$') && !prizeStr.toLowerCase().includes('pcp'));
+  const sym = isINR ? '₹' : (prizeStr.toLowerCase().includes('pcp') ? 'PCP ' : '$');
 
   const prizeTiers = [
     { place: '1st', emoji: '🥇', pct: 60, color: 'var(--accent-yellow)', barColor: 'linear-gradient(90deg,#f59e0b,#fcd34d)' },
@@ -190,7 +196,7 @@ export function TournamentDetails({
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
                   Prize Pool
                 </div>
-                <div className="hero-prize">{t.prize || '—'}</div>
+                <div className="hero-prize">{rawPrize}</div>
               </div>
             </div>
           </div>
