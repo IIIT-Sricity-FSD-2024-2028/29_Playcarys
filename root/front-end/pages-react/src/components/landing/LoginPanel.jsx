@@ -124,6 +124,13 @@ export function LoginPanel(props) {
       return;
     }
 
+    if (col.role !== 'admin' && col.role !== 'superuser') {
+      if (typeof DB !== 'undefined' && DB.settings && DB.settings.maintenanceMode) {
+        setError('PlayCarys is under maintenance. Please try again later.');
+        return;
+      }
+    }
+
     const user = found.user;
     const body = { password: password };
     if (user.email) {

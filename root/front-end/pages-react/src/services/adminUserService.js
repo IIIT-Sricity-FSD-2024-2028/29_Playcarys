@@ -1,6 +1,7 @@
 // User management data operations, copied from the old pages/admin/users.html.
 // Each function changes DB the same way the old page did; the page then calls refresh().
 import { getDB, getSession, dispatchUserNotification } from './adminService';
+import { recordAudit } from './adminAuditService';
 
 const ROLE_ID = { player: 4, publisher: 5, moderator: 3, admin: 2, superuser: 1 };
 
@@ -42,6 +43,7 @@ export function updateUser(id, username, email, role, status) {
   u.status = status;
   u.avatar = username.slice(0, 2).toUpperCase();
   db.save();
+  recordAudit('user', `User ${username} edited`, `Role: ${role}, Status: ${status}`);
 }
 
 export function createUser(username, email, role, status, password) {
@@ -67,6 +69,7 @@ export function createUser(username, email, role, status, password) {
     db.publisher_profiles.push({ user_id: numId, total_games: 0, approved_games: 0, active_games: 0 });
   }
   db.save();
+  recordAudit('user', `New user added: ${username}`, `Role: ${role}, Status: ${status}`);
 }
 
 export function suspendUser(u, days, reason) {
@@ -75,6 +78,7 @@ export function suspendUser(u, days, reason) {
   u.suspendUntil = new Date(Date.now() + days * 86400000).toISOString();
   dispatchUserNotification(u.username, s.role, s.username, `You have been suspended for ${days} days. Reason: ${reason}`);
   getDB().save();
+  recordAudit('ban', `${u.username} suspended for ${days} days`, `Reason: ${reason}`);
 }
 
 export function revokeSuspension(u, reason) {
@@ -83,6 +87,7 @@ export function revokeSuspension(u, reason) {
   delete u.suspendUntil;
   dispatchUserNotification(u.username, s.role, s.username, `Your suspension has been revoked. Note: ${reason}`);
   getDB().save();
+  recordAudit('ban', `Suspension revoked for ${u.username}`, `Note: ${reason}`);
 }
 
 export function banUser(u, reason) {
@@ -90,6 +95,7 @@ export function banUser(u, reason) {
   u.status = 'banned';
   dispatchUserNotification(u.username, s.role, s.username, `You have been permanently banned. Reason: ${reason}`);
   getDB().save();
+  recordAudit('ban', `${u.username} banned permanently`, `Reason: ${reason}`);
 }
 
 // Deleting an account means two things: remove the row, and add the id to the `deleted_users` list.
@@ -114,10 +120,12 @@ export function banAndDeleteUser(u, reason) {
   db.save();
   removeUserForGood(u);
   db.save();
+  recordAudit('ban', `${u.username} banned and deleted`, `Reason: ${reason}`);
 }
 
 // The old page forgot to save here, so an unban was lost when the page reloaded.
 export function unbanUser(u) {
   u.status = 'active';
   getDB().save();
+  recordAudit('ban', `${u.username} unbanned`, 'Ban lifted by an admin');
 }

@@ -10,7 +10,7 @@
  * Management, Game Control, Tournaments, Platform Analytics, Audit Log and System Control.
  * All sections stay on the page and only the chosen one is visible, as in the old page.
  */
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import AuthContext from '../../context/AuthContext';
 import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
@@ -23,7 +23,8 @@ import AnalyticsSection from '../../components/admin/hub/AnalyticsSection';
 import AuditSection from '../../components/admin/hub/AuditSection';
 import SystemSection from '../../components/admin/hub/SystemSection';
 import { getDB } from '../../services/adminService';
-import { INITIAL_AUDIT_LOG, addAuditEntry } from '../../services/adminHubService';
+import { addAuditEntry } from '../../services/adminHubService';
+import { fetchAuditLog, clearAuditLogOnServer } from '../../services/adminAuditService';
 import '../../styles/admin/hub.css';
 
 export function Hub() {
@@ -32,25 +33,35 @@ export function Hub() {
   const go = useAdminNav();
   const [section, setSection] = useState('overview');
 
-  // The audit list lives only while this page is open (it starts over on every visit, like the old page).
-  const auditRef = useRef(null);
-  if (auditRef.current === null) {
-    auditRef.current = INITIAL_AUDIT_LOG.map((e) => ({ ...e }));
+  // The audit log is kept by the server, so it is the same after a reload and for every admin.
+  // null = could not be loaded (the section says so instead of showing an empty list).
+  const [auditLog, setAuditLog] = useState(null);
+
+  async function loadAudit() {
+    setAuditLog(await fetchAuditLog());
   }
 
   useEffect(() => {
     document.title = 'PlayCarys — Admin Control Hub';
+    loadAudit();
+    // Other admins act too, so look again now and then.
+    const timer = setInterval(loadAudit, 15000);
+    return () => clearInterval(timer);
   }, []);
 
   function addAudit(type, msg, detail) {
-    addAuditEntry(auditRef.current, type, msg, detail);
+    addAuditEntry(type, msg, detail).then(loadAudit);
   }
 
   function clearAuditLog() {
-    confirmAction('Clear Audit Log', 'Archive and clear the current audit log?', () => {
-      auditRef.current.length = 0;
-      addAudit('system', 'Audit log cleared', 'Manual clear by admin');
-      toast.success('Audit log cleared');
+    confirmAction('Clear Audit Log', 'Clear the whole audit log? Only a note that it was cleared, and by whom, is kept.', async () => {
+      const ok = await clearAuditLogOnServer();
+      if (ok) {
+        toast.success('Audit log cleared');
+      } else {
+        toast.error('Could not clear the audit log');
+      }
+      loadAudit();
       refresh();
     });
   }
@@ -83,7 +94,7 @@ export function Hub() {
         />
 
         <div className="hub-main">
-          <OverviewSection active={section === 'overview'} onShowSection={setSection} onNavigate={go} />
+          <OverviewSection active={section === 'overview'} onShowSection={setSection} onNavigate={go} auditLog={auditLog} />
           <UsersSection active={section === 'users'} addAudit={addAudit} onNavigate={go} />
           <GamesSection
             active={section === 'games'}
@@ -92,8 +103,8 @@ export function Hub() {
           />
           <TournamentsSection active={section === 'tournaments'} addAudit={addAudit} />
           <AnalyticsSection active={section === 'analytics'} />
-          <AuditSection active={section === 'audit'} auditLog={auditRef.current} onClear={clearAuditLog} />
-          <SystemSection active={section === 'system'} auditLog={auditRef.current} addAudit={addAudit} />
+          <AuditSection active={section === 'audit'} auditLog={auditLog} onClear={clearAuditLog} onReload={loadAudit} />
+          <SystemSection active={section === 'system'} auditLog={auditLog || []} addAudit={addAudit} />
         </div>
       </div>
     </div>

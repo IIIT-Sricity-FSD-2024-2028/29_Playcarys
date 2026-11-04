@@ -3,9 +3,10 @@
  *  - Components, Props (active, auditLog, onClear), State (type filter), Events (clicks, choosing),
  *    Lists (audit entries), Hooks (useState), Forms (controlled filter dropdown), Callbacks (onClear)
  *
- * "Audit Log" section of the old hub.html: what admins did this session, filtered by kind of event.
+ * "Audit Log" section of the old hub.html: what admins did, kept by the server, filtered by kind of event.
  */
 import React, { useState } from 'react';
+import { timeAgo } from '../../../services/adminAuditService';
 
 const ICON_MAP = { user: '👤', game: '🎮', ban: '🚫', tournament: '🏆', system: '⚙️' };
 const COLOR_MAP = {
@@ -17,17 +18,21 @@ const COLOR_MAP = {
 };
 
 export function AuditSection(props) {
-  const { active, auditLog, onClear } = props;
+  const { active, auditLog, onClear, onReload } = props;
   const [typeFilter, setTypeFilter] = useState('');
 
-  let entries = [...auditLog];
+  // auditLog is null when the server could not be reached.
+  let entries = auditLog ? [...auditLog] : [];
   if (typeFilter) entries = entries.filter((e) => e.type === typeFilter);
 
   return (
     <div className={'hub-section' + (active ? ' active' : '')} id="sec-audit">
       <div className="flex items-center justify-between mb-2">
         <h2 style={{ fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Audit Log</h2>
-        <button className="btn btn-ghost btn-sm" onClick={onClear}>🗑 Clear Log</button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-ghost btn-sm" onClick={onReload}>↻ Refresh</button>
+          <button className="btn btn-ghost btn-sm" onClick={onClear}>🗑 Clear Log</button>
+        </div>
       </div>
 
       <div className="filter-bar mb-2">
@@ -43,9 +48,13 @@ export function AuditSection(props) {
 
       <div className="card" style={{ padding: 0 }}>
         <div id="audit-log-list">
-          {entries.length ? entries.map((e, i) => (
-            <div className="audit-entry" key={i}>
-              <div className="audit-time">{e.time}</div>
+          {auditLog === null ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+              Could not load the audit log. Check that the backend is running, then press Refresh.
+            </div>
+          ) : entries.length ? entries.map((e) => (
+            <div className="audit-entry" key={e.id}>
+              <div className="audit-time" title={new Date(e.at).toLocaleString()}>{timeAgo(e.at)}</div>
               <div className="audit-icon" style={{ background: COLOR_MAP[e.type] || 'var(--bg-secondary)' }}>{ICON_MAP[e.type] || '📌'}</div>
               <div className="audit-body">
                 <div className="audit-title">{e.msg}</div>

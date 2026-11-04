@@ -9,7 +9,7 @@ import React, { useContext, useEffect } from 'react';
 import AdminContext from '../../../context/AdminContext';
 
 export function AdminConfirmModal() {
-  const { confirmState, confirmOpen, closeConfirm } = useContext(AdminContext);
+  const { confirmState, confirmOpen, closeConfirm, cancelConfirm } = useContext(AdminContext);
 
   // The old Modal.open() stopped the page behind the dialog from scrolling.
   useEffect(() => {
@@ -30,7 +30,7 @@ export function AdminConfirmModal() {
 
   // Clicking the dark area (not the dialog itself) closes it.
   function handleOverlayClick(e) {
-    if (e.target === e.currentTarget) closeConfirm();
+    if (e.target === e.currentTarget) cancelConfirm();
   }
 
   return (
@@ -42,13 +42,13 @@ export function AdminConfirmModal() {
       <div className="modal" style={{ maxWidth: '400px' }}>
         <div className="modal-header">
           <h3 className="modal-title" id="confirm-title">{state.title}</h3>
-          <span className="modal-close" onClick={closeConfirm}>✕</span>
+          <span className="modal-close" onClick={cancelConfirm}>✕</span>
         </div>
         <p id="confirm-msg" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
           {state.msg}
         </p>
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={closeConfirm}>Cancel</button>
+          <button className="btn btn-ghost" onClick={cancelConfirm}>Cancel</button>
           <button
             className={isDanger ? 'btn btn-red' : 'btn btn-green'}
             id="confirm-btn"

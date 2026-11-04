@@ -1,3 +1,9 @@
+function getApiBase() {
+  if (typeof window !== 'undefined' && window.PC_API) return window.PC_API;
+  const host = (typeof window !== 'undefined' ? window.location.hostname : 'localhost') || 'localhost';
+  return 'http://' + host + ':3000/api/v1';
+}
+
 // Login and sign-up logic of the landing page, copied from the script in the old index.html
 // and from `Auth` in js/utils.js. Nothing here touches the page: the components call these
 // functions and show the answers.
@@ -164,7 +170,7 @@ export function findLoginUser(inputVal, expectedRole) {
 export async function serverLogin(body) {
   let res;
   try {
-    res = await fetch(window.PC_API + '/auth/login', {
+    res = await fetch(getApiBase() + '/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -293,7 +299,7 @@ export async function runForgotPassword() {
   const email = prompt('Enter the email address on your account:');
   if (!email) return;
   try {
-    const res = await fetch(window.PC_API + '/auth/forgot-password', {
+    const res = await fetch(getApiBase() + '/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim() })
@@ -312,7 +318,7 @@ export async function runForgotPassword() {
   if (!pw) return;
 
   try {
-    const res = await fetch(window.PC_API + '/auth/reset-password', {
+    const res = await fetch(getApiBase() + '/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim(), code: code.trim(), new_password: pw })
@@ -347,7 +353,7 @@ function firstError(checks) {
 // reached the answer is "open": the real refusal still comes from the server on sync.
 export async function fetchPlatformStatus() {
   try {
-    const res = await fetch(window.PC_API + '/platform-status');
+    const res = await fetch(getApiBase() + '/platform-status');
     if (res.ok) return await res.json();
   } catch (e) {
     // offline

@@ -26,7 +26,7 @@ import {
   grantDefaultKit,
 } from '../data/store';
 import { signToken } from './token.util';
-import { platformSettings } from '../data/persistence';
+import { platformSettings, appendAudit } from '../data/persistence';
 
 // ── Domain Rules ────────────────────────────────────────────
 // R-AUTH-1: Password must be at least 8 characters
@@ -143,6 +143,18 @@ export class AuthService {
 
     const role = roles.find((r) => r.role_id === user.role_id);
     const roleName = role?.role_name ?? 'player';
+
+    // Staff sign-ins go in the audit log. Players and publishers are left out: there are
+    // too many of them and it is not an admin action.
+    if ([1, 2, 3].includes(user.role_id)) {
+      appendAudit({
+        type: 'user',
+        msg: `${user.user_name} signed in`,
+        detail: `Role: ${roleName}`,
+        actor: user.user_name,
+        actor_role: roleName,
+      });
+    }
 
     return {
       user_id: user.user_id,
@@ -458,6 +470,14 @@ export class AuthService {
     // freshly-registered user would be told THEY are "signed in elsewhere".
     const sessionToken = this.claimSession(newUser, true);
     const roleName = roleId === 5 ? 'publisher' : 'player';
+
+    appendAudit({
+      type: 'user',
+      msg: `New ${roleName} registered: ${newUser.user_name}`,
+      detail: `Email: ${newUser.email}`,
+      actor: 'System',
+      actor_role: 'system',
+    });
 
     return {
       message: 'Registration successful',

@@ -124,7 +124,9 @@ export async function submitDecision(gameId, role, body) {
     }
     throw new Error(b.message || 'Server said ' + res.status);
   }
-  return res.json();
+  const updated = await res.json();
+  // The server records this decision in the audit log, with the reviewer.
+  return updated;
 }
 
 // After the server accepts a decision, copy it into the local DB so the rest of the

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import ModeratorNavbar from '../components/moderator/common/ModeratorNavbar';
+import useIdleLogout from '../hooks/useIdleLogout';
 
 export function ModeratorLayout() {
   const location = useLocation();
+  useIdleLogout();
 
   let activePage = 'dashboard';
   if (location.pathname.includes('/moderator/bans')) {
