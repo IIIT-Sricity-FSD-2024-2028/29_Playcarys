@@ -89,6 +89,8 @@ export function AppRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="create-tournament" element={<CreateTournament />} />
         <Route path="community" element={<Community />} />
+        <Route path="community/:groupId" element={<Community />} />
+        <Route path="community/:groupId/:groupTab" element={<Community />} />
         <Route path="shop" element={<Shop />} />
         <Route path="profile" element={<PlayerProfile />} />
       </Route>

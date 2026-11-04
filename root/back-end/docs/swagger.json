@@ -1704,6 +1704,56 @@
         ]
       }
     },
+    "/api/v1/tournaments/{id}/start": {
+      "post": {
+        "description": "Server-side and once only. This used to run in the browser, which meant the bracket was whatever the last client to sync said it was. Byes are fed forward immediately, or round 1 leaves winners that never reach round 2.",
+        "operationId": "TournamentPlayController_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "in": "header",
+            "description": "Organizer, admin or superuser.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTournamentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The generated bracket."
+          },
+          "400": {
+            "description": "Score contest, already started, or fewer than 2 entrants."
+          },
+          "403": {
+            "description": "Not the organizer."
+          }
+        },
+        "summary": "Generate the bracket",
+        "tags": [
+          "tournament-play"
+        ]
+      }
+    },
     "/api/v1/economy/catalogue": {
       "get": {
         "operationId": "EconomyController_catalogue",
@@ -4340,56 +4390,6 @@
           }
         },
         "summary": "The knockout bracket, with player names resolved",
-        "tags": [
-          "tournament-play"
-        ]
-      }
-    },
-    "/api/v1/tournaments/{id}/start": {
-      "post": {
-        "description": "Server-side and once only. This used to run in the browser, which meant the bracket was whatever the last client to sync said it was. Byes are fed forward immediately, or round 1 leaves winners that never reach round 2.",
-        "operationId": "TournamentPlayController_start",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "number"
-            }
-          },
-          {
-            "name": "role",
-            "in": "header",
-            "description": "Organizer, admin or superuser.",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StartTournamentDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "The generated bracket."
-          },
-          "400": {
-            "description": "Score contest, already started, or fewer than 2 entrants."
-          },
-          "403": {
-            "description": "Not the organizer."
-          }
-        },
-        "summary": "Generate the bracket",
         "tags": [
           "tournament-play"
         ]

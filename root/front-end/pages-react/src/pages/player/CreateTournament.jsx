@@ -93,6 +93,15 @@ const CreateTournament = () => {
     };
   }, []);
 
+  // Preselect community kind if groupId query param is present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gId = params.get('groupId') || params.get('group');
+    if (gId) {
+      setKind('community');
+    }
+  }, []);
+
   // When kind changes to community, load user's groups
   useEffect(() => {
     if (kind !== 'community') return;
@@ -110,7 +119,13 @@ const CreateTournament = () => {
         if (isMounted) {
           setGroups(filtered);
           if (filtered.length > 0) {
-            setGroupId(filtered[0].id || filtered[0].group_id);
+            const params = new URLSearchParams(window.location.search);
+            const gId = params.get('groupId') || params.get('group');
+            if (gId && filtered.some((g) => Number(g.id || g.group_id) === Number(gId))) {
+              setGroupId(Number(gId));
+            } else {
+              setGroupId(filtered[0].id || filtered[0].group_id);
+            }
           } else {
             setGroupId('');
           }

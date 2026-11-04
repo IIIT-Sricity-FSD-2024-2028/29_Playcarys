@@ -1,11 +1,12 @@
 import React from 'react';
 
-export function TournamentTabs({ activeTab = 'tab-overview', onTabChange }) {
+export function TournamentTabs({ activeTab = 'tab-overview', onTabChange, entrantCount = null }) {
+  const countBadge = entrantCount != null ? ` (${entrantCount})` : '';
   const tabs = [
     { id: 'tab-overview', label: '📁 Overview' },
     { id: 'tab-bracket', label: '🎯 Bracket' },
     { id: 'tab-format', label: '📜 Format & Rules' },
-    { id: 'tab-leaderboard', label: '🏆 Leaderboard & Participants' }
+    { id: 'tab-leaderboard', label: `🏆 Leaderboard & Participants${countBadge}` }
   ];
 
   return (

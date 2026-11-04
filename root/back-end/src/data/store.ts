@@ -339,7 +339,9 @@ export interface Tournament {
   desc: string;
   participants: number;
   maxParticipants: number;
-  status: 'upcoming' | 'in-progress' | 'completed';
+  status: 'upcoming' | 'in-progress' | 'completed' | 'paused' | 'cancelled';
+  winner?: string;
+  winner_id?: number;
   start_date: string;
   end_date: string;
   regClose: string;

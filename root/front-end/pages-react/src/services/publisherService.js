@@ -1,4 +1,5 @@
 import api from './api';
+import { generateBracketLocally, advanceMatchLocally, advanceTournamentRound as advanceRoundShared } from './tournamentService';
 
 const DB_KEY = 'playcarys_db_store_v5';
 
@@ -130,6 +131,8 @@ export function getStatusBadgeData(status) {
     'in-progress': { className: 'badge-progress', label: 'In Progress' },
     upcoming: { className: 'badge-upcoming', label: 'Upcoming' },
     completed: { className: 'badge-approved', label: 'Completed' },
+    paused: { className: 'badge-waiting', label: 'Paused' },
+    cancelled: { className: 'badge-rejected', label: 'Cancelled' },
     player: { className: 'badge-player', label: 'Player' },
     publisher: { className: 'badge-publisher', label: 'Publisher' },
     moderator: { className: 'badge-moderator', label: 'Moderator' },
@@ -619,65 +622,32 @@ export const publisherService = {
   },
 
   async startSingleTournament(tournamentId, organizerId) {
+    let serverRes = null;
     try {
-      return await api.post(`/tournaments/${tournamentId}/start`, {
+      serverRes = await api.post(`/tournaments/${tournamentId}/start`, {
         organizer_id: parseInt(organizerId, 10)
       });
     } catch (e) {
-      console.warn('[Tournament Hub] Backend start failed, falling back to local DB:', e.message);
-      if (typeof window !== 'undefined' && window.DB && typeof window.DB.generateBracket === 'function') {
-        window.DB.generateBracket(tournamentId);
-        if (typeof window.DB.save === 'function') window.DB.save();
-        return { message: 'Tournament started locally' };
-      }
-      throw e;
+      console.warn('[Tournament Hub] Backend start notice:', e.message);
     }
+    const bracketRes = generateBracketLocally(tournamentId);
+    return serverRes || bracketRes;
   },
 
   advanceSingleTournamentRound(tournamentId) {
-    const db = getDatabase();
-    const t = (db.tournaments || []).find(
-      (x) => String(x.tournament_id || x.id) === String(tournamentId)
-    );
-    if (!t) throw new Error('Tournament not found.');
-
-    const matches = (db.tournament_matches || []).filter(
-      (m) => String(m.tournamentId) === String(tournamentId)
-    );
-    if (!matches.length) throw new Error('No bracket yet — start the tournament first.');
-
-    const round = t.currentRound || 1;
-    const thisRound = matches.filter((m) => Number(m.round) === Number(round));
-    if (!thisRound.length) throw new Error(`Round ${round} has no matches.`);
-
-    const pending = thisRound.filter((m) => m.status !== 'completed');
-    if (pending.length) {
-      throw new Error(
-        `${pending.length} match${pending.length > 1 ? 'es' : ''} in Round ${round} still need a winner.`
-      );
-    }
-
-    const nextRound = matches.filter((m) => Number(m.round) === Number(round) + 1);
-    if (!nextRound.length) {
-      t.status = 'completed';
-      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
-        window.DB.save();
-      } else {
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-      }
-      return { completed: true };
-    }
-
-    t.currentRound = round + 1;
-    if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
-      window.DB.save();
-    } else {
-      localStorage.setItem(DB_KEY, JSON.stringify(db));
-    }
-    return { completed: false, nextRound: round + 1 };
+    return advanceRoundShared(tournamentId);
   },
 
-  forceMatchWinner(matchId, winnerId, p1Id) {
+  forceMatchWinner(matchId, winnerId, p1Id, tournamentId) {
+    const db = getDatabase();
+    const match = (db.tournament_matches || []).find((m) => String(m.match_id || m.id) === String(matchId));
+    const tid = tournamentId || match?.tournamentId;
+    if (tid) {
+      try {
+        advanceMatchLocally(tid, matchId, winnerId);
+        return true;
+      } catch (err) {}
+    }
     if (typeof window !== 'undefined' && window.DB && typeof window.DB.advanceMatch === 'function') {
       window.DB.advanceMatch(
         matchId,
@@ -689,6 +659,117 @@ export const publisherService = {
       return true;
     }
     return false;
+  },
+
+  async pauseSingleTournament(tournamentId) {
+    const db = getDatabase();
+    const t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(tournamentId));
+    try {
+      await api.patch(`/tournaments/${tournamentId}`, { status: 'paused' });
+    } catch (e) {
+      console.warn('[Tournament Hub] Backend pause notice:', e.message);
+    }
+    if (t) {
+      t.status = 'paused';
+      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
+        window.DB.save();
+      } else {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+    }
+    return { success: true, status: 'paused' };
+  },
+
+  async resumeSingleTournament(tournamentId) {
+    const db = getDatabase();
+    const t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(tournamentId));
+    try {
+      await api.patch(`/tournaments/${tournamentId}`, { status: 'in-progress' });
+    } catch (e) {
+      console.warn('[Tournament Hub] Backend resume notice:', e.message);
+    }
+    if (t) {
+      t.status = 'in-progress';
+      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
+        window.DB.save();
+      } else {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+    }
+    return { success: true, status: 'in-progress' };
+  },
+
+  async cancelSingleTournament(tournamentId, reason = 'Cancelled by organizer') {
+    const db = getDatabase();
+    const t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(tournamentId));
+    try {
+      await api.patch(`/tournaments/${tournamentId}`, { status: 'cancelled' });
+    } catch (e) {
+      console.warn('[Tournament Hub] Backend cancel notice:', e.message);
+    }
+    if (t) {
+      t.status = 'cancelled';
+      t.cancel_reason = reason;
+      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
+        window.DB.save();
+      } else {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+    }
+    return { success: true, status: 'cancelled' };
+  },
+
+  async declareSingleTournamentWinner(tournamentId, winnerId, winnerName = '') {
+    const db = getDatabase();
+    const t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(tournamentId));
+    const wName = winnerName || (db.users || []).find((u) => String(u.id || u.user_id) === String(winnerId))?.user_name || String(winnerId);
+    try {
+      await api.patch(`/tournaments/${tournamentId}`, {
+        status: 'completed',
+        winner_id: parseInt(winnerId, 10) || undefined,
+        winner: wName
+      });
+    } catch (e) {
+      console.warn('[Tournament Hub] Backend declare winner notice:', e.message);
+    }
+    if (t) {
+      t.status = 'completed';
+      t.winner_id = winnerId;
+      t.winner = wName;
+      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
+        window.DB.save();
+      } else {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+    }
+    return { success: true, status: 'completed', winner: wName };
+  },
+
+  async extendSingleTournamentDeadline(tournamentId, newDeadline) {
+    const db = getDatabase();
+    const t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(tournamentId));
+    const payload = { regClose: newDeadline };
+    if (t && t.start_date && new Date(newDeadline) > new Date(t.start_date)) {
+      payload.start_date = newDeadline;
+    }
+    try {
+      await api.patch(`/tournaments/${tournamentId}`, payload);
+    } catch (e) {
+      console.warn('[Tournament Hub] Backend extend deadline notice:', e.message);
+    }
+    if (t) {
+      t.regClose = newDeadline;
+      if (payload.start_date) {
+        t.start_date = payload.start_date;
+        t.startDate = payload.start_date;
+      }
+      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
+        window.DB.save();
+      } else {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+    }
+    return { success: true, regClose: newDeadline };
   },
 
   async getFestDetails(id) {
@@ -1085,6 +1166,3 @@ export const publisherService = {
 };
 
 export default publisherService;
-
-
-

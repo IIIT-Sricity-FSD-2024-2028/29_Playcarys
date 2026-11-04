@@ -197,8 +197,16 @@ export class UpdateTournamentDto {
   prize?: string;
 
   @IsOptional()
-  @IsIn(['upcoming', 'in-progress', 'completed'])
-  status?: 'upcoming' | 'in-progress' | 'completed';
+  @IsIn(['upcoming', 'in-progress', 'completed', 'paused', 'cancelled'])
+  status?: 'upcoming' | 'in-progress' | 'completed' | 'paused' | 'cancelled';
+
+  @IsOptional()
+  @IsInt()
+  winner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  winner?: string;
 
   /**
    * Visibility can be flipped after creation (e.g. a private friends-only

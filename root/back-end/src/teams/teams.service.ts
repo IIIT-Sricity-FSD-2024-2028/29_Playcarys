@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { TeamsRepository } from './teams.repository';
 import { CreateTeamDto, AddTeamMemberDto } from './teams.dto';
-import { tournaments, users, Team } from '../data/store';
+import { tournaments, users, Team, groups } from '../data/store';
 
 // ── Domain rules ────────────────────────────────────────────
 // R-TEAM-1: A team's captain is always a member; removing the captain from
@@ -118,6 +118,18 @@ export class TeamsService {
     if (!t.team_size) {
       throw new BadRequestException('This tournament is not team-based.');
     }
+    if (t.group_id != null) {
+      const g = groups.find((grp) => Number(grp.group_id) === Number(t.group_id));
+      const isMember = g && (
+        Number(g.owner_id) === Number(requesterId) ||
+        (g.officer_ids || []).map(Number).includes(Number(requesterId)) ||
+        (g.member_ids || []).map(Number).includes(Number(requesterId))
+      );
+      if (!isMember) {
+        throw new ForbiddenException('Only community members can join this tournament.');
+      }
+    }
+
     if (team.member_ids.length !== t.team_size) {
       throw new BadRequestException(
         `This tournament needs teams of exactly ${t.team_size} — ${team.name} has ${team.member_ids.length}.`,
