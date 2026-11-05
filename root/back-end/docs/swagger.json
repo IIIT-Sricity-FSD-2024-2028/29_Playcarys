@@ -16,6 +16,86 @@
         ]
       }
     },
+    "/api/v1/platform-status": {
+      "get": {
+        "operationId": "AppController_platformStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Public: is the platform in maintenance, and is registration open?",
+        "tags": [
+          "root"
+        ]
+      }
+    },
+    "/api/v1/audit-log": {
+      "get": {
+        "operationId": "AppController_getAuditLog",
+        "parameters": [
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Staff: the audit log, newest first. ?type= filters by kind.",
+        "tags": [
+          "root"
+        ]
+      },
+      "post": {
+        "operationId": "AppController_addAuditLog",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Staff: record one audit entry.",
+        "tags": [
+          "root"
+        ]
+      },
+      "delete": {
+        "operationId": "AppController_clearAuditLog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Staff: clear the audit log. The clear itself is recorded.",
+        "tags": [
+          "root"
+        ]
+      }
+    },
+    "/api/v1/analytics": {
+      "get": {
+        "operationId": "AppController_getAnalytics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Staff: platform analytics computed from the stored records.",
+        "tags": [
+          "root"
+        ]
+      }
+    },
     "/api/v1/db-export": {
       "get": {
         "operationId": "AppController_exportDb",

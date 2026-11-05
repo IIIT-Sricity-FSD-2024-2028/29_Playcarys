@@ -63,7 +63,15 @@ export const DEFAULT_SETTINGS = {
 };
 
 export function getSettings() {
-  return getDB().settings;
+  const settings = getDB().settings;
+  // A saved settings row can be missing switches (an older or shorter sync). Fill them with their
+  // defaults so the page never shows a blank or "undefined"; nothing is saved until the admin
+  // changes something.
+  if (settings.platformName === undefined) settings.platformName = 'PlayCarys';
+  Object.keys(DEFAULT_SETTINGS).forEach((key) => {
+    if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
+  });
+  return settings;
 }
 
 // A toggle flips one setting and saves straight away.

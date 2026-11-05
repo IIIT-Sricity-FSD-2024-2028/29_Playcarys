@@ -2,32 +2,22 @@
 // Each function changes DB the same way the old page did; the section then calls refresh().
 import { getDB, getSession, capitalize, dispatchRoleNotification } from './adminService';
 import { removeUserForGood } from './adminUserService';
+import { recordAudit } from './adminAuditService';
 
 // ── Audit log ────────────────────────────────────────────────────
-// The old page kept this list in memory only (it starts over on every page load).
-export const INITIAL_AUDIT_LOG = [
-  { type: 'user', msg: 'SuperAdmin logged in', detail: 'IP: 192.168.1.1', time: 'just now', actor: 'SuperAdmin' },
-  { type: 'game', msg: 'Fantasy Quest approved for publication', detail: 'Submitted by IndieDevStudios', time: '5m ago', actor: 'SystemAdmin' },
-  { type: 'ban', msg: 'ToxicPlayer banned for 7 days', detail: 'Reason: Toxic behavior', time: '2h ago', actor: 'ModeratorOne' },
-  { type: 'tournament', msg: 'Racing Thunder Grand Prix started', detail: '24 participants registered', time: '6h ago', actor: 'System' },
-  { type: 'user', msg: 'New publisher registered: IndieDevStudios', detail: 'Email: hello@indiedev.com', time: '1d ago', actor: 'System' },
-  { type: 'system', msg: 'Platform settings updated', detail: 'Maintenance mode toggled off', time: '2d ago', actor: 'SuperAdmin' },
-  { type: 'game', msg: 'Space Warriors enabled on platform', detail: 'Publisher: EpicGamesStudio', time: '3d ago', actor: 'SystemAdmin' },
-  { type: 'user', msg: 'ModeratorTwo account created', detail: 'Role: Moderator', time: '5d ago', actor: 'SuperAdmin' },
-  { type: 'system', msg: 'Session timeout changed to 30 minutes', detail: 'Previous: 60 minutes', time: '7d ago', actor: 'SuperAdmin' },
-  { type: 'tournament', msg: 'Puzzle Masters Open completed', detail: 'Winner: ShadowMaster', time: '1w ago', actor: 'System' }
-];
-
-// Add an entry to the audit list, to the platform activity feed, and tell the superusers.
-export function addAuditEntry(auditLog, type, msg, detail) {
+// Entries are kept by the server (see adminAuditService), so they survive a page reload and are
+// the same for every admin. This also adds the line to the platform activity feed and tells the
+// superusers.
+export function addAuditEntry(type, msg, detail) {
   const session = getSession();
   const db = getDB();
-  auditLog.unshift({ type: type, msg: msg, detail: detail, time: 'just now', actor: session.username });
+  const saved = recordAudit(type, msg, detail);
   if (!db.activityLog) db.activityLog = [];
   db.activityLog.unshift({ type: type, msg: msg, time: 'just now' });
   if (session.role !== 'superuser') {
     dispatchRoleNotification('superuser', session.role, session.username, `Audit Action: ${msg} (${detail})`);
   }
+  return saved;
 }
 
 // ── Users ────────────────────────────────────────────────────────
@@ -189,7 +179,7 @@ export function exportData(type, auditLog, addAudit) {
       };
       return `${r.report_id},${nameOf(r.reported_by)},${nameOf(r.reported_user)},${r.type},${r.status}`;
     }).join('\n'),
-    audit: auditLog.map((e) => `${e.time},${e.type},${e.msg},${e.actor}`).join('\n')
+    audit: auditLog.map((e) => `${e.at},${e.type},${e.msg},${e.actor}`).join('\n')
   };
   const blob = new Blob([exports[type] || ''], { type: 'text/csv' });
   const a = document.createElement('a');

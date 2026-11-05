@@ -4,7 +4,7 @@
  *  - State (toast list, confirm dialog, refresh counter)
  *  - Hooks (useState, useRef)
  *  - Props (children)
- *  - Callbacks (confirmAction receives the function to run on "Confirm")
+ *  - Callbacks (confirmAction receives the function to run on "Confirm", and optionally one for "Cancel")
  *
  * What it replaces from the old admin pages: Toast.success/error/info/warning,
  * confirmAction(), and the habit of re-rendering by calling render() after
@@ -15,6 +15,7 @@ import React, { createContext, useState, useRef } from 'react';
 export const AdminContext = createContext({
   toast: { success: () => {}, error: () => {}, info: () => {}, warning: () => {} },
   confirmAction: () => {},
+  cancelConfirm: () => {},
   refresh: () => {},
   version: 0
 });
@@ -48,14 +49,22 @@ export function AdminProvider(props) {
     warning: (msg) => showToast(msg, 'warning')
   };
 
-  // confirmAction(title, message, onConfirm, type) — type is 'danger' (default) or 'info'.
-  function confirmAction(title, msg, onConfirm, type) {
-    setConfirmState({ title: title, msg: msg, onConfirm: onConfirm, type: type || 'danger' });
+  // confirmAction(title, message, onConfirm, type, onCancel) — type is 'danger' (default) or 'info'.
+  // onCancel is optional: it runs when the dialog is dismissed instead of confirmed.
+  function confirmAction(title, msg, onConfirm, type, onCancel) {
+    setConfirmState({ title: title, msg: msg, onConfirm: onConfirm, onCancel: onCancel, type: type || 'danger' });
     setConfirmOpen(true);
   }
 
   function closeConfirm() {
     setConfirmOpen(false);
+  }
+
+  // Cancel button, the X and a click on the dark area.
+  function cancelConfirm() {
+    const onCancel = confirmState && confirmState.onCancel;
+    setConfirmOpen(false);
+    if (onCancel) onCancel();
   }
 
   // DB lives outside React. After a page changes it, calling refresh() makes every
@@ -73,6 +82,7 @@ export function AdminProvider(props) {
         confirmState: confirmState,
         confirmOpen: confirmOpen,
         closeConfirm: closeConfirm,
+        cancelConfirm: cancelConfirm,
         refresh: refresh,
         version: version
       }}

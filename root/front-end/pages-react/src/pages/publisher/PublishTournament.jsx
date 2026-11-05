@@ -416,11 +416,12 @@ export function PublishTournament() {
 
   // Single-game Management view
   async function handleOpenMgmt(id) {
-    let t = tournaments.find((x) => String(x.tournament_id || x.id) === String(id));
-    if (!t) {
-      try {
-        t = await publisherService.getTournamentDetails(id);
-      } catch (e) {
+    let t = null;
+    try {
+      t = await publisherService.getTournamentDetails(id);
+    } catch (e) {
+      t = tournaments.find((x) => String(x.tournament_id || x.id) === String(id));
+      if (!t) {
         const db = getDatabase();
         t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(id));
       }
@@ -511,15 +512,16 @@ export function PublishTournament() {
     openConfirm(
       'Manual Override',
       `Declare ${p1Name || winnerId} the winner of this match?`,
-      () => {
+      async () => {
         if (!activeTournament) return;
         const tid = activeTournament.tournament_id || activeTournament.id;
         const m = activeMatches.find((x) => x.match_id === matchId);
         if (!m) return;
 
-        publisherService.forceMatchWinner(matchId, winnerId, m.player1);
+        await publisherService.forceMatchWinner(matchId, winnerId, m.player1, tid);
         showToast('Match result recorded!', 'success');
-        handleOpenMgmt(tid);
+        await handleOpenMgmt(tid);
+        await loadData();
       },
       'Confirm Winner',
       'primary'

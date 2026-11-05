@@ -7,6 +7,9 @@ import {
 import { ModeratorActionRepository } from './moderator-action.repository';
 import { CreateModeratorActionDto, HandleViolationDto } from './moderator-action.dto';
 import { users, reports, player_profiles } from '../data/store';
+import { appendAudit } from '../data/persistence';
+
+const ROLE_NAMES: Record<number, string> = { 1: 'superuser', 2: 'admin', 3: 'moderator' };
 
 // ── Domain Rules ────────────────────────────────────────────
 // R-MOD-1: Only users with role moderator (3) or admin (2) or superuser (1) can create actions
@@ -137,6 +140,14 @@ export class ModeratorActionService {
     const profileIdx = player_profiles.findIndex((p) => p.user_id === playerId);
     if (profileIdx !== -1) player_profiles[profileIdx].player_status = true;
 
+    appendAudit({
+      type: 'ban',
+      msg: `Ban lifted for ${users[userIdx]?.user_name ?? 'player ' + playerId}`,
+      detail: 'Ban lifted by a moderator',
+      actor: moderator.user_name,
+      actor_role: ROLE_NAMES[moderator.role_id] ?? 'moderator',
+    });
+
     return { message: `Ban lifted for player ${playerId}` };
   }
 
@@ -172,6 +183,14 @@ export class ModeratorActionService {
         bannedDate: bannedDate.toISOString().split('T')[0],
         expiresDate: expiresDate.toISOString().split('T')[0],
         active: true,
+      });
+
+      appendAudit({
+        type: 'ban',
+        msg: `${users[userIdx]?.user_name ?? 'User ' + targetUserId} banned (${dto.ban_duration ?? '7 Days'})`,
+        detail: `Reason: ${dto.action_reason}`,
+        actor: moderator.user_name,
+        actor_role: ROLE_NAMES[moderator.role_id] ?? 'moderator',
       });
     }
 

@@ -10,7 +10,7 @@ import React from 'react';
 import ToggleRow from '../common/ToggleRow';
 
 export function PlatformSettingsCard(props) {
-  const { settings, platformName, onNameChange, nameError, nameLocked, onToggle } = props;
+  const { settings, platformName, onNameChange, onNameCommit, nameError, nameLocked, onToggle } = props;
 
   // Only a superuser may rename the platform. The field stays visible but disabled,
   // so an admin can see the setting and why it is not theirs.
@@ -28,6 +28,8 @@ export function PlatformSettingsCard(props) {
           id="platform-name"
           value={platformName}
           onChange={(e) => onNameChange(e.target.value)}
+          onBlur={onNameCommit}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
           disabled={nameLocked}
           title={nameLocked ? 'Only a superuser can rename the platform' : undefined}
           style={inputStyle}

@@ -2617,9 +2617,20 @@ const DB = {
       localStorage.setItem('favs_migration_v2', 'true');
     } else {
       const norm = {};
-      Object.keys(DB.favorites).forEach(k => {
-        norm[String(k)] = (DB.favorites[k] || []).map(String);
-      });
+      if (Array.isArray(DB.favorites)) {
+        // The server keeps favourites as rows ({ user_id, game_id }); the pages want
+        // { userId: [gameId, ...] }. Without this the next save throws and nothing is synced.
+        DB.favorites.forEach(row => {
+          if (!row || row.user_id == null || row.game_id == null) return;
+          const uid = String(row.user_id);
+          (norm[uid] = norm[uid] || []).push(String(row.game_id));
+        });
+      } else {
+        Object.keys(DB.favorites || {}).forEach(k => {
+          const list = DB.favorites[k];
+          norm[String(k)] = Array.isArray(list) ? list.map(String) : [];
+        });
+      }
       DB.favorites = norm;
     }
 

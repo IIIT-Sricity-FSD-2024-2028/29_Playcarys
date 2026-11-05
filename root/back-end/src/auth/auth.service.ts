@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { AuthRepository } from './auth.repository';
@@ -24,6 +26,7 @@ import {
   grantDefaultKit,
 } from '../data/store';
 import { signToken } from './token.util';
+import { platformSettings, appendAudit } from '../data/persistence';
 
 // ── Domain Rules ────────────────────────────────────────────
 // R-AUTH-1: Password must be at least 8 characters
@@ -122,6 +125,14 @@ export class AuthService {
       throw new UnauthorizedException('Account is banned. Contact support.');
     }
 
+    // Maintenance mode (admin Settings): only staff (superuser role 1, admin role 2)
+    // may sign in, so they can still reach Settings to switch it off.
+    if (platformSettings().maintenanceMode && ![1, 2].includes(user.role_id)) {
+      throw new ServiceUnavailableException(
+        'PlayCarys is under maintenance. Please try again later.',
+      );
+    }
+
     this.authRepository.updateLastSeen(user.user_id);
 
     // R-AUTH-7. Deliberately after the password/ban checks and before the
@@ -132,6 +143,18 @@ export class AuthService {
 
     const role = roles.find((r) => r.role_id === user.role_id);
     const roleName = role?.role_name ?? 'player';
+
+    // Staff sign-ins go in the audit log. Players and publishers are left out: there are
+    // too many of them and it is not an admin action.
+    if ([1, 2, 3].includes(user.role_id)) {
+      appendAudit({
+        type: 'user',
+        msg: `${user.user_name} signed in`,
+        detail: `Role: ${roleName}`,
+        actor: user.user_name,
+        actor_role: roleName,
+      });
+    }
 
     return {
       user_id: user.user_id,
@@ -365,6 +388,17 @@ export class AuthService {
 
   // Workflow: Register
   register(dto: RegisterDto) {
+    // Admin Settings: maintenance mode and "registration open" both gate sign-up.
+    const settings = platformSettings();
+    if (settings.maintenanceMode) {
+      throw new ServiceUnavailableException(
+        'PlayCarys is under maintenance. Please try again later.',
+      );
+    }
+    if (!settings.registrationOpen) {
+      throw new ForbiddenException('New registrations are currently closed.');
+    }
+
     // R-AUTH-1
     if (!dto.password || dto.password.length < 8) {
       throw new BadRequestException('Password must be at least 8 characters');
@@ -436,6 +470,14 @@ export class AuthService {
     // freshly-registered user would be told THEY are "signed in elsewhere".
     const sessionToken = this.claimSession(newUser, true);
     const roleName = roleId === 5 ? 'publisher' : 'player';
+
+    appendAudit({
+      type: 'user',
+      msg: `New ${roleName} registered: ${newUser.user_name}`,
+      detail: `Email: ${newUser.email}`,
+      actor: 'System',
+      actor_role: 'system',
+    });
 
     return {
       message: 'Registration successful',

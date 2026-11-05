@@ -9,7 +9,7 @@
  * registerPublisher), copied from the old doRegister / doPublisherRegister.
  */
 import React, { useState, useEffect } from 'react';
-import { registerPlayer, registerPublisher } from '../../services/landingAuthService';
+import { registerPlayer, registerPublisher, signUpBlockedReason } from '../../services/landingAuthService';
 
 const COUNTRY_CODES = [
   ['+1', '🇺🇸 US (+1)'], ['+44', '🇬🇧 UK (+44)'], ['+61', '🇦🇺 AU (+61)'], ['+7', '🇷🇺 RU (+7)'],
@@ -68,7 +68,12 @@ export function PlayerRegisterModal(props) {
     setErrors({ ...errors, [name]: '' });
   }
 
-  function submit() {
+  async function submit() {
+    const blocked = await signUpBlockedReason();
+    if (blocked) {
+      setErrors({ username: blocked });
+      return;
+    }
     const result = registerPlayer(values);
     if (result.errors) {
       setErrors(result.errors);
@@ -123,7 +128,12 @@ export function PublisherRegisterModal(props) {
     setErrors({ ...errors, [name]: '' });
   }
 
-  function submit() {
+  async function submit() {
+    const blocked = await signUpBlockedReason();
+    if (blocked) {
+      setErrors({ username: blocked });
+      return;
+    }
     const result = registerPublisher(values);
     if (result.errors) {
       setErrors(result.errors);

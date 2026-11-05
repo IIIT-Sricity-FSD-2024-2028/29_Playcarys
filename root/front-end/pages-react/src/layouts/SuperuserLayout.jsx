@@ -1,9 +1,11 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import SuperuserNavbar from '../components/superuser/common/SuperuserNavbar';
+import useIdleLogout from '../hooks/useIdleLogout';
 
 export function SuperuserLayout() {
   const location = useLocation();
+  useIdleLogout();
 
   let activePage = 'dashboard';
   if (location.pathname.includes('/superuser/hub')) {

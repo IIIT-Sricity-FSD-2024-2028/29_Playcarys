@@ -124,6 +124,13 @@ export function LoginPanel(props) {
       return;
     }
 
+    if (col.role !== 'admin' && col.role !== 'superuser') {
+      if (typeof DB !== 'undefined' && DB.settings && DB.settings.maintenanceMode) {
+        setError('PlayCarys is under maintenance. Please try again later.');
+        return;
+      }
+    }
+
     const user = found.user;
     const body = { password: password };
     if (user.email) {
@@ -146,6 +153,10 @@ export function LoginPanel(props) {
 
     if (result.status === 'offline') {
       setError('Cannot reach the server to verify your password. Check your connection and try again.');
+      return;
+    }
+    if (result.status === 'maintenance') {
+      setError('PlayCarys is under maintenance. Please try again later.');
       return;
     }
     if (result.status === 'banned') {

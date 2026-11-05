@@ -147,19 +147,16 @@ export async function rescanGame(gameId, role) {
 }
 
 export async function submitDecision(gameId, role, body) {
-  let backendRes = null;
-  try {
-    const res = await fetch(apiBase() + '/games/' + gameId + '/approve', {
+  const res = await fetch(apiBase() + '/games/' + gameId + '/approve', {
       method: 'PATCH',
       headers: apiHeaders(role, true),
       body: JSON.stringify(body)
     });
-    if (res.ok) {
-      backendRes = await res.json();
-    }
-  } catch (err) {
-    console.warn('Backend submitDecision warning:', err);
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || `Review failed (${res.status})`);
   }
+  const backendRes = await res.json();
 
   // Also update in localStorage so all components agree immediately
   try {
@@ -180,7 +177,7 @@ export async function submitDecision(gameId, role, body) {
     }
   } catch (e) {}
 
-  return backendRes || { game_id: gameId, game_approval_status: body.game_approval_status };
+  return backendRes;
 }
 
 // After the server accepts a decision, copy it into the local DB so the rest of the

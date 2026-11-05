@@ -12,6 +12,7 @@ import { CreateGameDto, UpdateGameDto, SetGameStateDto, ApproveGameDto, PLATFORM
 import { BundleService } from './bundle.service';
 import { ScanService, ScanReport } from './scan.service';
 import { deleted_games, game_reviews, games, publisher_profiles, sessions, users, Game, GameReview } from '../data/store';
+import { appendAudit } from '../data/persistence';
 import * as path from 'path';
 import { stripScanManifest, stripScanManifests } from './game.util';
 import { saveNow } from '../data/persistence';
@@ -380,6 +381,14 @@ export class GameService implements OnModuleInit {
 
     // R-REVIEW-5
     this.recordReview(game, reviewer, dto, override);
+
+    appendAudit({
+      type: 'game',
+      msg: `${game.game_name} ${approving ? 'approved' : 'rejected'}${override ? ' (scan override)' : ''}`,
+      detail: (override ? dto.override_note : dto.note)?.trim() ? `Note: ${(override ? dto.override_note : dto.note)!.trim()}` : 'Build review decision',
+      actor: reviewer.user_name,
+      actor_role: reviewer.role_id === 1 ? 'superuser' : 'admin',
+    });
 
     // R-GAME-5: sync publisher profile counters
     if (approving) {

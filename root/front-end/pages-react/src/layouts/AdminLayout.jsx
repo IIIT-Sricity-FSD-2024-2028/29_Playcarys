@@ -19,6 +19,7 @@ import AdminConfirmModal from '../components/admin/common/AdminConfirmModal';
 import LoadingState from '../components/common/LoadingState';
 import { waitForDb, installAuthShim } from '../services/adminService';
 import { sendHeartbeat } from '../services/adminLiveService';
+import useIdleLogout from '../hooks/useIdleLogout';
 // The shared stylesheet is imported here first so it comes BEFORE the admin CSS below, as in
 // the old pages (<link> first, page <style> after). Page rules then win ties, like before.
 import '../styles/global.css';
@@ -29,6 +30,7 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [dbState, setDbState] = useState('loading');
+  useIdleLogout();
 
   const allowed = !!user && (user.role === 'admin' || user.role === 'superuser');
 

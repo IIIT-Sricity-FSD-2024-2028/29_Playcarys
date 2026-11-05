@@ -4,7 +4,7 @@
  *    Events (alert and button clicks), Callbacks, Context (AdminContext, so it redraws when DB changes)
  *
  * "Platform Overview" section of the old hub.html: the four key numbers, platform health bars,
- * the attention list, and the live activity feed.
+ * the attention list, and the live activity feed (the latest lines of the server's audit log).
  */
 import React, { useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
@@ -13,9 +13,12 @@ import { getDB, getPlatformStats } from '../../../services/adminService';
 // (The old page showed nothing here because getPlatformStats() has no activeTournaments field;
 // the Tournaments section's own "Active" count is used instead.)
 import { tournamentCounts } from '../../../services/adminHubService';
+import { timeAgo } from '../../../services/adminAuditService';
 
-const FEED_ICONS = { publisher: '🟢', approval: '🟡', player: '🔵', tournament: '🏆', ban: '🔴', system: '⚙️' };
+const FEED_ICONS = { user: '👤', game: '🎮', publisher: '🟢', approval: '🟡', player: '🔵', tournament: '🏆', ban: '🔴', system: '⚙️' };
 const FEED_COLORS = {
+  user: 'rgba(0,212,255,0.12)',
+  game: 'rgba(16,185,129,0.12)',
   publisher: 'rgba(16,185,129,0.15)',
   approval: 'rgba(245,158,11,0.12)',
   player: 'rgba(0,212,255,0.12)',
@@ -25,7 +28,7 @@ const FEED_COLORS = {
 };
 
 export function OverviewSection(props) {
-  const { active, onShowSection, onNavigate } = props;
+  const { active, onShowSection, onNavigate, auditLog } = props;
   useContext(AdminContext); // redraw when AdminContext.refresh() is called
 
   const db = getDB();
@@ -111,13 +114,24 @@ export function OverviewSection(props) {
           <button className="btn btn-ghost btn-sm" onClick={() => onShowSection('audit')}>Full Audit Log →</button>
         </div>
         <div id="live-feed">
-          {db.activityLog.slice(0, 6).map((a, i) => (
-            <div className="audit-entry" key={i}>
-              <div className="audit-time">{a.time}</div>
-              <div className="audit-icon" style={{ background: FEED_COLORS[a.type] || 'var(--bg-secondary)' }}>{FEED_ICONS[a.type] || '📌'}</div>
-              <div className="audit-body"><div className="audit-title">{a.msg}</div></div>
+          {auditLog === null || auditLog === undefined ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-secondary)' }}>
+              Could not load the activity feed. Check that the backend is running.
             </div>
-          ))}
+          ) : auditLog.length ? auditLog.slice(0, 6).map((a) => (
+            <div className="audit-entry" key={a.id}>
+              <div className="audit-time" title={new Date(a.at).toLocaleString()}>{timeAgo(a.at)}</div>
+              <div className="audit-icon" style={{ background: FEED_COLORS[a.type] || 'var(--bg-secondary)' }}>{FEED_ICONS[a.type] || '📌'}</div>
+              <div className="audit-body">
+                <div className="audit-title">{a.msg}</div>
+                <div className="audit-detail">{a.actor}</div>
+              </div>
+            </div>
+          )) : (
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-secondary)' }}>
+              No activity yet. Sign-ins, approvals, bans and admin changes will show up here.
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -555,6 +555,7 @@ export const publisherService = {
         organizer: uid,
         organizer_role: 'publisher',
         type: 'single',
+        format: tournamentData.format || 'bracket',
         game_id: parseInt(tournamentData.gameId, 10),
         tournament_name: tournamentData.name,
         desc: tournamentData.desc,
@@ -980,16 +981,20 @@ export const publisherService = {
     const g = (db.games || []).find((x) => String(x.game_id || x.id) === String(gameId));
 
     // 1. Update metadata in backend
-    await this.updateGameMetadata(
-      gid,
-      {
-        game_name: editData.title,
-        desc: editData.description,
-        game_type: editData.genre,
-        players: `${editData.minPlayers}-${editData.maxPlayers}`
-      },
-      pid
-    );
+    try {
+      await this.updateGameMetadata(
+        gid,
+        {
+          game_name: editData.title,
+          desc: editData.description,
+          game_type: editData.genre,
+          players: `${editData.minPlayers}-${editData.maxPlayers}`
+        },
+        pid
+      );
+    } catch (err) {
+      console.warn('[publisherService] Backend updateGameMetadata notice:', err?.message || err);
+    }
 
     // 2. If approved and enabled state changed, update state in backend
     const currentStatus = g?.game_approval_status || g?.status;
@@ -997,7 +1002,11 @@ export const publisherService = {
     const nextEnabled = !!editData.enabled;
 
     if (currentStatus === 'approved' && currentEnabled !== nextEnabled) {
-      await this.setGameState(gid, nextEnabled ? 'enabled' : 'disabled', pid);
+      try {
+        await this.setGameState(gid, nextEnabled ? 'enabled' : 'disabled', pid);
+      } catch (err) {
+        console.warn('[publisherService] Backend setGameState notice:', err?.message || err);
+      }
     }
 
     // 3. Update the local cache only. The REST calls above are authoritative;

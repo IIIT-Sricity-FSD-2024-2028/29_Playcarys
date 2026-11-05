@@ -1,8 +1,16 @@
-import { Controller, Get, Post, Body, Headers, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Headers, Query, Req, BadRequestException } from '@nestjs/common';
+import { Roles } from './roles/roles.decorator';
 import { stripScanManifests } from './game/game.util';
 import { ApiTags, ApiOperation, ApiHeader } from '@nestjs/swagger';
 import * as storeUtils from './data/store';
-import { rememberPassthrough, currentPassthrough } from './data/persistence';
+import {
+  rememberPassthrough,
+  currentPassthrough,
+  platformSettings,
+  readAudit,
+  appendAudit,
+  clearAudit,
+} from './data/persistence';
 import { bearerFrom, verifyToken } from './auth/token.util';
 
 /**
@@ -30,6 +38,170 @@ export class AppController {
       message: 'Welcome to the PlayCarys OMGMP API',
       status: 'success',
       version: 'v1'
+    };
+  }
+
+  /**
+   * GET /api/v1/platform-status
+   * The two admin switches that visitors can run into, so the sign-in and
+   * sign-up screens can explain a refusal instead of calling it a bad password.
+   */
+  @Get('platform-status')
+  @ApiOperation({ summary: 'Public: is the platform in maintenance, and is registration open?' })
+  platformStatus() {
+    return platformSettings();
+  }
+
+  /**
+   * Audit log: what admins did. Read and written only by staff. The actor and
+   * the time are taken from the signed token and the server clock, so an entry
+   * cannot be forged by posting a different name.
+   */
+  @Get('audit-log')
+  @Roles('admin', 'superuser')
+  @ApiOperation({ summary: 'Staff: the audit log, newest first. ?type= filters by kind.' })
+  getAuditLog(@Query('type') type?: string) {
+    const rows = readAudit();
+    return type ? rows.filter((r) => r.type === type) : rows;
+  }
+
+  @Post('audit-log')
+  @Roles('admin', 'superuser')
+  @ApiOperation({ summary: 'Staff: record one audit entry.' })
+  addAuditLog(@Body() body: { type?: string; msg?: string; detail?: string }, @Req() req: any) {
+    const types = ['user', 'game', 'ban', 'tournament', 'system'];
+    const type = String(body?.type ?? '');
+    const msg = String(body?.msg ?? '').trim();
+    if (!types.includes(type) || !msg) {
+      throw new BadRequestException('An audit entry needs a type (user, game, ban, tournament, system) and a message.');
+    }
+    return appendAudit({
+      type,
+      msg: msg.slice(0, 200),
+      detail: String(body?.detail ?? '').slice(0, 300),
+      ...this.actorOf(req),
+    });
+  }
+
+  @Delete('audit-log')
+  @Roles('admin', 'superuser')
+  @ApiOperation({ summary: 'Staff: clear the audit log. The clear itself is recorded.' })
+  clearAuditLog(@Req() req: any) {
+    clearAudit();
+    appendAudit({
+      type: 'system',
+      msg: 'Audit log cleared',
+      detail: 'Manual clear',
+      ...this.actorOf(req),
+    });
+    return { status: 'ok' };
+  }
+
+  /** Who is acting, from the token RolesGuard already verified. */
+  private actorOf(req: any): { actor: string; actor_role: string } {
+    const auth = req?.auth;
+    const user = (storeUtils.users as any[]).find((u) => u.user_id === auth?.sub);
+    return { actor: user?.user_name ?? `user#${auth?.sub}`, actor_role: String(auth?.role ?? '') };
+  }
+
+  /**
+   * GET /api/v1/analytics
+   * The numbers on the admin Control Hub "Platform Analytics" tab, worked out from the
+   * records the server holds (sessions, match results, users, games, tournaments), so they
+   * are the same for every admin and never come from a counter kept in a browser.
+   */
+  @Get('analytics')
+  @Roles('admin', 'superuser')
+  @ApiOperation({ summary: 'Staff: platform analytics computed from the stored records.' })
+  getAnalytics() {
+    const games = storeUtils.games as any[];
+    const sessions = storeUtils.sessions as any[];
+    const results = storeUtils.match_results as any[];
+    const users = storeUtils.users as any[];
+    const profiles = storeUtils.player_profiles as any[];
+    const tournaments = storeUtils.tournaments as any[];
+
+    // Older result rows carry no game_id, so look the game up through their session.
+    const gameOfSession = new Map(sessions.map((s) => [s.session_id, s.game_id]));
+    const gameOfResult = (r: any) => r.game_id ?? gameOfSession.get(r.session_id);
+
+    const perGame = games.map((g) => {
+      const mine = sessions.filter((s) => s.game_id === g.game_id);
+      const played = new Set(results.filter((r) => gameOfResult(r) === g.game_id).map((r) => r.session_id));
+      return {
+        game_id: g.game_id,
+        game_name: g.game_name,
+        approval: g.game_approval_status,
+        enabled: g.game_status === 'enabled',
+        sessions: mine.length,
+        completed_sessions: mine.filter((s) => s.status === 'completed').length,
+        matches_played: played.size,
+        views: g.views ?? 0,
+      };
+    });
+
+    const roleNames: Record<number, string> = { 1: 'superuser', 2: 'admin', 3: 'moderator', 4: 'player', 5: 'publisher' };
+    const roles: Record<string, number> = { player: 0, publisher: 0, moderator: 0, admin: 0, superuser: 0 };
+    for (const u of users) {
+      const name = roleNames[u.role_id];
+      if (name) roles[name] += 1;
+    }
+
+    // A win is a recorded 'win'; rows from before results were stored count rank 1 as the win.
+    const byPlayer = new Map<number, { matches: number; wins: number; draws: number }>();
+    for (const r of results) {
+      const row = byPlayer.get(r.player_id) ?? { matches: 0, wins: 0, draws: 0 };
+      row.matches += 1;
+      if (r.result === 'win' || (r.result == null && r.player_rank === 1)) row.wins += 1;
+      if (r.result === 'draw') row.draws += 1;
+      byPlayer.set(r.player_id, row);
+    }
+    const players = [...byPlayer.entries()]
+      .map(([id, v]) => {
+        const user = users.find((u) => u.user_id === id);
+        const profile = profiles.find((p) => p.user_id === id);
+        return {
+          user_id: id,
+          user_name: user?.user_name ?? `user#${id}`,
+          avatar: user?.avatar ?? '',
+          matches: v.matches,
+          wins: v.wins,
+          draws: v.draws,
+          win_rate: Math.round((v.wins / v.matches) * 100),
+          level: Math.floor((profile?.carys_points ?? 0) / 100),
+        };
+      })
+      .sort((a, b) => b.win_rate - a.win_rate || b.matches - a.matches);
+
+    // Prize pools are held in paise (prize_pool_paise); the display text is only a fallback.
+    const prizeOf = (t: any) =>
+      typeof t.prize_pool_paise === 'number'
+        ? t.prize_pool_paise
+        : (parseInt(String(t.prize ?? '').replace(/\D/g, ''), 10) || 0) * 100;
+    const tournamentRows = tournaments.map((t) => ({
+      tournament_id: t.tournament_id,
+      name: t.tournament_name,
+      status: t.status,
+      participants: t.participants,
+      max_participants: t.maxParticipants,
+      prize_pool_paise: prizeOf(t),
+    }));
+
+    return {
+      generated_at: new Date().toISOString(),
+      totals: {
+        users: users.length,
+        games: games.length,
+        sessions: sessions.length,
+        matches_played: new Set(results.map((r) => r.session_id)).size,
+        match_results: results.length,
+        views: games.reduce((sum, g) => sum + (g.views ?? 0), 0),
+        prize_pool_paise: tournamentRows.reduce((sum, t) => sum + t.prize_pool_paise, 0),
+      },
+      games: perGame,
+      roles,
+      players,
+      tournaments: tournamentRows,
     };
   }
 
@@ -139,6 +311,10 @@ export class AppController {
   private buildExport() {
     return {
       roles: storeUtils.roles,
+      // Admin Settings (maintenance mode, registration open, ...). Sent so every
+      // browser starts from the server's values; before, each client kept its own
+      // copy and synced the defaults back, undoing what an admin had saved.
+      ...(currentPassthrough().settings ? { settings: currentPassthrough().settings } : {}),
       // Credentials are stripped on the way out. This endpoint is unauthenticated
       // and the frontend calls it on every page load, so the previous version
       // handed every visitor all 24 accounts' plaintext passwords — including
@@ -503,6 +679,21 @@ export class AppController {
             // Staff accounts are still creatable, but only by staff: the
             // superuser pages send their signed token, which lifts the clamp.
             if (!existing) {
+              // Admin Settings: no new accounts while registration is closed or the
+              // platform is in maintenance. The sign-up pages create accounts by
+              // syncing here rather than calling POST /auth/register, so the
+              // switch has to be honoured on this path too. Staff may still create.
+              const gate = platformSettings();
+              if (!staffCaller && (gate.maintenanceMode || !gate.registrationOpen)) {
+                console.warn(
+                  `[db-import] refused new account "${incoming.user_name}": ` +
+                    (gate.maintenanceMode ? 'maintenance mode' : 'registration closed'),
+                );
+                dropDuplicates.add(String(incoming.user_id));
+                // Also drops the profile rows that arrive with it.
+                removedUsers.add(String(incoming.user_id));
+                continue;
+              }
               if (!staffCaller && incoming.role_id != null && ![4, 5].includes(Number(incoming.role_id))) {
                 console.warn(
                   `[db-import] refused unauthenticated creation of role_id ${incoming.role_id}` +
@@ -542,6 +733,18 @@ export class AppController {
                   );
                   dropDuplicates.add(String(incoming.user_id));
                 }
+              }
+              // Someone signed up through the sign-up page. (Accounts staff create from the Users
+              // page are recorded by that page, so they are not counted twice.)
+              if (!staffCaller && !dropDuplicates.has(String(incoming.user_id))) {
+                const kind = Number(incoming.role_id) === 5 ? 'publisher' : 'player';
+                appendAudit({
+                  type: 'user',
+                  msg: `New ${kind} registered: ${incoming.user_name}`,
+                  detail: `Email: ${incoming.email ?? ''}`,
+                  actor: 'System',
+                  actor_role: 'system',
+                });
               }
               continue;
             }
@@ -913,6 +1116,13 @@ export class AppController {
     if (incomingSettings && typeof incomingSettings === 'object') {
       const held = (currentPassthrough().settings ?? {}) as Record<string, unknown>;
       const superCaller = !!caller && String(caller.role).toLowerCase() === 'superuser';
+      // Only staff may change settings. Every browser posts its own copy of
+      // `settings` with each sync, so without this any visitor's page load put
+      // maintenanceMode and registrationOpen back to whatever that tab held.
+      if (!staffCaller && Object.keys(held).length) {
+        for (const k of Object.keys(incomingSettings)) delete incomingSettings[k];
+        Object.assign(incomingSettings, held);
+      }
       if (!superCaller && held.platformName !== undefined &&
           incomingSettings.platformName !== held.platformName) {
         console.warn(
@@ -922,6 +1132,10 @@ export class AppController {
         incomingSettings.platformName = held.platformName;
       }
     }
+
+    // The audit log is written only through POST /audit-log. Left in the body, any
+    // sync could replace it with whatever that browser held.
+    delete (body as any).audit_log;
 
     rememberPassthrough(body);
 

@@ -6,13 +6,14 @@
  *
  * Mirrors pages/admin/dashboard.html.
  */
-import React, { useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
 import DashboardStats from '../../components/admin/dashboard/DashboardStats';
 import DashboardOverview from '../../components/admin/dashboard/DashboardOverview';
 import RecentActivity from '../../components/admin/dashboard/RecentActivity';
 import QuickActions from '../../components/admin/dashboard/QuickActions';
+import { fetchAuditLog } from '../../services/adminAuditService';
 import {
   getDB,
   getSession,
@@ -27,8 +28,17 @@ export function Dashboard() {
   const { toast } = useContext(AdminContext); // also redraws this page when refresh() is called
   const go = useAdminNav();
 
+  // Recent activity is the latest of the server's audit log (null = could not be loaded).
+  const [activity, setActivity] = useState([]);
+
   useEffect(() => {
     document.title = 'PlayCarys — Admin Dashboard';
+    async function load() {
+      setActivity(await fetchAuditLog());
+    }
+    load();
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
   }, []);
 
   const db = getDB();
@@ -76,7 +86,7 @@ export function Dashboard() {
 
       <DashboardOverview stats={stats} totalGames={db.games.length} />
 
-      <RecentActivity activity={db.activityLog} onViewApprovals={() => go('approvals')} />
+      <RecentActivity activity={activity} onViewApprovals={() => go('approvals')} />
 
       <QuickActions
         pendingGames={stats.pendingGames}

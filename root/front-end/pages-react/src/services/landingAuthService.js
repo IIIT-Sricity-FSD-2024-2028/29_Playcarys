@@ -1,3 +1,9 @@
+function getApiBase() {
+  if (typeof window !== 'undefined' && window.PC_API) return window.PC_API;
+  const host = (typeof window !== 'undefined' ? window.location.hostname : 'localhost') || 'localhost';
+  return 'http://' + host + ':3000/api/v1';
+}
+
 // Login and sign-up logic of the landing page, copied from the script in the old index.html
 // and from `Auth` in js/utils.js. Nothing here touches the page: the components call these
 // functions and show the answers.
@@ -160,11 +166,11 @@ export function findLoginUser(inputVal, expectedRole) {
 }
 
 // The password is checked by the server (POST /auth/login), which also claims the
-// one-account-one-session slot. Returns { status: 'ok' | 'conflict' | 'banned' | 'bad' | 'offline', data? }.
+// one-account-one-session slot. Returns { status: 'ok' | 'conflict' | 'banned' | 'bad' | 'maintenance' | 'offline', data? }.
 export async function serverLogin(body) {
   let res;
   try {
-    res = await fetch(window.PC_API + '/auth/login', {
+    res = await fetch(getApiBase() + '/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -178,6 +184,9 @@ export async function serverLogin(body) {
   }
   if (res.status === 409) {
     return { status: 'conflict' };
+  }
+  if (res.status === 503) {
+    return { status: 'maintenance' };
   }
   let message = '';
   try {
@@ -290,7 +299,7 @@ export async function runForgotPassword() {
   const email = prompt('Enter the email address on your account:');
   if (!email) return;
   try {
-    const res = await fetch(window.PC_API + '/auth/forgot-password', {
+    const res = await fetch(getApiBase() + '/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim() })
@@ -309,7 +318,7 @@ export async function runForgotPassword() {
   if (!pw) return;
 
   try {
-    const res = await fetch(window.PC_API + '/auth/reset-password', {
+    const res = await fetch(getApiBase() + '/auth/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim(), code: code.trim(), new_password: pw })
@@ -338,6 +347,26 @@ function firstError(checks) {
     if (msg) errors[field] = msg;
   });
   return errors;
+}
+
+// Admin Settings switches (maintenance mode, registration open). If the server cannot be
+// reached the answer is "open": the real refusal still comes from the server on sync.
+export async function fetchPlatformStatus() {
+  try {
+    const res = await fetch(getApiBase() + '/platform-status');
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline
+  }
+  return { maintenanceMode: false, registrationOpen: true };
+}
+
+// The message shown when sign-up is switched off, or '' when it is allowed.
+export async function signUpBlockedReason() {
+  const status = await fetchPlatformStatus();
+  if (status.maintenanceMode) return 'PlayCarys is under maintenance. Please try again later.';
+  if (!status.registrationOpen) return 'New registrations are currently closed.';
+  return '';
 }
 
 export function registerPlayer(values) {

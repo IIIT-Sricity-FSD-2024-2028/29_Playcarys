@@ -10,7 +10,7 @@ import React from 'react';
 import ToggleRow from '../common/ToggleRow';
 
 export function SecuritySettingsCard(props) {
-  const { settings, sessionTimeout, onTimeoutChange, timeoutError, onToggle } = props;
+  const { settings, sessionTimeout, onTimeoutChange, onTimeoutCommit, timeoutError, onToggle } = props;
 
   return (
     <div className="card">
@@ -26,7 +26,7 @@ export function SecuritySettingsCard(props) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h4 style={{ fontSize: '0.9rem', fontWeight: 500 }}>Session Timeout</h4>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Auto-logout after inactivity (minutes)</p>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Auto-logout after inactivity (minutes). Applies to admin, moderator and superuser accounts.</p>
           </div>
           <input
             className={'form-input' + (timeoutError ? ' error' : '')}
@@ -36,6 +36,8 @@ export function SecuritySettingsCard(props) {
             max="240"
             value={sessionTimeout}
             onChange={(e) => onTimeoutChange(e.target.value)}
+            onBlur={onTimeoutCommit}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             style={{ width: '90px', textAlign: 'center' }}
           />
         </div>

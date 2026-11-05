@@ -162,6 +162,112 @@ export function currentPassthrough(): Record<string, unknown> {
   return passthrough;
 }
 
+/**
+ * The admin Settings page saves `maintenanceMode` and `registrationOpen` into the
+ * passthrough `settings` table. Read them here so the backend can enforce them;
+ * a missing value means the default (platform open, registration open).
+ */
+export function platformSettings(): {
+  maintenanceMode: boolean;
+  registrationOpen: boolean;
+  sessionTimeoutMinutes: number;
+} {
+  const s = (passthrough.settings ?? {}) as Record<string, unknown>;
+  // The Settings page only allows 5-240; clamp anyway so a bad value in the
+  // file can never lock every staff member out instantly.
+  const minutes = Number(s.sessionTimeout);
+  return {
+    maintenanceMode: s.maintenanceMode === true,
+    registrationOpen: s.registrationOpen !== false,
+    sessionTimeoutMinutes: Number.isFinite(minutes) ? Math.min(240, Math.max(5, minutes)) : 30,
+  };
+}
+
+// ── Audit log ────────────────────────────────────────────────
+// What staff did, written by the server (the actor comes from the signed
+// token, never from the request body) and kept in live_database.json under
+// `audit_log`, so it survives restarts and is the same for every admin.
+export interface AuditEntry {
+  id: number;
+  at: string; // ISO time, set by the server
+  type: string;
+  msg: string;
+  detail: string;
+  actor: string;
+  actor_role: string;
+}
+
+const AUDIT_LIMIT = 1000;
+
+export function readAudit(): AuditEntry[] {
+  const rows = passthrough.audit_log;
+  return Array.isArray(rows) ? (rows as AuditEntry[]) : [];
+}
+
+export function appendAudit(entry: Omit<AuditEntry, 'id' | 'at'>): AuditEntry {
+  const rows = readAudit();
+  const last = rows.length ? rows[0].id : 0; // newest first
+  const row: AuditEntry = { id: last + 1, at: new Date().toISOString(), ...entry };
+  passthrough.audit_log = [row, ...rows].slice(0, AUDIT_LIMIT);
+  return row;
+}
+
+/**
+ * Once, add what the platform already recorded to the log: game review decisions, bans and
+ * moderator warnings. They keep their real dates, so the log is not empty on day one, and any
+ * entries already in the log are kept. A flag remembers that this ran, so "Clear Log" stays
+ * cleared.
+ */
+export function backfillAuditHistory(): void {
+  if (passthrough.audit_history_seeded === true) return;
+  const rows: Omit<AuditEntry, 'id'>[] = [];
+  const nameOf = (id: number) => store.users.find((u) => u.user_id === id)?.user_name ?? `user#${id}`;
+
+  for (const r of ((store as any).game_reviews ?? []) as any[]) {
+    const game = store.games.find((g) => g.game_id === r.game_id);
+    rows.push({
+      at: r.decided_at,
+      type: 'game',
+      msg: `${game?.game_name ?? 'Game ' + r.game_id} ${r.decision}`,
+      detail: r.note ? `Note: ${r.note}` : 'Build review decision',
+      actor: r.reviewer_name ?? nameOf(r.reviewer_id),
+      actor_role: r.reviewer_id === 1 ? 'superuser' : 'admin',
+    });
+  }
+  for (const b of ((store as any).bans ?? []) as any[]) {
+    rows.push({
+      at: `${b.bannedDate}T12:00:00.000Z`,
+      type: 'ban',
+      msg: `${b.playerName} banned (${b.duration})`,
+      detail: `Reason: ${b.reason}`,
+      actor: b.bannedBy,
+      actor_role: 'moderator',
+    });
+  }
+  for (const a of ((store as any).moderator_actions ?? []) as any[]) {
+    if (a.action_type === 'ban') continue; // the bans table above already has it
+    rows.push({
+      at: `${a.action_date}T12:00:00.000Z`,
+      type: 'user',
+      msg: `Moderator ${a.action_type}`,
+      detail: a.action_reason ?? '',
+      actor: nameOf(a.moderator_id),
+      actor_role: 'moderator',
+    });
+  }
+
+  for (const e of readAudit()) rows.push({ at: e.at, type: e.type, msg: e.msg, detail: e.detail, actor: e.actor, actor_role: e.actor_role });
+
+  rows.sort((x, y) => Date.parse(x.at) - Date.parse(y.at)); // oldest first, so ids grow with time
+  const withIds = rows.map((r, i) => ({ id: i + 1, ...r }));
+  passthrough.audit_log = withIds.reverse().slice(0, AUDIT_LIMIT); // stored newest first
+  passthrough.audit_history_seeded = true;
+}
+
+export function clearAudit(): void {
+  passthrough.audit_log = [];
+}
+
 export function rememberPassthrough(body: Record<string, unknown>): void {
   if (!body || typeof body !== 'object') return;
   const owned = new Set(Object.keys(storeTables()));
@@ -247,3 +353,4 @@ export function installShutdownFlush(): void {
 }
 
 loadPassthroughFromDisk();
+backfillAuditHistory();

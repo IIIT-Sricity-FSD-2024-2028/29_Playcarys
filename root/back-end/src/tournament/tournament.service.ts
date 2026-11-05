@@ -13,7 +13,8 @@ import {
   CreateTournamentGameDto,
 } from './tournament.dto';
 import {
-  games, player_profiles, team_tournament, teams, users, roles, groups,
+  games, player_profiles, team_tournament, teams, users, roles, groups, notifications,
+  tournament_matches, tournament_results,
   DEFAULT_RAKE_PCT, formatPaise, Transaction, TournamentPrizeShare,
 } from '../data/store';
 import { EconomyService } from '../economy/economy.service';
@@ -179,6 +180,17 @@ export class TournamentService {
     const visibility = dto.visibility === 'private' ? 'private' : 'public';
 
     const newId = this.repo.nextId();
+
+    // Parse prize from dto.prize_pool_paise or dto.prize if provided
+    let poolPaise = Math.max(0, Math.trunc(Number((dto as any).prize_pool_paise) || 0));
+    if (!poolPaise && (dto as any).prize) {
+      const parsedNum = parseInt(String((dto as any).prize).replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(parsedNum) && parsedNum > 0) {
+        poolPaise = parsedNum * 100;
+      }
+    }
+    const finalPrize = poolPaise > 0 ? formatPaise(poolPaise) : ((dto as any).prize || formatPaise(0));
+
     const tournament = this.repo.create({
       tournament_id: newId,
       // Multi-game: game_id is deliberately 0, never a real id — see the
@@ -203,8 +215,8 @@ export class TournamentService {
       // economics cannot change under its players if the organiser's plan
       // lapses midway.
       rake_pct: this.economy.rakePctFor(dto.organizer),
-      prize_pool_paise: 0,
-      prize_distribution: distribute(0),
+      prize_pool_paise: poolPaise,
+      prize_distribution: distribute(poolPaise),
       organizer: dto.organizer,
       organizer_role: dto.organizer_role,
       type,
@@ -216,7 +228,7 @@ export class TournamentService {
       // stored either way since they're harmless and cheap, but formatOf()
       // in tournament-play.service.ts only ever reads them for a single-game
       // tournament.
-      format: dto.format,
+      format: dto.format || 'bracket',
       metric: dto.metric,
       direction: dto.direction,
       metric_label: dto.metric_label,
@@ -225,6 +237,28 @@ export class TournamentService {
 
     if (type === 'multi') {
       dto.games!.forEach((g) => this.addStage(newId, g));
+    }
+
+    // Dynamic notification to all players when a new tournament is published
+    try {
+      const orgUser = users.find((u) => u.user_id === Number(dto.organizer));
+      const orgName = orgUser?.user_name || 'Tournament Official';
+      notifications.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        toRole: 'player',
+        toUser: null,
+        from: orgName,
+        avatar: '🏆',
+        fromRole: 'publisher',
+        fromUserId: Number(dto.organizer),
+        msg: `🏆 New Tournament Announced: "${tournament.tournament_name}" with a prize pool of ${tournament.prize}! Registration is now open.`,
+        time: 'Just now',
+        read: false,
+        replies: [],
+        type: 'tournament',
+      });
+    } catch (e) {
+      // safe fallback
     }
 
     return this.enrich(tournament);
@@ -518,6 +552,13 @@ export class TournamentService {
     // id, once reused, silently inherits teams that were never re-registered.
     for (let i = team_tournament.length - 1; i >= 0; i--) {
       if (team_tournament[i].tournament_id === id) team_tournament.splice(i, 1);
+    }
+    // Clean up tournament matches and results
+    for (let i = tournament_matches.length - 1; i >= 0; i--) {
+      if (Number(tournament_matches[i].tournamentId) === id) tournament_matches.splice(i, 1);
+    }
+    for (let i = tournament_results.length - 1; i >= 0; i--) {
+      if (Number(tournament_results[i].tournament_id) === id) tournament_results.splice(i, 1);
     }
     this.repo.removeAllRegistrations(id);
     this.repo.remove(id);

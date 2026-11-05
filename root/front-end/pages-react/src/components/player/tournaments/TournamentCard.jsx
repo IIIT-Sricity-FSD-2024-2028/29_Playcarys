@@ -116,7 +116,8 @@ export function TournamentCard({
 
         <p className="tcard-desc">{t.desc || ''}</p>
 
-        <div className="tcard-meta">{[<span>🎮 {t.game || 'Game'}</span>, <span>{isTeam ? '⚔️' : '👥'} {entrants}/{max} {isTeam ? 'teams' : 'players'}</span>, <span>📅 {formatDate(t.startDate || t.start_date)}</span>, hasPrizeMoney(t) ? <span className="tcard-prize">{t.prize}</span> : null].filter(Boolean).map((el, i) => <React.Fragment key={i}>{i > 0 && <span className="sep">·</span>}{el}</React.Fragment>)}<div style={{ display: 'none' }}>
+        <div className="tcard-meta">{[<span>🎮 {t.game || 'Game'}</span>, <span>{isTeam ? '⚔️' : '👥'} {entrants}/{max} {isTeam ? 'teams' : 'players'}</span>, <span>📅 {formatDate(t.startDate || t.start_date)}</span>, hasPrizeMoney(t) ? <span className="tcard-prize">{t.prize}</span> : null].filter(Boolean).map((el, i) => <React.Fragment key={i}>{i > 0 && <span className="sep">·</span>}{el}</React.Fragment>)}</div>
+        <div style={{ display: 'none' }}>
           <span>🎮 {t.game || 'Game'}</span>
           <span className="sep">·</span>
           <span>
@@ -125,7 +126,6 @@ export function TournamentCard({
           <span className="sep">·</span>
           <span>📅 {formatDate(t.startDate || t.start_date)}</span>
           <span className="sep">·</span>
-null</div>
         </div>
 
         {t.status === 'upcoming' && (

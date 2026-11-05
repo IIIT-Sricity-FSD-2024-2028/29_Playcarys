@@ -35,6 +35,12 @@ export function TournamentMgmt({
   const isCompleted = t.status === 'completed';
   const isCancelled = t.status === 'cancelled';
 
+  // Compute active round dynamically from bracket fixtures
+  const activeRound =
+    matches.find((m) => m.status !== 'completed')?.round ||
+    t.currentRound ||
+    (matches.length > 0 ? Math.max(...matches.map((m) => m.round)) : 1);
+
   function getUserName(id) {
     if (!id) return 'TBD';
     if (id === 'BYE') return 'BYE';
@@ -157,7 +163,7 @@ export function TournamentMgmt({
             <div>
               <h3>
                 {isUpcoming && 'Ready to start?'}
-                {isInProgress && `Tournament Level: Round ${t.currentRound || 1} (Live)`}
+                {isInProgress && `Tournament Level: Round ${activeRound} (Live)`}
                 {isPaused && '⏸️ Tournament is Paused'}
               </h3>
               <p className="text-secondary text-sm" style={{ margin: 0 }}>
@@ -285,8 +291,8 @@ export function TournamentMgmt({
         <div id="mgmt-matches" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {matches.length > 0 ? (
             matches.map((m) => {
-              const p1 = m.p1_name || getUserName(m.player1);
-              const p2 = m.p2_name || getUserName(m.player2);
+              const p1 = m.player1_name || m.p1_name || getUserName(m.player1);
+              const p2 = m.player2_name || m.p2_name || getUserName(m.player2);
               const isLive =
                 m.status !== 'completed' &&
                 m.player1 &&
@@ -332,7 +338,7 @@ export function TournamentMgmt({
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     {m.status === 'completed' && (
                       <span style={{ color: 'var(--accent-green)', fontSize: '0.8rem', fontWeight: 700 }}>
-                        Winner: {String(winner) === String(m.player1) ? p1 : p2}
+                        Winner: {m.winner_name || (String(winner) === String(m.player1) ? p1 : p2)}
                       </span>
                     )}
                     {isLive && !isCompleted && !isCancelled && (
