@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { getPlayers } from '../../../services/moderatorService';
 
@@ -222,7 +223,7 @@ export function MonitorModal({
     });
   };
 
-  return (
+  return createPortal(
     <div
       className="modal-overlay show"
       id="monitor-modal"
@@ -232,6 +233,8 @@ export function MonitorModal({
         background: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(8px)',
         zIndex: 9999,
+        opacity: 1,
+        pointerEvents: 'auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -276,7 +279,7 @@ export function MonitorModal({
                 </span>
               ) : (
                 <span className="badge badge-approved">
-                  ✓ COMPLETED
+                  {String(match.status || 'unknown').toUpperCase()}
                 </span>
               )}
               <span className="tag" style={{ textTransform: 'capitalize' }}>
@@ -331,10 +334,10 @@ export function MonitorModal({
               Server Health
             </span>
             <span style={{ fontSize: '0.82rem', fontWeight: 600, color: isLive ? '#10b981' : 'var(--text-secondary)' }}>
-              {isLive ? '🟢 WebSocket Active (~24ms)' : '🏁 Match Concluded'}
+              {isLive ? 'Session in progress' : 'No live connection data'}
             </span>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              Session Capacity: {plist.length} / {match.maxPlayers || (plist.length > 1 ? plist.length : 2)}
+              Players: {plist.length}{match.maxPlayers ? ` / ${match.maxPlayers}` : ''}
             </span>
           </div>
         </div>
@@ -579,7 +582,7 @@ export function MonitorModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 

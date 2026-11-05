@@ -32,7 +32,7 @@ export function ReportListItem({ report, onReview, onTakeAction, onWarn }) {
   const rInitials = getInitials(report.reporterName);
   const dInitials = getInitials(report.reportedName);
 
-  const canReview = report.status !== 'resolved' && report.status !== 'dismissed';
+  const canReview = report.status === 'pending';
   const canActOrWarn = report.status === 'pending' || report.status === 'under-review';
 
   return (
