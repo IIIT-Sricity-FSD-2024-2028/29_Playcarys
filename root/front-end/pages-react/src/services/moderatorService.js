@@ -553,10 +553,10 @@ export async function submitPlayerWarning({ reportId, customMsg, session, report
 
 export function getPlayers(m, matchResults = []) {
   if (!m) return [];
-  if (Array.isArray(m.player_ids) && m.player_ids.length > 0) {
+  if (false && Array.isArray(m.player_ids)) {
     return m.player_ids.map(String);
   }
-  if (Array.isArray(m.participants) && m.participants.length > 0) {
+  if (false && Array.isArray(m.participants)) {
     return m.participants.map(String);
   }
   const mid = String(m.match_id != null ? m.match_id : m.id);
@@ -567,6 +567,13 @@ export function getPlayers(m, matchResults = []) {
         .map((r) => String(r.player_id))
     )
   ];
+  const allPlayers = new Set();
+  if (Array.isArray(m.player_ids)) m.player_ids.forEach((p) => p != null && allPlayers.add(String(p)));
+  if (Array.isArray(m.participants)) m.participants.forEach((p) => p != null && allPlayers.add(String(p)));
+  (matchResults || []).forEach((r) => { if (String(r.session_id) === mid && r.player_id != null) allPlayers.add(String(r.player_id)); });
+  if (m.created_by != null) allPlayers.add(String(m.created_by));
+  if (m.hostId != null) allPlayers.add(String(m.hostId));
+  if (allPlayers.size > 0) return Array.from(allPlayers);
   if (fromResults.length > 0) return fromResults;
   if (m.created_by != null) {
     return [String(m.created_by)];
@@ -608,6 +615,29 @@ export async function fetchModeratorSessionsData() {
   }
 
   return { matches, matchResults, users, games };
+}
+
+// Fetch the authoritative row immediately before opening the management
+// panel.  The list is intentionally lightweight and can be a few seconds
+// old; the detail endpoint includes the current participant IDs, timestamps,
+// host and game metadata needed by a moderator making a decision.
+export async function fetchModeratorSessionDetail(sessionId) {
+  const id = Number(sessionId);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new Error('Invalid session ID');
+  }
+
+  const session = await api.get(`/sessions/${id}`);
+  return {
+    ...session,
+    match_id: session.session_id ?? session.match_id ?? id,
+    id: session.session_id ?? session.id ?? id,
+    game: session.game_name || session.game,
+    status:
+      session.status === 'in-progress' || session.status === 'active'
+        ? 'in-progress'
+        : session.status
+  };
 }
 
 export async function endModeratorMatch(matchId) {
@@ -878,6 +908,7 @@ export default {
   submitPlayerWarning,
   getPlayers,
   fetchModeratorSessionsData,
+  fetchModeratorSessionDetail,
   endModeratorMatch,
   sendModeratorRoleNotification,
   isPlayer,

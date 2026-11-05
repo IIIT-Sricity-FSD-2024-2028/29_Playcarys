@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -9,7 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { TeamsService } from './teams.service';
-import { CreateTeamDto, AddTeamMemberDto } from './teams.dto';
+import { CreateTeamDto, AddTeamMemberDto, UpdateTeamDto, TeamChatDto } from './teams.dto';
 
 @Controller('teams')
 export class TeamsController {
@@ -31,6 +32,16 @@ export class TeamsController {
   @Post()
   create(@Body() dto: CreateTeamDto) {
     return this.teams.create(dto);
+  }
+
+  // PATCH /teams/:id — rename / edit team
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTeamDto,
+    @Query('requesterId', ParseIntPipe) requesterId: number,
+  ) {
+    return this.teams.update(id, dto, requesterId);
   }
 
   // POST /teams/:id/members  — body: { user_id }, ?requesterId= is the captain
@@ -58,6 +69,21 @@ export class TeamsController {
     @Query('requesterId', ParseIntPipe) requesterId: number,
   ) {
     return this.teams.remove(id, requesterId);
+  }
+
+  // ── Team Chat ───────────────────────────────────────────────
+
+  @Get(':id/chat')
+  chat(@Param('id', ParseIntPipe) id: number, @Query('limit') limit?: string) {
+    return this.teams.chat(id, limit ? parseInt(limit, 10) : undefined);
+  }
+
+  @Post(':id/chat')
+  postChat(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: TeamChatDto,
+  ) {
+    return this.teams.postChat(id, dto.from_user, dto.body);
   }
 
   // POST /teams/:id/register/:tournamentId

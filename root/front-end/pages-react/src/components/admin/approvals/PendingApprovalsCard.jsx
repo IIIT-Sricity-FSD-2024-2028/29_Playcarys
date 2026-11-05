@@ -21,7 +21,7 @@ export function PendingApprovalsCard(props) {
             <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>All caught up! No pending game approvals.</p>
           </div>
         ) : (
-          games.map((g) => <PendingGameRow key={g.id} game={g} onReview={onReview} />)
+          games.map((g) => <PendingGameRow key={g.id || g.game_id} game={g} onReview={onReview} />)
         )}
       </div>
     </div>

@@ -131,6 +131,7 @@ export function AppRoutes() {
         <Route path="reports" element={<ModeratorReports />} />
         <Route path="sessions" element={<ModeratorSessions />} />
         <Route path="bans" element={<ModeratorBans />} />
+        <Route path="bans/:playerId" element={<ModeratorBans />} />
       </Route>
 
       {/* 404 Not Found for unmatched routes */}

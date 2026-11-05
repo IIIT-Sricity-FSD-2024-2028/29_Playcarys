@@ -7,37 +7,57 @@ export function usePublisherDashboardData(
 ) {
   const [dashData, setDashData] = useState(null);
   const [earningsData, setEarningsData] = useState(null);
-  const [earningsLoading, setEarningsLoading] =
-    useState(true);
-  const [earningsError, setEarningsError] =
-    useState(null);
+  const [earningsLoading, setEarningsLoading] = useState(true);
+  const [earningsError, setEarningsError] = useState(null);
 
   useEffect(() => {
     if (!isPublisher || !publisherId) return undefined;
 
     let active = true;
 
-    const dashboardData =
-      publisherService.getDashboardData(publisherId);
-
-    setDashData(dashboardData);
+    const initial = publisherService.getDashboardData(publisherId);
+    setDashData(initial);
     setEarningsLoading(true);
     setEarningsError(null);
 
+    async function refreshDashboardWithBackend() {
+      try {
+        const freshGames = await publisherService.getPublisherGames(publisherId);
+        if (active && freshGames) {
+          const freshData = publisherService.getDashboardData(publisherId);
+          const mergedGames = [...(freshData.myGames || [])];
+          freshGames.forEach((bg) => {
+            if (!mergedGames.some((g) => String(g.game_id || g.id) === String(bg.game_id || bg.id))) {
+              mergedGames.push(bg);
+            }
+          });
+          const approved = mergedGames.filter(
+            (g) => g.game_approval_status === 'approved' || g.status === 'approved'
+          );
+          const pending = mergedGames.filter(
+            (g) => g.game_approval_status === 'pending' || g.status === 'pending'
+          );
+          setDashData({
+            ...freshData,
+            myGames: mergedGames,
+            approved,
+            pending,
+            liveCount: mergedGames.filter((g) => (g.game_status || (g.enabled ? 'enabled' : 'disabled')) === 'enabled').length
+          });
+        }
+      } catch (err) {
+        console.warn('Dashboard backend games refresh notice:', err);
+      }
+    }
+
     async function loadEarnings() {
       try {
-        const response =
-          await publisherService.getEarnings(publisherId);
-
+        const response = await publisherService.getEarnings(publisherId);
         if (active) {
           setEarningsData(response);
         }
       } catch (error) {
-        console.warn(
-          'Authoritative earnings API failed or offline:',
-          error
-        );
-
+        console.warn('Authoritative earnings API failed or offline:', error);
         if (active) {
           setEarningsError(error);
         }
@@ -48,6 +68,7 @@ export function usePublisherDashboardData(
       }
     }
 
+    refreshDashboardWithBackend();
     loadEarnings();
 
     return () => {
@@ -64,4 +85,3 @@ export function usePublisherDashboardData(
 }
 
 export default usePublisherDashboardData;
-

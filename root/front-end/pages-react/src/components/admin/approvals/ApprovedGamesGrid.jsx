@@ -16,7 +16,7 @@ export function ApprovedGamesGrid(props) {
       <h2 className="mb-2">Recently Approved</h2>
       <div className="cards-grid-3" id="approved-grid">
         {games.map((g, i) => (
-          <div className="game-card" key={g.id}>
+          <div className="game-card" key={g.id || g.game_id}>
             <GameIcon
               game={g}
               index={i}
@@ -31,10 +31,16 @@ export function ApprovedGamesGrid(props) {
             <div className="game-card-body">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <StatusBadge status="approved" />
-                {g.enabled ? <StatusBadge status="enabled" /> : <StatusBadge status="disabled" />}
+                {(g.enabled ?? (g.game_status === 'enabled')) ? <StatusBadge status="enabled" /> : <StatusBadge status="disabled" />}
               </div>
-              <div className="game-card-title mt-1">{g.title}</div>
-              <div className="game-card-meta"><span>By {g.publisher}</span></div>
+              <div className="game-card-title mt-1">{g.title || g.game_name}</div>
+              <div className="game-card-meta"><span>By {(() => {
+                if (g.publisher && isNaN(Number(g.publisher))) return g.publisher;
+                const pubId = Number(g.game_publisher || g.publisher);
+                const db = typeof DB !== 'undefined' ? DB : null;
+                const u = db?.users?.find((x) => Number(x.user_id || x.id) === pubId);
+                return u?.user_name || u?.username || g.publisher || (pubId ? `Studio #${pubId}` : 'Publisher');
+              })()}</span></div>
             </div>
           </div>
         ))}

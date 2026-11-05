@@ -47,6 +47,9 @@ export function getDatabase() {
   if (typeof window !== 'undefined' && window.DB && window.DB.games) {
     return window.DB;
   }
+  if (typeof DB !== 'undefined' && DB.games) {
+    return DB;
+  }
 
   // Fallback to localStorage if window.DB is not yet attached
   try {
@@ -280,64 +283,139 @@ export const publisherService = {
   getNextGameId() {
     const db = getDatabase();
     const games = db.games || [];
-    if (games.length === 0) return 1;
-    return Math.max(...games.map((g) => parseInt(g.game_id || g.id, 10) || 0)) + 1;
+    const deleted = db.deleted_games || [];
+    const allIds = [
+      ...games.map((g) => parseInt(g.game_id || g.id, 10) || 0),
+      ...deleted.map((d) => parseInt(typeof d === 'object' ? d.game_id ?? d.id : d, 10) || 0)
+    ];
+    if (allIds.length === 0) return 1;
+    return Math.max(...allIds) + 1;
   },
 
   async saveGameRecord(newGame, session) {
-    const db = getDatabase();
-    db.games = db.games || [];
-    db.games.push(newGame);
+    let pubUserId = parseInt(
+      newGame.game_publisher || session?.userId || session?.user_id || session?.id || 6,
+      10
+    );
+    if (!pubUserId || isNaN(pubUserId) || pubUserId < 5) {
+      pubUserId = 6;
+    }
 
+    const dto = {
+      game_name: newGame.game_name || newGame.title,
+      game_type: newGame.game_type || newGame.genre || 'FPS',
+      desc: newGame.desc || '',
+      players: String(newGame.players || '1-4'),
+      img: newGame.img || '',
+      game_publisher: pubUserId,
+      hosting_type: newGame.hosting_type || newGame.hostingType || 'hosted',
+      game_url: (newGame.hosting_type || newGame.hostingType) === 'selfhosted' ? (newGame.game_url || newGame.gameUrl) : undefined,
+      webhook_url: (newGame.hosting_type || newGame.hostingType) === 'selfhosted' ? (newGame.webhook_url || newGame.webhookUrl) : undefined,
+      max_carys_per_match: newGame.max_carys_per_match ?? 200
+    };
+
+    // A listing is not submitted until the API has accepted it.  Previously a
+    // failed request was swallowed and a browser-only record was written
+    // below. That made the publisher see the game in My Games while the admin
+    // queue (which reads the server) had nothing to review.
+    const backendGame = await api.post('/games', dto);
+    if (!backendGame || !(backendGame.game_id || backendGame.id)) {
+      throw new Error('The server did not confirm the game submission. Please try again.');
+    }
+
+    const assignedId = backendGame?.game_id || backendGame?.id || newGame.game_id || this.getNextGameId();
+
+    const finalGame = {
+      ...newGame,
+      ...(backendGame || {}),
+      game_id: assignedId,
+      id: assignedId,
+      game_name: newGame.game_name || newGame.title,
+      title: newGame.game_name || newGame.title,
+      game_type: newGame.game_type || newGame.genre || 'FPS',
+      genre: newGame.game_type || newGame.genre || 'FPS',
+      game_approval_status: backendGame.game_approval_status || 'pending',
+      status: backendGame.game_approval_status || backendGame.status || 'pending',
+      game_status: backendGame.game_status || 'disabled',
+      enabled: backendGame.game_status === 'enabled',
+      game_publisher: backendGame.game_publisher ?? pubUserId,
+      publisherId: backendGame.game_publisher ?? pubUserId,
+      publisher: session?.username || session?.user_name || 'Publisher',
+      submittedDate: newGame.submittedDate || new Date().toISOString().slice(0, 10)
+    };
+
+    // Update local DB
+    const db = getDatabase();
+    if (!Array.isArray(db.games)) db.games = [];
+    const existingIdx = db.games.findIndex((g) => String(g.game_id || g.id) === String(assignedId));
+    if (existingIdx !== -1) {
+      db.games[existingIdx] = finalGame;
+    } else {
+      db.games.push(finalGame);
+    }
+
+    // Update global DB if present
+    if (typeof DB !== 'undefined' && Array.isArray(DB.games)) {
+      const gIdx = DB.games.findIndex((g) => String(g.game_id || g.id) === String(assignedId));
+      if (gIdx !== -1) {
+        DB.games[gIdx] = finalGame;
+      } else {
+        DB.games.push(finalGame);
+      }
+      if (typeof DB.save === 'function') {
+        try { DB.save(); } catch (e) {}
+      }
+    }
+
+    // Update window.DB if present
+    if (typeof window !== 'undefined' && window.DB && Array.isArray(window.DB.games)) {
+      const wIdx = window.DB.games.findIndex((g) => String(g.game_id || g.id) === String(assignedId));
+      if (wIdx !== -1) {
+        window.DB.games[wIdx] = finalGame;
+      } else {
+        window.DB.games.push(finalGame);
+      }
+      if (typeof window.DB.save === 'function') {
+        try { window.DB.save(); } catch (e) {}
+      }
+    }
+
+    // Update activityLog
     db.activityLog = db.activityLog || [];
     db.activityLog.unshift({
       type: 'approval',
-      msg: `${newGame.game_name} submitted for approval`,
+      msg: `${finalGame.game_name} submitted for approval`,
       time: 'just now'
     });
 
     if (typeof window !== 'undefined' && typeof window.dispatchRoleNotification === 'function') {
       window.dispatchRoleNotification(
         'admin',
-        session.role,
-        session.username,
-        `submitted a new game for review: <b>${newGame.game_name}</b>.`
+        session?.role || 'publisher',
+        session?.username || 'Publisher',
+        `submitted a new game for review: <b>${finalGame.game_name}</b>.`
       );
-      if (session.role !== 'superuser') {
+      if (session?.role !== 'superuser') {
         window.dispatchRoleNotification(
           'superuser',
-          session.role,
-          session.username,
-          `submitted a new game for review: <b>${newGame.game_name}</b>.`
+          session?.role || 'publisher',
+          session?.username || 'Publisher',
+          `submitted a new game for review: <b>${finalGame.game_name}</b>.`
         );
       }
     }
 
-    // Persist via window.DB.save or localStorage / API
-    if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
-      try {
-        await window.DB.save();
-      } catch (e) {
-        console.warn('DB.save error:', e);
-      }
-    } else {
-      try {
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-        const token = sessionStorage.getItem('playcarys_api_token') || localStorage.getItem('playcarys_api_token');
-        fetch(`${api.getBaseUrl()}/db-import`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ games: db.games, activityLog: db.activityLog })
-        }).catch(() => {});
-      } catch (err) {
-        console.warn('Storage fallback save error:', err);
-      }
+    // Cache the server-confirmed record locally for immediate UI feedback.
+    // Do not bulk-import the browser DB here: it may contain an older games
+    // snapshot and overwrite the REST record we just created.
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(db));
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {
+      console.warn('Local game cache save error:', e);
     }
 
-    return newGame;
+    return finalGame;
   },
 
   async updateGamePlayPath(gameId, playPath) {
@@ -347,15 +425,10 @@ export const publisherService = {
       g.play_path = playPath;
       g.playPath = playPath;
     }
-    if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
-      try {
-        await window.DB.save();
-      } catch (e) {}
-    } else {
-      try {
-        localStorage.setItem(DB_KEY, JSON.stringify(db));
-      } catch (e) {}
-    }
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(db));
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {}
   },
 
   async uploadBundle(gameId, publisherId, file) {
@@ -803,30 +876,87 @@ export const publisherService = {
   async getPublisherGames(userId) {
     const uidStr = String(userId);
     let backendGames = null;
+    let backendLoaded = false;
     try {
       backendGames = await api.get(`/games?publisherId=${userId}`);
+      if (!Array.isArray(backendGames) || backendGames.length === 0) {
+        const allRes = await api.get('/games');
+        if (Array.isArray(allRes)) {
+          backendGames = allRes.filter((g) => String(g.game_publisher || g.publisherId) === uidStr);
+        }
+      }
+      backendLoaded = Array.isArray(backendGames);
     } catch (e) {
       console.warn('[MyGames] Backend fetch failed, falling back to local DB:', e.message);
     }
 
     const db = getDatabase();
-    if (Array.isArray(backendGames)) {
-      // Sync local DB games collection with latest backend games
-      if (!Array.isArray(db.games)) db.games = [];
-      backendGames.forEach((bg) => {
-        const idx = db.games.findIndex((g) => String(g.game_id || g.id) === String(bg.game_id || bg.id));
-        if (idx !== -1) {
-          db.games[idx] = { ...db.games[idx], ...bg };
-        } else {
-          db.games.push(bg);
-        }
+    const globalDb = typeof DB !== 'undefined' ? DB : null;
+    const localGames = [
+      ...(Array.isArray(db?.games) ? db.games : []),
+      ...(Array.isArray(globalDb?.games) ? globalDb.games : [])
+    ].filter((g) => String(g.game_publisher || g.publisherId) === uidStr);
+
+    // When the API is reachable, do not display a browser-only row. Those
+    // stale rows are exactly what later fail with "Game not found" on PATCH.
+    const visibleLocalGames = backendLoaded
+      ? localGames.filter((g) =>
+          backendGames.some((bg) => String(bg.game_id || bg.id) === String(g.game_id || g.id)),
+        )
+      : localGames;
+
+    const mergedMap = new Map();
+    // 1. Add local games first
+    visibleLocalGames.forEach((g) => {
+      const gid = String(g.game_id || g.id);
+      mergedMap.set(gid, {
+        ...g,
+        id: g.id || g.game_id,
+        game_id: g.game_id || g.id,
+        title: g.title || g.game_name,
+        game_name: g.game_name || g.title,
+        genre: g.genre || g.game_type,
+        game_type: g.game_type || g.genre,
+        status: g.status || g.game_approval_status || 'pending',
+        game_approval_status: g.game_approval_status || g.status || 'pending',
+        publisherId: g.publisherId || g.game_publisher,
+        game_publisher: g.game_publisher || g.publisherId
       });
-      return backendGames;
+    });
+
+    // 2. Merge backend games over local games
+    if (Array.isArray(backendGames)) {
+      backendGames.forEach((bg) => {
+        const gid = String(bg.game_id || bg.id);
+        const existing = mergedMap.get(gid) || {};
+        mergedMap.set(gid, {
+          ...existing,
+          ...bg,
+          id: bg.id || bg.game_id || existing.id,
+          game_id: bg.game_id || bg.id || existing.game_id,
+          title: bg.game_name || bg.title || existing.title,
+          game_name: bg.game_name || bg.title || existing.game_name,
+          genre: bg.game_type || bg.genre || existing.genre,
+          game_type: bg.game_type || bg.genre || existing.game_type,
+          status: bg.game_approval_status || bg.status || existing.status || 'pending',
+          game_approval_status: bg.game_approval_status || bg.status || existing.game_approval_status || 'pending',
+          publisherId: bg.game_publisher || existing.publisherId || userId,
+          game_publisher: bg.game_publisher || existing.game_publisher || userId
+        });
+      });
     }
 
-    return (db.games || []).filter(
-      (g) => String(g.game_publisher || g.publisherId) === uidStr
-    );
+    const resultList = Array.from(mergedMap.values());
+    if (resultList.length > 0) {
+      if (!Array.isArray(db.games)) db.games = [];
+      resultList.forEach((rg) => {
+        const idx = db.games.findIndex((x) => String(x.game_id || x.id) === String(rg.game_id || rg.id));
+        if (idx !== -1) db.games[idx] = { ...db.games[idx], ...rg };
+        else db.games.push(rg);
+      });
+      try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch (e) {}
+    }
+    return resultList;
   },
 
   async updateGameMetadata(gameId, dto, publisherId) {
@@ -870,7 +1000,8 @@ export const publisherService = {
       await this.setGameState(gid, nextEnabled ? 'enabled' : 'disabled', pid);
     }
 
-    // 3. Update local DB record and sync via db-import
+    // 3. Update the local cache only. The REST calls above are authoritative;
+    // bulk-importing a cached database can overwrite their just-saved record.
     if (g) {
       g.game_name = editData.title;
       g.title = editData.title;
@@ -892,19 +1023,7 @@ export const publisherService = {
 
     try {
       localStorage.setItem(DB_KEY, JSON.stringify(db));
-      if (typeof window !== 'undefined' && window.DB && typeof window.DB.save === 'function') {
-        await window.DB.save();
-      } else {
-        const token = sessionStorage.getItem('playcarys_api_token') || localStorage.getItem('playcarys_api_token');
-        await fetch(`${api.getBaseUrl()}/db-import`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ games: db.games, activityLog: db.activityLog || [] })
-        });
-      }
+      window.dispatchEvent(new Event('storage'));
     } catch (syncErr) {
       console.warn('Sync error on game edit:', syncErr);
     }

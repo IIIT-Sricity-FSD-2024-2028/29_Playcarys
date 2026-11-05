@@ -153,6 +153,14 @@ const CreateTournament = () => {
     }
   }, [teamMode]);
 
+  // Casual tournaments cannot have multi-game festivals
+  useEffect(() => {
+    if (kind === 'casual' && isMulti) {
+      setIsMulti(false);
+      setStages([]);
+    }
+  }, [kind, isMulti]);
+
   // When switching to multi-game festival, initialize 2 stages if empty
   const handleToggleMulti = (e) => {
     const checked = e.target.checked;
@@ -221,7 +229,7 @@ const CreateTournament = () => {
 
   // Step 2 Validation
   const validateStep2 = () => {
-    if (isMulti) {
+    if (kind !== 'casual' && isMulti) {
       if (stages.length < 2) {
         addToast('error', 'Multi-game festival needs at least 2 stages.');
         return false;
@@ -251,7 +259,7 @@ const CreateTournament = () => {
       addToast('error', 'Description is required.');
       return false;
     }
-    if (!prize.trim()) {
+    if (false) {
       addToast('error', 'Prize details are required.');
       return false;
     }
@@ -313,7 +321,7 @@ const CreateTournament = () => {
       visibility: visibility,
       tournament_name: name.trim(),
       desc: desc.trim(),
-      prize: prize.trim(),
+      prize: kind === 'casual' ? 'None' : (prize.trim() || 'None'),
       maxParticipants: parseInt(maxParticipants, 10) || 16,
       start_date: startDate,
       end_date: endDate,
@@ -328,7 +336,7 @@ const CreateTournament = () => {
       payload.team_size = parseInt(teamSize, 10) || 2;
     }
 
-    if (isMulti) {
+    if (kind !== 'casual' && isMulti) {
       payload.type = 'multi';
       payload.games = stages.map((s, idx) => ({
         game_id: parseInt(s.game_id, 10),
@@ -448,7 +456,7 @@ const CreateTournament = () => {
               <div className="toggle-row">
                 <div
                   className={`toggle-opt ${kind === 'casual' ? 'selected' : ''}`}
-                  onClick={() => setKind('casual')}
+                  onClick={() => { setKind('casual'); setIsMulti(false); setStages([]); }}
                 >
                   <div className="t-icon">🎲</div>
                   <div className="t-title">Casual Clash</div>
@@ -475,7 +483,7 @@ const CreateTournament = () => {
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        onClick={() => setKind('casual')}
+                        onClick={() => { setKind('casual'); setIsMulti(false); setStages([]); }}
                         style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                       >
                         Switch to Casual
@@ -560,8 +568,8 @@ const CreateTournament = () => {
           {currentStep === 2 && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                <div className="section-title" style={{ margin: 0 }}>2. Select Game(s)</div>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.84rem', color: 'var(--text-primary)' }}>
+                <div className="section-title" style={{ margin: 0 }}>{kind === 'casual' ? '2. Select Game' : '2. Select Game(s)'}</div>
+                <label style={{ display: kind === 'casual' ? 'none' : 'inline-flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.84rem', color: 'var(--text-primary)' }}>
                   <input
                     type="checkbox"
                     id="multiGameToggle"
@@ -573,7 +581,7 @@ const CreateTournament = () => {
                 </label>
               </div>
               <div className="section-desc">
-                {!isMulti ? 'Select which approved game will be played for this tournament.' : 'Build a festival with multiple game stages.'}
+                {kind === 'casual' || !isMulti ? 'Select which approved game will be played for this tournament.' : 'Build a festival with multiple game stages.'}
               </div>
 
               {loadingGames ? (
@@ -761,7 +769,7 @@ const CreateTournament = () => {
           {currentStep === 3 && (
             <div>
               <div className="section-title">3. Tournament Details</div>
-              <div className="section-desc">Provide names, rules, prize information, and capacity limits.</div>
+              <div className="section-desc">{kind === 'casual' ? 'Provide name, rules, and participant capacity limits.' : 'Provide names, rules, prize information, and capacity limits.'}</div>
 
               <div className="form-group">
                 <label className="form-label">Tournament Name <span className="required">*</span></label>
@@ -786,20 +794,20 @@ const CreateTournament = () => {
                 />
               </div>
 
-              <div className="form-2col">
+              <style>{'.casual-mode-fields > div:first-child { display: none !important; } .casual-mode-fields > div:last-child { max-width: 360px; }'}</style><div className={kind === 'casual' ? 'casual-mode-fields' : 'form-2col'}>
                 <div className="form-group">
-                  <label className="form-label">Prize / Rewards <span className="required">*</span></label>
+                  <label className="form-label">Prize / Rewards <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.78rem' }}>(Optional)</span></label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. ₹5,000 Cash Pool, In-Game Badges, Bragging Rights"
+                    placeholder="e.g. ₹5,000 Cash Pool, Badges (Optional - leave blank if no prize)"
                     value={prize}
                     onChange={(e) => setPrize(e.target.value)}
                   />
                 </div>
                 <div className="form-group">
                   <label className="form-label">
-                    {teamMode ? 'Max Teams *' : 'Max Entrants *'}
+                    {teamMode ? 'Max Teams *' : 'Max Entrants *'}{kind === 'casual' && <span className="form-hint" style={{ display: 'block', marginTop: '0.35rem', color: 'var(--text-secondary)' }}>ℹ️ Casual tournaments do not have prize money (free friendly match).</span>}
                   </label>
                   <input
                     type="number"
@@ -882,7 +890,7 @@ const CreateTournament = () => {
                   </div>
                   <div>
                     <span className="review-item-label">Structure:</span>
-                    <span className="review-item-val">{isMulti ? `Festival (${stages.length} stages)` : 'Single Game'}</span>
+                    <span className="review-item-val">{kind !== 'casual' && isMulti ? `Festival (${stages.length} stages)` : 'Single Game'}</span>
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <span className="review-item-label">Name:</span>
@@ -890,7 +898,7 @@ const CreateTournament = () => {
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <span className="review-item-label">Prize:</span>
-                    <span className="review-item-val">{prize || '—'}</span>
+                    <span className="review-item-val">{kind === 'casual' || !prize.trim() ? 'None' : prize}</span>
                   </div>
                 </div>
               </div>

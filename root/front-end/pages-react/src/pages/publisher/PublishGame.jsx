@@ -275,12 +275,20 @@ export function PublishGame() {
     setIsSubmitting(true);
 
     try {
-      const pubUserId = parseInt(user?.userId || user?.id || 1, 10);
+      let pubUserId = parseInt(user?.userId || user?.user_id || user?.id || publisherId || 6, 10);
+      if (!pubUserId || isNaN(pubUserId) || pubUserId < 5) pubUserId = 6;
       const newGameId = publisherService.getNextGameId();
       const maxCarysNum = Math.max(0, Math.min(1000, parseInt(maxCarys, 10) || 0));
 
       const newGame = {
         game_id: newGameId,
+        id: newGameId,
+        title: trimmedTitle,
+        genre: selectedGenre,
+        publisherId: pubUserId,
+        publisher: user?.username || user?.user_name || 'Publisher',
+        status: 'pending',
+        enabled: false,
         game_name: trimmedTitle,
         desc: description.trim(),
         game_type: selectedGenre,
@@ -304,15 +312,16 @@ export function PublishGame() {
       };
 
       // 1. Save listing record
-      await publisherService.saveGameRecord(newGame, user);
+      const savedGame = await publisherService.saveGameRecord(newGame, user);
+      const targetGameId = savedGame?.game_id || savedGame?.id || newGameId;
 
       // 2. Upload bundle if hosted
       if (hostingMode === 'hosted' && zipFile) {
         showToast('Uploading game build… this can take a moment.', 'info');
         try {
-          const uploaded = await publisherService.uploadBundle(newGameId, pubUserId, zipFile);
+          const uploaded = await publisherService.uploadBundle(targetGameId, pubUserId, zipFile);
           if (uploaded && uploaded.play_path) {
-            await publisherService.updateGamePlayPath(newGameId, uploaded.play_path);
+            await publisherService.updateGamePlayPath(targetGameId, uploaded.play_path);
           }
         } catch (uploadErr) {
           showToast(
@@ -341,7 +350,7 @@ export function PublishGame() {
 
       if (validAchievements.length > 0) {
         const achRes = await publisherService.submitAchievements(
-          newGameId,
+          targetGameId,
           pubUserId,
           validAchievements
         );

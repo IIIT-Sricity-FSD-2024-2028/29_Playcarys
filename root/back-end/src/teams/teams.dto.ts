@@ -18,3 +18,17 @@ export class AddTeamMemberDto {
   @IsInt()
   user_id: number;
 }
+
+export class UpdateTeamDto {
+  @IsString()
+  @MinLength(2)
+  name: string;
+}
+
+export class TeamChatDto {
+  @IsInt()
+  from_user: number;
+
+  @IsString()
+  body: string;
+}

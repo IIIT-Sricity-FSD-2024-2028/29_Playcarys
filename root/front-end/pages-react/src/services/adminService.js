@@ -1,4 +1,4 @@
-﻿// Admin data service.
+// Admin data service.
 //
 // Holds the data logic the old admin pages used (data/db.js + js/utils.js), copied
 // so the React admin pages read and write exactly what the old pages did.
@@ -127,9 +127,9 @@ export function getPlatformStats() {
     superusers: db.users.filter((u) => u.role === 'superuser').length,
     admins: db.users.filter((u) => u.role === 'admin').length,
     totalGames: db.games.length,
-    approvedGames: db.games.filter((g) => g.game_approval_status === 'approved').length,
-    pendingGames: db.games.filter((g) => g.game_approval_status === 'pending').length,
-    activeGames: db.games.filter((g) => g.game_approval_status === 'approved' && g.game_status === 'enabled').length,
+    approvedGames: db.games.filter((g) => String(g.game_approval_status || g.status || '').toLowerCase() === 'approved').length,
+    pendingGames: db.games.filter((g) => String(g.game_approval_status || g.status || '').toLowerCase() === 'pending').length,
+    activeGames: db.games.filter((g) => String(g.game_approval_status || g.status || '').toLowerCase() === 'approved' && (g.game_status || (g.enabled ? 'enabled' : 'disabled')) === 'enabled').length,
     activeSessions: (db.matches || []).filter((m) => m.status === 'in-progress').length,
     pendingReports: db.reports.filter((r) => r.status === 'pending').length,
     reviewReports: db.reports.filter((r) => r.status === 'under-review').length,

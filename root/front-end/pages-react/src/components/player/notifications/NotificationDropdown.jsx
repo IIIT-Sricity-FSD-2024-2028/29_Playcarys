@@ -134,6 +134,10 @@ export function NotificationDropdown({ userId, roleName = 'player' }) {
     const msg = (notif.msg || '').toLowerCase();
     const type = (notif.type || '').toLowerCase();
 
+    if (type === 'team_invite') {
+      return { path: '/player/community?tab=teams', label: '⚔️ View Team Invite' };
+    }
+
     if (type === 'group_join_request' || msg.includes('clan') || msg.includes('group') || msg.includes('team')) {
       return { path: '/player/community', label: '🛡️ View Community' };
     }

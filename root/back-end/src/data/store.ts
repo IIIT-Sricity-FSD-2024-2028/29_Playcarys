@@ -1084,6 +1084,8 @@ export interface Message {
    * shape a tournament's public chat already is.
    */
   group_id?: number | string | null;
+  /** Set on a Team's chat message; to_user, tournament_id, and group_id are null on these. */
+  team_id?: number | string | null;
 }
 export const messages: Message[] = loadedData.messages || [];
 

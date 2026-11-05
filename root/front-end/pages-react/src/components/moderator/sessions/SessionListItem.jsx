@@ -25,7 +25,7 @@ function getUserAvatar(u) {
   return name.slice(0, 2).toUpperCase();
 }
 
-export function SessionListItem({ match, matchResults = [], users = [], onMonitor }) {
+export function SessionListItem({ match, matchResults = [], users = [], games = [], onMonitor }) {
   const plist = getPlayers(match, matchResults);
   const sid = String(match.match_id != null ? match.match_id : match.id);
 
@@ -33,7 +33,7 @@ export function SessionListItem({ match, matchResults = [], users = [], onMonito
     <div className="list-item match-list-item">
       <div className="list-item-info match-item-info">
         <div className="match-item-header">
-          <span className="list-item-title match-item-title">{match.game || 'Game'}</span>
+          <span className="list-item-title match-item-title">{match.game || (games.find((g) => String(g.game_id ?? g.id) === String(match.game_id))?.title) || 'Game'}</span>
           <span className={`badge ${getStatusBadgeClass(match.status)}`}>
             {getStatusLabel(match.status)}
           </span>
@@ -76,7 +76,7 @@ export function SessionListItem({ match, matchResults = [], users = [], onMonito
         className="btn btn-outline btn-sm"
         onClick={() => onMonitor(match)}
       >
-        👁 Monitor
+        ⚙️ Manage
       </button>
     </div>
   );

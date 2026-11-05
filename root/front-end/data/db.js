@@ -847,7 +847,8 @@ const DB = {
     // empty list, that wipes the tombstone, and the next sync from a tab still
     // holding the account re-creates it.
     deleted_users: d => String(d && typeof d === 'object' ? (d.user_id != null ? d.user_id : d.id) : d),
-    deleted_games: d => String(d && typeof d === 'object' ? (d.game_id != null ? d.game_id : d.id) : d)
+    deleted_games: d => String(d && typeof d === 'object' ? (d.game_id != null ? d.game_id : d.id) : d),
+    games: g => String(g.game_id != null ? g.game_id : g.id)
   };
 
   /** ids of accounts deleted on purpose, from both the local and remote lists. */

@@ -12,6 +12,7 @@ import TournamentSection from '../../components/player/tournaments/TournamentSec
 import TournamentDetails from '../../components/player/tournaments/TournamentDetails';
 import TournamentRegistrationModal from '../../components/player/tournaments/TournamentRegistrationModal';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import JoinTournamentByIdModal from '../../components/player/tournaments/JoinTournamentByIdModal';
 import '../../styles/player/tournaments.css';
 
 export function Tournaments() {
@@ -28,6 +29,7 @@ export function Tournaments() {
   const [dbVersion, setDbVersion] = useState(0);
   const [toast, setToast] = useState(null);
   const [withdrawingId, setWithdrawingId] = useState(null);
+  const [showJoinByIdModal, setShowJoinByIdModal] = useState(false);
 
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -228,6 +230,7 @@ export function Tournaments() {
           <TournamentFilters
             kindFilter={kindFilter}
             onSelectKind={setKindFilter}
+            onOpenJoinById={() => setShowJoinByIdModal(true)}
           />
 
           <TournamentSection
@@ -315,6 +318,37 @@ export function Tournaments() {
           onShowToast={showToast}
         />
       )}
+
+      {/* Join By ID Modal */}
+      <JoinTournamentByIdModal
+        isOpen={showJoinByIdModal}
+        onClose={() => setShowJoinByIdModal(false)}
+        db={db}
+        userId={userId}
+        onShowToast={showToast}
+        onSelectTournament={(tid, tournament) => {
+          const freshDb = getDatabase();
+          if (!freshDb.tournaments) freshDb.tournaments = [];
+          if (!freshDb.tournaments.some((x) => sameId(x.id || x.tournament_id, tid))) {
+            freshDb.tournaments.push(tournament);
+            saveDatabase(freshDb, true);
+            setDb({ ...freshDb });
+          }
+          setSelectedTournamentId(tid);
+          navigate(`/player/tournaments?highlight=${tid}`);
+        }}
+        onRegisterTournament={(tournament) => {
+          const freshDb = getDatabase();
+          if (!freshDb.tournaments) freshDb.tournaments = [];
+          const tid = tournament.id || tournament.tournament_id;
+          if (!freshDb.tournaments.some((x) => sameId(x.id || x.tournament_id, tid))) {
+            freshDb.tournaments.push(tournament);
+            saveDatabase(freshDb, true);
+            setDb({ ...freshDb });
+          }
+          setRegModalTournament(tournament);
+        }}
+      />
 
       {/* Withdraw Confirmation Modal */}
       {withdrawTarget && (

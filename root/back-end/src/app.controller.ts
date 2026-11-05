@@ -406,6 +406,20 @@ export class AppController {
       ownedByRemovedUser(row, table) || hasUnidentifiableOwner(row, table);
 
     for (const table of tables) {
+      // Games are written through the dedicated /games endpoints, where
+      // ownership, review state, scans, and persistence are all enforced.
+      // A legacy DB.save() posts a whole browser snapshot here from every
+      // open tab. Importing its `games` array let a stale tab erase a game
+      // seconds after POST /games had created it, which left neither My Games
+      // nor the admin approval queue with a record to display.
+      //
+      // Keep db-import for the older tables it still supports, but never let
+      // it replace the server-owned games collection.
+      // Tombstones are part of the same ownership boundary. A stale browser
+      // may carry an old deleted_games list; importing it can make the next
+      // backend restart discard a newly created game with the same id.
+      if (String(table) === 'games' || String(table) === 'deleted_games') continue;
+
       if (body[table] && Array.isArray(body[table])) {
         const arr = storeUtils[table] as any[];
         const keyOf = appendOnlyKey[table];
@@ -823,7 +837,9 @@ export class AppController {
               ...(Array.isArray(body.deleted_games) ? body.deleted_games : []),
             ];
             const removed = new Set(
-              tombstones.map((d) => String(d && typeof d === 'object' ? d.game_id ?? d.id : d)),
+              tombstones
+                .map((d) => String(d && typeof d === 'object' ? d.game_id ?? d.id : d))
+                .filter((id) => !(body.games || []).some((g: any) => String(g.game_id ?? g.id) === id)),
             );
             if (removed.size) {
               const kept = arr.filter((g: any) => !removed.has(String(g.game_id)));

@@ -175,16 +175,7 @@ export class TournamentService {
       throw new BadRequestException('Registration close date must be before or on start_date');
     }
 
-    // Private tournaments are a subscriber feature. Advertised on both plans
-    // and previously enforced nowhere — anyone could create one, so the perk
-    // was decoration. Refused loudly rather than silently downgraded to public:
-    // an organiser who wanted invite-only and quietly got a public bracket
-    // would not find out until strangers turned up.
-    if (dto.visibility === 'private' && !this.economy.canCreatePrivateTournament(dto.organizer)) {
-      throw new ForbiddenException(
-        'Private tournaments need a PlayCarys Pro subscription.',
-      );
-    }
+    // Private tournaments: open to all players/organizers (no pro subscription required)
     const visibility = dto.visibility === 'private' ? 'private' : 'public';
 
     const newId = this.repo.nextId();
@@ -202,7 +193,7 @@ export class TournamentService {
       end_date: dto.end_date,
       regClose: dto.regClose,
       // `prize` is now DERIVED from prize_pool_paise, never authored. It was
-      // free text ("(0") that nothing funded and nothing could pay out.
+      // free text ("₹0") that nothing funded and nothing could pay out.
       // A new tournament starts with an empty pool; it fills as entries are paid.
       prize: formatPaise(0),
       entry_fee_paise: Math.max(0, Math.trunc(Number((dto as any).entry_fee_paise) || 0)),
@@ -362,7 +353,6 @@ export class TournamentService {
       );
     }
 
-
     // R-TRN-9
     // R-TRN-COMMUNITY: Only members of this community group can join
     if (t.group_id != null) {
@@ -400,7 +390,6 @@ export class TournamentService {
     if (currentCount >= t.maxParticipants) {
       throw new BadRequestException('Tournament is full');
     }
-
 
     // R-TRN-9: a seat costs what the organiser said it costs.
     //

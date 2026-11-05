@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export function BanPlayerView({ player, onBack, onIssueBan, submitting }) {
+export function BanPlayerView({ player, onBack, onIssueBan, submitting, initialReason = '', fromReport = null }) {
   const [duration, setDuration] = useState('7 Days');
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState(initialReason || '');
+
+  useEffect(() => {
+    if (initialReason && !reason) {
+      setReason(initialReason);
+    }
+  }, [initialReason]);
   const [error, setError] = useState('');
 
   if (!player) return null;
@@ -64,6 +70,27 @@ export function BanPlayerView({ player, onBack, onIssueBan, submitting }) {
             Configure the ban settings for this player
           </span>
         </h3>
+
+        {fromReport && (
+          <div
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.65rem 0.9rem',
+              marginTop: '0.75rem',
+              fontSize: '0.82rem',
+              color: '#fca5a5'
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: '0.2rem' }}>
+              ⚠️ Escalated from Report #{fromReport.id} ({fromReport.type || 'Report'})
+            </div>
+            <div style={{ color: '#d1d5db' }}>
+              {fromReport.desc || fromReport.reason || 'No description provided.'}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
           <div className="form-group">

@@ -113,6 +113,16 @@ export function Community() {
   const [submittingMember, setSubmittingMember] = useState(false);
 
   const [confirmDeleteModal, setConfirmDeleteModal] = useState({ isOpen: false, teamId: null });
+  const [teamToManage, setTeamToManage] = useState(null);
+  const [showEditTeam, setShowEditTeam] = useState(false);
+  const [editTeamId, setEditTeamId] = useState(null);
+  const [editTeamName, setEditTeamName] = useState('');
+  const [submittingEditTeam, setSubmittingEditTeam] = useState(false);
+  const [activeTeamChat, setActiveTeamChat] = useState(null);
+  const [teamChatMessages, setTeamChatMessages] = useState([]);
+  const [teamChatInput, setTeamChatInput] = useState('');
+  const [loadingTeamChat, setLoadingTeamChat] = useState(false);
+  const [sendingTeamChat, setSendingTeamChat] = useState(false);
 
   // Toast feedback
   const [toast, setToast] = useState({ message: '', type: 'info' });
@@ -323,13 +333,36 @@ export function Community() {
   // Calculate Community Events stat
   const communityEventsCount = myGroups.reduce((acc, g) => acc + (g.tournament_count || 0), 0);
 
-  // Eligible players from database for Add Member
+  // Eligible friends from database for Add Teammate modal
   const db = getDatabase();
+  const activeTeamObj = (teams || []).find((t) => sameId(t.team_id || t.id, activeTeamId));
+  const currentMemberIds = (activeTeamObj?.member_ids || []).map((m) => String(m?.user_id || m));
+
+  const isFriendWithUser = (targetId) => {
+    const curDb = getDatabase();
+    return (curDb?.friendships || []).some(
+      (f) =>
+        !f.removed_at &&
+        ((sameId(f.user_a, uid) && sameId(f.user_b, targetId)) ||
+         (sameId(f.user_b, uid) && sameId(f.user_a, targetId)))
+    );
+  };
+
   const eligiblePlayers = (db.users || []).filter((u) => {
-    const isPlayer = u.role_id === 4 || u.role === 'player';
-    const notSelf = Number(u.user_id || u.id) !== uid;
-    return isPlayer && notSelf;
+    const targetId = u.user_id || u.id;
+    const isPlayer = u.role_id === 4 || u.role === 'player' || !u.role_id;
+    const notSelf = !sameId(targetId, uid);
+    const notOnTeam = !currentMemberIds.includes(String(targetId));
+    return isPlayer && notSelf && notOnTeam && isFriendWithUser(targetId);
   });
+
+  const pendingTeamInvites = (db?.notifications || []).filter(
+    (n) =>
+      sameId(n.toUser, uid) &&
+      n.type === 'team_invite' &&
+      n.status === 'pending' &&
+      !n.read
+  );
 
   // --- Handlers: Group Create & Edit ---
   const handleOpenCreateGroup = () => {
@@ -812,8 +845,26 @@ export function Community() {
 
   const handleOpenAddMember = (teamId) => {
     setActiveTeamId(teamId);
-    if (eligiblePlayers.length > 0) {
-      setSelectedPlayerId(String(eligiblePlayers[0].user_id || eligiblePlayers[0].id));
+    const curDb = getDatabase();
+    const targetTeam = (teams || []).find((t) => sameId(t.team_id || t.id, teamId));
+    const memberIds = (targetTeam?.member_ids || []).map((m) => String(m?.user_id || m));
+
+    const friends = (curDb.users || []).filter((u) => {
+      const targetId = u.user_id || u.id;
+      const isPlayer = u.role_id === 4 || u.role === 'player' || !u.role_id;
+      const notSelf = !sameId(targetId, uid);
+      const notOnTeam = !memberIds.includes(String(targetId));
+      const friend = (curDb?.friendships || []).some(
+        (f) =>
+          !f.removed_at &&
+          ((sameId(f.user_a, uid) && sameId(f.user_b, targetId)) ||
+           (sameId(f.user_b, uid) && sameId(f.user_a, targetId)))
+      );
+      return isPlayer && notSelf && notOnTeam && friend;
+    });
+
+    if (friends.length > 0) {
+      setSelectedPlayerId(String(friends[0].user_id || friends[0].id));
     } else {
       setSelectedPlayerId('');
     }
@@ -823,22 +874,124 @@ export function Community() {
   const handleSubmitAddMember = async (e) => {
     if (e) e.preventDefault();
     if (!selectedPlayerId) {
-      showToast('Please select a player to add.', 'error');
+      showToast('Please select a friend to invite.', 'error');
       return;
     }
     try {
       setSubmittingMember(true);
-      await api.post(`/teams/${activeTeamId}/members?requesterId=${uid}`, {
-        user_id: parseInt(selectedPlayerId, 10),
-      });
+      const freshDb = getDatabase();
+      const currentTeam = (teams || []).find((t) => sameId(t.team_id || t.id, activeTeamId)) ||
+        (freshDb.teams || []).find((t) => sameId(t.team_id || t.id, activeTeamId));
+      const teamName = currentTeam?.name || 'Squad';
+
+      const targetFriend = (freshDb.users || []).find((u) => sameId(u.user_id || u.id, selectedPlayerId));
+      const friendName = targetFriend?.user_name || targetFriend?.username || 'Friend';
+      const captainName = user?.username || user?.user_name || 'Captain';
+
+      const alreadyInvited = (freshDb.notifications || []).some(
+        (n) =>
+          n.type === 'team_invite' &&
+          sameId(n.toUser, selectedPlayerId) &&
+          sameId(n.team_id, activeTeamId) &&
+          n.status === 'pending' &&
+          !n.read
+      );
+
+      if (alreadyInvited) {
+        showToast(`An invitation has already been sent to ${friendName}.`, 'info');
+        setShowAddMember(false);
+        return;
+      }
+
+      const inviteNotif = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        toRole: null,
+        toUser: parseInt(selectedPlayerId, 10),
+        from: captainName,
+        avatar: '⚔️',
+        fromRole: 'player',
+        fromUserId: uid,
+        type: 'team_invite',
+        team_id: activeTeamId,
+        team_name: teamName,
+        msg: `${captainName} invited you to join team "${teamName}".`,
+        time: 'Just now',
+        created_at: new Date().toISOString(),
+        read: false,
+        status: 'pending',
+        replies: []
+      };
+
+      if (!Array.isArray(freshDb.notifications)) freshDb.notifications = [];
+      freshDb.notifications.unshift(inviteNotif);
+      saveDatabase(freshDb);
+      window.dispatchEvent(new Event('storage'));
+
       setShowAddMember(false);
-      showToast('Teammate added.', 'success');
-      await fetchTeams();
+      showToast(`Invitation sent to ${friendName}! They will be added once they accept.`, 'success');
     } catch (err) {
-      console.error('Failed to add teammate:', err);
-      showToast(err.message || 'Could not add teammate.', 'error');
+      console.error('Failed to invite friend:', err);
+      showToast(err.message || 'Could not send invitation.', 'error');
     } finally {
       setSubmittingMember(false);
+    }
+  };
+
+  const handleAcceptTeamInvite = async (inv) => {
+    try {
+      try {
+        await api.post(`/teams/${inv.team_id}/members?requesterId=${inv.fromUserId}`, {
+          user_id: uid,
+        });
+      } catch (apiErr) {
+        console.warn('Backend add member warning:', apiErr);
+      }
+
+      const freshDb = getDatabase();
+      if (Array.isArray(freshDb.teams)) {
+        const targetTeam = freshDb.teams.find((t) => sameId(t.team_id || t.id, inv.team_id));
+        if (targetTeam) {
+          if (!Array.isArray(targetTeam.member_ids)) targetTeam.member_ids = [];
+          if (!targetTeam.member_ids.some((m) => sameId(m, uid))) {
+            targetTeam.member_ids.push(uid);
+          }
+        }
+      }
+
+      if (Array.isArray(freshDb.notifications)) {
+        const notif = freshDb.notifications.find((n) => sameId(n.id, inv.id));
+        if (notif) {
+          notif.read = true;
+          notif.status = 'accepted';
+        }
+      }
+      saveDatabase(freshDb);
+      window.dispatchEvent(new Event('storage'));
+
+      showToast(`You joined team "${inv.team_name || 'Squad'}"! 🎉`, 'success');
+      await fetchTeams();
+    } catch (err) {
+      console.error('Failed to accept team invite:', err);
+      showToast(err.message || 'Could not join team.', 'error');
+    }
+  };
+
+  const handleDeclineTeamInvite = (inv) => {
+    try {
+      const freshDb = getDatabase();
+      if (Array.isArray(freshDb.notifications)) {
+        const notif = freshDb.notifications.find((n) => sameId(n.id, inv.id));
+        if (notif) {
+          notif.read = true;
+          notif.status = 'declined';
+        }
+      }
+      saveDatabase(freshDb);
+      window.dispatchEvent(new Event('storage'));
+      showToast('Team invitation declined.', 'info');
+      setTeams((prev) => [...prev]);
+    } catch (err) {
+      console.error('Failed to decline team invite:', err);
     }
   };
 
@@ -860,10 +1013,166 @@ export function Community() {
       await api.del(`/teams/${teamId}?requesterId=${uid}`);
       showToast('Team deleted.', 'info');
       setConfirmDeleteModal({ isOpen: false, teamId: null });
+      if (teamToManage && sameId(teamToManage.team_id || teamToManage.id, teamId)) {
+        setTeamToManage(null);
+      }
       await fetchTeams();
     } catch (err) {
       console.error('Failed to delete team:', err);
       showToast(err.message || 'Could not delete team.', 'error');
+    }
+  };
+
+  // --- Handlers: Team Chat ---
+  const fetchTeamChat = async (teamId) => {
+    try {
+      setLoadingTeamChat(true);
+      const res = await api.get(`/teams/${teamId}/chat`);
+      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const dbInstance = getDatabase();
+      const localMsgs = (dbInstance?.messages || [])
+        .filter((m) => sameId(m.team_id, teamId))
+        .map((m) => ({
+          id: m.id,
+          team_id: teamId,
+          from_user: m.from_user,
+          from_name: (dbInstance?.users || []).find((u) => sameId(u.id || u.user_id, m.from_user))?.user_name || `Player ${m.from_user}`,
+          body: m.body,
+          sent_at: m.sent_at
+        }));
+      const combined = [...list];
+      localMsgs.forEach((lm) => {
+        if (!combined.some((m) => sameId(m.id, lm.id))) {
+          combined.push(lm);
+        }
+      });
+      combined.sort((a, b) => Date.parse(a.sent_at || 0) - Date.parse(b.sent_at || 0));
+      setTeamChatMessages(combined);
+    } catch (e) {
+      const dbInstance = getDatabase();
+      const localMsgs = (dbInstance?.messages || [])
+        .filter((m) => sameId(m.team_id, teamId))
+        .map((m) => ({
+          id: m.id,
+          team_id: teamId,
+          from_user: m.from_user,
+          from_name: (dbInstance?.users || []).find((u) => sameId(u.id || u.user_id, m.from_user))?.user_name || `Player ${m.from_user}`,
+          body: m.body,
+          sent_at: m.sent_at
+        }))
+        .sort((a, b) => Date.parse(a.sent_at || 0) - Date.parse(b.sent_at || 0));
+      setTeamChatMessages(localMsgs);
+    } finally {
+      setLoadingTeamChat(false);
+    }
+  };
+
+  const handleOpenTeamChat = (team) => {
+    setActiveTeamChat(team);
+    setTeamChatInput('');
+    fetchTeamChat(team.team_id || team.id);
+  };
+
+  const handleSendTeamChat = async (e) => {
+    if (e) e.preventDefault();
+    const text = teamChatInput.trim();
+    if (!text || !activeTeamChat) return;
+    const tid = activeTeamChat.team_id || activeTeamChat.id;
+    setTeamChatInput('');
+    setSendingTeamChat(true);
+    try {
+      try {
+        await api.post(`/teams/${tid}/chat`, { from_user: uid, body: text });
+      } catch (errBackend) {
+        console.warn('Backend team chat fallback:', errBackend);
+      }
+      const dbInstance = getDatabase();
+      if (!Array.isArray(dbInstance.messages)) dbInstance.messages = [];
+      const newMsg = {
+        id: Date.now(),
+        from_user: uid,
+        to_user: null,
+        team_id: tid,
+        body: text,
+        sent_at: new Date().toISOString()
+      };
+      dbInstance.messages.push(newMsg);
+      saveDatabase(dbInstance);
+      await fetchTeamChat(tid);
+    } catch (err) {
+      showToast(err.message || 'Could not send message.', 'error');
+    } finally {
+      setSendingTeamChat(false);
+    }
+  };
+
+  // --- Handlers: Team Manage & Edit ---
+  const handleOpenManageTeam = (team) => {
+    setTeamToManage(team);
+  };
+
+  const handleOpenEditTeam = (team) => {
+    setEditTeamId(team.team_id || team.id);
+    setEditTeamName(team.name || '');
+    setShowEditTeam(true);
+  };
+
+  const handleSaveEditTeam = async (e) => {
+    if (e) e.preventDefault();
+    const trimmed = editTeamName.trim();
+    if (!trimmed) {
+      showToast('Team name cannot be empty.', 'error');
+      return;
+    }
+    setSubmittingEditTeam(true);
+    try {
+      try {
+        await api.patch(`/teams/${editTeamId}?requesterId=${uid}`, { name: trimmed });
+      } catch (backendErr) {
+        console.warn('Backend patch team fallback:', backendErr);
+      }
+      const dbInstance = getDatabase();
+      if (Array.isArray(dbInstance.teams)) {
+        const localTeam = dbInstance.teams.find((t) => sameId(t.team_id || t.id, editTeamId));
+        if (localTeam) {
+          localTeam.name = trimmed;
+          saveDatabase(dbInstance);
+        }
+      }
+      showToast('Team name updated!', 'success');
+      setShowEditTeam(false);
+      await fetchTeams();
+      if (teamToManage && sameId(teamToManage.team_id || teamToManage.id, editTeamId)) {
+        setTeamToManage((prev) => (prev ? { ...prev, name: trimmed } : prev));
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to update team.', 'error');
+    } finally {
+      setSubmittingEditTeam(false);
+    }
+  };
+
+  const handleLeaveTeam = async (teamId) => {
+    if (!window.confirm('Are you sure you want to leave this team?')) return;
+    try {
+      try {
+        await api.del(`/teams/${teamId}/members/${uid}?requesterId=${uid}`);
+      } catch (backendErr) {
+        console.warn('Backend leave team fallback:', backendErr);
+      }
+      const dbInstance = getDatabase();
+      if (Array.isArray(dbInstance.teams)) {
+        const localTeam = dbInstance.teams.find((t) => sameId(t.team_id || t.id, teamId));
+        if (localTeam) {
+          localTeam.member_ids = (localTeam.member_ids || []).filter((id) => !sameId(id, uid));
+          saveDatabase(dbInstance);
+        }
+      }
+      showToast('You left the squad.', 'info');
+      setTeamToManage(null);
+      await fetchTeams();
+    } catch (err) {
+      showToast(err.message || 'Failed to leave team.', 'error');
     }
   };
 
@@ -1496,6 +1805,58 @@ export function Community() {
             {/* ══ TEAMS TAB ══ */}
             {activeTab === 'teams' && (
               <div id="tab-teams">
+                {/* Pending Team Invitations */}
+                {pendingTeamInvites.length > 0 && (
+                  <div style={{ marginBottom: '2rem' }}>
+                    <div className="sec-label">
+                      <div className="sec-label-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>⚔️</span> Pending Team Invitations
+                        <span className="pill pill-cap" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
+                          {pendingTeamInvites.length}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="cm-grid">
+                      {pendingTeamInvites.map((inv) => (
+                        <div key={inv.id} className="cm-card is-team" style={{ border: '1px solid rgba(0, 212, 255, 0.4)', background: 'rgba(0, 212, 255, 0.04)' }}>
+                          <div className="cm-card-top">
+                            <div className="cm-avatar team" style={{ background: 'linear-gradient(135deg, #00d4ff, #7c3aed)' }}>
+                              {(inv.team_name || 'SQ').slice(0, 2).toUpperCase()}
+                            </div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div className="cm-name">{inv.team_name}</div>
+                              <div className="cm-sub">
+                                <span>Invited by <strong>{inv.from}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0.75rem 0' }}>
+                            {inv.from} has invited you to join their squad roster!
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                            <button
+                              type="button"
+                              className="mini mini-primary"
+                              style={{ flex: 1, padding: '0.45rem 0.75rem' }}
+                              onClick={() => handleAcceptTeamInvite(inv)}
+                            >
+                              ✓ Accept
+                            </button>
+                            <button
+                              type="button"
+                              className="mini"
+                              style={{ flex: 1, padding: '0.45rem 0.75rem', background: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}
+                              onClick={() => handleDeclineTeamInvite(inv)}
+                            >
+                              ✕ Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="sec-label">
                   <div className="sec-label-title">My Teams</div>
                   <button
@@ -1572,24 +1933,52 @@ export function Community() {
                             <span>🔗 {linkedCount}/{members.length} linked a game account</span>
                           </div>
 
-                          {isCaptain && (
-                            <div className="cm-actions">
-                              <button
-                                type="button"
-                                className="mini mini-ghost"
-                                onClick={() => handleOpenAddMember(t.team_id || t.id)}
-                              >
-                                + Add Teammate
-                              </button>
-                              <button
-                                type="button"
-                                className="mini mini-danger"
-                                onClick={() => setConfirmDeleteModal({ isOpen: true, teamId: t.team_id || t.id })}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
+                          <div className="cm-actions" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="mini"
+                              style={{ background: 'rgba(0, 212, 255, 0.15)', color: 'var(--accent-cyan)', border: '1px solid rgba(0, 212, 255, 0.3)' }}
+                              onClick={() => handleOpenTeamChat(t)}
+                              title="Chat with team squad"
+                            >
+                              💬 Chat
+                            </button>
+                            <button
+                              type="button"
+                              className="mini mini-ghost"
+                              onClick={() => handleOpenManageTeam(t)}
+                              title="Manage squad roster and details"
+                            >
+                              ⚙️ Manage
+                            </button>
+                            {isCaptain && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="mini"
+                                  style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+                                  onClick={() => handleOpenEditTeam(t)}
+                                  title="Edit squad name"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="mini mini-ghost"
+                                  onClick={() => handleOpenAddMember(t.team_id || t.id)}
+                                >
+                                  + Add Teammate
+                                </button>
+                                <button
+                                  type="button"
+                                  className="mini mini-danger"
+                                  onClick={() => setConfirmDeleteModal({ isOpen: true, teamId: t.team_id || t.id })}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       );
                     })
@@ -2332,10 +2721,11 @@ export function Community() {
                         {filteredMatches.map((m) => {
                           const p1 = m.player1_name || (db.users || []).find((u) => sameId(u.id || u.user_id, m.player1))?.user_name || (m.player1 === 'BYE' ? 'BYE' : m.player1) || 'TBD';
                           const p2 = m.player2_name || (db.users || []).find((u) => sameId(u.id || u.user_id, m.player2))?.user_name || (m.player2 === 'BYE' ? 'BYE' : m.player2) || 'TBD';
-                          const hasWinner = m.winnerId != null && String(m.winnerId).trim() !== '' && String(m.winnerId) !== 'undefined' && String(m.winnerId) !== 'null';
-                          const isDone = m.status === 'completed' && hasWinner;
+                          const effectiveWinnerId = m.winnerId || m.winner_id;
+                          const hasWinner = (effectiveWinnerId != null && String(effectiveWinnerId).trim() !== '' && String(effectiveWinnerId) !== 'undefined' && String(effectiveWinnerId) !== 'null') || (m.winner != null && String(m.winner).trim() !== '');
+                          const isDone = (m.status === 'completed' || m.status === 'finished') && hasWinner;
                           const isPlayable = (!isDone || !hasWinner) && m.player1 && m.player2 && m.player1 !== 'BYE' && m.player2 !== 'BYE';
-                          const winnerName = m.winner_name || (sameId(m.winnerId, m.player1) ? p1 : sameId(m.winnerId, m.player2) ? p2 : (m.winnerId ? entrantName(manageTourn, m.winnerId, db) : ''));
+                          const winnerName = m.winner_name || (sameId(effectiveWinnerId, m.player1) ? p1 : sameId(effectiveWinnerId, m.player2) ? p2 : (effectiveWinnerId ? entrantName(manageTourn, effectiveWinnerId, db) : (m.winner || manageTourn?.winner || '')));
 
                           return (
                             <div
@@ -2579,7 +2969,7 @@ export function Community() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header d-flex justify-content-between align-items-center mb-3">
-              <h3 className="text-white fw-bold mb-0" style={{ fontSize: '1.2rem' }}>Add Teammate</h3>
+              <h3 className="text-white fw-bold mb-0" style={{ fontSize: '1.2rem' }}>Invite Teammate</h3>
               <button
                 type="button"
                 className="btn btn-sm btn-link text-muted p-0 text-decoration-none fs-5"
@@ -2590,7 +2980,7 @@ export function Community() {
             </div>
             <form onSubmit={handleSubmitAddMember}>
               <div className="form-group mb-4">
-                <label className="form-label text-white small fw-semibold">Select Player <span className="text-danger">*</span></label>
+                <label className="form-label text-white small fw-semibold">Select Friend <span className="text-danger">*</span></label>
                 {eligiblePlayers.length > 0 ? (
                   <select
                     className="form-select bg-dark text-white border-secondary"
@@ -2606,7 +2996,7 @@ export function Community() {
                     ))}
                   </select>
                 ) : (
-                  <div className="text-muted small">No other players available to add.</div>
+                  <div className="text-muted small">No friends available to invite. Only confirmed friends who are not already in this squad can be invited.</div>
                 )}
               </div>
               <div className="modal-footer d-flex justify-content-end gap-2 pt-2 border-top border-secondary">
@@ -2623,7 +3013,7 @@ export function Community() {
                   className="btn btn-yellow btn-sm px-4"
                   disabled={submittingMember || eligiblePlayers.length === 0}
                 >
-                  {submittingMember ? 'Adding...' : 'Add'}
+                  {submittingMember ? 'Sending Invite...' : 'Send Invite'}
                 </button>
               </div>
             </form>
@@ -2692,6 +3082,480 @@ export function Community() {
           </div>
         </div>
       )}
+
+      {/* MANAGE TEAM MODAL */}
+      {teamToManage && (() => {
+        const isCap = Number(teamToManage.captain_id) === uid;
+        const members = teamToManage.members || [];
+        const capMember = members.find((m) => Number(m.user_id) === Number(teamToManage.captain_id));
+        const capName = capMember?.user_name || '?';
+        const initial = (teamToManage.name || '?').slice(0, 2).toUpperCase();
+
+        return (
+          <div
+            className="modal-overlay show"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.8)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1rem',
+            }}
+            onClick={() => setTeamToManage(null)}
+          >
+            <div
+              className="modal"
+              style={{
+                maxWidth: '560px',
+                width: '100%',
+                background: '#111827',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '14px',
+                padding: '1.75rem',
+                maxHeight: '90vh',
+                overflowY: 'auto'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-header d-flex justify-content-between align-items-center mb-3">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="cm-avatar team" style={{ width: 44, height: 44, fontSize: '1.1rem' }}>{initial}</div>
+                  <div>
+                    <h3 className="text-white fw-bold mb-0" style={{ fontSize: '1.25rem', fontFamily: "'Orbitron', monospace" }}>
+                      {teamToManage.name}
+                    </h3>
+                    <div className="d-flex gap-2 align-items-center mt-1">
+                      {isCap ? (
+                        <span className="pill pill-cap" style={{ fontSize: '0.72rem' }}>⭐ You captain</span>
+                      ) : (
+                        <span className="text-white-50" style={{ fontSize: '0.75rem' }}>Captain: {capName}</span>
+                      )}
+                      <span className="pill pill-ready" style={{ fontSize: '0.72rem' }}>
+                        {members.length} members
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-link text-muted p-0 text-decoration-none fs-5"
+                  onClick={() => setTeamToManage(null)}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Quick Actions Row */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="mini mini-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  onClick={() => {
+                    const current = teamToManage;
+                    setTeamToManage(null);
+                    handleOpenTeamChat(current);
+                  }}
+                >
+                  💬 Team Chat
+                </button>
+                {isCap && (
+                  <>
+                    <button
+                      type="button"
+                      className="mini"
+                      style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      onClick={() => {
+                        handleOpenEditTeam(teamToManage);
+                      }}
+                    >
+                      ✏️ Edit Name
+                    </button>
+                    <button
+                      type="button"
+                      className="mini mini-ghost"
+                      onClick={() => {
+                        handleOpenAddMember(teamToManage.team_id || teamToManage.id);
+                      }}
+                    >
+                      + Invite Friend
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Squad Roster */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+                  Squad Roster ({members.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {members.map((m) => {
+                    const links = linkedMap[m.user_id] || [];
+                    const isMemberCaptain = Number(m.user_id) === Number(teamToManage.captain_id);
+                    const isCurrentUser = Number(m.user_id) === uid;
+
+                    return (
+                      <div
+                        key={m.user_id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.65rem 0.85rem',
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          borderRadius: '8px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                          <span style={{ fontSize: '1.1rem' }}>{m.avatar || '🎮'}</span>
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {m.user_name}
+                              {isMemberCaptain && (
+                                <span className="pill pill-cap" style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>Captain</span>
+                              )}
+                              {isCurrentUser && (
+                                <span style={{ fontSize: '0.68rem', color: 'var(--accent-cyan)', background: 'rgba(0,212,255,0.1)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>You</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                              {links.length > 0 ? (
+                                <span style={{ color: 'var(--accent-green)' }}>
+                                  🔗 {links.map((l) => `${l.platform_label || 'Game'}: ${l.in_game_name || 'Linked'}`).join(', ')}
+                                </span>
+                              ) : (
+                                <span>No linked game account</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                          {isCap && !isMemberCaptain && (
+                            <button
+                              type="button"
+                              className="mini mini-danger"
+                              style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
+                              onClick={async () => {
+                                if (!window.confirm(`Remove ${m.user_name} from the squad?`)) return;
+                                await handleRemoveMember(teamToManage.team_id || teamToManage.id, m.user_id);
+                                setTeamToManage((prev) => prev ? {
+                                  ...prev,
+                                  members: (prev.members || []).filter((x) => x.user_id !== m.user_id)
+                                } : prev);
+                              }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                          {!isCap && isCurrentUser && (
+                            <button
+                              type="button"
+                              className="mini mini-danger"
+                              style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
+                              onClick={() => handleLeaveTeam(teamToManage.team_id || teamToManage.id)}
+                            >
+                              Leave Team
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer / Danger zone */}
+              <div className="modal-footer d-flex justify-content-between align-items-center pt-3 border-top border-secondary">
+                {isCap ? (
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => {
+                      const targetId = teamToManage.team_id || teamToManage.id;
+                      setTeamToManage(null);
+                      setConfirmDeleteModal({ isOpen: true, teamId: targetId });
+                    }}
+                  >
+                    🗑️ Delete Team
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger btn-sm"
+                    onClick={() => handleLeaveTeam(teamToManage.team_id || teamToManage.id)}
+                  >
+                    🚪 Leave Team
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-outline-light btn-sm px-3"
+                  onClick={() => setTeamToManage(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* EDIT TEAM MODAL */}
+      {showEditTeam && (
+        <div
+          className="modal-overlay show"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setShowEditTeam(false)}
+        >
+          <div
+            className="modal"
+            style={{
+              maxWidth: '440px',
+              width: '100%',
+              background: '#111827',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '12px',
+              padding: '1.5rem',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header d-flex justify-content-between align-items-center mb-3">
+              <h3 className="text-white fw-bold mb-0" style={{ fontSize: '1.2rem', fontFamily: "'Orbitron', monospace" }}>
+                ✏️ Edit Squad Name
+              </h3>
+              <button
+                type="button"
+                className="btn btn-sm btn-link text-muted p-0 text-decoration-none fs-5"
+                onClick={() => setShowEditTeam(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditTeam}>
+              <div className="mb-3">
+                <label className="form-label text-white-50 small mb-1">Squad / Team Name</label>
+                <input
+                  type="text"
+                  className="form-control bg-dark text-white border-secondary"
+                  value={editTeamName}
+                  onChange={(e) => setEditTeamName(e.target.value)}
+                  placeholder="e.g. Shadow Strikers"
+                  maxLength={40}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="modal-footer d-flex justify-content-end gap-2 pt-2 border-top border-secondary">
+                <button
+                  type="button"
+                  className="btn btn-outline-light btn-sm px-3"
+                  onClick={() => setShowEditTeam(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm px-4"
+                  disabled={submittingEditTeam || !editTeamName.trim()}
+                >
+                  {submittingEditTeam ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TEAM CHAT MODAL */}
+      {activeTeamChat && (() => {
+        const tName = activeTeamChat.name || 'Team';
+        const members = activeTeamChat.members || [];
+        const initial = tName.slice(0, 2).toUpperCase();
+
+        return (
+          <div
+            className="modal-overlay show"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.82)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 10000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1rem',
+            }}
+            onClick={() => setActiveTeamChat(null)}
+          >
+            <div
+              className="modal"
+              style={{
+                maxWidth: '580px',
+                width: '100%',
+                background: '#111827',
+                border: '1px solid rgba(0, 212, 255, 0.3)',
+                borderRadius: '14px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '620px',
+                maxHeight: '90vh',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 212, 255, 0.15)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Chat Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="cm-avatar team" style={{ width: 38, height: 38, fontSize: '0.95rem' }}>{initial}</div>
+                  <div>
+                    <div style={{ color: '#fff', fontWeight: 700, fontSize: '1.05rem', fontFamily: "'Orbitron', monospace", display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      💬 {tName} <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontWeight: 500 }}>Squad Chat</span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                      {members.length} members · Coordination room
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="mini mini-ghost"
+                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
+                    onClick={() => fetchTeamChat(activeTeamChat.team_id || activeTeamChat.id)}
+                    title="Refresh chat messages"
+                  >
+                    🔄
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-link text-muted p-0 text-decoration-none fs-5"
+                    onClick={() => setActiveTeamChat(null)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat Message History */}
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '1rem 0.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem'
+                }}
+              >
+                {loadingTeamChat && teamChatMessages.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem', fontSize: '0.85rem' }}>
+                    Loading messages...
+                  </div>
+                ) : teamChatMessages.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '3rem 1rem' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💬</div>
+                    <div style={{ fontWeight: 600, color: '#fff' }}>No messages yet</div>
+                    <div style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                      Coordinate strategies, scrims, and tournament setups with your squad!
+                    </div>
+                  </div>
+                ) : (
+                  teamChatMessages.map((msg) => {
+                    const isMe = Number(msg.from_user) === uid;
+                    const senderMember = members.find((m) => Number(m.user_id) === Number(msg.from_user));
+                    const displayName = msg.from_name || senderMember?.user_name || (isMe ? 'You' : `Player ${msg.from_user}`);
+                    const isCap = Number(activeTeamChat.captain_id) === Number(msg.from_user);
+                    const timeStr = msg.sent_at ? new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                    return (
+                      <div
+                        key={msg.id}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: isMe ? 'flex-end' : 'flex-start',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.2rem', padding: '0 0.3rem' }}>
+                          <span style={{ fontWeight: 600, color: isMe ? 'var(--accent-cyan)' : '#e2e8f0' }}>{isMe ? 'You' : displayName}</span>
+                          {isCap && <span style={{ color: '#fbbf24', fontSize: '0.65rem' }}>⭐ Cap</span>}
+                          {timeStr && <span>· {timeStr}</span>}
+                        </div>
+                        <div
+                          style={{
+                            maxWidth: '82%',
+                            padding: '0.6rem 0.85rem',
+                            borderRadius: isMe ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                            background: isMe ? 'linear-gradient(135deg, rgba(0, 212, 255, 0.25), rgba(59, 130, 246, 0.3))' : 'rgba(255, 255, 255, 0.07)',
+                            border: isMe ? '1px solid rgba(0, 212, 255, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                            color: '#fff',
+                            fontSize: '0.88rem',
+                            lineHeight: 1.4,
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {msg.body}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Chat Input Footer */}
+              <form
+                onSubmit={handleSendTeamChat}
+                style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  paddingTop: '0.75rem',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                <input
+                  type="text"
+                  className="form-control bg-dark text-white border-secondary"
+                  style={{ fontSize: '0.88rem' }}
+                  placeholder={`Message ${tName}...`}
+                  value={teamChatInput}
+                  onChange={(e) => setTeamChatInput(e.target.value)}
+                  maxLength={500}
+                  disabled={sendingTeamChat}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary px-3"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }}
+                  disabled={sendingTeamChat || !teamChatInput.trim()}
+                >
+                  {sendingTeamChat ? '...' : 'Send 📨'}
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* TOAST FEEDBACK */}
       {toast.message && (

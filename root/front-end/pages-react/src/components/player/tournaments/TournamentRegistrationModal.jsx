@@ -5,7 +5,8 @@ import {
   tournamentService,
   seedOf,
   isCommunityMember,
-  myTeamsIn
+  myTeamsIn,
+  hasPrizeMoney
 } from '../../../services/tournamentService';
 import { formatDate, sameId } from '../../../services/playerService';
 
@@ -196,7 +197,7 @@ export function TournamentRegistrationModal({
             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
               {isTeam
                 ? `Team tournament · teams of ${t.team_size}`
-                : `${t.game || t.game_name || 'Game'} · ${formatDate(t.startDate || t.start_date)} · Prize: ${t.prize}`}
+                : `${t.game || t.game_name || 'Game'} · ${formatDate(t.startDate || t.start_date)}${hasPrizeMoney(t) ? ` · Prize: ${t.prize}` : ''}`}
             </div>
             {groupTag && (
               <div

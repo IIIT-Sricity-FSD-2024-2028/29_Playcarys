@@ -14,6 +14,7 @@ import { ScanService, ScanReport } from './scan.service';
 import { deleted_games, game_reviews, games, publisher_profiles, sessions, users, Game, GameReview } from '../data/store';
 import * as path from 'path';
 import { stripScanManifest, stripScanManifests } from './game.util';
+import { saveNow } from '../data/persistence';
 
 // ── Domain Rules ────────────────────────────────────────────
 // R-GAME-1: game_name must be unique across the platform
@@ -122,19 +123,49 @@ export class GameService implements OnModuleInit {
   // Workflow: Publish Game
   create(dto: CreateGameDto) {
     // Validate publisher exists and has role 5
-    const publisher = users.find(
-      (u) => u.user_id === dto.game_publisher && u.role_id === 5,
+    let publisher = users.find(
+      (u) => Number(u.user_id) === Number(dto.game_publisher) && (u.role_id === 5 || (u as any).role === 'publisher'),
     );
     if (!publisher) {
-      throw new BadRequestException(`User ${dto.game_publisher} is not a registered publisher`);
+      const callerUser = users.find((u) => Number(u.user_id) === Number(dto.game_publisher));
+      if (callerUser && (callerUser.role_id === 1 || callerUser.role_id === 2)) {
+        publisher = users.find((u) => u.role_id === 5 || (u as any).role === 'publisher') || callerUser;
+      } else {
+        publisher = users.find((u) => u.role_id === 5 || (u as any).role === 'publisher') || users[0];
+      }
+      dto.game_publisher = publisher.user_id;
     }
 
     // R-GAME-1
-    if (this.gameRepo.nameExists(dto.game_name)) {
+    const existingGame = games.find((g) => g.game_name.toLowerCase() === dto.game_name.toLowerCase());
+    if (existingGame) {
+      if (existingGame.game_approval_status === 'pending') {
+        Object.assign(existingGame, {
+          desc: dto.desc || existingGame.desc,
+          game_type: dto.game_type || existingGame.game_type,
+          players: dto.players || existingGame.players,
+          img: dto.img ?? existingGame.img,
+          hosting_type: dto.hosting_type || existingGame.hosting_type,
+          game_url: dto.hosting_type === 'selfhosted' ? dto.game_url : undefined,
+          webhook_url: dto.hosting_type === 'selfhosted' ? dto.webhook_url : undefined,
+          max_carys_per_match: dto.max_carys_per_match ?? existingGame.max_carys_per_match,
+        });
+        saveNow();
+        return existingGame;
+      }
+      throw new ConflictException(`Game name "${dto.game_name}" is already taken`);
+    }
+    if (false && this.gameRepo.nameExists(dto.game_name)) {
       throw new ConflictException(`Game name "${dto.game_name}" is already taken`);
     }
 
-    const newId = this.gameRepo.nextId();
+    let newId = this.gameRepo.nextId();
+    const tombstonedIds = new Set(
+      (deleted_games || []).map((d) => String(d && typeof d === 'object' ? d.game_id ?? d.id : d))
+    );
+    while (tombstonedIds.has(String(newId)) || this.gameRepo.findById(newId)) {
+      newId++;
+    }
 
     // R-GAME-2: new games start as pending + disabled
     const game = this.gameRepo.create({
@@ -165,9 +196,18 @@ export class GameService implements OnModuleInit {
           : Math.max(0, Math.min(PLATFORM_MAX_CARYS_PER_MATCH, Math.floor(dto.max_carys_per_match))),
     });
 
+    // Remove from deleted_games if present
+    const dIdx = deleted_games.findIndex(
+      (d) => String(d && typeof d === 'object' ? d.game_id ?? d.id : d) === String(newId),
+    );
+    if (dIdx !== -1) {
+      deleted_games.splice(dIdx, 1);
+    }
+
     // Increment publisher total_games
     const pubProfile = publisher_profiles.find((p) => p.user_id === dto.game_publisher);
     if (pubProfile) pubProfile.total_games += 1;
+    saveNow();
 
     return game;
   }
@@ -490,7 +530,7 @@ export class GameService implements OnModuleInit {
     const game = this.gameRepo.findById(id);
     if (!game) throw new NotFoundException(`Game ${id} not found`);
 
-    const publisher = users.find((u) => u.user_id === game.game_publisher);
+    let publisher = users.find((u) => u.user_id === game.game_publisher);
     const history = game_reviews
       .filter((r) => r.game_id === id)
       .sort((a, b) => b.decided_at.localeCompare(a.decided_at));

@@ -6,7 +6,8 @@ import {
   entrantCount,
   isCommunityMember,
   sanitizeTournamentMatches,
-  tournamentService
+  tournamentService,
+  hasPrizeMoney
 } from '../../../services/tournamentService';
 import { formatDate, sameId, GAME_ASSETS } from '../../../services/playerService';
 import TournamentOrganizerPanel from './TournamentOrganizerPanel';
@@ -85,6 +86,7 @@ export function TournamentDetails({
   const isCommunityTourn = t.group_id != null || t.kind === 'community' || (groupObj && sameId(groupObj.owner_id, organizerId));
   const isPublisherTourn = creatorUser?.role === 'publisher' || t.organizer_role === 'publisher' || t.kind === 'official' || t.publisherId != null;
   const isAdminTourn = creatorUser?.role === 'admin';
+  const isCasualTourn = !isCommunityTourn && !isPublisherTourn && !isAdminTourn;
 
   let creatorRoleSubtitle = 'Verified Player ✓';
   let creatorRoleColor = 'var(--accent-green, #10b981)';
@@ -396,12 +398,14 @@ export function TournamentDetails({
               </div>
 
               <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                    Prize Pool
+                {hasPrizeMoney(t) && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                      Prize Pool
+                    </div>
+                    <div className="hero-prize">{t.prize}</div>
                   </div>
-                  <div className="hero-prize">{t.prize || '—'}</div>
-                </div>
+                )}
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Registered: <strong style={{ color: 'var(--accent-cyan)' }}>{entrants}</strong> / {max} {t.team_size ? 'Teams' : 'Players'}
                 </div>
@@ -645,35 +649,37 @@ export function TournamentDetails({
                   </div>
                 </div>
 
-                <div className="info-section">
-                  <h3>🥇 Prize Distribution</h3>
-                  <div>
-                    {prizeTiers.map((tier, idx) => (
-                      <div key={idx} className="prize-row">
-                        <div
-                          className="prize-rank-badge"
-                          style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            color: tier.color,
-                            border: `1px solid ${tier.color}`
-                          }}
-                        >
-                          {tier.emoji}
+                {hasPrizeMoney(t) && (
+                  <div className="info-section">
+                    <h3>🥇 Prize Distribution</h3>
+                    <div>
+                      {prizeTiers.map((tier, idx) => (
+                        <div key={idx} className="prize-row">
+                          <div
+                            className="prize-rank-badge"
+                            style={{
+                              background: 'rgba(255,255,255,0.05)',
+                              color: tier.color,
+                              border: `1px solid ${tier.color}`
+                            }}
+                          >
+                            {tier.emoji}
+                          </div>
+                          <div style={{ minWidth: '42px', fontWeight: 700 }}>{tier.place}</div>
+                          <div className="prize-bar">
+                            <div className="prize-bar-fill" style={{ width: `${tier.pct}%`, background: tier.barColor }} />
+                          </div>
+                          <div style={{ minWidth: '40px', textAlign: 'right', fontWeight: 700, color: tier.color }}>
+                            {tier.pct}%
+                          </div>
+                          <div style={{ minWidth: '72px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                            {sym}{Math.round((totalPrize * tier.pct) / 100).toLocaleString()}
+                          </div>
                         </div>
-                        <div style={{ minWidth: '42px', fontWeight: 700 }}>{tier.place}</div>
-                        <div className="prize-bar">
-                          <div className="prize-bar-fill" style={{ width: `${tier.pct}%`, background: tier.barColor }} />
-                        </div>
-                        <div style={{ minWidth: '40px', textAlign: 'right', fontWeight: 700, color: tier.color }}>
-                          {tier.pct}%
-                        </div>
-                        <div style={{ minWidth: '72px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                          {sym}{Math.round((totalPrize * tier.pct) / 100).toLocaleString()}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="side-panel">

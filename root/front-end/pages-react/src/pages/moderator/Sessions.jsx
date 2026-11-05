@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import authService from '../../services/authService';
 import {
   fetchModeratorSessionsData,
+  fetchModeratorSessionDetail,
   endModeratorMatch
 } from '../../services/moderatorService';
 import SessionKpiCards from '../../components/moderator/sessions/SessionKpiCards';
@@ -88,9 +89,23 @@ export function Sessions() {
     });
 
   // Action: Open Monitor
-  function handleOpenMonitor(match) {
+  async function handleOpenMonitor(match) {
     setSelectedMatch(match);
     setIsMonitorOpen(true);
+    const id = match.match_id != null ? match.match_id : match.id;
+    try {
+      const freshSession = await fetchModeratorSessionDetail(id);
+      setSelectedMatch((current) =>
+        String(current?.match_id ?? current?.id) === String(id)
+          ? { ...current, ...freshSession }
+          : current,
+      );
+    } catch (err) {
+      // The list record is still useful if the session ended between the list
+      // refresh and this click; do not make Manage appear unresponsive.
+      console.warn('Could not refresh session details:', err);
+      showToast('Showing the latest available session details.', 'info');
+    }
   }
 
   // Action: Request Terminate (opens confirmation)
@@ -148,6 +163,7 @@ export function Sessions() {
         match={selectedMatch}
         matchResults={matchResults}
         users={users}
+        games={games}
         onClose={() => {
           setIsMonitorOpen(false);
           setSelectedMatch(null);
@@ -222,6 +238,7 @@ export function Sessions() {
                 match={m}
                 matchResults={matchResults}
                 users={users}
+        games={games}
                 onMonitor={handleOpenMonitor}
               />
             );

@@ -226,7 +226,7 @@ export function TakeActionView({
         <button
           type="button"
           className="btn btn-ghost btn-sm w-full mt-2"
-          onClick={onEscalate}
+          onClick={() => (typeof onEscalate === 'function' ? onEscalate({ notes: actionNotes.trim(), severity }) : null)}
           disabled={submitting}
           style={{
             borderColor: 'rgba(239, 68, 68, 0.4)',

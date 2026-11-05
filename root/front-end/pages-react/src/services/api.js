@@ -49,6 +49,13 @@ export const api = {
           headers['role'] = session.role;
         }
       }
+      if (!headers['role'] && typeof window !== 'undefined' && window.location) {
+        const p = (window.location.pathname || '').toLowerCase();
+        if (p.startsWith('/publisher')) headers['role'] = 'publisher';
+        else if (p.startsWith('/admin')) headers['role'] = 'admin';
+        else if (p.startsWith('/superuser')) headers['role'] = 'superuser';
+        else if (p.startsWith('/moderator')) headers['role'] = 'moderator';
+      }
     } catch (e) {
       // ignore storage access errors
     }
@@ -60,7 +67,8 @@ export const api = {
     try {
       const options = {
         method,
-        headers: this.getHeaders()
+        headers: this.getHeaders(),
+        cache: 'no-store'
       };
       if (body) {
         options.body = JSON.stringify(body);
@@ -69,8 +77,8 @@ export const api = {
       const url = `${this.getBaseUrl()}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
       const res = await fetch(url, options);
 
-      // Handle HTTP errors
-      if (!res.ok) {
+      // Handle HTTP errors (allow 304 Not Modified if browser serves cache)
+      if (!res.ok && res.status !== 304) {
         let errMessage = `API Error: ${res.status} ${res.statusText}`;
         try {
           const errData = await res.json();

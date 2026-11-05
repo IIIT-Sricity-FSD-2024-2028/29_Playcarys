@@ -85,7 +85,7 @@ export class GameController {
 
   // POST /games  — Publisher: Submit game for listing
   @Post()
-  @Roles('publisher')
+  @Roles('publisher', 'admin', 'superuser')
   create(@Body() dto: CreateGameDto) {
     return this.gameService.create(dto);
   }
@@ -93,7 +93,7 @@ export class GameController {
   // PATCH /games/:id  — Publisher: Update metadata
   // Body must include publisher_id for ownership check
   @Patch(':id')
-  @Roles('publisher')
+  @Roles('publisher', 'admin', 'superuser')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateGameRequestDto,
@@ -104,7 +104,7 @@ export class GameController {
 
   // PATCH /games/:id/state  — Publisher: Set Game State (enable/disable)
   @Patch(':id/state')
-  @Roles('publisher')
+  @Roles('publisher', 'admin', 'superuser')
   setGameState(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: SetGameStateRequestDto,
@@ -119,7 +119,7 @@ export class GameController {
   // Kept off the JSON body deliberately: game builds are tens of megabytes and
   // base64-in-JSON would both inflate them ~33% and blow the 25 MB body cap.
   @Post(':id/bundle')
-  @Roles('publisher')
+  @Roles('publisher', 'admin', 'superuser')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -149,7 +149,7 @@ export class GameController {
 
   // DELETE /games/:id/bundle  — Publisher: remove an uploaded build
   @Delete(':id/bundle')
-  @Roles('publisher')
+  @Roles('publisher', 'admin', 'superuser')
   removeBundle(
     @Param('id', ParseIntPipe) id: number,
     @Query('publisherId', ParseIntPipe) publisherId: number,

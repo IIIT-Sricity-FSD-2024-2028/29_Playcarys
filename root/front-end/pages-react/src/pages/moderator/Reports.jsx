@@ -212,8 +212,72 @@ export function Reports() {
   }
 
   // Action: Escalate to Ban
-  function handleEscalateToBan() {
-    navigate('/moderator/bans');
+  function handleEscalateToBan(notesPayload) {
+    const activeReport = reports.find((r) => String(r.id) === String(selectedReportId));
+    if (!activeReport) {
+      navigate('/moderator/bans');
+      return;
+    }
+
+    const targetUserId = activeReport.reported_user != null
+      ? activeReport.reported_user
+      : activeReport.playerId != null
+        ? activeReport.playerId
+        : null;
+
+    const targetPlayerName = activeReport.reportedName || activeReport.reported_name || '';
+
+    // Look for matching user in users array
+    const targetUser = (users || []).find((u) => {
+      const uid = u.user_id != null ? u.user_id : u.id;
+      if (targetUserId != null && String(uid) === String(targetUserId)) return true;
+      const uname = (u.username || u.user_name || '').toLowerCase();
+      if (targetPlayerName && uname === targetPlayerName.toLowerCase()) return true;
+      return false;
+    });
+
+    const effectiveId = targetUser
+      ? (targetUser.user_id != null ? targetUser.user_id : targetUser.id)
+      : targetUserId;
+
+    let banReason = '';
+    if (notesPayload?.notes && notesPayload.notes.trim()) {
+      banReason = `${notesPayload.notes.trim()} (Report #${activeReport.id}: ${activeReport.desc || activeReport.reason || activeReport.type})`;
+    } else {
+      banReason = activeReport.desc || activeReport.reason || `Escalated from Report #${activeReport.id}: ${activeReport.type || 'Community guidelines violation'}`;
+    }
+
+    const resolvedPlayer = targetUser || {
+      user_id: effectiveId,
+      id: effectiveId,
+      username: targetPlayerName || `Player #${effectiveId}`,
+      user_name: targetPlayerName || `Player #${effectiveId}`,
+      level: 1,
+      wins: 0,
+      losses: 0
+    };
+
+    if (effectiveId != null) {
+      navigate(`/moderator/bans/${effectiveId}?player=${effectiveId}`, {
+        state: {
+          player: resolvedPlayer,
+          playerId: effectiveId,
+          userId: effectiveId,
+          initialReason: banReason,
+          fromReport: activeReport
+        }
+      });
+    } else if (targetPlayerName && targetPlayerName !== 'Anonymous' && targetPlayerName !== 'Unknown User') {
+      navigate(`/moderator/bans?player=${encodeURIComponent(targetPlayerName)}`, {
+        state: {
+          player: resolvedPlayer,
+          initialReason: banReason,
+          fromReport: activeReport
+        }
+      });
+    } else {
+      navigate('/moderator/bans');
+    }
   }
 
   // Action: Open Warn Player Modal

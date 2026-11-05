@@ -5,8 +5,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { TeamsRepository } from './teams.repository';
-import { CreateTeamDto, AddTeamMemberDto } from './teams.dto';
-import { tournaments, users, Team, groups } from '../data/store';
+import { CreateTeamDto, AddTeamMemberDto, UpdateTeamDto } from './teams.dto';
+import { tournaments, users, Team, groups, messages } from '../data/store';
 
 // ── Domain rules ────────────────────────────────────────────
 // R-TEAM-1: A team's captain is always a member; removing the captain from
@@ -33,6 +33,11 @@ export class TeamsService {
     }
   }
 
+  private nameOf(userId: number | string): string {
+    const u = users.find((x) => Number(x.user_id) === Number(userId));
+    return u?.user_name ?? `Player ${userId}`;
+  }
+
   findAll() {
     return this.repo.findAll().map((t) => this.enrich(t));
   }
@@ -50,7 +55,7 @@ export class TeamsService {
       ...t,
       members: t.member_ids.map((id) => {
         const u = users.find((x) => Number(x.user_id) === Number(id));
-        return { user_id: id, user_name: u?.user_name ?? `Player ${id}`, avatar: u?.avatar ?? '??' };
+        return { user_id: id, user_name: u?.user_name ?? `Player ${id}`, avatar: u?.avatar ?? '🎮' };
       }),
     };
   }
@@ -73,6 +78,15 @@ export class TeamsService {
     return this.enrich(team);
   }
 
+  update(team_id: number, dto: UpdateTeamDto, requesterId: number) {
+    const team = this.teamOrThrow(team_id);
+    this.captainOnly(team, requesterId);
+    const trimmed = String(dto.name ?? '').trim();
+    if (!trimmed) throw new BadRequestException('Team name cannot be empty.');
+    this.repo.update(team_id, { name: trimmed });
+    return this.enrich({ ...team, name: trimmed });
+  }
+
   addMember(team_id: number, dto: AddTeamMemberDto, requesterId: number) {
     const team = this.teamOrThrow(team_id);
     this.captainOnly(team, requesterId);
@@ -89,7 +103,9 @@ export class TeamsService {
 
   removeMember(team_id: number, userId: number, requesterId: number) {
     const team = this.teamOrThrow(team_id);
-    this.captainOnly(team, requesterId);
+    if (Number(requesterId) !== Number(userId)) {
+      this.captainOnly(team, requesterId);
+    }
     if (Number(userId) === Number(team.captain_id)) {
       throw new BadRequestException(
         'The captain cannot be removed — delete the team or transfer captaincy first.',
@@ -105,6 +121,48 @@ export class TeamsService {
     this.captainOnly(team, requesterId);
     this.repo.remove(team_id);
     return { message: `Team ${team_id} removed` };
+  }
+
+  // ── Team Chat ────────────────────────────────────────────────
+
+  chat(team_id: number, limit = 100) {
+    const team = this.teamOrThrow(team_id);
+    return messages
+      .filter((m) => String(m.team_id ?? '') === String(team.team_id))
+      .sort((a, b) => Date.parse(a.sent_at) - Date.parse(b.sent_at))
+      .slice(-limit)
+      .map((m) => ({
+        id: m.id,
+        team_id: team.team_id,
+        from_user: m.from_user,
+        from_name: this.nameOf(m.from_user),
+        body: m.body,
+        sent_at: m.sent_at,
+      }));
+  }
+
+  postChat(team_id: number, fromUser: number, body: string) {
+    const team = this.teamOrThrow(team_id);
+    const text = String(body ?? '').trim();
+    if (!text) throw new BadRequestException('Message cannot be empty.');
+    if (text.length > 500) throw new BadRequestException('Messages are limited to 500 characters.');
+    if (!team.member_ids.includes(Number(fromUser))) {
+      throw new ForbiddenException('Only team members can chat here.');
+    }
+
+    const highest = messages.reduce((mx, m) => (Number(m.id) > mx ? Number(m.id) : mx), 0);
+    const row = {
+      id: Math.max(highest + 1, Date.now()),
+      from_user: Number(fromUser),
+      to_user: null,
+      team_id: team.team_id,
+      body: text,
+      sent_at: new Date().toISOString(),
+      delivered_at: null,
+      deleted_for: [] as number[],
+    };
+    messages.push(row);
+    return { ...row, from_name: this.nameOf(fromUser) };
   }
 
   // ── Tournament entry ─────────────────────────────────────────
@@ -147,14 +205,6 @@ export class TeamsService {
     return { message: `${team.name} registered for ${t.tournament_name}` };
   }
 
-  /**
-   * Withdraw a team from a tournament. The register half of this shipped
-   * without it, so a team that entered could never leave — the UI had a
-   * Withdraw button with no endpoint behind it.
-   *
-   * Same window rule as the solo path (TournamentService.unregisterPlayer):
-   * you may leave while it is still 'upcoming', not once it has started.
-   */
   unregisterFromTournament(team_id: number, tournament_id: number, requesterId: number) {
     const team = this.teamOrThrow(team_id);
     this.captainOnly(team, requesterId);

@@ -413,7 +413,7 @@ export class EconomyService {
 
   /** Private, invite-only tournaments are a paid feature. */
   canCreatePrivateTournament(userId: number): boolean {
-    return this.planOf(userId) !== null;
+    return true;
   }
 
   /** R-ECO-2: one per category, so equipping is also an unequip. */

@@ -18,6 +18,29 @@ export function kindOf(t, db) {
   return 'casual';
 }
 
+export function hasPrizeMoney(t) {
+  if (!t) return false;
+  const p = t.prize;
+  if (!p) return false;
+  const s = String(p).trim();
+  if (
+    !s ||
+    s === '—' ||
+    s === 'None' ||
+    s === 'None (Casual)' ||
+    s === 'Free' ||
+    s === '0' ||
+    s === '₹0' ||
+    s === '₹0.00' ||
+    s === '0 PCP' ||
+    s.toLowerCase() === 'no prize'
+  ) {
+    return false;
+  }
+  const digits = parseInt(s.replace(/[^0-9]/g, ''), 10) || 0;
+  return digits > 0;
+}
+
 export function isCommunityMember(groupId, userId, db) {
   if (groupId == null) return false;
   const group = (db?.groups || []).find((g) => sameId(g.group_id || g.id, groupId));

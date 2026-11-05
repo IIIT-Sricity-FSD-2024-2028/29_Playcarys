@@ -13,17 +13,27 @@ import { formatDate } from '../../../services/adminService';
 
 export function PendingGameRow(props) {
   const { game: g, onReview } = props;
+  const gameId = g.id || g.game_id;
+  const title = g.title || g.game_name || 'Game';
+  const genre = g.genre || g.game_type || 'Game';
+  const publisher = (() => {
+    if (g.publisher && isNaN(Number(g.publisher))) return g.publisher;
+    const pubId = Number(g.game_publisher || g.publisher || g.publisherId);
+    const db = typeof DB !== 'undefined' ? DB : null;
+    const u = db?.users?.find((x) => Number(x.user_id || x.id) === pubId);
+    return u?.user_name || u?.username || g.publisher || (pubId ? `Studio #${pubId}` : 'Publisher');
+  })();
 
   return (
     <div className="list-item">
       <GameIcon game={g} index={0} size="60px" />
       <div className="list-item-info">
-        <div className="list-item-title">{g.title} <StatusBadge status="pending" /> <DeliveryChip game={g} /> <ScanChip game={g} /></div>
+        <div className="list-item-title">{title} <StatusBadge status="pending" /> <DeliveryChip game={g} /> <ScanChip game={g} /></div>
         <div className="list-item-sub">{g.desc}</div>
         <div className="list-item-sub">
-          <span className="tag">{g.genre}</span>
+          <span className="tag">{genre}</span>
           <span>👥 {g.players}</span>
-          <span>By {g.publisher}</span>
+          <span>By {publisher}</span>
           <span>📅 {formatDate(g.submittedDate)}</span>
         </div>
         {g.review_required_reason ? (
@@ -33,7 +43,7 @@ export function PendingGameRow(props) {
         ) : null}
       </div>
       <div className="list-item-actions">
-        <button className="btn btn-primary btn-sm" onClick={() => onReview(g.id)}>🔍 Review Build</button>
+        <button className="btn btn-primary btn-sm" onClick={() => onReview(gameId)}>🔍 Review Build</button>
       </div>
     </div>
   );

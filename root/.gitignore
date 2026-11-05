@@ -39,6 +39,7 @@ desktop.ini
 # Project Specific
 Videos/
 temp_script.js
+scratch*
 
 # Launcher runtime files (machine-specific, regenerated on every run)
 logs/

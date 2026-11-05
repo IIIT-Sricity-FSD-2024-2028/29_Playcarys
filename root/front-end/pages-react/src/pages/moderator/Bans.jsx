@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import {
   isPlayer,
@@ -15,6 +16,11 @@ import Toast from '../../components/common/Toast';
 import '../../styles/moderator/bans.css';
 
 export function Bans() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
+
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,11 +32,17 @@ export function Bans() {
   const [profiles, setProfiles] = useState([]);
 
   // Search filter
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
 
   // View state: 'main' | 'ban'
-  const [view, setView] = useState('main');
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [view, setView] = useState(() => {
+    if (location.state?.player) return 'ban';
+    if (params.playerId || searchParams.get('player') || searchParams.get('playerId') || searchParams.get('userId')) return 'ban';
+    return 'main';
+  });
+  const [selectedPlayer, setSelectedPlayer] = useState(() => location.state?.player || null);
+  const [initialReason, setInitialReason] = useState(() => location.state?.initialReason || '');
+  const [fromReport, setFromReport] = useState(() => location.state?.fromReport || null);
   const [banSubmitting, setBanSubmitting] = useState(false);
 
   // Unban modal state
@@ -76,6 +88,49 @@ export function Bans() {
     loadData();
   }, []);
 
+  // When url param or search param is present, locate player in users list
+  useEffect(() => {
+    const targetParam = params.playerId || searchParams.get('player') || searchParams.get('playerId') || searchParams.get('userId');
+    if (!targetParam) return;
+
+    if (users.length > 0) {
+      const match = users.find((u) => {
+        const uid = u.user_id != null ? u.user_id : u.id;
+        if (String(uid) === String(targetParam)) return true;
+        const uname = (u.username || u.user_name || '').toLowerCase();
+        if (uname === String(targetParam).toLowerCase()) return true;
+        return false;
+      });
+
+      if (match) {
+        setSelectedPlayer(match);
+        setView('ban');
+      } else if (!selectedPlayer) {
+        setSelectedPlayer({
+          user_id: targetParam,
+          id: targetParam,
+          username: `Player #${targetParam}`,
+          user_name: `Player #${targetParam}`
+        });
+        setView('ban');
+      }
+    }
+  }, [params.playerId, searchParams, users]);
+
+  // Synchronize state if navigated from Reports or external link
+  useEffect(() => {
+    if (location.state?.initialReason) {
+      setInitialReason(location.state.initialReason);
+    }
+    if (location.state?.fromReport) {
+      setFromReport(location.state.fromReport);
+    }
+    if (location.state?.player) {
+      setSelectedPlayer(location.state.player);
+      setView('ban');
+    }
+  }, [location.state]);
+
   // Filter player lists based on role and search query
   const q = searchQuery.trim().toLowerCase();
 
@@ -98,7 +153,17 @@ export function Bans() {
   // Action: Open Ban Player View
   function handleOpenBanView(player) {
     setSelectedPlayer(player);
+    setInitialReason('');
+    setFromReport(null);
     setView('ban');
+  }
+
+  function handleBackToMain() {
+    setView('main');
+    setSelectedPlayer(null);
+    setInitialReason('');
+    setFromReport(null);
+    navigate('/moderator/bans', { replace: true });
   }
 
   // Action: Submit Ban
@@ -117,6 +182,9 @@ export function Bans() {
       showToast(`${res.playerName} has been banned for ${duration}`, 'success');
       setView('main');
       setSelectedPlayer(null);
+      setInitialReason('');
+      setFromReport(null);
+      navigate('/moderator/bans', { replace: true });
       await loadData();
     } catch (err) {
       console.error('Failed to issue ban:', err);
@@ -305,12 +373,11 @@ export function Bans() {
       {view === 'ban' && selectedPlayer && (
         <BanPlayerView
           player={selectedPlayer}
-          onBack={() => {
-            setView('main');
-            setSelectedPlayer(null);
-          }}
+          onBack={handleBackToMain}
           onIssueBan={handleIssueBan}
           submitting={banSubmitting}
+          initialReason={initialReason}
+          fromReport={fromReport}
         />
       )}
     </div>

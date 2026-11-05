@@ -6,9 +6,12 @@ import socialService from '../../services/socialService';
 import { useChat } from '../../context/ChatContext';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import '../../styles/player/notifications-hub.css';
+import api from '../../services/api';
+import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 
 const TYPE_CONFIG = {
   friend_request: { icon: '👤', label: 'Social', color: '#7c3aed', cat: 'social' },
+  team_invite: { icon: '⚔️', label: 'Team Invite', color: '#10b981', cat: 'social' },
   invite: { icon: '🎮', label: 'Game Invite', color: '#00d4ff', cat: 'game' },
   tournament: { icon: '🏆', label: 'Tournament', color: '#f59e0b', cat: 'tournament' },
   reward: { icon: '💰', label: 'Reward', color: '#10b981', cat: 'reward' },
@@ -184,6 +187,62 @@ export function Notifications() {
       );
     } catch (err) {
       showToast(err.message || 'Could not answer the friend request.', 'error');
+    }
+  };
+
+  const handleTeamInvite = async (n, action) => {
+    try {
+      const freshDb = getDatabase();
+      if (action === 'accept') {
+        try {
+          await api.post(`/teams/${n.team_id}/members?requesterId=${n.fromUserId}`, {
+            user_id: userId,
+          });
+        } catch (apiErr) {
+          console.warn('Backend add member warning:', apiErr);
+        }
+
+        if (Array.isArray(freshDb.teams)) {
+          const targetTeam = freshDb.teams.find((t) => sameId(t.team_id || t.id, n.team_id));
+          if (targetTeam) {
+            if (!Array.isArray(targetTeam.member_ids)) targetTeam.member_ids = [];
+            if (!targetTeam.member_ids.some((m) => sameId(m, userId))) {
+              targetTeam.member_ids.push(userId);
+            }
+          }
+        }
+
+        if (Array.isArray(freshDb.notifications)) {
+          const notif = freshDb.notifications.find((x) => sameId(x.id, n.id));
+          if (notif) {
+            notif.read = true;
+            notif.status = 'accepted';
+          }
+        }
+        saveDatabase(freshDb);
+        window.dispatchEvent(new Event('storage'));
+        setNotifications((prev) =>
+          prev.map((x) => (sameId(x.id, n.id) ? { ...x, read: true, status: 'accepted' } : x))
+        );
+        showToast(`You joined team "${n.team_name || 'Squad'}"! 🎉`, 'success');
+      } else {
+        if (Array.isArray(freshDb.notifications)) {
+          const notif = freshDb.notifications.find((x) => sameId(x.id, n.id));
+          if (notif) {
+            notif.read = true;
+            notif.status = 'declined';
+          }
+        }
+        saveDatabase(freshDb);
+        window.dispatchEvent(new Event('storage'));
+        setNotifications((prev) =>
+          prev.map((x) => (sameId(x.id, n.id) ? { ...x, read: true, status: 'declined' } : x))
+        );
+        showToast('Team invitation declined.', 'info');
+      }
+    } catch (err) {
+      console.error('Failed to respond to team invite:', err);
+      showToast(err.message || 'Could not process invitation.', 'error');
     }
   };
 
@@ -409,6 +468,35 @@ export function Notifications() {
                     )}
 
                     <div className="notif-actions">
+                      {n.type === 'team_invite' && !notifRead && n.status !== 'accepted' && n.status !== 'declined' && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleTeamInvite(n, 'accept')}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => handleTeamInvite(n, 'reject')}
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                      {n.type === 'team_invite' && n.status === 'accepted' && (
+                        <span className="pill pill-ready" style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}>
+                          ✓ Joined Team
+                        </span>
+                      )}
+                      {n.type === 'team_invite' && n.status === 'declined' && (
+                        <span className="pill" style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem', color: '#94a3b8' }}>
+                          Declined
+                        </span>
+                      )}
+
                       {n.type === 'friend_request' && !notifRead && (
                         <>
                           <button
