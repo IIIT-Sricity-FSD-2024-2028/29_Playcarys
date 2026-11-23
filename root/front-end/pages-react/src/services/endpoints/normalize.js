@@ -76,7 +76,55 @@ export function normalizeStage(item) {
 }
 
 export function normalizeRegistration(item) {
-  return normalizeEntity(item, ['registration_id', 'registrationId', 'player_id', 'playerId']);
+  if (!item || typeof item !== 'object') return item;
+  const entity = normalizeEntity(item, [
+    'registration_id',
+    'registrationId',
+    'player_id',
+    'playerId',
+    'team_id',
+    'teamId'
+  ]);
+
+  const tournamentId =
+    entity.tournamentId != null
+      ? String(entity.tournamentId)
+      : entity.tournament_id != null
+        ? String(entity.tournament_id)
+        : undefined;
+
+  const playerId =
+    entity.playerId != null
+      ? String(entity.playerId)
+      : entity.player_id != null
+        ? String(entity.player_id)
+        : undefined;
+
+  const teamId =
+    entity.teamId != null
+      ? String(entity.teamId)
+      : entity.team_id != null
+        ? String(entity.team_id)
+        : undefined;
+
+  let rawId = entity.id || entity.registration_id;
+  if (!rawId) {
+    if (tournamentId && playerId) {
+      rawId = `${tournamentId}_${playerId}`;
+    } else if (tournamentId && teamId) {
+      rawId = `${tournamentId}_team_${teamId}`;
+    } else {
+      rawId = playerId || teamId;
+    }
+  }
+
+  return {
+    ...entity,
+    ...(rawId != null ? { id: String(rawId) } : {}),
+    ...(tournamentId !== undefined ? { tournamentId } : {}),
+    ...(playerId !== undefined ? { playerId } : {}),
+    ...(teamId !== undefined ? { teamId } : {})
+  };
 }
 
 export function normalizeMatch(item) {

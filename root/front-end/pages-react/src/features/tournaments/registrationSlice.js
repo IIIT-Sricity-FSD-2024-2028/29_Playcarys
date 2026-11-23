@@ -1,19 +1,20 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import tournamentsApi from '../../services/endpoints/tournamentsApi';
+import registrationsApi from '../../services/endpoints/registrationsApi';
 import {
   AsyncStatus,
-  initialAsyncState,
-  extractErrorMessage,
-  handlePending,
-  handleFulfilled,
-  handleRejected
+  extractErrorMessage
 } from '../../app/asyncUtils';
 
+// ── Async Thunks ─────────────────────────────────────────────
+
+/**
+ * Fetch all registrations for a given tournament.
+ */
 export const fetchRegistrations = createAsyncThunk(
   'registrations/fetchRegistrations',
   async (tournamentId, { rejectWithValue }) => {
     try {
-      const data = await tournamentsApi.getRegistrations(tournamentId);
+      const data = await registrationsApi.getRegistrations(tournamentId);
       return { tournamentId: String(tournamentId), registrations: data };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to fetch registrations'));
@@ -21,23 +22,26 @@ export const fetchRegistrations = createAsyncThunk(
   }
 );
 
+/**
+ * Register an individual player or a team for a tournament.
+ */
 export const registerForTournament = createAsyncThunk(
   'registrations/register',
-  async ({ tournamentId, playerId, teamId, ...extra }, { rejectWithValue }) => {
+  async ({ tournamentId, playerId, teamId, requesterId, ...extra }, { rejectWithValue }) => {
     try {
       let res;
       if (teamId) {
-        res = await tournamentsApi.registerTeam(teamId, tournamentId);
+        res = await registrationsApi.registerTeam(teamId, tournamentId, requesterId || playerId);
       } else {
-        res = await tournamentsApi.registerPlayer(tournamentId, {
+        res = await registrationsApi.registerPlayer(tournamentId, {
           player_id: playerId,
           ...extra
         });
       }
       return {
         tournamentId: String(tournamentId),
-        playerId: playerId ? String(playerId) : undefined,
-        teamId: teamId ? String(teamId) : undefined,
+        playerId: playerId != null ? String(playerId) : undefined,
+        teamId: teamId != null ? String(teamId) : undefined,
         registration: res
       };
     } catch (err) {
@@ -46,19 +50,22 @@ export const registerForTournament = createAsyncThunk(
   }
 );
 
+/**
+ * Withdraw an individual player or a team from a tournament.
+ */
 export const withdrawFromTournament = createAsyncThunk(
   'registrations/withdraw',
-  async ({ tournamentId, playerId, teamId }, { rejectWithValue }) => {
+  async ({ tournamentId, playerId, teamId, requesterId }, { rejectWithValue }) => {
     try {
       if (teamId) {
-        await tournamentsApi.unregisterTeam(teamId, tournamentId);
+        await registrationsApi.unregisterTeam(teamId, tournamentId, requesterId || playerId);
       } else {
-        await tournamentsApi.unregisterPlayer(tournamentId, playerId);
+        await registrationsApi.unregisterPlayer(tournamentId, playerId);
       }
       return {
         tournamentId: String(tournamentId),
-        playerId: playerId ? String(playerId) : undefined,
-        teamId: teamId ? String(teamId) : undefined
+        playerId: playerId != null ? String(playerId) : undefined,
+        teamId: teamId != null ? String(teamId) : undefined
       };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Withdrawal failed'));
@@ -66,9 +73,25 @@ export const withdrawFromTournament = createAsyncThunk(
   }
 );
 
+// ── Slice Definition ─────────────────────────────────────────
+
 const initialState = {
+  // Registrations indexed by tournamentId: { [tournamentId]: Registration[] }
   byTournament: {},
-  ...initialAsyncState
+
+  // Granular async tracking avoiding one global flag
+  fetchStatus: AsyncStatus.IDLE,
+  fetchError: null,
+
+  mutationStatus: AsyncStatus.IDLE,
+  mutationError: null,
+
+  statusByTournament: {},
+  errorByTournament: {},
+
+  // Compatibility aliases
+  status: AsyncStatus.IDLE,
+  error: null
 };
 
 export const registrationSlice = createSlice({
@@ -77,49 +100,126 @@ export const registrationSlice = createSlice({
   reducers: {
     clearRegistrationError(state) {
       state.error = null;
+      state.fetchError = null;
+      state.mutationError = null;
+    },
+    resetRegistrationStatus(state) {
+      state.status = AsyncStatus.IDLE;
+      state.fetchStatus = AsyncStatus.IDLE;
+      state.mutationStatus = AsyncStatus.IDLE;
+      state.error = null;
+      state.fetchError = null;
+      state.mutationError = null;
+      state.statusByTournament = {};
+      state.errorByTournament = {};
+    },
+    clearRegistrationMutationStatus(state) {
+      state.mutationStatus = AsyncStatus.IDLE;
+      state.mutationError = null;
     }
   },
   extraReducers: (builder) => {
     builder
-      // fetchRegistrations
-      .addCase(fetchRegistrations.pending, (state) => {
-        handlePending(state);
+      // ── fetchRegistrations ─────────────────────────────────
+      .addCase(fetchRegistrations.pending, (state, action) => {
+        state.fetchStatus = AsyncStatus.LOADING;
+        state.fetchError = null;
+        state.status = AsyncStatus.LOADING;
+        state.error = null;
+        if (action.meta?.arg) {
+          state.statusByTournament[String(action.meta.arg)] = AsyncStatus.LOADING;
+          state.errorByTournament[String(action.meta.arg)] = null;
+        }
       })
       .addCase(fetchRegistrations.fulfilled, (state, action) => {
-        handleFulfilled(state);
+        state.fetchStatus = AsyncStatus.SUCCEEDED;
+        state.fetchError = null;
+        state.status = AsyncStatus.SUCCEEDED;
+        state.error = null;
         state.byTournament[action.payload.tournamentId] = action.payload.registrations;
+        state.statusByTournament[action.payload.tournamentId] = AsyncStatus.SUCCEEDED;
       })
       .addCase(fetchRegistrations.rejected, (state, action) => {
-        handleRejected(state, action);
+        state.fetchStatus = AsyncStatus.FAILED;
+        state.fetchError = action.payload || 'Failed to fetch registrations';
+        state.status = AsyncStatus.FAILED;
+        state.error = state.fetchError;
+        if (action.meta?.arg) {
+          state.statusByTournament[String(action.meta.arg)] = AsyncStatus.FAILED;
+          state.errorByTournament[String(action.meta.arg)] = state.fetchError;
+        }
       })
-      // registerForTournament
+
+      // ── registerForTournament ──────────────────────────────
+      .addCase(registerForTournament.pending, (state) => {
+        state.mutationStatus = AsyncStatus.LOADING;
+        state.mutationError = null;
+      })
       .addCase(registerForTournament.fulfilled, (state, action) => {
-        const { tournamentId, registration } = action.payload;
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
+        state.mutationError = null;
+        const { tournamentId, registration, playerId, teamId } = action.payload;
         if (!state.byTournament[tournamentId]) {
           state.byTournament[tournamentId] = [];
         }
         if (registration) {
-          state.byTournament[tournamentId].push(registration);
+          const list = state.byTournament[tournamentId];
+          const existingIdx = list.findIndex((r) => {
+            if (playerId && (String(r.playerId || r.player_id) === String(playerId) || String(r.id) === String(playerId))) {
+              return true;
+            }
+            if (teamId && String(r.teamId || r.team_id) === String(teamId)) {
+              return true;
+            }
+            if (registration.id && String(r.id) === String(registration.id)) {
+              return true;
+            }
+            return false;
+          });
+          if (existingIdx >= 0) {
+            list[existingIdx] = registration;
+          } else {
+            list.push(registration);
+          }
         }
       })
-      // withdrawFromTournament
+      .addCase(registerForTournament.rejected, (state, action) => {
+        state.mutationStatus = AsyncStatus.FAILED;
+        state.mutationError = action.payload || 'Registration failed';
+      })
+
+      // ── withdrawFromTournament ────────────────────────────
+      .addCase(withdrawFromTournament.pending, (state) => {
+        state.mutationStatus = AsyncStatus.LOADING;
+        state.mutationError = null;
+      })
       .addCase(withdrawFromTournament.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
+        state.mutationError = null;
         const { tournamentId, playerId, teamId } = action.payload;
         if (state.byTournament[tournamentId]) {
           state.byTournament[tournamentId] = state.byTournament[tournamentId].filter((r) => {
-            if (playerId && (String(r.player_id) === playerId || String(r.id) === playerId)) {
+            if (playerId && (String(r.playerId || r.player_id) === String(playerId) || String(r.id) === String(playerId))) {
               return false;
             }
-            if (teamId && String(r.team_id) === teamId) {
+            if (teamId && String(r.teamId || r.team_id) === String(teamId)) {
               return false;
             }
             return true;
           });
         }
+      })
+      .addCase(withdrawFromTournament.rejected, (state, action) => {
+        state.mutationStatus = AsyncStatus.FAILED;
+        state.mutationError = action.payload || 'Withdrawal failed';
       });
   }
 });
 
-export const { clearRegistrationError } = registrationSlice.actions;
+export const {
+  clearRegistrationError,
+  resetRegistrationStatus,
+  clearRegistrationMutationStatus
+} = registrationSlice.actions;
 
 export default registrationSlice.reducer;

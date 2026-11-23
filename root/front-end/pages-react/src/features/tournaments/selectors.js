@@ -46,12 +46,64 @@ export const selectTournamentStages = (state, tournamentId) =>
     ? state.tournaments.stagesByTournamentId[String(tournamentId)] || []
     : [];
 
-// ── Registrations & Play Selectors (Cross-Slice) ─────────────
+// ── Registrations Selectors ──────────────────────────────────
 
 export const selectRegistrationsByTournament = (state, tournamentId) =>
   (tournamentId != null && state.registrations?.byTournament)
     ? state.registrations.byTournament[String(tournamentId)] || []
     : [];
+
+export const selectPlayerRegistration = (state, tournamentId, playerId) => {
+  if (tournamentId == null || playerId == null) return undefined;
+  const list = selectRegistrationsByTournament(state, tournamentId);
+  const targetId = String(playerId);
+  return list.find(
+    (r) =>
+      String(r.playerId || r.player_id) === targetId ||
+      String(r.id) === targetId
+  );
+};
+
+export const selectTeamRegistration = (state, tournamentId, teamId) => {
+  if (tournamentId == null || teamId == null) return undefined;
+  const list = selectRegistrationsByTournament(state, tournamentId);
+  const targetId = String(teamId);
+  return list.find((r) => String(r.teamId || r.team_id) === targetId);
+};
+
+export const selectIsPlayerRegistered = (state, tournamentId, playerId) =>
+  Boolean(selectPlayerRegistration(state, tournamentId, playerId));
+
+export const selectIsTeamRegistered = (state, tournamentId, teamId) =>
+  Boolean(selectTeamRegistration(state, tournamentId, teamId));
+
+export const selectRegistrationsFetchStatus = (state, tournamentId) => {
+  if (tournamentId != null && state.registrations?.statusByTournament) {
+    return state.registrations.statusByTournament[String(tournamentId)] || AsyncStatus.IDLE;
+  }
+  return state.registrations?.fetchStatus || AsyncStatus.IDLE;
+};
+
+export const selectRegistrationsFetchError = (state, tournamentId) => {
+  if (tournamentId != null && state.registrations?.errorByTournament) {
+    return state.registrations.errorByTournament[String(tournamentId)] || null;
+  }
+  return state.registrations?.fetchError || null;
+};
+
+export const selectRegistrationsMutationStatus = (state) =>
+  state.registrations?.mutationStatus || AsyncStatus.IDLE;
+
+export const selectRegistrationsMutationError = (state) =>
+  state.registrations?.mutationError || null;
+
+export const selectRegistrationStatus = (state) =>
+  state.registrations?.fetchStatus || state.registrations?.status || AsyncStatus.IDLE;
+
+export const selectRegistrationError = (state) =>
+  state.registrations?.fetchError || state.registrations?.error || null;
+
+// ── Tournament Play Selectors ────────────────────────────────
 
 export const selectTournamentPlay = (state, tournamentId) =>
   (tournamentId != null && state.tournamentPlay?.byTournament)

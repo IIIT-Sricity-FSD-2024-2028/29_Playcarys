@@ -108,7 +108,7 @@ export const tournamentsApi = {
   async getRegistrations(id) {
     assertId(id, 'Tournament ID');
     const res = await api.get(`/tournaments/${encodeURIComponent(id)}/registrations`);
-    return normalizeList(res, ['registration_id', 'player_id']);
+    return normalizeList(res).map(normalizeRegistration);
   },
 
   /**
@@ -121,7 +121,11 @@ export const tournamentsApi = {
       throw new Error('Player registration data is required');
     }
     const res = await api.post(`/tournaments/${encodeURIComponent(id)}/register`, dto);
-    return normalizeRegistration(res);
+    return normalizeRegistration({
+      ...(res || {}),
+      tournament_id: id,
+      player_id: dto.player_id
+    });
   },
 
   /**
@@ -146,7 +150,11 @@ export const tournamentsApi = {
       `/teams/${encodeURIComponent(teamId)}/register/${encodeURIComponent(tournamentId)}${query}`,
       {}
     );
-    return normalizeEntity(res, ['team_id', 'tournament_id']);
+    return normalizeRegistration({
+      ...(res || {}),
+      team_id: teamId,
+      tournament_id: tournamentId
+    });
   },
 
   /**
