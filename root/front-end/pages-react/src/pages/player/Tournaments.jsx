@@ -1,7 +1,15 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import AuthContext from '../../context/AuthContext';
-import { getDatabase, saveDatabase, sameId, hydrateFromServer } from '../../services/playerService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchTournaments } from '../../features/tournaments/tournamentSlice';
+import { withdrawFromTournament } from '../../features/tournaments/registrationSlice';
+import {
+  selectAllTournaments,
+  selectTournamentsStatus,
+  selectTournamentsError
+} from '../../features/tournaments/selectors';
+import { selectAuthUser } from '../../features/auth/selectors';
+import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 import {
   kindOf,
   isCommunityMember,
@@ -16,20 +24,25 @@ import JoinTournamentByIdModal from '../../components/player/tournaments/JoinTou
 import '../../styles/player/tournaments.css';
 
 export function Tournaments() {
-  const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectAuthUser);
+  const storeTournaments = useAppSelector(selectAllTournaments);
+  const tournamentsStatus = useAppSelector(selectTournamentsStatus);
+  const tournamentsError = useAppSelector(selectTournamentsError);
+
   const location = useLocation();
   const navigate = useNavigate();
   const { tournamentId: routeTournamentId } = useParams();
-  const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
+  const userId = user?.id ?? user?.userId ?? user?.user_id ?? 7;
 
   const [kindFilter, setKindFilter] = useState('all');
   const [selectedTournamentId, setSelectedTournamentId] = useState(null);
   const [regModalTournament, setRegModalTournament] = useState(null);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
-  const [dbVersion, setDbVersion] = useState(0);
   const [toast, setToast] = useState(null);
   const [withdrawingId, setWithdrawingId] = useState(null);
   const [showJoinByIdModal, setShowJoinByIdModal] = useState(false);
+  const [db, setDb] = useState(() => ({ ...getDatabase() }));
 
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -37,6 +50,13 @@ export function Tournaments() {
       setToast(null);
     }, 3500);
   }
+
+  // Fetch tournaments into Redux store
+  useEffect(() => {
+    if (tournamentsStatus === 'idle') {
+      dispatch(fetchTournaments());
+    }
+  }, [dispatch, tournamentsStatus]);
 
   // Handle direct-link ?highlight=<id> or :tournamentId
   useEffect(() => {
@@ -46,44 +66,16 @@ export function Tournaments() {
     if (highlight) {
       setSelectedTournamentId(highlight);
       if (shouldRegister) {
-        const dbNow = getDatabase();
-        const t = (dbNow.tournaments || []).find((x) => sameId(x.id || x.tournament_id, highlight));
+        const t = storeTournaments.find((x) => sameId(x.id || x.tournament_id, highlight));
         if (t) setRegModalTournament(t);
       }
     } else if (!routeTournamentId) {
       setSelectedTournamentId(null);
     }
-  }, [location.search, routeTournamentId, dbVersion]);
-
-  // Hydrate tournaments from backend on mount
-  useEffect(() => {
-    hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament', 'teams', 'games', 'tournament_games', 'tournament_matches'])
-      .then(() => {
-        setDb({ ...getDatabase() });
-        setDbVersion((v) => v + 1);
-      })
-      .catch(() => { });
-  }, []);
-
-  // Listen to cross-tab storage changes and global DB updates
-  useEffect(() => {
-    const onStorage = () => {
-      setDb({ ...getDatabase() });
-      setDbVersion((v) => v + 1);
-    };
-    window.addEventListener('storage', onStorage);
-    window.addEventListener('global_db_update', onStorage);
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener('global_db_update', onStorage);
-    };
-  }, []);
-
-  const [db, setDb] = useState(() => ({ ...getDatabase() }));
+  }, [location.search, routeTournamentId, storeTournaments]);
 
   // Suspended account check
-  const dbUser = (db.users || []).find((u) => sameId(u.id || u.user_id, userId));
-  if (dbUser && dbUser.status === 'suspended') {
+  if (user && user.status === 'suspended') {
     return (
       <div className="page-wrapper">
         <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
@@ -104,7 +96,6 @@ export function Tournaments() {
     const isOrg = sameId(t.organizer || t.organizer_id, userId);
     const inReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
 
-    // Community tournaments are visible only to members of that specific community group
     if (t.group_id != null) {
       const isMember = isCommunityMember(t.group_id, userId, db);
       if (!isMember && !isOrg && !inReg) {
@@ -115,13 +106,8 @@ export function Tournaments() {
     if (t.visibility === 'private') return isOrg || inReg;
     return true;
   };
-  const _unused = (t) => {
-    const isOrg = sameId(t.organizer || t.organizer_id, userId);
-    const inReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
 
-  };
-
-  let allTournaments = (db.tournaments || []).filter(isVisible);
+  let allTournaments = storeTournaments.filter(isVisible);
 
   if (kindFilter !== 'all') {
     allTournaments = allTournaments.filter((t) => kindOf(t, db) === kindFilter);
@@ -139,7 +125,7 @@ export function Tournaments() {
       showToast('Tournament ID is missing.', 'error');
       return;
     }
-    if (withdrawingId) return; // Prevent duplicate withdrawal requests
+    if (withdrawingId) return;
     setWithdrawTarget(tournament);
   }
 
@@ -158,40 +144,22 @@ export function Tournaments() {
 
     setWithdrawingId(tid);
     try {
-      const res = await tournamentService.withdraw(tournament, userId);
-      showToast(
-        res.teamName ? `${res.teamName} withdrawn from ${tourneyName}` : `Withdrew from ${tourneyName}`,
-        'info'
-      );
-      // Immediately refresh React state from local storage
-      setDb({ ...getDatabase() });
-      setDbVersion((v) => v + 1);
+      // Dispatch withdrawal to Redux store
+      await dispatch(withdrawFromTournament({
+        tournamentId: tid,
+        playerId: userId,
+        teamId: isTeam ? tournament.team_id : undefined
+      })).unwrap();
 
-      // Re-hydrate tournament list and registrations from the backend
-      try {
-        await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
-      } catch (e) {
-        // network sync notice
-      }
-      // Ensure the withdrawn registration doesn't linger due to backend replication lag
-      const freshDb = getDatabase();
-      if (isTeam && Array.isArray(freshDb.team_tournament)) {
-        const myTeam = (freshDb.teams || []).find((tm) => (tm.member_ids || []).some((m) => sameId(m, userId)));
-        if (myTeam) {
-          freshDb.team_tournament = freshDb.team_tournament.filter(
-            (r) => !(sameId(r.team_id, myTeam.team_id) && sameId(r.tournament_id, tid))
-          );
-        }
-      } else if (Array.isArray(freshDb.player_tournament)) {
-        freshDb.player_tournament = freshDb.player_tournament.filter(
-          (r) => !(sameId(r.player_id, userId) && sameId(r.tournament_id, tid))
-        );
-      }
-      saveDatabase(freshDb, true);
-      setDb({ ...freshDb });
-      setDbVersion((v) => v + 1);
+      // Also call legacy helper to notify any local subscribers
+      await tournamentService.withdraw(tournament, userId).catch(() => {});
+
+      showToast(`Withdrew from ${tourneyName}`, 'info');
+
+      // Refresh tournaments list from backend
+      dispatch(fetchTournaments());
+      setDb({ ...getDatabase() });
     } catch (err) {
-      // On failure, display actual error
       showToast(err.message || 'Could not withdraw from tournament.', 'error');
     } finally {
       setWithdrawTarget(null);
@@ -201,7 +169,7 @@ export function Tournaments() {
 
   // Selected tournament details view
   const selectedTournament = selectedTournamentId
-    ? (db.tournaments || []).find((t) => sameId(t.id || t.tournament_id, selectedTournamentId))
+    ? storeTournaments.find((t) => sameId(t.id || t.tournament_id, selectedTournamentId))
     : null;
 
   return (
@@ -217,9 +185,8 @@ export function Tournaments() {
           }}
           onOpenRegModal={(t) => setRegModalTournament(t)}
           onRefresh={async () => {
-            await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
+            dispatch(fetchTournaments());
             setDb({ ...getDatabase() });
-            setDbVersion((v) => v + 1);
           }}
           onShowToast={showToast}
           onWithdraw={handleWithdraw}
@@ -232,6 +199,18 @@ export function Tournaments() {
             onSelectKind={setKindFilter}
             onOpenJoinById={() => setShowJoinByIdModal(true)}
           />
+
+          {tournamentsStatus === 'loading' && storeTournaments.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+              Loading tournaments...
+            </div>
+          )}
+
+          {tournamentsStatus === 'failed' && storeTournaments.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#ef4444' }}>
+              Failed to load tournaments: {tournamentsError}
+            </div>
+          )}
 
           <TournamentSection
             title="Live Now"
@@ -307,13 +286,8 @@ export function Tournaments() {
           isOpen={true}
           onClose={() => setRegModalTournament(null)}
           onSuccess={async () => {
+            dispatch(fetchTournaments());
             setDb({ ...getDatabase() });
-            setDbVersion((v) => v + 1);
-            try {
-              await hydrateFromServer(['tournaments', 'player_tournament', 'team_tournament']);
-            } catch (e) { }
-            setDb({ ...getDatabase() });
-            setDbVersion((v) => v + 1);
           }}
           onShowToast={showToast}
         />
@@ -327,25 +301,10 @@ export function Tournaments() {
         userId={userId}
         onShowToast={showToast}
         onSelectTournament={(tid, tournament) => {
-          const freshDb = getDatabase();
-          if (!freshDb.tournaments) freshDb.tournaments = [];
-          if (!freshDb.tournaments.some((x) => sameId(x.id || x.tournament_id, tid))) {
-            freshDb.tournaments.push(tournament);
-            saveDatabase(freshDb, true);
-            setDb({ ...freshDb });
-          }
           setSelectedTournamentId(tid);
           navigate(`/player/tournaments?highlight=${tid}`);
         }}
         onRegisterTournament={(tournament) => {
-          const freshDb = getDatabase();
-          if (!freshDb.tournaments) freshDb.tournaments = [];
-          const tid = tournament.id || tournament.tournament_id;
-          if (!freshDb.tournaments.some((x) => sameId(x.id || x.tournament_id, tid))) {
-            freshDb.tournaments.push(tournament);
-            saveDatabase(freshDb, true);
-            setDb({ ...freshDb });
-          }
           setRegModalTournament(tournament);
         }}
       />

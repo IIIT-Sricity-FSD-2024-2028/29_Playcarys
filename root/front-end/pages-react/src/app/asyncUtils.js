@@ -60,4 +60,3 @@ export function handleRejected(state, action, statusKey = 'status') {
   state[statusKey] = AsyncStatus.FAILED;
   state.error = action.payload || action.error?.message || 'Operation failed';
 }
-

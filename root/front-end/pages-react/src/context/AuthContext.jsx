@@ -1,14 +1,17 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import authService, { ENABLE_TEMP_DEV_IDENTITY } from '../services/authService';
-
-// TEMPORARY DEVELOPMENT IDENTITY:
-// Authentication integration is pending.
-// Resolve the existing Dragon Slayer player from the backend.
-// Replace this fallback with the authenticated user from AuthContext
-// when the authentication pages and session flow are integrated.
-// Do not hardcode player data or bypass backend authorization.
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import {
+  initSession,
+  logoutUser,
+  setUser
+} from '../features/auth/authSlice';
+import {
+  selectAuthUser,
+  selectAuthStatus,
+  selectDevIdentityError
+} from '../features/auth/selectors';
+import authService from '../services/authService';
 
 export const AuthContext = createContext({
   user: null,
@@ -22,98 +25,39 @@ export const AuthContext = createContext({
 export function AuthProvider(props) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [devIdentityError, setDevIdentityError] = useState(null);
-
-  async function initIdentity() {
-    try {
-      setLoading(true);
-      setDevIdentityError(null);
-
-      // If a real authenticated session with a token exists, respect it!
-      if (authService.hasAuthenticatedSession()) {
-        const sess = authService.getSession();
-        setUser(sess);
-        return;
-      }
-
-      // If we are in development mode and on a player route (or unauthenticated)
-      if (ENABLE_TEMP_DEV_IDENTITY) {
-        const isPlayerRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/player');
-        const existingSession = authService.getSession();
-
-        if (existingSession && existingSession.role === 'player' && Number(existingSession.userId || existingSession.id) === 7) {
-          // If we already have DragonSlayer in session, verify & refresh from backend
-          try {
-            const fresh = await authService.resolveDragonSlayerIdentity();
-            setUser(fresh);
-            return;
-          } catch (e) {
-            setDevIdentityError(e.message || 'Dragon Slayer profile does not exist in backend.');
-            setUser(existingSession);
-            return;
-          }
-        }
-
-        if (isPlayerRoute || (existingSession && existingSession.role === 'player')) {
-          try {
-            const resolved = await authService.resolveDragonSlayerIdentity();
-            setUser(resolved);
-          } catch (err) {
-            setDevIdentityError(err.message || 'Dragon Slayer profile does not exist in backend.');
-            setUser(null);
-          }
-          return;
-        }
-
-        // Publisher, Moderator, Superuser, or other role session, or unauthenticated (null)
-        setUser(existingSession || null);
-      } else {
-        const sess = authService.getSession();
-        setUser(sess);
-      }
-    } catch (err) {
-      console.warn('Failed to initialize user session:', err);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectAuthUser);
+  const status = useAppSelector(selectAuthStatus);
+  const devIdentityError = useAppSelector(selectDevIdentityError);
+  const loading = (status === 'loading' || status === 'idle') && !user;
 
   useEffect(() => {
-    initIdentity();
-  }, [location?.pathname]);
+    dispatch(initSession());
+  }, [dispatch, location?.pathname]);
 
   function handleLogin(sessionData, token) {
     authService.setSession(sessionData, token);
-    setUser(sessionData);
+    dispatch(setUser(sessionData));
   }
 
   async function handleLogout() {
-    try {
-      const sess = authService.getSession();
-      const uid = Number(user?.user_id ?? user?.userId ?? user?.id ?? sess?.userId ?? sess?.user_id);
-      const sToken = user?.session_token ?? user?.sessionToken ?? sess?.sessionToken ?? sess?.session_token;
-      if (uid && sToken) {
-        await api.post('/auth/release', { user_id: uid, session_token: sToken });
-      }
-    } catch (e) {
-      // ignore network errors on logout
-    }
-    authService.clearSession();
-    setUser(null);
+    await dispatch(logoutUser());
     navigate('/');
+  }
+
+  function handleRefreshIdentity() {
+    dispatch(initSession());
   }
 
   return (
     <AuthContext.Provider
       value={{
-        user: user,
-        loading: loading,
+        user,
+        loading,
         devIdentityError,
         login: handleLogin,
         logout: handleLogout,
-        refreshIdentity: initIdentity
+        refreshIdentity: handleRefreshIdentity
       }}
     >
       {devIdentityError && (

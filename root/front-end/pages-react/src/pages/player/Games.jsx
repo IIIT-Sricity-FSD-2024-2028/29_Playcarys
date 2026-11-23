@@ -1,7 +1,14 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import AuthContext from '../../context/AuthContext';
-import playerService, { getDatabase, sameId, hydrateFromServer } from '../../services/playerService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchGames, recordGameView } from '../../features/games/gameSlice';
+import {
+  selectAllGames,
+  selectGamesStatus,
+  selectGamesError
+} from '../../features/games/selectors';
+import { selectAuthUser } from '../../features/auth/selectors';
+import playerService, { sameId } from '../../services/playerService';
 import GameFilters from '../../components/player/games/GameFilters';
 import GamesGrid from '../../components/player/games/GamesGrid';
 import UpcomingGames from '../../components/player/games/UpcomingGames';
@@ -9,21 +16,26 @@ import GameDetails from '../../components/player/games/GameDetails';
 import '../../styles/player/games.css';
 
 export function Games() {
-  const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectAuthUser);
+  const allGames = useAppSelector(selectAllGames);
+  const gamesStatus = useAppSelector(selectGamesStatus);
+  const gamesError = useAppSelector(selectGamesError);
+
   const location = useLocation();
   const navigate = useNavigate();
   const { gameId: routeGameId } = useParams();
-  const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
+  const userId = user?.id ?? user?.userId ?? user?.user_id ?? 7;
 
-  // Catalog State
+  // Catalog State (local component UI state)
   const [showingFavs, setShowingFavs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
   const [sortBy, setSortBy] = useState('rating');
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [offlineMap, setOfflineMap] = useState({});
-  const [dbVersion, setDbVersion] = useState(0);
   const [toast, setToast] = useState(null);
+  const [localUpdateTick, setLocalUpdateTick] = useState(0);
 
   // Sync selectedGameId from URL search param (?id=, ?gameId=, ?highlight=) or route param (:gameId)
   useEffect(() => {
@@ -36,6 +48,13 @@ export function Games() {
     }
   }, [location.search, routeGameId]);
 
+  // Fetch games from Redux store on mount or when idle
+  useEffect(() => {
+    if (gamesStatus === 'idle') {
+      dispatch(fetchGames());
+    }
+  }, [dispatch, gamesStatus]);
+
   // Trigger toast with auto-hide
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -44,65 +63,17 @@ export function Games() {
     }, 3500);
   }
 
-  // Hydrate game catalog from backend on mount
-  useEffect(() => {
-    hydrateFromServer(['games', 'users', 'tournaments', 'player_tournament'])
-      .then(() => setDbVersion((v) => v + 1))
-      .catch(() => {});
-  }, []);
-
-  // Live storage, database updates, and visibility change listener
-  useEffect(() => {
-    let lastSignature = '';
-    const getSignature = () => {
-      const db = getDatabase();
-      return (db.games || [])
-        .filter((g) => (g.status === 'approved' || g.game_approval_status === 'approved') && g.enabled !== false)
-        .map((g) => String(g.id || g.game_id))
-        .join(',');
-    };
-
-    lastSignature = getSignature();
-
-    const refreshIfChanged = () => {
-      const current = getSignature();
-      if (current !== lastSignature) {
-        lastSignature = current;
-        setDbVersion((v) => v + 1);
-      }
-    };
-
-    const onDbUpdate = () => {
-      setDbVersion((v) => v + 1);
-    };
-
-    window.addEventListener('storage', refreshIfChanged);
-    window.addEventListener('global_db_update', onDbUpdate);
-    const onVisibilityChange = () => {
-      if (!document.hidden) refreshIfChanged();
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      window.removeEventListener('storage', refreshIfChanged);
-      window.removeEventListener('global_db_update', onDbUpdate);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, []);
-
-  const db = getDatabase();
-
-  // Suspended Account Guard
-  const dbUser = (db.users || []).find((u) => sameId(u.id || u.user_id, userId));
-  const isSuspended = dbUser && dbUser.status === 'suspended';
-
-  // Favourites list for current player
+  // Favourites list for current player (local storage helper)
   const favs = playerService.getFavorites(userId);
-  const genres = playerService.getGenres();
+
+  // Genres dynamically extracted from games
+  const genres = Array.from(
+    new Set(allGames.map((g) => g.genre).filter(Boolean))
+  ).sort();
 
   // Probe self-hosted games
   useEffect(() => {
-    const approved = (db.games || []).filter(
+    const approved = allGames.filter(
       (g) => (g.status === 'approved' || g.game_approval_status === 'approved') && g.enabled !== false
     );
     approved.forEach((g) => {
@@ -116,26 +87,45 @@ export function Games() {
         });
       }
     });
-  }, [dbVersion]);
+  }, [allGames]);
 
   // Handle favourites toggle
   function handleToggleFav(gameId, e) {
     if (e && e.stopPropagation) e.stopPropagation();
     playerService.toggleFavorite(gameId, userId);
-    setDbVersion((v) => v + 1);
+    setLocalUpdateTick((v) => v + 1);
   }
 
   // Handle game launch
   function handleLaunchGame(gameId, e) {
     if (e && e.stopPropagation) e.stopPropagation();
+    dispatch(recordGameView(gameId));
     const result = playerService.launchGame(gameId, userId);
     if (!result.success) {
       showToast(result.reason || 'Could not launch game', 'error');
     }
   }
 
+  // Suspended Account Guard
+  const isSuspended = user && user.status === 'suspended';
+  if (isSuspended) {
+    return (
+      <div className="page-wrapper">
+        <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏸</div>
+          <h2 style={{ fontFamily: "'Orbitron', monospace", marginBottom: '0.5rem', color: '#fff' }}>
+            Account Suspended
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0.5rem auto', lineHeight: 1.5 }}>
+            Your account is currently suspended. You cannot access the game catalog, but you can still access your messages via the menu to contact support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Filter available games
-  let availableGames = (db.games || []).filter(
+  let availableGames = allGames.filter(
     (g) => (g.status === 'approved' || g.game_approval_status === 'approved') && g.enabled !== false
   );
 
@@ -170,34 +160,17 @@ export function Games() {
   });
 
   // Upcoming games: only games still in development (status !== approved)
-  // Hidden when in favourites view or when search/genre filter is active
   const showUpcoming = !showingFavs && !searchQuery.trim() && !selectedGenre;
   const upcomingGames = showUpcoming
-    ? (db.games || []).filter(
+    ? allGames.filter(
         (g) => g.status !== 'approved' && g.game_approval_status !== 'approved'
       )
     : [];
 
   // Selected game for details view
   const selectedGame = selectedGameId
-    ? (db.games || []).find((g) => sameId(g.id || g.game_id, selectedGameId))
+    ? allGames.find((g) => sameId(g.id || g.game_id, selectedGameId))
     : null;
-
-  if (isSuspended) {
-    return (
-      <div className="page-wrapper">
-        <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏸</div>
-          <h2 style={{ fontFamily: "'Orbitron', monospace", marginBottom: '0.5rem', color: '#fff' }}>
-            Account Suspended
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0.5rem auto', lineHeight: 1.5 }}>
-            Your account is currently suspended. You cannot access the game catalog, but you can still access your messages via the menu to contact support.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="page-wrapper" style={{ padding: '1.5rem', maxWidth: '1280px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -212,7 +185,7 @@ export function Games() {
             navigate('/player/games', { replace: true });
           }}
           onLaunch={handleLaunchGame}
-          onReviewSubmitted={() => setDbVersion((v) => v + 1)}
+          onReviewSubmitted={() => dispatch(fetchGames())}
           onShowToast={showToast}
         />
       ) : (
@@ -235,6 +208,18 @@ export function Games() {
               setShowingFavs(!showingFavs);
             }}
           />
+
+          {gamesStatus === 'loading' && allGames.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+              Loading game catalog...
+            </div>
+          )}
+
+          {gamesStatus === 'failed' && allGames.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#ef4444' }}>
+              Failed to load games: {gamesError}
+            </div>
+          )}
 
           <GamesGrid
             games={sortedGames}
