@@ -15,6 +15,7 @@ import ApprovalStats from '../../components/admin/approvals/ApprovalStats';
 import PendingApprovalsCard from '../../components/admin/approvals/PendingApprovalsCard';
 import ApprovedGamesGrid from '../../components/admin/approvals/ApprovedGamesGrid';
 import { getDB } from '../../services/adminService';
+import PublisherApplications from '../../components/admin/approvals/PublisherApplications';
 
 export function Approvals() {
   useContext(AdminContext); // redraw when AdminContext.refresh() is called
@@ -140,6 +141,7 @@ export function Approvals() {
       </div>
 
       <ApprovalStats total={games.length} pending={pending.length} approved={approved.length} />
+      <PublisherApplications />
 
       <PendingApprovalsCard games={pending} onReview={handleReview} />
 

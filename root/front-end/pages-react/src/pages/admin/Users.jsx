@@ -105,20 +105,17 @@ export function Users() {
     const usernameMsg = validateField(form.username, [{ type: 'required' }, { type: 'minLen', n: 3 }, { type: 'maxLen', n: 20 }]);
     const emailMsg = validateField(form.email, [{ type: 'required' }, { type: 'email' }]);
     const passwordMsg = isEdit ? '' : validateField(form.password, [{ type: 'required' }, { type: 'password' }]);
-    setErrors({ username: usernameMsg, email: emailMsg, password: passwordMsg });
-    if (usernameMsg || emailMsg || passwordMsg) return;
-
     const username = form.username.trim();
     const email = form.email.trim();
 
-    if (isUsernameTaken(users, username, editId)) {
-      setErrors({ username: 'Username already taken', email: '', password: '' });
-      return;
-    }
-    if (isEmailTakenForRole(users, email, form.role, editId)) {
-      setErrors({ username: '', email: 'Email already registered', password: '' });
-      return;
-    }
+    // Show every problem at once instead of one per click.
+    const nextErrors = {
+      username: usernameMsg || (isUsernameTaken(users, username, editId) ? 'Username already taken' : ''),
+      email: emailMsg || (isEmailTakenForRole(users, email, form.role, editId) ? 'Email already registered' : ''),
+      password: passwordMsg
+    };
+    setErrors(nextErrors);
+    if (nextErrors.username || nextErrors.email || nextErrors.password) return;
 
     try {
       if (isEdit) {
@@ -172,7 +169,11 @@ export function Users() {
 
   function handleSuspend() {
     const u = editUser;
-    const days = suspendDays || 1;
+    const days = parseInt(suspendDays, 10) || 1;
+    if (days < 1 || days > 90) {
+      toast.error('Suspension duration must be between 1 and 90 days.');
+      return;
+    }
     const r = getReason();
     if (!r) return;
     confirmAction('Suspend User', `Suspend ${u.username} for ${days} days?`, () =>

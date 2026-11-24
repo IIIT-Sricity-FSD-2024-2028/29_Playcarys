@@ -18,7 +18,7 @@ const COLOR_MAP = {
 };
 
 export function AuditSection(props) {
-  const { active, auditLog, onClear, onReload } = props;
+  const { active, auditLog, onClear, onReload, canClear = false } = props;
   const [typeFilter, setTypeFilter] = useState('');
 
   // auditLog is null when the server could not be reached.
@@ -31,7 +31,7 @@ export function AuditSection(props) {
         <h2 style={{ fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Audit Log</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-ghost btn-sm" onClick={onReload}>↻ Refresh</button>
-          <button className="btn btn-ghost btn-sm" onClick={onClear}>🗑 Clear Log</button>
+          {canClear && <button className="btn btn-ghost btn-sm" onClick={onClear}>🗑 Clear Log</button>}
         </div>
       </div>
 

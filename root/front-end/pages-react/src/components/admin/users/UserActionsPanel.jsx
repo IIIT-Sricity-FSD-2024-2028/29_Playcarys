@@ -50,6 +50,7 @@ export function UserActionsPanel(props) {
                   onChange={(e) => onDaysChange(e.target.value)}
                   style={{ width: '70px', padding: '0.25rem 0.5rem', fontSize: '0.8rem', height: '32px' }}
                   min="1"
+                  max="90"
                 />
                 <button className="btn btn-ghost btn-sm" style={{ borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)', marginRight: '0.5rem' }} onClick={onSuspend}>⏸ Suspend</button>
               </>
