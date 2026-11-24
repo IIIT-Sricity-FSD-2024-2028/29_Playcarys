@@ -2,19 +2,12 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsIn,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   Min,
 } from 'class-validator';
 
-/**
- * Ceiling on Carys one match may award when the game declares no cap of its own.
- *
- * Mirrors DEFAULT_CARYS_CAP in app.controller.ts, which clamps the same value
- * arriving by the db-import path. Both exist because a hosted bundle is
- * third-party code: without a cap a published game could award 999,999 per
- * match and own the leaderboard outright.
- */
 export const DEFAULT_CARYS_CAP = 500;
 
 export class PurchaseCosmeticDto {
@@ -51,12 +44,27 @@ export class EquipCosmeticDto {
   item_id!: number;
 }
 
+export class UnequipCosmeticDto {
+  @ApiProperty()
+  @IsInt()
+  user_id!: number;
+
+  @ApiProperty()
+  @IsInt()
+  item_id!: number;
+}
+
 export class AwardMatchDto {
   @ApiProperty()
   @IsInt()
   user_id!: number;
 
-  @ApiProperty({ description: 'The game played — sets the multiplier and the payout cap' })
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  player_id?: number;
+
+  @ApiProperty()
   @IsInt()
   game_id!: number;
 
@@ -87,21 +95,21 @@ export class SubscribeDto {
 }
 
 export class WithdrawDto {
-  @ApiProperty({ enum: ['upi', 'bank'], description: 'How to receive the money' })
+  @ApiProperty({ enum: ['upi', 'bank'] })
   @IsIn(['upi', 'bank'])
   method!: 'upi' | 'bank';
 
-  @ApiProperty({ required: false, example: 'studio@okbank', description: 'Required when method is "upi"' })
+  @ApiProperty({ required: false, description: 'Required when method === "upi"' })
   @IsOptional()
   @IsString()
   upi_id?: string;
 
-  @ApiProperty({ required: false, example: '123456789012', description: 'Required when method is "bank" (9-18 digits)' })
+  @ApiProperty({ required: false, description: 'Required when method === "bank"' })
   @IsOptional()
   @IsString()
   account_number?: string;
 
-  @ApiProperty({ required: false, example: 'HDFC0001234', description: 'Required when method is "bank"' })
+  @ApiProperty({ required: false, description: 'Required when method === "bank"' })
   @IsOptional()
   @IsString()
   ifsc?: string;
@@ -117,4 +125,58 @@ export class ClosePayoutDto {
   @IsInt()
   @Min(0)
   min_paise?: number;
+}
+
+export class GrantPublisherFundsDto {
+  @ApiProperty({ required: false, description: 'Amount in paise (e.g. 1000000 paise = 10000 INR)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  amount_paise?: number;
+
+  @ApiProperty({ required: false, description: 'Amount in INR rupees (e.g. 10000)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  amount_rupees?: number;
+
+  @ApiProperty({ required: false, description: 'Administrative reason for grant' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class DepositPublisherFundsDto {
+  @ApiProperty({ required: false, description: 'Amount in paise (minimum 10000 = ₹100)' })
+  @IsOptional()
+  @IsInt()
+  @Min(10000)
+  amount_paise?: number;
+
+  @ApiProperty({ required: false, description: 'Amount in INR rupees (minimum 100)' })
+  @IsOptional()
+  @IsInt()
+  @Min(100)
+  amount_rupees?: number;
+
+  @ApiProperty({ required: false, description: 'Sandbox payment method' })
+  @IsOptional()
+  @IsString()
+  payment_method?: string;
+}
+
+export class PlayerWithdrawDto {
+  @ApiProperty({ description: 'Amount in paise' })
+  @IsInt()
+  @Min(10000)
+  amount_paise!: number;
+
+  @ApiProperty({ description: 'UPI VPA or Bank Account' })
+  @IsString()
+  @IsNotEmpty()
+  destination!: string;
+
+  @ApiProperty({ enum: ['upi', 'bank'] })
+  @IsIn(['upi', 'bank'])
+  method!: 'upi' | 'bank';
 }

@@ -284,12 +284,13 @@ export class GameService implements OnModuleInit {
   }
 
   // Workflow: Set Game State (publisher)
-  setGameState(id: number, dto: SetGameStateDto, requestingPublisherId: number) {
+  setGameState(id: number, dto: SetGameStateDto, requestingPublisherId: number, callerRole?: string) {
     const game = this.gameRepo.findById(id);
     if (!game) throw new NotFoundException(`Game ${id} not found`);
 
-    // R-GAME-3
-    if (game.game_publisher !== requestingPublisherId) {
+    // R-GAME-3: allow owning publisher or staff (admin/superuser)
+    const isStaff = callerRole === 'admin' || callerRole === 'superuser';
+    if (!isStaff && game.game_publisher !== requestingPublisherId) {
       throw new ForbiddenException('You can only change the state of your own games');
     }
 
@@ -438,6 +439,9 @@ export class GameService implements OnModuleInit {
   }
 
   private recordReview(game: Game, reviewer: { user_id: number; user_name: string }, dto: ApproveGameDto, override: boolean): void {
+    const finalNote = override
+      ? (dto.override_note?.trim() || '')
+      : ((dto.rejection_category ? `[${dto.rejection_category}] ` : '') + (dto.note || '')).trim();
     const row: GameReview = {
       review_id: game_reviews.length ? Math.max(...game_reviews.map((r) => r.review_id)) + 1 : 1,
       game_id: game.game_id,
@@ -448,7 +452,7 @@ export class GameService implements OnModuleInit {
       game_url: game.hosting_type === 'selfhosted' ? game.game_url : undefined,
       scan_verdict: game.scan?.verdict,
       scan_summary: game.scan?.summary,
-      note: (override ? dto.override_note : dto.note)?.trim() || '',
+      note: finalNote,
       override,
       decided_at: new Date().toISOString(),
     };

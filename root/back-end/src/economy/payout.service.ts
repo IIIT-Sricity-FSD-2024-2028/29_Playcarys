@@ -10,9 +10,12 @@ import {
   games,
   payouts,
   publisher_profiles,
+  player_profiles,
+  fiat_ledger,
   tournaments,
   users,
   Payout,
+  FiatLedgerEntry,
   MIN_PAYOUT_PAISE,
   PAISE_PER_CARYS,
   PUBLISHER_REVENUE_SHARE_PCT,
@@ -21,7 +24,7 @@ import {
 } from '../data/store';
 import { scheduleSave } from '../data/persistence';
 import { PaymentGateway } from './payment.gateway';
-import { WithdrawDto } from './economy.dto';
+import { WithdrawDto, PlayerWithdrawDto } from './economy.dto';
 
 // ── Domain Rules ────────────────────────────────────────────
 // R-PAY-1: The publisher keeps PUBLISHER_REVENUE_SHARE_PCT of gross attributable
@@ -104,8 +107,10 @@ export class PayoutService implements OnModuleInit {
     const lifetimeRake = rakeLifetimePaise(publisherId);
     const unsettledRake = Math.max(0, lifetimeRake - (Number(profile.settled_rake_paise) || 0));
 
+    const directGrant = Number(profile.direct_grant_paise) || 0;
     const grossPaise = unsettledCarys * PAISE_PER_CARYS + unsettledRake;
-    const { net, cut } = split(grossPaise);
+    const { net: rawNet, cut } = split(grossPaise);
+    const net = rawNet + directGrant;
 
     // ── Where the rest of the money is ──────────────────────
     const mine = payouts.filter((p) => p.publisher_id === publisherId);
@@ -136,7 +141,7 @@ export class PayoutService implements OnModuleInit {
     const lifetimeGross = perGame.reduce((s, g) => s + g.gross_paise, 0);
     // The studio's share of that lifetime gross must equal the three buckets above.
     // A few paise can differ because each close rounds its own split.
-    const unaccounted = split(lifetimeGross).net - lifetimeEarned;
+    const unaccounted = split(lifetimeGross).net + directGrant - lifetimeEarned;
     const reconciled = Math.abs(unaccounted) <= mine.length + 1;
 
     // ── Can they withdraw right now? ────────────────────────
@@ -174,7 +179,8 @@ export class PayoutService implements OnModuleInit {
         royalty_carys: unsettledCarys,
         royalty_paise: unsettledCarys * PAISE_PER_CARYS,
         rake_paise: unsettledRake,
-        gross_paise: grossPaise,
+        direct_grant_paise: directGrant,
+        gross_paise: grossPaise + directGrant,
         platform_cut_paise: cut,
         net_paise: net,
         net_display: formatPaise(net),
@@ -249,6 +255,7 @@ export class PayoutService implements OnModuleInit {
     profile.settled_pcp = (Number(profile.settled_pcp) || 0) + summary.unsettled.royalty_carys;
     profile.settled_rake_paise =
       (Number(profile.settled_rake_paise) || 0) + summary.unsettled.rake_paise;
+    profile.direct_grant_paise = 0;
 
     profile.balance_paise = (Number(profile.balance_paise) || 0) + net;
     profile.lifetime_earned_paise = (Number(profile.lifetime_earned_paise) || 0) + net;
@@ -420,6 +427,247 @@ export class PayoutService implements OnModuleInit {
     }
     return { destination: `${account}|${ifsc}`, masked: `XXXXXX${account.slice(-4)} (${ifsc})` };
   }
+
+  grantFunds(publisherId: number, amountPaise: number, reason = 'Administrative grant') {
+    if (!Number.isFinite(amountPaise) || amountPaise <= 0) {
+      throw new BadRequestException('Grant amount must be a positive number of paise.');
+    }
+    let profile = publisher_profiles.find((p) => p.user_id === publisherId);
+    if (!profile) {
+      profile = {
+        user_id: publisherId,
+        total_games: 0,
+        approved_games: 0,
+        active_games: 0,
+        direct_grant_paise: 0,
+      };
+      publisher_profiles.push(profile);
+    }
+    profile.direct_grant_paise = (Number(profile.direct_grant_paise) || 0) + amountPaise;
+    scheduleSave();
+    this.logger.log(`Granted ${formatPaise(amountPaise)} to publisher ${publisherId}: ${reason}`);
+    return this.earnings(publisherId);
+  }
+
+  /**
+   * Deposit sandbox funds into publisher available balance.
+   */
+  depositFunds(publisherId: number, amountPaise: number, paymentMethod: string = 'UPI Sandbox') {
+    if (amountPaise < 10000) {
+      throw new BadRequestException('Minimum deposit amount is ₹100 (10,000 paise).');
+    }
+    const user = users.find((u) => u.user_id === publisherId);
+    if (!user) {
+      throw new NotFoundException(`Publisher user ${publisherId} not found.`);
+    }
+
+    let profile = publisher_profiles.find((p) => p.user_id === publisherId);
+    if (!profile) {
+      profile = {
+        user_id: publisherId,
+        total_games: 0,
+        approved_games: 0,
+        active_games: 0,
+        direct_grant_paise: 0,
+      };
+      publisher_profiles.push(profile);
+    }
+
+    profile.direct_grant_paise = (Number(profile.direct_grant_paise) || 0) + amountPaise;
+    (profile as any).deposit_balance_paise = (Number((profile as any).deposit_balance_paise) || 0) + amountPaise;
+
+    const currentEarnings = this.earnings(publisherId);
+    const txnId = `TXN-DEP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const refId = `DEP-SIM-${Date.now()}`;
+
+    const ledgerEntry: FiatLedgerEntry = {
+      transaction_id: txnId,
+      user_id: publisherId,
+      role: 'publisher',
+      type: 'deposit',
+      amount_paise: amountPaise,
+      balance_after_paise: currentEarnings.available_paise,
+      reference_id: refId,
+      status: 'completed',
+      description: `Simulated sandbox deposit via ${paymentMethod}`,
+      is_sandbox: true,
+      created_at: new Date().toISOString(),
+    };
+    fiat_ledger.unshift(ledgerEntry);
+    scheduleSave();
+
+    this.logger.log(`Deposited ${formatPaise(amountPaise)} for publisher ${publisherId} via ${paymentMethod}`);
+    return {
+      success: true,
+      transaction_id: txnId,
+      reference_id: refId,
+      amount_paise: amountPaise,
+      amount_rupees: amountPaise / 100,
+      payment_method: paymentMethod,
+      available_paise: currentEarnings.available_paise,
+      available_formatted: formatPaise(currentEarnings.available_paise),
+    };
+  }
+
+  /**
+   * Complete publisher finance suite overview with ledger and prize reservations.
+   */
+  getFinanceOverview(publisherId: number) {
+    const earnData = this.earnings(publisherId);
+    const profile = publisher_profiles.find((p) => p.user_id === publisherId);
+
+    // Active tournament escrow prize reservations
+    const myTournaments = tournaments.filter((t) => t.organizer === publisherId);
+    const activeTournaments = myTournaments.filter((t) => t.status === 'upcoming' || t.status === 'in-progress');
+    const reservedPrizePaise = activeTournaments.reduce((sum, t) => sum + (Number(t.prize_pool_paise) || 0), 0);
+
+    const reservations = activeTournaments.map((t) => ({
+      tournament_id: t.tournament_id,
+      name: t.tournament_name,
+      status: t.status,
+      prize_pool_paise: t.prize_pool_paise || 0,
+      formatted_prize: t.prize,
+      entry_fee_paise: t.entry_fee_paise || 0,
+      participants: t.participants || 0,
+      rake_pct: t.rake_pct || 10,
+    }));
+
+    const recentTxns = fiat_ledger
+      .filter((l) => l.user_id === publisherId)
+      .slice(0, 50);
+
+    return {
+      publisher_id: publisherId,
+      studio_name: earnData.studio_name,
+      available_paise: earnData.available_paise,
+      available_formatted: formatPaise(earnData.available_paise),
+      in_transit_paise: earnData.in_transit_paise,
+      in_transit_formatted: formatPaise(earnData.in_transit_paise),
+      paid_out_paise: earnData.paid_out_paise,
+      paid_out_formatted: formatPaise(earnData.paid_out_paise),
+      lifetime_earned_paise: earnData.lifetime_earned_paise,
+      lifetime_earned_formatted: formatPaise(earnData.lifetime_earned_paise),
+      deposit_balance_paise: Number((profile as any)?.deposit_balance_paise || 0),
+      direct_grant_paise: Number(profile?.direct_grant_paise || 0),
+      reserved_prize_paise: reservedPrizePaise,
+      reserved_prize_formatted: formatPaise(reservedPrizePaise),
+      can_withdraw: earnData.withdraw?.can_withdraw || false,
+      withdraw_threshold_paise: MIN_PAYOUT_PAISE,
+      withdraw_info: earnData.withdraw,
+      recent_transactions: recentTxns,
+      tournament_reservations: reservations,
+      payout_history: payouts.filter((p) => p.publisher_id === publisherId),
+      per_game: earnData.per_game,
+    };
+  }
+
+  /**
+   * Player wallet and prize money balance.
+   */
+  getPlayerWallet(playerId: number) {
+    const user = users.find((u) => u.user_id === playerId);
+    if (!user) {
+      throw new NotFoundException(`Player user ${playerId} not found.`);
+    }
+
+    let profile = player_profiles.find((p) => p.user_id === playerId);
+    if (!profile) {
+      profile = {
+        user_id: playerId,
+        player_name: user.user_name,
+        carys_points: 0,
+        play_time: 0,
+        matches_won: 0,
+        player_status: true,
+      };
+      player_profiles.push(profile);
+    }
+
+    const winnings = Number((profile as any).prize_winnings_paise) || 0;
+    const minePayouts = payouts.filter((po) => po.publisher_id === playerId);
+    const paidOut = minePayouts
+      .filter((po) => po.status === 'paid')
+      .reduce((s, po) => s + (po.net_paise || 0), 0);
+    const inTransit = minePayouts
+      .filter((po) => po.status === 'pending' || po.status === 'processing')
+      .reduce((s, po) => s + (po.net_paise || 0), 0);
+    const available = Math.max(0, winnings - paidOut - inTransit);
+
+    return {
+      player_id: playerId,
+      player_name: profile.player_name,
+      carys_points: profile.carys_points || 0,
+      prize_winnings_paise: winnings,
+      prize_winnings_formatted: formatPaise(winnings),
+      available_paise: available,
+      available_formatted: formatPaise(available),
+      in_transit_paise: inTransit,
+      paid_out_paise: paidOut,
+      can_withdraw: available >= MIN_PAYOUT_PAISE,
+      min_withdrawal_paise: MIN_PAYOUT_PAISE,
+      transactions: fiat_ledger.filter((l) => l.user_id === playerId).slice(0, 50),
+      payouts: minePayouts,
+    };
+  }
+
+  /**
+   * Withdraw player prize winnings.
+   */
+  withdrawPlayerWinnings(playerId: number, dto: PlayerWithdrawDto) {
+    const amountPaise = dto.amount_paise;
+    if (amountPaise < MIN_PAYOUT_PAISE) {
+      throw new BadRequestException(`Minimum withdrawal is ${formatPaise(MIN_PAYOUT_PAISE)}`);
+    }
+
+    const wallet = this.getPlayerWallet(playerId);
+    if (amountPaise > wallet.available_paise) {
+      throw new BadRequestException(
+        `Requested ${formatPaise(amountPaise)} exceeds available prize balance ${formatPaise(wallet.available_paise)}.`,
+      );
+    }
+
+    const newId = (payouts.reduce((m, p) => Math.max(m, p.payout_id), 0) || 0) + 1;
+    const payoutRow: Payout = {
+      payout_id: newId,
+      publisher_id: playerId,
+      period: new Date().toISOString().slice(0, 7),
+      gross_paise: amountPaise,
+      net_paise: amountPaise,
+      platform_cut_paise: 0,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      source: 'withdrawal',
+      method: dto.method,
+      destination_masked: dto.destination ? (dto.destination.length > 6 ? dto.destination.slice(0, 2) + '****' + dto.destination.slice(-4) : dto.destination) : undefined,
+    };
+    payouts.unshift(payoutRow);
+
+    const txnId = `TXN-WDL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const ledgerEntry: FiatLedgerEntry = {
+      transaction_id: txnId,
+      user_id: playerId,
+      role: 'player',
+      type: 'withdrawal',
+      amount_paise: -amountPaise,
+      balance_after_paise: wallet.available_paise - amountPaise,
+      reference_id: `PO-${newId}`,
+      status: 'pending',
+      description: `Player prize withdrawal to ${dto.destination || 'UPI'}`,
+      is_sandbox: true,
+      created_at: new Date().toISOString(),
+    };
+    fiat_ledger.unshift(ledgerEntry);
+    scheduleSave();
+
+    this.logger.log(`Player ${playerId} requested withdrawal of ${formatPaise(amountPaise)}`);
+    return {
+      success: true,
+      payout_id: newId,
+      amount_paise: amountPaise,
+      status: 'pending',
+      destination: dto.destination,
+    };
+  }
 }
 
 /** Rake the platform has actually collected on a tournament, in paise. */
@@ -441,4 +689,5 @@ export function split(grossPaise: number): { net: number; cut: number } {
   // The cut is the remainder rather than a second percentage, so the two
   // halves always add back to gross however the rounding fell.
   return { net, cut: gross - net };
+
 }

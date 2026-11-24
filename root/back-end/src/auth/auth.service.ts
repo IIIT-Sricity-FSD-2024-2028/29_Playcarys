@@ -22,6 +22,7 @@ import {
   player_profiles,
   publisher_profiles,
   roles,
+  bans,
   User,
   grantDefaultKit,
 } from '../data/store';
@@ -120,8 +121,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // R-AUTH-3
-    if (user.status === 'banned') {
+    // R-AUTH-3: Account status or active platform ban
+    const isBanned = user.status === 'banned' || bans.some((b) => b.playerId === user.user_id && b.active);
+    if (isBanned) {
+      user.status = 'banned';
       throw new UnauthorizedException('Account is banned. Contact support.');
     }
 

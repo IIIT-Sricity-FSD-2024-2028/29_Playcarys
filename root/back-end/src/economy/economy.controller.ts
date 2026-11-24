@@ -21,6 +21,9 @@ import {
   PurchaseCosmeticDto,
   SubscribeDto,
   WithdrawDto,
+  GrantPublisherFundsDto,
+  DepositPublisherFundsDto,
+  PlayerWithdrawDto,
 } from './economy.dto';
 
 @ApiTags('economy')
@@ -84,21 +87,33 @@ export class EconomyController {
   // POST /economy/purchase
   @Post('purchase')
   @ApiOperation({ summary: 'Buy a cosmetic with Carys or (simulated) INR' })
-  purchase(@Body() dto: PurchaseCosmeticDto) {
+  @Roles('player', 'moderator', 'admin', 'superuser')
+  purchase(@Body() dto: PurchaseCosmeticDto, @Req() req: any) {
+    if (req.auth && req.auth.role === 'player' && req.auth.sub !== dto.user_id) {
+      throw new ForbiddenException('You cannot purchase items for another player.');
+    }
     return this.economy.purchase(dto);
   }
 
   // POST /economy/equip
   @Post('equip')
   @ApiOperation({ summary: 'Equip an owned cosmetic (one per category)' })
-  equip(@Body() dto: EquipCosmeticDto) {
+  @Roles('player', 'moderator', 'admin', 'superuser')
+  equip(@Body() dto: EquipCosmeticDto, @Req() req: any) {
+    if (req.auth && req.auth.role === 'player' && req.auth.sub !== dto.user_id) {
+      throw new ForbiddenException('You cannot modify another player\'s equipment.');
+    }
     return this.economy.equip(dto);
   }
 
   /** POST /economy/unequip — take an item off, leaving the slot empty. */
   @Post('unequip')
   @ApiOperation({ summary: 'Remove an equipped cosmetic' })
-  unequip(@Body() dto: EquipCosmeticDto) {
+  @Roles('player', 'moderator', 'admin', 'superuser')
+  unequip(@Body() dto: EquipCosmeticDto, @Req() req: any) {
+    if (req.auth && req.auth.role === 'player' && req.auth.sub !== dto.user_id) {
+      throw new ForbiddenException('You cannot modify another player\'s equipment.');
+    }
     return this.economy.unequip(dto);
   }
 
@@ -205,5 +220,77 @@ export class EconomyController {
   @ApiOperation({ summary: 'Payout rows, optionally for one publisher' })
   listPayouts(@Query('publisherId') publisherId?: string) {
     return this.payouts.list(publisherId ? parseInt(publisherId, 10) : undefined);
+  }
+
+  // POST /economy/publishers/:id/grant
+  @Post('publishers/:id/grant')
+  @Roles('admin', 'superuser')
+  @ApiOperation({ summary: 'Admin grant direct INR funds to a publisher' })
+  grantFunds(
+    @Param('id', ParseIntPipe) publisherId: number,
+    @Body() dto: GrantPublisherFundsDto,
+  ) {
+    const paise = dto.amount_paise ?? Math.round((Number(dto.amount_rupees) || 0) * 100);
+    return this.payouts.grantFunds(publisherId, paise, dto.reason || 'Admin grant');
+  }
+
+  // POST /economy/publishers/:id/deposit
+  @Post('publishers/:id/deposit')
+  @Roles('publisher', 'superuser', 'admin')
+  @ApiOperation({ summary: 'Deposit funds into publisher balance (simulated sandbox)' })
+  depositFunds(
+    @Param('id', ParseIntPipe) publisherId: number,
+    @Body() dto: DepositPublisherFundsDto,
+    @Req() req: any,
+  ) {
+    if (req.auth && req.auth.role === 'publisher' && Number(req.auth.sub) !== publisherId) {
+      throw new ForbiddenException('You can only deposit into your own publisher account.');
+    }
+    const paise = dto.amount_paise ?? Math.round((Number(dto.amount_rupees) || 0) * 100);
+    return this.payouts.depositFunds(publisherId, paise, dto.payment_method);
+  }
+
+  // GET /economy/publishers/:id/finance
+  @Get('publishers/:id/finance')
+  @Roles('publisher', 'superuser', 'admin')
+  @ApiOperation({ summary: 'Complete publisher finance overview, prize reservations, and ledger' })
+  getFinanceOverview(
+    @Param('id', ParseIntPipe) publisherId: number,
+    @Req() req: any,
+  ) {
+    if (req.auth && req.auth.role === 'publisher' && Number(req.auth.sub) !== publisherId) {
+      throw new ForbiddenException('You can only access your own finance overview.');
+    }
+    return this.payouts.getFinanceOverview(publisherId);
+  }
+
+  // GET /economy/players/:id/wallet
+  @Get('players/:id/wallet')
+  @ApiOperation({ summary: 'Player wallet, prize winnings, and withdrawal status' })
+  getPlayerWallet(
+    @Param('id', ParseIntPipe) playerId: number,
+    @Req() req: any,
+  ) {
+    if (req.auth && req.auth.role === 'player' && Number(req.auth.sub) !== playerId) {
+      throw new ForbiddenException('You can only view your own wallet balance.');
+    }
+    return this.payouts.getPlayerWallet(playerId);
+  }
+
+  // POST /economy/players/:id/withdraw
+  @Post('players/:id/withdraw')
+  @ApiOperation({ summary: 'Request withdrawal of player tournament prize money' })
+  withdrawPlayer(
+    @Param('id', ParseIntPipe) playerId: number,
+    @Body() dto: PlayerWithdrawDto,
+    @Req() req: any,
+  ) {
+    if (!req.auth) {
+      throw new ForbiddenException('Withdrawing needs a signed session. Please sign in again.');
+    }
+    if (req.auth.role === 'player' && Number(req.auth.sub) !== playerId) {
+      throw new ForbiddenException('You can only withdraw your own prize money.');
+    }
+    return this.payouts.withdrawPlayerWinnings(playerId, dto);
   }
 }

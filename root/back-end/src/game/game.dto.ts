@@ -123,8 +123,10 @@ export class UpdateGameDto extends GameDeliveryDto {
 }
 
 export class UpdateGameRequestDto extends UpdateGameDto {
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
-  publisher_id: number;
+  publisher_id?: number;
 }
 
 export class SetGameStateDto {
@@ -133,8 +135,10 @@ export class SetGameStateDto {
 }
 
 export class SetGameStateRequestDto extends SetGameStateDto {
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
-  publisher_id: number;
+  publisher_id?: number;
 }
 
 /**
@@ -149,10 +153,11 @@ export class ApproveGameDto {
   @IsIn(['approved', 'rejected'])
   game_approval_status: 'approved' | 'rejected';
 
-  @ApiProperty({ description: 'user_id of the admin making the decision', example: 2 })
+  @ApiProperty({ description: 'user_id of the admin making the decision', example: 2, required: false })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  reviewer_id: number;
+  reviewer_id?: number;
 
   @ApiProperty({
     description: 'Reviewer note. Required when rejecting — it is what the publisher is shown.',
@@ -162,6 +167,15 @@ export class ApproveGameDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiProperty({
+    description: 'Controlled rejection category code',
+    example: 'MALICIOUS_CODE_OR_SECURITY_RISK',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  rejection_category?: string;
 
   @ApiProperty({
     description:

@@ -44,6 +44,7 @@ export class UsersController {
   // GET /users
   // GET /users?role_id=4
   @Get()
+  @Roles('admin', 'moderator', 'superuser')
   findAll(@Query('role_id') roleId?: string) {
     if (roleId) return this.usersService.findByRole(parseInt(roleId, 10));
     return this.usersService.findAll();
@@ -59,6 +60,7 @@ export class UsersController {
 
   // GET /users/:id
   @Get(':id')
+  @Roles('admin', 'moderator', 'superuser')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }

@@ -29,6 +29,7 @@ import {
   verifyMatchToken,
   verifyWebhookSignature,
 } from './match-token.util';
+import { creditCarys } from '../economy/carys.ledger';
 
 // ── Domain rules ────────────────────────────────────────────
 // R-TP-1: A tournament is decided EITHER by score (single-player) or by a
@@ -504,9 +505,15 @@ export class TournamentPlayService {
       const pcp2 = Math.max(50, Math.round(prize2Paise / 10));
       const pcp3 = Math.max(25, Math.round(prize3Paise / 10));
 
-      // Credit 1st Place
-      const prof1 = player_profiles.find((p) => p.user_id === firstPlace);
-      if (prof1) prof1.carys_points = (prof1.carys_points || 0) + pcp1;
+      // Credit 1st Place via single-writer ledger
+      try {
+        creditCarys(firstPlace, pcp1, `1st Place Champion prize in "${tName}"`, {
+          type: 'tournament',
+          id: t.tournament_id,
+        });
+      } catch (e) {
+        this.logger.warn(`Could not credit 1st place prize: ${e.message}`);
+      }
       tournament_results.push({
         tournament_id: t.tournament_id,
         player_id: firstPlace,
@@ -531,8 +538,14 @@ export class TournamentPlayService {
 
       // Credit 2nd Place
       if (runnerUp && !isNaN(runnerUp)) {
-        const prof2 = player_profiles.find((p) => p.user_id === runnerUp);
-        if (prof2) prof2.carys_points = (prof2.carys_points || 0) + pcp2;
+        try {
+          creditCarys(runnerUp, pcp2, `2nd Place Runner-Up prize in "${tName}"`, {
+            type: 'tournament',
+            id: t.tournament_id,
+          });
+        } catch (e) {
+          this.logger.warn(`Could not credit 2nd place prize: ${e.message}`);
+        }
         tournament_results.push({
           tournament_id: t.tournament_id,
           player_id: runnerUp,
@@ -558,8 +571,14 @@ export class TournamentPlayService {
 
       // Credit 3rd Place
       if (thirdPlace && !isNaN(thirdPlace)) {
-        const prof3 = player_profiles.find((p) => p.user_id === thirdPlace);
-        if (prof3) prof3.carys_points = (prof3.carys_points || 0) + pcp3;
+        try {
+          creditCarys(thirdPlace, pcp3, `3rd Place prize in "${tName}"`, {
+            type: 'tournament',
+            id: t.tournament_id,
+          });
+        } catch (e) {
+          this.logger.warn(`Could not credit 3rd place prize: ${e.message}`);
+        }
         tournament_results.push({
           tournament_id: t.tournament_id,
           player_id: thirdPlace,

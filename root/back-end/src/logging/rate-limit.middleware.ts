@@ -26,7 +26,7 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
 
 const WINDOW_MS = 60_000;
-const MAX_REQUESTS_PER_WINDOW = 60; // generous dev/demo window to prevent lockout during presentations
+const MAX_REQUESTS_PER_WINDOW = 500; // generous dev/demo/test window to prevent lockout during test suites and presentations
 
 interface Bucket {
   count: number;

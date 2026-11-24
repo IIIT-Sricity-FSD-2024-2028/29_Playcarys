@@ -426,14 +426,36 @@ export class EconomyService {
     const item = cosmetic_items.find((i) => i.id === dto.item_id);
     if (!item) throw new NotFoundException(`Cosmetic ${dto.item_id} not found`);
 
+    // 1. Same category unequip
     const sameCategory = new Set(
       cosmetic_items.filter((i) => i.category === item.category).map((i) => i.id),
     );
     for (const uc of user_cosmetics) {
       if (uc.user_id === dto.user_id && sameCategory.has(uc.item_id)) uc.is_equipped = false;
     }
-    owned.is_equipped = true;
 
+    // 2. Same slot unequip
+    if (item.slot) {
+      const sameSlot = new Set(
+        cosmetic_items.filter((i) => i.slot === item.slot).map((i) => i.id),
+      );
+      for (const uc of user_cosmetics) {
+        if (uc.user_id === dto.user_id && sameSlot.has(uc.item_id)) uc.is_equipped = false;
+      }
+    }
+
+    // 3. Incompatible slots unequip
+    if (item.compatibility?.incompatible_slots?.length) {
+      const incompSlots = new Set(item.compatibility.incompatible_slots);
+      const incompItems = new Set(
+        cosmetic_items.filter((i) => i.slot && incompSlots.has(i.slot)).map((i) => i.id),
+      );
+      for (const uc of user_cosmetics) {
+        if (uc.user_id === dto.user_id && incompItems.has(uc.item_id)) uc.is_equipped = false;
+      }
+    }
+
+    owned.is_equipped = true;
     return { ok: true, equipped: item };
   }
 

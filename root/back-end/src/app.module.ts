@@ -22,6 +22,7 @@ import { TeamsModule } from './teams/teams.module';
 import { GroupsModule } from './groups/groups.module';
 import { LinkedAccountsModule } from './linked-accounts/linked-accounts.module';
 import { EconomyModule } from './economy/economy.module';
+import { SupportModule } from './support/support.module';
 import { LoggingModule } from './logging/logging.module';
 import { RequestLoggerMiddleware } from './logging/request-logger.middleware';
 import { SecurityHeadersMiddleware } from './logging/security-headers.middleware';
@@ -58,6 +59,7 @@ import { IdempotencyMiddleware } from './logging/idempotency.middleware';
     // publisher payout pipeline. Six of its tables were already on disk with
     // no code reading them; this is what finally owns them.
     EconomyModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [],

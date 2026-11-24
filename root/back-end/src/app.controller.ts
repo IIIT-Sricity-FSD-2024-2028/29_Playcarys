@@ -60,9 +60,24 @@ export class AppController {
   @Get('audit-log')
   @Roles('admin', 'superuser')
   @ApiOperation({ summary: 'Staff: the audit log, newest first. ?type= filters by kind.' })
-  getAuditLog(@Query('type') type?: string) {
-    const rows = readAudit();
-    return type ? rows.filter((r) => r.type === type) : rows;
+  getAuditLog(
+    @Query('type') type?: string,
+    @Query('search') search?: string,
+    @Query('actor') actor?: string,
+  ) {
+    let rows = readAudit();
+    if (type) rows = rows.filter((r) => r.type === type);
+    if (actor) rows = rows.filter((r) => r.actor?.toLowerCase() === actor.toLowerCase());
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.msg?.toLowerCase().includes(q) ||
+          r.detail?.toLowerCase().includes(q) ||
+          r.actor?.toLowerCase().includes(q),
+      );
+    }
+    return rows;
   }
 
   @Post('audit-log')
@@ -84,17 +99,17 @@ export class AppController {
   }
 
   @Delete('audit-log')
-  @Roles('admin', 'superuser')
-  @ApiOperation({ summary: 'Staff: clear the audit log. The clear itself is recorded.' })
+  @Roles('superuser')
+  @ApiOperation({ summary: 'Superuser only: archive and clear the active audit log.' })
   clearAuditLog(@Req() req: any) {
     clearAudit();
     appendAudit({
       type: 'system',
-      msg: 'Audit log cleared',
-      detail: 'Manual clear',
+      msg: 'Audit log archived and reset',
+      detail: 'Manual administrative archive executed by superuser',
       ...this.actorOf(req),
     });
-    return { status: 'ok' };
+    return { status: 'ok', message: 'Audit log archived and reset' };
   }
 
   /** Who is acting, from the token RolesGuard already verified. */
@@ -219,8 +234,25 @@ export class AppController {
     @Query('userId') userId?: string,
     @Query('scope') scope?: string,
     @Query('historyLimit') historyLimit?: string,
+    @Headers('authorization') authHeader?: string,
   ) {
+    const caller = verifyToken(bearerFrom(authHeader));
+    const staffCaller = !!caller && ['admin', 'superuser', 'moderator'].includes(String(caller.role).toLowerCase());
     let full: Record<string, any> = this.buildExport();
+
+    if (!staffCaller) {
+      // Sensitive staff-only records must never be leaked to unauthenticated visitors or players
+      full.moderator_actions = [];
+      full.game_reviews = [];
+      full.deleted_games = [];
+      full.deleted_users = [];
+      full.reports = caller
+        ? (full.reports || []).filter((r: any) => String(r.reported_by) === String(caller.sub))
+        : [];
+      full.bans = caller
+        ? (full.bans || []).filter((b: any) => String(b.playerId) === String(caller.sub))
+        : [];
+    }
 
     // ── Row scoping ───────────────────────────────────────────
     // Table filtering alone barely helps, because the four biggest tables —
@@ -581,6 +613,16 @@ export class AppController {
     const isRejected = (row: any, table: string) =>
       ownedByRemovedUser(row, table) || hasUnidentifiableOwner(row, table);
 
+    const STAFF_ONLY_TABLES = new Set([
+      'reports',
+      'moderator_actions',
+      'bans',
+      'game_reviews',
+      'roles',
+      'deleted_games',
+      'deleted_users',
+    ]);
+
     for (const table of tables) {
       // Games are written through the dedicated /games endpoints, where
       // ownership, review state, scans, and persistence are all enforced.
@@ -596,6 +638,10 @@ export class AppController {
       // backend restart discard a newly created game with the same id.
       if (String(table) === 'games' || String(table) === 'deleted_games') continue;
 
+      if (!staffCaller && STAFF_ONLY_TABLES.has(table)) {
+        console.warn(`[db-import] refused unauthenticated or non-staff write to protected table ${table}`);
+        continue;
+      }
       if (body[table] && Array.isArray(body[table])) {
         const arr = storeUtils[table] as any[];
         const keyOf = appendOnlyKey[table];
