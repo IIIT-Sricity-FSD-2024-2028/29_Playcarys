@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import {
-  fetchUsers,
-  createUserRecord,
-  updateUserRole,
-  updateUserStatus,
-  sendUserNotification
-} from '../../services/superuserService';
+import { sendUserNotification } from '../../services/superuserService';
+import { useUsers } from '../../features/users/useUsers';
 import AdminKPIs from '../../components/superuser/admins/AdminKPIs';
 import StaffSection from '../../components/superuser/admins/StaffSection';
 import CreateStaffModal from '../../components/superuser/admins/CreateStaffModal';
@@ -25,8 +20,7 @@ export function Admins() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { users, load, create, setRole, setStatus } = useUsers();
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -53,12 +47,9 @@ export function Admins() {
   // Load all users from backend / local DB
   async function loadData() {
     try {
-      const list = await fetchUsers();
-      setUsers(list);
+      await load();
     } catch (err) {
       console.error('Failed to load users:', err);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -96,7 +87,7 @@ export function Admins() {
   // Handle Account Creation
   async function handleCreateStaff({ username, email, role, password }) {
     try {
-      const created = await createUserRecord({ username, email, role, password });
+      const created = await create({ username, email, role, password });
       showToast(`${capitalize(role)} account "${created.username || username}" created`, 'success');
       await loadData();
     } catch (err) {
@@ -119,7 +110,7 @@ export function Admins() {
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             const uid = user.user_id ?? user.id;
-            await updateUserRole(uid, 'moderator');
+            await setRole(uid, 'moderator');
             showToast(`${user.username} demoted to Moderator`, 'info');
             await loadData();
           } catch (err) {
@@ -145,7 +136,7 @@ export function Admins() {
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             const uid = user.user_id ?? user.id;
-            await updateUserRole(uid, 'admin');
+            await setRole(uid, 'admin');
             showToast(`${user.username} promoted to Admin`, 'success');
             await loadData();
           } catch (err) {
@@ -171,7 +162,7 @@ export function Admins() {
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             const uid = user.user_id ?? user.id;
-            await updateUserStatus(uid, 'suspended');
+            await setStatus(uid, 'suspended');
             sendUserNotification(
               user.username,
               session?.role || 'superuser',
@@ -193,7 +184,7 @@ export function Admins() {
   async function handleReinstateClick(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await updateUserStatus(uid, 'active');
+      await setStatus(uid, 'active');
       sendUserNotification(
         user.username,
         session?.role || 'superuser',
