@@ -8,6 +8,8 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Roles } from '../roles/roles.decorator';
@@ -24,6 +26,16 @@ import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto, AssignRoleDto } from
 // WRITES is now staff-only, and the guard grants a staff role only from a
 // signed token.
 // ────────────────────────────────────────────────────────────
+
+// Only a superuser may mint or promote a superuser. create/update accept a role_id,
+// and an admin is allowed to call both — without this check an admin could set
+// role_id 1 on any account (including their own) and become a superuser.
+const SUPERUSER_ROLE_ID = 1;
+function assertMaySetRole(req: any, roleId?: number) {
+  if (roleId === SUPERUSER_ROLE_ID && String(req?.auth?.role).toLowerCase() !== 'superuser') {
+    throw new ForbiddenException('Only a superuser can assign the superuser role');
+  }
+}
 
 @Controller('users')
 export class UsersController {
@@ -54,14 +66,16 @@ export class UsersController {
   // POST /users
   @Post()
   @Roles('admin', 'superuser')
-  create(@Body() dto: CreateUserDto) {
+  create(@Body() dto: CreateUserDto, @Req() req: any) {
+    assertMaySetRole(req, dto.role_id);
     return this.usersService.create(dto);
   }
 
   // PATCH /users/:id
   @Patch(':id')
   @Roles('admin', 'superuser')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto, @Req() req: any) {
+    assertMaySetRole(req, dto.role_id);
     return this.usersService.update(id, dto);
   }
 
