@@ -21,10 +21,9 @@ import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto, AssignRoleDto } from
 // runs where @Roles is present, so `PATCH /users/:id {"role_id":1}` promoted
 // any account to superuser with no header at all. Verified against this server.
 //
-// Reads stay open because the pages hydrate from db-export anyway (which is
-// itself unauthenticated — a separate, still-open finding). Everything that
-// WRITES is now staff-only, and the guard grants a staff role only from a
-// signed token.
+// Listing accounts is staff-only; a signed-in user may read their own record.
+// Everything that WRITES is staff-only, and the guard grants a staff role only
+// from a signed token. (db-export is still unauthenticated: a separate finding.)
 // ────────────────────────────────────────────────────────────
 
 // Only a superuser may mint or promote a superuser. create/update accept a role_id,
@@ -59,9 +58,17 @@ export class UsersController {
   // nothing in the spec asks for.
 
   // GET /users/:id
+  // Staff may read any account. Anyone else signed in may read only their own
+  // record (the player profile and publisher pages load it), which needs a
+  // signed token: a bare role header proves nothing about whose record it is.
   @Get(':id')
-  @Roles('admin', 'moderator', 'superuser')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  @Roles('admin', 'moderator', 'superuser', 'player', 'publisher')
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const role = String(req?.auth?.role || '').toLowerCase();
+    const isStaff = ['admin', 'moderator', 'superuser'].includes(role);
+    if (!isStaff && Number(req?.auth?.sub) !== id) {
+      throw new ForbiddenException('You can only view your own account');
+    }
     return this.usersService.findOne(id);
   }
 
