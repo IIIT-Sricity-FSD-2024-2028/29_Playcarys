@@ -1,60 +1,73 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Landing from '../pages/Landing';
+import LoadingState from '../components/common/LoadingState';
 
-// Publisher
+// Layouts (can be lazy or standard, keeping layouts fast)
 import PublisherLayout from '../layouts/PublisherLayout';
-import Dashboard from '../pages/publisher/Dashboard';
-import PublishGame from '../pages/publisher/PublishGame';
-import PublishTournament from '../pages/publisher/PublishTournament';
-import MyGames from '../pages/publisher/MyGames';
-import PublisherProfile from '../pages/publisher/Profile';
-import Earnings from '../pages/publisher/Earnings';
-
-// Player
 import PlayerLayout from '../layouts/PlayerLayout';
-import PlayerDashboard from '../pages/player/Dashboard';
-import PlayerGames from '../pages/player/Games';
-import PlayerTournaments from '../pages/player/Tournaments';
-import CreateTournament from '../pages/player/CreateTournament';
-import Community from '../pages/player/Community';
-import Shop from '../pages/player/Shop';
-import PlayerProfile from '../pages/player/Profile';
-import MyTournaments from '../pages/player/MyTournaments';
-import Leaderboard from '../pages/player/Leaderboard';
-import MatchHistory from '../pages/player/MatchHistory';
-import Notifications from '../pages/player/Notifications';
-
-// Admin & Staff
 import AdminLayout from '../layouts/AdminLayout';
-import AdminDashboard from '../pages/admin/Dashboard';
-import Settings from '../pages/admin/Settings';
-import Approvals from '../pages/admin/Approvals';
-import Users from '../pages/admin/Users';
-import GameReview from '../pages/admin/GameReview';
-import Hub from '../pages/admin/Hub';
 import StaffLayout from '../layouts/StaffLayout';
-import StaffInbox from '../pages/staff/Inbox';
-
-// Moderator
 import ModeratorLayout from '../layouts/ModeratorLayout';
-import ModeratorDashboard from '../pages/moderator/Dashboard';
-import ModeratorReports from '../pages/moderator/Reports';
-import ModeratorSessions from '../pages/moderator/Sessions';
-import ModeratorBans from '../pages/moderator/Bans';
-
-// Superuser
 import SuperuserLayout from '../layouts/SuperuserLayout';
-import SuperuserDashboard from '../pages/superuser/Dashboard';
-import SuperuserHub from '../pages/superuser/Hub';
-import SuperuserUsers from '../pages/superuser/Users';
-import SuperuserAdmins from '../pages/superuser/Admins';
-import SuperuserGames from '../pages/superuser/Games';
-import SuperuserSettings from '../pages/superuser/Settings';
-import SuperuserReports from '../pages/superuser/Reports';
 
 // Common
-import NotFound from '../pages/common/NotFound';
+const NotFound = lazy(() => import('../pages/common/NotFound'));
+
+// Publisher Pages (Lazy)
+const Dashboard = lazy(() => import('../pages/publisher/Dashboard'));
+const PublishGame = lazy(() => import('../pages/publisher/PublishGame'));
+const PublishTournament = lazy(() => import('../pages/publisher/PublishTournament'));
+const MyGames = lazy(() => import('../pages/publisher/MyGames'));
+const PublisherProfile = lazy(() => import('../pages/publisher/Profile'));
+const Earnings = lazy(() => import('../pages/publisher/Earnings'));
+const PublisherFinance = lazy(() => import('../pages/publisher/Finance'));
+const PublisherOnboardingRegister = lazy(() => import('../pages/publisher/OnboardingRegister'));
+
+// Player Pages (Lazy)
+const PlayerDashboard = lazy(() => import('../pages/player/Dashboard'));
+const PlayerGames = lazy(() => import('../pages/player/Games'));
+const PlayerTournaments = lazy(() => import('../pages/player/Tournaments'));
+const CreateTournament = lazy(() => import('../pages/player/CreateTournament'));
+const Community = lazy(() => import('../pages/player/Community'));
+const Shop = lazy(() => import('../pages/player/Shop'));
+const PlayerProfile = lazy(() => import('../pages/player/Profile'));
+const MyTournaments = lazy(() => import('../pages/player/MyTournaments'));
+const Leaderboard = lazy(() => import('../pages/player/Leaderboard'));
+const MatchHistory = lazy(() => import('../pages/player/MatchHistory'));
+const Notifications = lazy(() => import('../pages/player/Notifications'));
+
+// Admin & Staff Pages (Lazy)
+const AdminDashboard = lazy(() => import('../pages/admin/Dashboard'));
+const Settings = lazy(() => import('../pages/admin/Settings'));
+const Approvals = lazy(() => import('../pages/admin/Approvals'));
+const Users = lazy(() => import('../pages/admin/Users'));
+const GameReview = lazy(() => import('../pages/admin/GameReview'));
+const Hub = lazy(() => import('../pages/admin/Hub'));
+const StaffInbox = lazy(() => import('../pages/staff/Inbox'));
+
+// Moderator Pages (Lazy)
+const ModeratorDashboard = lazy(() => import('../pages/moderator/Dashboard'));
+const ModeratorReports = lazy(() => import('../pages/moderator/Reports'));
+const ModeratorSessions = lazy(() => import('../pages/moderator/Sessions'));
+const ModeratorBans = lazy(() => import('../pages/moderator/Bans'));
+
+// Superuser Pages (Lazy)
+const SuperuserDashboard = lazy(() => import('../pages/superuser/Dashboard'));
+const SuperuserHub = lazy(() => import('../pages/superuser/Hub'));
+const SuperuserUsers = lazy(() => import('../pages/superuser/Users'));
+const SuperuserAdmins = lazy(() => import('../pages/superuser/Admins'));
+const SuperuserGames = lazy(() => import('../pages/superuser/Games'));
+const SuperuserReports = lazy(() => import('../pages/superuser/Reports'));
+const SuperuserSettings = lazy(() => import('../pages/superuser/Settings'));
+
+function RouteSuspense({ children }) {
+  return (
+    <Suspense fallback={<LoadingState message="Loading view..." minHeight="50vh" />}>
+      {children}
+    </Suspense>
+  );
+}
 
 export function AppRoutes() {
   return (
@@ -66,76 +79,79 @@ export function AppRoutes() {
       {/* Publisher routes */}
       <Route path="/publisher" element={<PublisherLayout />}>
         <Route index element={<Navigate to="/publisher/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="publish" element={<PublishGame />} />
-        <Route path="publish-tournament" element={<PublishTournament />} />
-        <Route path="my-games" element={<MyGames />} />
+        <Route path="dashboard" element={<RouteSuspense><Dashboard /></RouteSuspense>} />
+        <Route path="publish" element={<RouteSuspense><PublishGame /></RouteSuspense>} />
+        <Route path="publish-tournament" element={<RouteSuspense><PublishTournament /></RouteSuspense>} />
+        <Route path="my-games" element={<RouteSuspense><MyGames /></RouteSuspense>} />
         <Route path="mygames" element={<Navigate to="/publisher/my-games" replace />} />
-        <Route path="profile" element={<PublisherProfile />} />
-        <Route path="earnings" element={<Earnings />} />
+        <Route path="profile" element={<RouteSuspense><PublisherProfile /></RouteSuspense>} />
+        <Route path="earnings" element={<RouteSuspense><Earnings /></RouteSuspense>} />
+        <Route path="finance" element={<RouteSuspense><PublisherFinance /></RouteSuspense>} />
+        <Route path="onboarding" element={<RouteSuspense><PublisherOnboardingRegister /></RouteSuspense>} />
+        <Route path="register" element={<RouteSuspense><PublisherOnboardingRegister /></RouteSuspense>} />
       </Route>
 
       {/* Player routes */}
       <Route path="/player" element={<PlayerLayout />}>
         <Route index element={<Navigate to="/player/dashboard" replace />} />
-        <Route path="dashboard" element={<PlayerDashboard />} />
-        <Route path="games" element={<PlayerGames />} />
-        <Route path="games/:gameId" element={<PlayerGames />} />
-        <Route path="tournaments" element={<PlayerTournaments />} />
-        <Route path="tournaments/:tournamentId" element={<PlayerTournaments />} />
-        <Route path="my-tournaments" element={<MyTournaments />} />
-        <Route path="leaderboard" element={<Leaderboard />} />
-        <Route path="match-history" element={<MatchHistory />} />
-        <Route path="notifications" element={<Notifications />} />
-        <Route path="create-tournament" element={<CreateTournament />} />
-        <Route path="community" element={<Community />} />
-        <Route path="community/:groupId" element={<Community />} />
-        <Route path="community/:groupId/:groupTab" element={<Community />} />
-        <Route path="shop" element={<Shop />} />
-        <Route path="profile" element={<PlayerProfile />} />
+        <Route path="dashboard" element={<RouteSuspense><PlayerDashboard /></RouteSuspense>} />
+        <Route path="games" element={<RouteSuspense><PlayerGames /></RouteSuspense>} />
+        <Route path="games/:gameId" element={<RouteSuspense><PlayerGames /></RouteSuspense>} />
+        <Route path="tournaments" element={<RouteSuspense><PlayerTournaments /></RouteSuspense>} />
+        <Route path="tournaments/:tournamentId" element={<RouteSuspense><PlayerTournaments /></RouteSuspense>} />
+        <Route path="my-tournaments" element={<RouteSuspense><MyTournaments /></RouteSuspense>} />
+        <Route path="leaderboard" element={<RouteSuspense><Leaderboard /></RouteSuspense>} />
+        <Route path="match-history" element={<RouteSuspense><MatchHistory /></RouteSuspense>} />
+        <Route path="notifications" element={<RouteSuspense><Notifications /></RouteSuspense>} />
+        <Route path="create-tournament" element={<RouteSuspense><CreateTournament /></RouteSuspense>} />
+        <Route path="community" element={<RouteSuspense><Community /></RouteSuspense>} />
+        <Route path="community/:groupId" element={<RouteSuspense><Community /></RouteSuspense>} />
+        <Route path="community/:groupId/:groupTab" element={<RouteSuspense><Community /></RouteSuspense>} />
+        <Route path="shop" element={<RouteSuspense><Shop /></RouteSuspense>} />
+        <Route path="profile" element={<RouteSuspense><PlayerProfile /></RouteSuspense>} />
       </Route>
 
       {/* Admin routes */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="approvals" element={<Approvals />} />
-        <Route path="users" element={<Users />} />
-        <Route path="game-review" element={<GameReview />} />
-        <Route path="hub" element={<Hub />} />
+        <Route path="dashboard" element={<RouteSuspense><AdminDashboard /></RouteSuspense>} />
+        <Route path="settings" element={<RouteSuspense><Settings /></RouteSuspense>} />
+        <Route path="approvals" element={<RouteSuspense><Approvals /></RouteSuspense>} />
+        <Route path="users" element={<RouteSuspense><Users /></RouteSuspense>} />
+        <Route path="game-review" element={<RouteSuspense><GameReview /></RouteSuspense>} />
+        <Route path="hub" element={<RouteSuspense><Hub /></RouteSuspense>} />
       </Route>
 
-      {/* Staff routes (the inbox shared by admin, superuser, moderator and publisher) */}
+      {/* Staff routes */}
       <Route path="/staff" element={<StaffLayout />}>
         <Route index element={<Navigate to="/staff/inbox" replace />} />
-        <Route path="inbox" element={<StaffInbox />} />
+        <Route path="inbox" element={<RouteSuspense><StaffInbox /></RouteSuspense>} />
       </Route>
 
       {/* Superuser routes */}
       <Route path="/superuser" element={<SuperuserLayout />}>
         <Route index element={<Navigate to="/superuser/dashboard" replace />} />
-        <Route path="dashboard" element={<SuperuserDashboard />} />
-        <Route path="hub" element={<SuperuserHub />} />
-        <Route path="users" element={<SuperuserUsers />} />
-        <Route path="admins" element={<SuperuserAdmins />} />
-        <Route path="games" element={<SuperuserGames />} />
-        <Route path="reports" element={<SuperuserReports />} />
-        <Route path="settings" element={<SuperuserSettings />} />
+        <Route path="dashboard" element={<RouteSuspense><SuperuserDashboard /></RouteSuspense>} />
+        <Route path="hub" element={<RouteSuspense><SuperuserHub /></RouteSuspense>} />
+        <Route path="users" element={<RouteSuspense><SuperuserUsers /></RouteSuspense>} />
+        <Route path="admins" element={<RouteSuspense><SuperuserAdmins /></RouteSuspense>} />
+        <Route path="games" element={<RouteSuspense><SuperuserGames /></RouteSuspense>} />
+        <Route path="reports" element={<RouteSuspense><SuperuserReports /></RouteSuspense>} />
+        <Route path="settings" element={<RouteSuspense><SuperuserSettings /></RouteSuspense>} />
       </Route>
 
       {/* Moderator routes */}
       <Route path="/moderator" element={<ModeratorLayout />}>
         <Route index element={<Navigate to="/moderator/dashboard" replace />} />
-        <Route path="dashboard" element={<ModeratorDashboard />} />
-        <Route path="reports" element={<ModeratorReports />} />
-        <Route path="sessions" element={<ModeratorSessions />} />
-        <Route path="bans" element={<ModeratorBans />} />
-        <Route path="bans/:playerId" element={<ModeratorBans />} />
+        <Route path="dashboard" element={<RouteSuspense><ModeratorDashboard /></RouteSuspense>} />
+        <Route path="reports" element={<RouteSuspense><ModeratorReports /></RouteSuspense>} />
+        <Route path="sessions" element={<RouteSuspense><ModeratorSessions /></RouteSuspense>} />
+        <Route path="bans" element={<RouteSuspense><ModeratorBans /></RouteSuspense>} />
+        <Route path="bans/:playerId" element={<RouteSuspense><ModeratorBans /></RouteSuspense>} />
       </Route>
 
       {/* 404 Not Found for unmatched routes */}
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<RouteSuspense><NotFound /></RouteSuspense>} />
     </Routes>
   );
 }
