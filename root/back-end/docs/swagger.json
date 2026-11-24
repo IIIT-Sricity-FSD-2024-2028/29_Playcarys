@@ -42,6 +42,22 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -75,7 +91,7 @@
             "description": ""
           }
         },
-        "summary": "Staff: clear the audit log. The clear itself is recorded.",
+        "summary": "Superuser only: archive and clear the active audit log.",
         "tags": [
           "root"
         ]
@@ -128,6 +144,14 @@
             "name": "historyLimit",
             "required": true,
             "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -710,6 +734,239 @@
         ]
       }
     },
+    "/api/v1/publisher-profiles/{userId}/onboarding": {
+      "get": {
+        "operationId": "PublisherProfileController_getOnboarding",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherProfile"
+        ]
+      },
+      "patch": {
+        "operationId": "PublisherProfileController_updateOnboarding",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOnboardingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherProfile"
+        ]
+      }
+    },
+    "/api/v1/publisher-profiles/{userId}/api-keys": {
+      "get": {
+        "operationId": "PublisherProfileController_getKeys",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherProfile"
+        ]
+      }
+    },
+    "/api/v1/publisher/applications": {
+      "get": {
+        "operationId": "PublisherApiController_applications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      }
+    },
+    "/api/v1/publisher/applications/{id}/review": {
+      "post": {
+        "operationId": "PublisherApiController_review",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewPublisherDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      }
+    },
+    "/api/v1/publisher/demo-verification": {
+      "post": {
+        "operationId": "PublisherApiController_demoVerification",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      }
+    },
+    "/api/v1/publisher/api-keys": {
+      "get": {
+        "operationId": "PublisherApiController_findAllKeys",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      },
+      "post": {
+        "operationId": "PublisherApiController_createKey",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      }
+    },
+    "/api/v1/publisher/api-keys/{id}": {
+      "delete": {
+        "operationId": "PublisherApiController_revokeKey",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      }
+    },
+    "/api/v1/publisher/onboarding": {
+      "get": {
+        "operationId": "PublisherApiController_getOnboarding",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      },
+      "patch": {
+        "operationId": "PublisherApiController_updateOnboarding",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOnboardingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "PublisherApi"
+        ]
+      }
+    },
     "/api/v1/games": {
       "get": {
         "operationId": "GameController_findAll",
@@ -902,6 +1159,14 @@
             "in": "path",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -2259,6 +2524,156 @@
         ]
       }
     },
+    "/api/v1/economy/publishers/{id}/grant": {
+      "post": {
+        "operationId": "EconomyController_grantFunds",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantPublisherFundsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Admin grant direct INR funds to a publisher",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/publishers/{id}/deposit": {
+      "post": {
+        "operationId": "EconomyController_depositFunds",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepositPublisherFundsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Deposit funds into publisher balance (simulated sandbox)",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/publishers/{id}/finance": {
+      "get": {
+        "operationId": "EconomyController_getFinanceOverview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Complete publisher finance overview, prize reservations, and ledger",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/players/{id}/wallet": {
+      "get": {
+        "operationId": "EconomyController_getPlayerWallet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Player wallet, prize winnings, and withdrawal status",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
+    "/api/v1/economy/players/{id}/withdraw": {
+      "post": {
+        "operationId": "EconomyController_withdrawPlayer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerWithdrawDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Request withdrawal of player tournament prize money",
+        "tags": [
+          "economy"
+        ]
+      }
+    },
     "/api/v1/groups": {
       "get": {
         "operationId": "GroupsController_findAll",
@@ -3483,6 +3898,20 @@
         ]
       }
     },
+    "/api/v1/moderator-actions/appeals": {
+      "get": {
+        "operationId": "ModeratorActionController_findAppeals",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
     "/api/v1/moderator-actions/act-on-report": {
       "post": {
         "operationId": "ModeratorActionController_actOnReport",
@@ -3550,6 +3979,72 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/LiftBanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions/bans/{playerId}/appeal": {
+      "post": {
+        "operationId": "ModeratorActionController_submitAppeal",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitBanAppealDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "ModeratorAction"
+        ]
+      }
+    },
+    "/api/v1/moderator-actions/bans/{playerId}/appeal/decide": {
+      "patch": {
+        "operationId": "ModeratorActionController_decideAppeal",
+        "parameters": [
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideBanAppealDto"
               }
             }
           }
@@ -5175,6 +5670,62 @@
         ]
       }
     },
+    "/api/v1/linked-accounts/{id}/request-verification": {
+      "post": {
+        "operationId": "LinkedAccountsController_requestVerification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "LinkedAccounts"
+        ]
+      }
+    },
+    "/api/v1/linked-accounts/{id}/verify-proof": {
+      "post": {
+        "operationId": "LinkedAccountsController_verifyProof",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyProofDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "LinkedAccounts"
+        ]
+      }
+    },
     "/api/v1/linked-accounts/{id}": {
       "delete": {
         "operationId": "LinkedAccountsController_unlink",
@@ -5203,6 +5754,140 @@
         },
         "tags": [
           "LinkedAccounts"
+        ]
+      }
+    },
+    "/api/v1/support/tickets": {
+      "get": {
+        "operationId": "SupportController_findAll",
+        "parameters": [
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Support"
+        ]
+      },
+      "post": {
+        "operationId": "SupportController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupportTicketDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Support"
+        ]
+      }
+    },
+    "/api/v1/support/tickets/{id}": {
+      "get": {
+        "operationId": "SupportController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Support"
+        ]
+      }
+    },
+    "/api/v1/support/tickets/{id}/reply": {
+      "post": {
+        "operationId": "SupportController_reply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplySupportTicketDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Support"
+        ]
+      }
+    },
+    "/api/v1/support/tickets/{id}/status": {
+      "patch": {
+        "operationId": "SupportController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTicketStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Support"
         ]
       }
     }
@@ -5396,6 +6081,18 @@
         "type": "object",
         "properties": {}
       },
+      "UpdateOnboardingDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReviewPublisherDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateApiKeyDto": {
+        "type": "object",
+        "properties": {}
+      },
       "CreateGameDto": {
         "type": "object",
         "properties": {
@@ -5513,14 +6210,18 @@
             "description": "Reviewer note. Required when rejecting — it is what the publisher is shown.",
             "example": "index.html loads a script from an external CDN; please bundle it."
           },
+          "rejection_category": {
+            "type": "string",
+            "description": "Controlled rejection category code",
+            "example": "MALICIOUS_CODE_OR_SECURITY_RISK"
+          },
           "override_note": {
             "type": "string",
             "description": "Superuser only: justification for approving a build whose security scan failed. Recorded on the review."
           }
         },
         "required": [
-          "game_approval_status",
-          "reviewer_id"
+          "game_approval_status"
         ]
       },
       "CreateAchievementDto": {
@@ -5775,9 +6476,11 @@
           "user_id": {
             "type": "number"
           },
+          "player_id": {
+            "type": "number"
+          },
           "game_id": {
-            "type": "number",
-            "description": "The game played — sets the multiplier and the payout cap"
+            "type": "number"
           },
           "result": {
             "type": "string",
@@ -5849,26 +6552,81 @@
             "enum": [
               "upi",
               "bank"
-            ],
-            "description": "How to receive the money"
+            ]
           },
           "upi_id": {
             "type": "string",
-            "example": "studio@okbank",
-            "description": "Required when method is \"upi\""
+            "description": "Required when method === \"upi\""
           },
           "account_number": {
             "type": "string",
-            "example": "123456789012",
-            "description": "Required when method is \"bank\" (9-18 digits)"
+            "description": "Required when method === \"bank\""
           },
           "ifsc": {
             "type": "string",
-            "example": "HDFC0001234",
-            "description": "Required when method is \"bank\""
+            "description": "Required when method === \"bank\""
           }
         },
         "required": [
+          "method"
+        ]
+      },
+      "GrantPublisherFundsDto": {
+        "type": "object",
+        "properties": {
+          "amount_paise": {
+            "type": "number",
+            "description": "Amount in paise (e.g. 1000000 paise = 10000 INR)"
+          },
+          "amount_rupees": {
+            "type": "number",
+            "description": "Amount in INR rupees (e.g. 10000)"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Administrative reason for grant"
+          }
+        }
+      },
+      "DepositPublisherFundsDto": {
+        "type": "object",
+        "properties": {
+          "amount_paise": {
+            "type": "number",
+            "description": "Amount in paise (minimum 10000 = ₹100)"
+          },
+          "amount_rupees": {
+            "type": "number",
+            "description": "Amount in INR rupees (minimum 100)"
+          },
+          "payment_method": {
+            "type": "string",
+            "description": "Sandbox payment method"
+          }
+        }
+      },
+      "PlayerWithdrawDto": {
+        "type": "object",
+        "properties": {
+          "amount_paise": {
+            "type": "number",
+            "description": "Amount in paise"
+          },
+          "destination": {
+            "type": "string",
+            "description": "UPI VPA or Bank Account"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "upi",
+              "bank"
+            ]
+          }
+        },
+        "required": [
+          "amount_paise",
+          "destination",
           "method"
         ]
       },
@@ -5921,6 +6679,14 @@
         "properties": {}
       },
       "LiftBanDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SubmitBanAppealDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "DecideBanAppealDto": {
         "type": "object",
         "properties": {}
       },
@@ -6161,6 +6927,22 @@
         ]
       },
       "LinkGameAccountDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "VerifyProofDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateSupportTicketDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReplySupportTicketDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateTicketStatusDto": {
         "type": "object",
         "properties": {}
       }
