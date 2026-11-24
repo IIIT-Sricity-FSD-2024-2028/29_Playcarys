@@ -827,6 +827,9 @@ export const publisher_api_keys: PublisherApiKey[] = loadedData.publisher_api_ke
   },
 ];
 
+// The seeded demo studios (Epic Games Studio, Indie Dev Studios).
+const DEMO_STUDIO_IDS = [5, 6];
+
 export const publisher_profiles: PublisherProfile[] = loadedData.publisher_profiles || [
   { user_id: 5, total_games: 4, approved_games: 3, active_games: 3 },
   { user_id: 6, total_games: 3, approved_games: 2, active_games: 2 },
@@ -1896,6 +1899,16 @@ function migrateEconomyToInr(): void {
     // which is why sessions showed up in the table but never in the totals.)
     if (p.settled_pcp === undefined) p.settled_pcp = 0;
     if (p.settled_rake_paise === undefined) p.settled_rake_paise = 0;
+    // Publisher onboarding (KYC + payment review) came after the two seeded demo
+    // studios (Epic Games Studio = 5, Indie Dev Studios = 6) were created, so
+    // their profiles have no kyc_status. RolesGuard refuses publisher writes
+    // until a profile is verified, which would stop the demo studios from
+    // publishing games or creating tournaments. Treat only those two as already
+    // reviewed; every other studio (self sign-up included) goes through review.
+    if (DEMO_STUDIO_IDS.includes(Number(p.user_id)) && p.kyc_status === undefined) {
+      p.kyc_status = 'verified';
+      if (!p.onboarding_stage) p.onboarding_stage = 'publishing_eligible';
+    }
   }
 }
 
