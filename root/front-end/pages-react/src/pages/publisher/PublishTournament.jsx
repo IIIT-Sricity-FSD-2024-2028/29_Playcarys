@@ -416,7 +416,7 @@ export function PublishTournament() {
 
   // Single-game Management view
   async function handleOpenMgmt(id) {
-    let t = null;
+    let t;
     try {
       t = await publisherService.getTournamentDetails(id);
     } catch (e) {

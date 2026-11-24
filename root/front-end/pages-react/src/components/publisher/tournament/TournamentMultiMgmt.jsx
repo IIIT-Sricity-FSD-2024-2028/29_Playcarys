@@ -49,7 +49,7 @@ export function TournamentMultiMgmt({
               const gname = getGameName(s.game_id);
               const stageStatusInfo = getStatusBadgeData(s.status || 'pending');
 
-              let action = null;
+              let action;
               if (s.status === 'pending') {
                 action = (
                   <button

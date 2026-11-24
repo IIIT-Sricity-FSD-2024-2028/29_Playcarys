@@ -162,3 +162,193 @@
   transform: translateY(0) scale(1) !important;
 }
 
+
+/* ── Milestone 8: Staged Onboarding & API Keys ──────────────── */
+
+.onboarding-tracker-card {
+  margin-bottom: 1.5rem;
+}
+
+.onboarding-stages-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 1100px) {
+  .onboarding-stages-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .onboarding-stages-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .onboarding-stages-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.onboarding-stage-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--trans-fast);
+}
+
+.onboarding-stage-box.stage-done {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.03);
+}
+
+.onboarding-stage-box.stage-current {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.06);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+}
+
+.stage-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.stage-index-pill {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.stage-done .stage-index-pill {
+  background: var(--accent-green);
+  color: #000;
+}
+
+.stage-current .stage-index-pill {
+  background: var(--accent-cyan);
+  color: #000;
+}
+
+.stage-status-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.stage-done .stage-status-label {
+  color: var(--accent-green);
+}
+
+.stage-current .stage-status-label {
+  color: var(--accent-cyan);
+}
+
+.stage-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+  line-height: 1.2;
+}
+
+.stage-desc {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin: 0;
+}
+
+/* API Keys Styling */
+.api-keys-card {
+  margin-top: 1.5rem;
+}
+
+.api-keys-table th {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.api-keys-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* API-key creation is deliberately a viewport-bounded dialog.  The generic
+   legacy .modal-content rule above must not reintroduce padding/height that
+   can push its action footer below a short laptop viewport. */
+.api-key-modal-backdrop {
+  z-index: 12000;
+  overflow: hidden;
+}
+
+.api-key-modal-dialog {
+  padding: 0;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0 !important;
+}
+
+@media (max-height: 560px) {
+  .api-key-modal-backdrop {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .api-key-modal-dialog {
+    margin-block: 0.5rem;
+    height: calc(100dvh - 1rem) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .api-key-modal-dialog form > div:first-child,
+  .api-key-modal-dialog form > div:last-child,
+  .api-key-modal-dialog > div:first-child {
+    padding-inline: 1rem !important;
+  }
+
+  .api-key-modal-dialog form > div:last-child {
+    justify-content: stretch !important;
+  }
+
+  .api-key-modal-dialog form > div:last-child .btn {
+    flex: 1 1 0;
+  }
+}

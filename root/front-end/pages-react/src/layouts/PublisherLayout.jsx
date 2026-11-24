@@ -1,17 +1,52 @@
-import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import React, { useContext, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import publisherService from '../services/publisherService';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import PublisherNavbar from '../components/publisher/common/PublisherNavbar';
+import AuthContext from '../context/AuthContext';
+import LoadingState from '../components/common/LoadingState';
+import useIdleLogout from '../hooks/useIdleLogout';
+
+const ALLOWED_ROLES = ['publisher', 'superuser', 'admin'];
 
 export function PublisherLayout() {
+  const { user, loading } = useContext(AuthContext);
   const location = useLocation();
+  const navigate = useNavigate();
+  useIdleLogout();
+
+  const allowed = !!user && ALLOWED_ROLES.includes(user.role);
+  const [access, setAccess] = useState(null);
+  const [accessError, setAccessError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setAccess(null);
+    setAccessError(false);
+    if (user?.role === 'publisher') {
+      publisherService.getOnboardingStatus(user.userId || user.id || user.user_id)
+        .then(data => { if (!cancelled) setAccess(data); })
+        .catch(() => { if (!cancelled) setAccessError(true); });
+    }
+    return () => { cancelled = true; };
+  }, [user, location.pathname]);
+  const publishingPage = ['/publisher/publish', '/publisher/publish-tournament'].includes(location.pathname);
+  const financePage = ['/publisher/finance', '/publisher/earnings'].includes(location.pathname);
+  const restricted = user?.role === 'publisher' && (publishingPage || financePage);
+  const unlocked = financePage ? access?.can_deposit && access?.can_withdraw : access?.can_publish;
+
+  useEffect(() => {
+    if (!loading && !allowed) {
+      navigate('/');
+    }
+  }, [loading, allowed, navigate]);
 
   // Determine active page from current path
   let activePage = 'dashboard';
   if (location.pathname.includes('/publisher/my-games') || location.pathname.includes('/publisher/mygames')) {
     activePage = 'my-games';
-  } else if (location.pathname.includes('/publisher/earnings')) {
+  } else if (location.pathname.includes('/publisher/earnings') || location.pathname.includes('/publisher/finance')) {
     activePage = 'earnings';
-  } else if (location.pathname.includes('/publisher/profile')) {
+  } else if (location.pathname.includes('/publisher/profile') || location.pathname.includes('/publisher/onboarding')) {
     activePage = 'profile';
   } else if (location.pathname.includes('/publisher/publish-tournament')) {
     activePage = 'publish-tournament';
@@ -19,11 +54,26 @@ export function PublisherLayout() {
     activePage = 'publish';
   }
 
+  if (loading || !allowed) {
+    return <LoadingState message="Verifying publisher authorization..." minHeight="60vh" />;
+  }
+
   return (
     <div className="dash-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <PublisherNavbar activePage={activePage} />
       <main className="page-wrapper" style={{ flex: 1 }}>
-        <Outlet />
+        {restricted && !unlocked ? (
+          <section className="card" style={{ maxWidth: 720, margin: '48px auto', padding: 32 }}>
+            <h1>{financePage ? 'Set up payments' : 'Get ready to publish'}</h1>
+            <p style={{ lineHeight: 1.7, marginBlock: 20 }}>
+              {accessError ? 'We could not check your account status. Refresh to try again.' : !access ? 'Checking your account requirements…' : financePage
+                ? 'Payments unlock after identity approval and payment-profile review. Adding bank details alone does not verify them.'
+                : 'Complete your developer profile and submit your identity details for review. Publishing unlocks after approval.'}
+            </p>
+            <Link className="btn btn-primary" to="/publisher/onboarding">Continue account setup</Link>
+            <Link className="btn btn-ghost" to="/publisher/dashboard">Back to overview</Link>
+          </section>
+        ) : <Outlet />}
       </main>
     </div>
   );
