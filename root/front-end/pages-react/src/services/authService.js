@@ -12,7 +12,7 @@ const API_TOKEN_KEY = 'playcarys_api_token';
 // Replace this fallback with the authenticated user from AuthContext
 // when the authentication pages and session flow are integrated.
 // Do not hardcode player data or bypass backend authorization.
-export const ENABLE_TEMP_DEV_IDENTITY = true;
+export const ENABLE_TEMP_DEV_IDENTITY = false;
 export const DRAGON_SLAYER_ID = 7;
 
 export const authService = {
@@ -115,33 +115,7 @@ export const authService = {
       console.warn('Failed to parse session from storage', e);
     }
 
-    // In development mode, provide default session if not signed in yet
-    // (Only on the publisher, player, superuser, and moderator pages. The landing page and admin pages need real login.)
-    if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV) {
-      const path = window.location.pathname;
-      if (path.startsWith('/player')) {
-        const devPlayerSession = {
-          userId: DRAGON_SLAYER_ID,
-          id: DRAGON_SLAYER_ID,
-          user_id: DRAGON_SLAYER_ID,
-          role: 'player',
-          username: 'DragonSlayer',
-          user_name: 'DragonSlayer',
-          avatar: 'DS',
-          sessionToken: null,
-          isDevFallback: true
-        };
-        this.setSession(devPlayerSession);
-        return devPlayerSession;
-      } else if (path.startsWith('/superuser')) {
-        return this.getDevSession('superuser');
-      } else if (path.startsWith('/moderator')) {
-        return this.getDevSession('moderator');
-      } else if (path.startsWith('/publisher')) {
-        return this.getDevSession('publisher');
-      }
-    }
-
+    // Real authenticated session required. Unauthenticated visitors are guided to login.
     return null;
   },
 
@@ -226,10 +200,19 @@ export const authService = {
     }
   },
 
+  apiAuthHeaders() {
+    const token = this.getApiToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+
   logout() {
     this.clearSession();
     window.location.href = '/';
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.Auth = authService;
+}
 
 export default authService;

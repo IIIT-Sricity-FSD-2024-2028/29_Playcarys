@@ -484,7 +484,7 @@ function claimNewSession(user) {
 // "Play as Guest": a throw-away player-like account that is never saved.
 export function makeGuestUser() {
   return {
-    id: generateId('u'),
+    id: newToken('guest_'),
     username: 'Guest_' + Math.floor(Math.random() * 10000),
     email: 'guest@playcarys.com',
     role: 'guest',
