@@ -79,6 +79,9 @@ const initialState = {
   // Registrations indexed by tournamentId: { [tournamentId]: Registration[] }
   byTournament: {},
 
+  // Registrations indexed by playerId: { [playerId]: Registration[] }
+  byPlayer: {},
+
   // Granular async tracking avoiding one global flag
   fetchStatus: AsyncStatus.IDLE,
   fetchError: null,
@@ -182,6 +185,26 @@ export const registrationSlice = createSlice({
             list.push(registration);
           }
         }
+        if (playerId) {
+          const pIdStr = String(playerId);
+          if (!state.byPlayer) state.byPlayer = {};
+          if (!state.byPlayer[pIdStr]) state.byPlayer[pIdStr] = [];
+          const pList = state.byPlayer[pIdStr];
+          const regRecord = registration || {
+            id: `${tournamentId}_${pIdStr}`,
+            tournamentId: String(tournamentId),
+            playerId: pIdStr,
+            status: 'confirmed'
+          };
+          const existingPIdx = pList.findIndex(
+            (r) => String(r.tournamentId || r.tournament_id) === String(tournamentId)
+          );
+          if (existingPIdx >= 0) {
+            pList[existingPIdx] = regRecord;
+          } else {
+            pList.push(regRecord);
+          }
+        }
       })
       .addCase(registerForTournament.rejected, (state, action) => {
         state.mutationStatus = AsyncStatus.FAILED;
@@ -208,10 +231,29 @@ export const registrationSlice = createSlice({
             return true;
           });
         }
+        if (playerId && state.byPlayer?.[String(playerId)]) {
+          state.byPlayer[String(playerId)] = state.byPlayer[String(playerId)].filter(
+            (r) => String(r.tournamentId || r.tournament_id) !== String(tournamentId)
+          );
+        }
       })
       .addCase(withdrawFromTournament.rejected, (state, action) => {
         state.mutationStatus = AsyncStatus.FAILED;
         state.mutationError = action.payload || 'Withdrawal failed';
+      })
+
+      // ── Synchronization with fetchPlayerTournaments ────────
+      .addCase('tournaments/fetchPlayerTournaments/fulfilled', (state, action) => {
+        const playerId = action.meta?.arg != null ? String(action.meta.arg) : null;
+        if (playerId && Array.isArray(action.payload)) {
+          if (!state.byPlayer) state.byPlayer = {};
+          state.byPlayer[playerId] = action.payload.map((t) => ({
+            id: `${t.id || t.tournament_id}_${playerId}`,
+            tournamentId: String(t.id || t.tournament_id),
+            playerId,
+            status: 'confirmed'
+          }));
+        }
       });
   }
 });

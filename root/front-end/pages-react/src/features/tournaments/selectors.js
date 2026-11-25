@@ -103,6 +103,62 @@ export const selectRegistrationStatus = (state) =>
 export const selectRegistrationError = (state) =>
   state.registrations?.fetchError || state.registrations?.error || null;
 
+export const selectPlayerRegistrations = (state, playerId) => {
+  if (playerId == null) return [];
+  const pIdStr = String(playerId);
+  if (state.registrations?.byPlayer?.[pIdStr]) {
+    return state.registrations.byPlayer[pIdStr];
+  }
+  const ids = selectPlayerRegisteredTournamentIds(state, playerId);
+  return ids.map((tid) => ({
+    id: `${tid}_${pIdStr}`,
+    tournamentId: tid,
+    playerId: pIdStr,
+    status: 'confirmed'
+  }));
+};
+
+export const selectPlayerRegisteredTournamentIds = (state, playerId) => {
+  if (playerId == null) return [];
+  const pIdStr = String(playerId);
+  const fromTournaments = state.tournaments?.playerTournamentIdsByPlayerId?.[pIdStr];
+  if (Array.isArray(fromTournaments) && fromTournaments.length > 0) {
+    return fromTournaments;
+  }
+  const fromRegistrations = (state.registrations?.byPlayer?.[pIdStr] || []).map((r) =>
+    String(r.tournamentId || r.tournament_id)
+  );
+  if (fromRegistrations.length > 0) {
+    return fromRegistrations;
+  }
+  const all = selectAllTournaments(state);
+  return all
+    .filter((t) => {
+      const list = (t.registeredPlayers || t.registered_player_ids || []).map(String);
+      return list.includes(pIdStr);
+    })
+    .map((t) => String(t.id || t.tournament_id));
+};
+
+export const selectPlayerTournaments = (state, playerId) => {
+  if (playerId == null) return [];
+  const pIdStr = String(playerId);
+  const directIds = state.tournaments?.playerTournamentIdsByPlayerId?.[pIdStr];
+  if (Array.isArray(directIds) && directIds.length > 0) {
+    const entities = selectTournamentEntities(state);
+    const matched = directIds.map((id) => entities[id]).filter(Boolean);
+    if (matched.length > 0) return matched;
+  }
+  const regIds = new Set(selectPlayerRegisteredTournamentIds(state, playerId));
+  const all = selectAllTournaments(state);
+  return all.filter((t) => {
+    const tid = String(t.id || t.tournament_id);
+    if (regIds.has(tid)) return true;
+    const list = (t.registeredPlayers || t.registered_player_ids || []).map(String);
+    return list.includes(pIdStr);
+  });
+};
+
 // ── Tournament Play Selectors ────────────────────────────────
 
 export const selectTournamentPlay = (state, tournamentId) =>

@@ -142,6 +142,9 @@ const initialState = tournamentsAdapter.getInitialState({
   // Dedicated stages dictionary indexed by tournament id: { [tournamentId]: Stage[] }
   stagesByTournamentId: {},
 
+  // Player tournaments mapping indexed by player id: { [playerId]: string[] }
+  playerTournamentIdsByPlayerId: {},
+
   // Granular request statuses and errors avoiding one global loading flag
   listStatus: AsyncStatus.IDLE,
   listError: null,
@@ -238,6 +241,15 @@ export const tournamentSlice = createSlice({
         state.listError = null;
         if (action.payload && action.payload.length > 0) {
           tournamentsAdapter.upsertMany(state, action.payload);
+        }
+        const playerId = action.meta?.arg != null ? String(action.meta.arg) : null;
+        if (playerId) {
+          if (!state.playerTournamentIdsByPlayerId) {
+            state.playerTournamentIdsByPlayerId = {};
+          }
+          state.playerTournamentIdsByPlayerId[playerId] = (action.payload || []).map(
+            (t) => String(t.id || t.tournament_id)
+          );
         }
       })
       .addCase(fetchPlayerTournaments.rejected, (state, action) => {
@@ -379,6 +391,12 @@ export const tournamentSlice = createSlice({
             }
           }
         }
+        const playerId = action.payload.playerId != null ? String(action.payload.playerId) : null;
+        if (playerId && state.playerTournamentIdsByPlayerId?.[playerId]) {
+          if (!state.playerTournamentIdsByPlayerId[playerId].includes(tid)) {
+            state.playerTournamentIdsByPlayerId[playerId].push(tid);
+          }
+        }
       })
       .addCase(withdrawFromTournament.fulfilled, (state, action) => {
         const tid = String(action.payload.tournamentId);
@@ -390,6 +408,12 @@ export const tournamentSlice = createSlice({
               (id) => String(id) !== String(action.payload.playerId)
             );
           }
+        }
+        const playerId = action.payload.playerId != null ? String(action.payload.playerId) : null;
+        if (playerId && state.playerTournamentIdsByPlayerId?.[playerId]) {
+          state.playerTournamentIdsByPlayerId[playerId] = state.playerTournamentIdsByPlayerId[playerId].filter(
+            (id) => String(id) !== tid
+          );
         }
       });
   }

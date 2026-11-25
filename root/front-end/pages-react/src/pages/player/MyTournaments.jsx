@@ -1,35 +1,64 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import { getDatabase, sameId, formatDate, hydrateFromServer, GAME_ASSETS } from '../../services/playerService';
-import api from '../../services/api';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {
+  fetchPlayerTournaments,
+  fetchTournaments
+} from '../../features/tournaments/tournamentSlice';
+import {
+  selectPlayerTournaments,
+  selectTournamentsListStatus,
+  selectTournamentsListError
+} from '../../features/tournaments/selectors';
+import {
+  fetchPlayerProfile,
+  fetchLeaderboard
+} from '../../features/profiles/playerProfileSlice';
+import {
+  selectPlayerProfile,
+  selectLeaderboard
+} from '../../features/profiles/selectors';
+import { fetchGames } from '../../features/games/gameSlice';
+import { selectAllGames } from '../../features/games/selectors';
+import { selectAuthUser } from '../../features/auth/selectors';
+import { sameId, formatDate, GAME_ASSETS } from '../../services/playerService';
 import '../../styles/player/my-tournaments.css';
 
 export function MyTournaments() {
-  const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector(selectAuthUser);
+  const { user: contextUser } = useContext(AuthContext);
   const navigate = useNavigate();
-  const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
+
+  const user = authUser || contextUser;
+  const userId = user?.id ?? user?.userId ?? user?.user_id ?? 7;
 
   const [activeTab, setActiveTab] = useState('live');
   const [loading, setLoading] = useState(true);
-  const [dbVersion, setDbVersion] = useState(0);
 
-  // Hydrate data from backend on mount
+  const myTourns = useAppSelector((state) => selectPlayerTournaments(state, userId));
+  const myProfile = useAppSelector((state) => selectPlayerProfile(state, userId));
+  const leaderboard = useAppSelector(selectLeaderboard);
+  const allGames = useAppSelector(selectAllGames);
+  const listStatus = useAppSelector(selectTournamentsListStatus);
+  const listError = useAppSelector(selectTournamentsListError);
+
+  // Fetch player tournament records and profiles on mount
   useEffect(() => {
     let mounted = true;
     async function loadData() {
       try {
         setLoading(true);
         await Promise.allSettled([
-          hydrateFromServer(['tournaments', 'player_tournament', 'player_profiles', 'games', 'users']),
-          api.get(`/tournaments/player/${userId}`).catch(() => null),
-          api.get(`/player-profiles/${userId}`).catch(() => null)
+          dispatch(fetchPlayerTournaments(userId)),
+          dispatch(fetchTournaments()),
+          dispatch(fetchPlayerProfile(userId)),
+          dispatch(fetchLeaderboard()),
+          dispatch(fetchGames())
         ]);
-        if (mounted) {
-          setDbVersion((v) => v + 1);
-        }
       } catch (err) {
-        console.warn('Failed to hydrate MyTournaments:', err);
+        console.warn('Failed to load MyTournaments data:', err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -38,30 +67,25 @@ export function MyTournaments() {
     return () => {
       mounted = false;
     };
-  }, [userId]);
+  }, [dispatch, userId]);
 
-  const db = getDatabase();
-  const playerProfiles = db.player_profiles || [];
-  const myProfile = playerProfiles.find((p) => sameId(p.user_id, userId));
+  const handleRetry = () => {
+    setLoading(true);
+    Promise.allSettled([
+      dispatch(fetchPlayerTournaments(userId)),
+      dispatch(fetchTournaments()),
+      dispatch(fetchPlayerProfile(userId)),
+      dispatch(fetchLeaderboard()),
+      dispatch(fetchGames())
+    ]).finally(() => setLoading(false));
+  };
 
   // Compute seed
-  const sortedProfiles = [...playerProfiles].sort((a, b) => (b.carys_points || 0) - (a.carys_points || 0));
-  const seedIndex = sortedProfiles.findIndex((p) => sameId(p.user_id, userId));
-  const mySeed = seedIndex >= 0 ? `#${seedIndex + 1}` : '—';
-
-  // Find joined tournaments: player_tournament registrations OR organizer
-  const joinedTournIds = new Set(
-    (db.player_tournament || [])
-      .filter((pt) => sameId(pt.player_id, userId))
-      .map((pt) => String(pt.tournament_id))
+  const sortedProfiles = [...(leaderboard || [])].sort(
+    (a, b) => (Number(b.carys_points) || 0) - (Number(a.carys_points) || 0)
   );
-
-  const myTourns = (db.tournaments || []).filter((t) => {
-    const tid = String(t.tournament_id || t.id);
-    const isRegistered = joinedTournIds.has(tid) ||
-      (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
-    return isRegistered;
-  });
+  const seedIndex = sortedProfiles.findIndex((p) => sameId(p.user_id || p.id, userId));
+  const mySeed = seedIndex >= 0 ? `#${seedIndex + 1}` : (myProfile?.seed ? `#${myProfile.seed}` : '—');
 
   const live = myTourns.filter((t) => t.status === 'in-progress');
   const upcoming = myTourns.filter((t) => t.status === 'upcoming');
@@ -182,6 +206,34 @@ export function MyTournaments() {
           </button>
         </div>
 
+        {/* Error Alert */}
+        {listError && (
+          <div
+            style={{
+              padding: '0.85rem 1.25rem',
+              marginBottom: '1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#f87171',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '0.88rem'
+            }}
+          >
+            <span>{listError}</span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={handleRetry}
+              style={{ color: '#fff' }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Tab Content */}
         <div id="tab-content">
           {loading ? (
@@ -218,7 +270,7 @@ export function MyTournaments() {
           ) : (
             currentList.map((t, i) => {
               const tid = t.tournament_id || t.id;
-              const game = (db.games || []).find((g) => sameId(g.game_id || g.id, t.game_id));
+              const game = allGames.find((g) => sameId(g.game_id || g.id, t.game_id));
               const tName = t.tournament_name || t.name || 'Official PlayCarys Tournament';
               const maxP = t.maxParticipants || t.max_participants || 32;
               const curP = t.participants || (t.registeredPlayers?.length) || 0;
