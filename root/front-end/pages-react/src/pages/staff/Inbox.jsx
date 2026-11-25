@@ -14,17 +14,21 @@ import AuthContext from '../../context/AuthContext';
 import AdminContext from '../../context/AdminContext';
 import InboxNote from '../../components/staff/inbox/InboxNote';
 import DirectoryPanel from '../../components/staff/inbox/DirectoryPanel';
-import { notifIsRead, markNotificationRead, markAllRead } from '../../services/adminNotifService';
-import { myNotifications, countUnread } from '../../services/staffInboxService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from '../../features/notifications/notificationSlice';
+import { selectAllNotifications } from '../../features/notifications/selectors';
 import { pullServerState } from '../../services/adminLiveService';
 
 export function Inbox() {
   const { user } = useContext(AuthContext);
   const { toast, refresh } = useContext(AdminContext); // also redraws this page when refresh() is called
+  const dispatch = useAppDispatch();
+  const rows = useAppSelector(selectAllNotifications);
 
   useEffect(() => {
     document.title = 'PlayCarys — Staff Inbox';
-  }, []);
+    dispatch(fetchNotifications({ userId: user.userId, roleName: user.role }));
+  }, [dispatch, user.userId, user.role]);
 
   // Alerts arrive while the page is open (a review request, an escalation): ask the server for news
   // and redraw if anything changed. The navbar does this too for admin / moderator / superuser;
@@ -37,16 +41,16 @@ export function Inbox() {
     return () => clearInterval(timer);
   }, []);
 
-  const rows = myNotifications(user);
-  const unread = countUnread(rows, user);
+  const isRead = (note) => Boolean(note.read || note.is_read);
+  const unread = rows.filter((note) => !isRead(note)).length;
 
   function handleMarkRead(n) {
-    markNotificationRead(n, user.userId);
+    dispatch(markNotificationRead({ id: n.id, audience: { userId: user.userId, roleName: user.role } }));
     refresh();
   }
 
   function handleMarkAll() {
-    markAllRead(user.userId, user.role);
+    dispatch(markAllNotificationsRead({ userId: user.userId, roleName: user.role }));
     refresh();
     toast.success('All caught up');
   }
@@ -75,7 +79,7 @@ export function Inbox() {
           <div id="inbox-list">
             {rows.length ? (
               rows.map((n) => (
-                <InboxNote key={n.id} note={n} read={notifIsRead(n, user.userId)} onMarkRead={handleMarkRead} />
+                <InboxNote key={n.id} note={n} read={isRead(n)} onMarkRead={handleMarkRead} />
               ))
             ) : (
               <div className="inbox-empty">
