@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import notificationService from '../../../services/notificationService';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { fetchNotifications, fetchUnreadCount, markNotificationRead, markAllNotificationsRead, deleteNotification } from '../../../features/notifications/notificationSlice';
+import { selectAllNotifications, selectUnreadCount, selectNotificationsStatus, selectNotificationsError } from '../../../features/notifications/selectors';
 import '../../../styles/player/notifications.css';
 
 export function NotificationDropdown({ userId, roleName = 'player' }) {
+  const dispatch = useAppDispatch();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const notifications = useAppSelector(selectAllNotifications);
+  const unreadCount = useAppSelector(selectUnreadCount);
+  const status = useAppSelector(selectNotificationsStatus);
+  const error = useAppSelector(selectNotificationsError);
+  const loading = status === 'loading';
   const [actionLoading, setActionLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'unread'
 
   const containerRef = useRef(null);
@@ -21,19 +25,12 @@ export function NotificationDropdown({ userId, roleName = 'player' }) {
   // Fetch unread count & initial data from backend
   const refreshNotifications = async (showLoading = false) => {
     try {
-      if (showLoading) setLoading(true);
-      setError(null);
-      const [list, count] = await Promise.all([
-        notificationService.getNotifications(uid, role).catch(() => []),
-        notificationService.getUnreadCount(uid, role).catch(() => 0)
+      await Promise.all([
+        dispatch(fetchNotifications({ userId: uid, roleName: role })).unwrap(),
+        dispatch(fetchUnreadCount({ userId: uid, roleName: role })).unwrap()
       ]);
-      setNotifications(Array.isArray(list) ? list : []);
-      setUnreadCount(typeof count === 'number' ? count : (list.filter((n) => !isRead(n)).length));
     } catch (err) {
       console.error('Failed to load notifications:', err);
-      setError('Could not load notifications from backend');
-    } finally {
-      if (showLoading) setLoading(false);
     }
   };
 
@@ -95,9 +92,7 @@ export function NotificationDropdown({ userId, roleName = 'player' }) {
     if (e) e.stopPropagation();
     if (isRead(notif)) return;
     try {
-      await notificationService.markAsRead(notif.id, uid, role, true);
-      // Authoritative refresh from server
-      await refreshNotifications(false);
+      await dispatch(markNotificationRead({ id: notif.id, audience: { userId: uid, roleName: role } })).unwrap();
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
     }
@@ -109,8 +104,7 @@ export function NotificationDropdown({ userId, roleName = 'player' }) {
     if (unreadCount === 0 || actionLoading) return;
     try {
       setActionLoading(true);
-      await notificationService.markAllAsRead(uid, role);
-      await refreshNotifications(false);
+      await dispatch(markAllNotificationsRead({ userId: uid, roleName: role })).unwrap();
     } catch (err) {
       console.error('Failed to mark all notifications read:', err);
     } finally {
@@ -122,8 +116,7 @@ export function NotificationDropdown({ userId, roleName = 'player' }) {
   const handleDelete = async (notif, e) => {
     if (e) e.stopPropagation();
     try {
-      await notificationService.deleteNotification(notif.id, uid, role);
-      await refreshNotifications(false);
+      await dispatch(deleteNotification({ id: notif.id, audience: { userId: uid, roleName: role } })).unwrap();
     } catch (err) {
       console.error('Failed to delete notification:', err);
     }
