@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useAppDispatch } from '../../../app/hooks';
+import { fetchMessages, sendMessage } from '../../../features/communities/socialSlice';
 import socialService from '../../../services/socialService';
 import ConfirmModal from '../../common/ConfirmModal';
 
@@ -10,6 +12,7 @@ export function ChatWindow({
   onClose,
   onRead
 }) {
+  const dispatch = useAppDispatch();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,7 +49,7 @@ export function ChatWindow({
     async function load(silently) {
       if (!silently) setLoading(true);
       try {
-        const rows = await socialService.getConversation(currentUserId, friendId);
+        const { messages: rows } = await dispatch(fetchMessages({ userId: currentUserId, withUserId: friendId })).unwrap();
         if (cancelled) return;
         setMessages(rows);
         setError('');
@@ -100,7 +103,7 @@ export function ChatWindow({
     setText('');
     setError('');
     try {
-      const newMsg = await socialService.sendMessage(currentUserId, target, trimmed);
+      const { message: newMsg } = await dispatch(sendMessage({ from_user: currentUserId, to_user: target, body: trimmed })).unwrap();
       // Only show it if this window is still talking to the same person, and
       // never twice (the poll may have fetched it already).
       if (String(friendIdRef.current) === String(target)) {
