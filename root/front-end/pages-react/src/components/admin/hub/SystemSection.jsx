@@ -10,10 +10,13 @@
  * the other four only show a message, exactly as in the old page.
  */
 import React, { useState, useEffect, useContext } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import AdminContext from '../../../context/AdminContext';
 import ToggleRow from '../common/ToggleRow';
 import { getSession, getDB } from '../../../services/adminService';
 import { setSystemSetting, exportData, getDangerAction } from '../../../services/adminHubService';
+import { updatePlatformSettings } from '../../../features/platform/platformSlice';
+import { selectPlatformSettings } from '../../../features/platform/selectors';
 
 // The four switches that are not saved anywhere, and where they start each time the section opens.
 const LOCAL_DEFAULTS = { tournaments: true, publishing: true, ratelimit: true, ipwhitelist: false };
@@ -28,6 +31,8 @@ const DANGER_BUTTONS = [
 export function SystemSection(props) {
   const { active, auditLog, addAudit } = props;
   const { toast, confirmAction, refresh } = useContext(AdminContext);
+  const dispatch = useDispatch();
+  const reduxSettings = useSelector(selectPlatformSettings);
   const [local, setLocal] = useState(LOCAL_DEFAULTS);
 
   // Opening the section again puts those four switches back to where they started.
@@ -35,11 +40,14 @@ export function SystemSection(props) {
     if (active) setLocal(LOCAL_DEFAULTS);
   }, [active]);
 
-  const settings = getDB().settings;
-  const who = () => getSession().username;
+  const db = getDB();
+  const settings = { ...((db && db.settings) || {}), ...reduxSettings };
+  const who = () => (getSession() ? getSession().username : 'Admin');
 
   // A switch that is saved in settings.
   function handleSetting(key, value, audit, message) {
+    const next = { ...settings, [key]: value };
+    dispatch(updatePlatformSettings(next));
     setSystemSetting(key, value);
     if (audit) addAudit('system', audit.msg, `By ${who()}`);
     toast.info(message);

@@ -3,13 +3,13 @@
  *  - Components, Props (values and handlers passed to each card), State (input values + error messages),
  *    Events (toggle clicks, leaving a field), Hooks (useState, useEffect, useContext),
  *    Forms (controlled inputs with validation), Context (AuthContext for the role, AdminContext for
- *    toast / confirm / refresh), prop drilling (handlers go page → card → ToggleRow),
- *    Callbacks (the function run when a warning is confirmed, and the one run when it is cancelled)
+ *    toast / confirm / refresh), Redux (fetchPlatformSettings, updatePlatformSettings, recordAuditLog)
  *
  * Mirrors pages/admin/settings.html, except there is no Save button: every change is applied
  * only after the admin confirms a warning, and then it is saved straight away.
  */
 import React, { useState, useEffect, useContext } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import AuthContext from '../../context/AuthContext';
 import AdminContext from '../../context/AdminContext';
 import Button from '../../components/common/Button';
@@ -18,12 +18,13 @@ import SecuritySettingsCard from '../../components/admin/settings/SecuritySettin
 import NotificationSettingsCard from '../../components/admin/settings/NotificationSettingsCard';
 import TournamentSettingsCard from '../../components/admin/settings/TournamentSettingsCard';
 import { validateField } from '../../services/adminValidation';
-import { recordAudit } from '../../services/adminAuditService';
+import { DEFAULT_SETTINGS } from '../../services/adminService';
 import {
-  getSettings,
-  updateSetting,
-  resetSettings
-} from '../../services/adminService';
+  fetchPlatformSettings,
+  updatePlatformSettings
+} from '../../features/platform/platformSlice';
+import { recordAuditLog } from '../../features/platform/auditSlice';
+import { selectPlatformSettings } from '../../features/platform/selectors';
 
 // What each switch is called, and what the warning says when it is turned on or off.
 const TOGGLES = {
@@ -67,9 +68,15 @@ const TOGGLES = {
 export function Settings() {
   const { user } = useContext(AuthContext);
   const { toast, confirmAction, refresh } = useContext(AdminContext);
+  const dispatch = useDispatch();
 
-  // Read on every draw; refresh() (from AdminContext) redraws after a change.
-  const settings = getSettings();
+  const rawSettings = useSelector(selectPlatformSettings);
+  const settings = {
+    platformName: 'PlayCarys',
+    sessionTimeout: 30,
+    ...DEFAULT_SETTINGS,
+    ...rawSettings
+  };
   const isSuperuser = user.role === 'superuser';
 
   const [platformName, setPlatformName] = useState(settings.platformName);
@@ -79,7 +86,17 @@ export function Settings() {
 
   useEffect(() => {
     document.title = 'PlayCarys — System Settings';
-  }, []);
+    dispatch(fetchPlatformSettings());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (rawSettings.platformName !== undefined) {
+      setPlatformName(rawSettings.platformName);
+    }
+    if (rawSettings.sessionTimeout !== undefined) {
+      setSessionTimeout(rawSettings.sessionTimeout);
+    }
+  }, [rawSettings.platformName, rawSettings.sessionTimeout]);
 
   // Typing clears that field's error, like the old page.
   function handleNameChange(value) {
@@ -93,11 +110,22 @@ export function Settings() {
   }
 
   // One change, after the admin has confirmed it: save, tell the audit log, redraw.
-  function applyChange(key, value, auditMsg) {
-    updateSetting(key, value);
-    recordAudit('system', auditMsg, 'Changed by ' + user.username);
-    toast.success('Setting saved');
-    refresh();
+  async function applyChange(key, value, auditMsg) {
+    try {
+      const nextSettings = { ...settings, [key]: value };
+      await dispatch(updatePlatformSettings(nextSettings)).unwrap();
+      dispatch(
+        recordAuditLog({
+          type: 'system',
+          msg: auditMsg,
+          detail: 'Changed by ' + user.username
+        })
+      );
+      toast.success('Setting saved');
+      refresh();
+    } catch (err) {
+      toast.error('Failed to save setting');
+    }
   }
 
   // A toggle asks first, then saves. Cancelling leaves it as it was.
@@ -167,16 +195,29 @@ export function Settings() {
   }
 
   function handleReset() {
-    confirmAction('⚠️ Reset Settings', 'Reset all settings to default values?', () => {
-      resetSettings(isSuperuser);
-      const fresh = getSettings();
-      setPlatformName(fresh.platformName);
-      setSessionTimeout(fresh.sessionTimeout);
-      setNameError('');
-      setTimeoutError('');
-      recordAudit('system', 'Settings reset to defaults', 'Changed by ' + user.username);
-      refresh();
-      toast.info('Settings reset to defaults');
+    confirmAction('⚠️ Reset Settings', 'Reset all settings to default values?', async () => {
+      const resetObj = {
+        ...DEFAULT_SETTINGS,
+        ...(isSuperuser ? { platformName: 'PlayCarys' } : {})
+      };
+      try {
+        await dispatch(updatePlatformSettings(resetObj)).unwrap();
+        setPlatformName(resetObj.platformName || settings.platformName);
+        setSessionTimeout(resetObj.sessionTimeout || 30);
+        setNameError('');
+        setTimeoutError('');
+        dispatch(
+          recordAuditLog({
+            type: 'system',
+            msg: 'Settings reset to defaults',
+            detail: 'Changed by ' + user.username
+          })
+        );
+        refresh();
+        toast.info('Settings reset to defaults');
+      } catch (err) {
+        toast.error('Failed to reset settings');
+      }
     }, 'danger');
   }
 

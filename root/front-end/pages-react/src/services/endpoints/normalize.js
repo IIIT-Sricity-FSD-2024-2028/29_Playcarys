@@ -279,5 +279,21 @@ export function normalizePublisherEarnings(data) {
   };
 }
 
+export function normalizeAuditLog(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const entity = normalizeEntity(raw, ['log_id', 'id']);
+  return {
+    ...entity,
+    id: entity.id != null ? String(entity.id) : (entity.log_id != null ? String(entity.log_id) : undefined),
+    type: entity.type || 'system',
+    msg: entity.msg || '',
+    detail: entity.detail || '',
+    actor: entity.actor || 'System',
+    actor_role: entity.actor_role || '',
+    at: entity.at || entity.timestamp || entity.created_at || new Date().toISOString()
+  };
+}
+
+
 
 

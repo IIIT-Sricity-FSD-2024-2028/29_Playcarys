@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import authService from '../../services/authService';
+import {
+  fetchPlatformSettings,
+  updatePlatformSettings
+} from '../../features/platform/platformSlice';
 import {
   getSettings,
   saveSettings,
@@ -97,8 +102,17 @@ export function Settings() {
     }, 4000);
   }
 
+  const dispatch = useDispatch();
+
   async function loadInitialSettings() {
-    const s = getSettings();
+    let s = getSettings();
+    try {
+      const live = await dispatch(fetchPlatformSettings()).unwrap();
+      if (live && typeof live === 'object') {
+        s = { ...s, ...live };
+      }
+    } catch {}
+
     setPersistedSettings(s);
     setFormName(s.platformName || 'PlayCarys');
     setFormEmail(s.supportEmail || 'support@playcarys.com');
@@ -145,7 +159,9 @@ export function Settings() {
   // Handle Persisted Toggles
   async function handlePersistedToggle(key, val, toastMsg) {
     try {
-      await saveSettings({ [key]: val });
+      const next = { ...persistedSettings, [key]: val };
+      await dispatch(updatePlatformSettings(next)).unwrap();
+      saveSettings({ [key]: val });
       setPersistedSettings((prev) => ({ ...prev, [key]: val }));
       showToast(toastMsg, 'info');
     } catch (err) {
@@ -219,10 +235,16 @@ export function Settings() {
     executeSavePlatformInfo(dataToSave);
   }
 
-  function executeSavePlatformInfo(data) {
-    saveSettings(data);
-    setPersistedSettings((prev) => ({ ...prev, ...data }));
-    showToast('Platform info saved', 'success');
+  async function executeSavePlatformInfo(data) {
+    try {
+      const next = { ...persistedSettings, ...data };
+      await dispatch(updatePlatformSettings(next)).unwrap();
+      saveSettings(data);
+      setPersistedSettings((prev) => ({ ...prev, ...data }));
+      showToast('Platform info saved', 'success');
+    } catch (err) {
+      showToast('Failed to save platform info', 'error');
+    }
   }
 
   function handleCancelRename() {
