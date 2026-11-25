@@ -207,3 +207,42 @@ export function normalizeModeratorAction(raw) {
   return normalizeEntity(raw, ['action_id', 'actionId']);
 }
 
+export function normalizeCatalogueItem(item) {
+  if (!item || typeof item !== 'object') return item;
+  const entity = normalizeEntity(item, ['item_id', 'id']);
+  return {
+    ...entity,
+    owned: !!entity.owned,
+    is_equipped: !!entity.is_equipped,
+    price_carys: entity.price_carys != null ? Number(entity.price_carys) : null,
+    price_paise: Number(entity.price_paise) || 0,
+    price_display: entity.price_display || (entity.price_paise ? `₹${Math.round(entity.price_paise / 100)}` : 'Free')
+  };
+}
+
+export function normalizeCatalogue(data) {
+  if (!data || typeof data !== 'object') return data;
+  return {
+    balance_carys: Number(data.balance_carys) || 0,
+    items: (data.items || []).map(normalizeCatalogueItem),
+    plans: (data.plans || []).map((p) => normalizeEntity(p, ['plan_id', 'id'])),
+    subscription: data.subscription ? normalizeEntity(data.subscription, ['subscription_id', 'id']) : null
+  };
+}
+
+export function normalizeTransaction(tx) {
+  if (!tx || typeof tx !== 'object') return tx;
+  return normalizeEntity(tx, ['transaction_id', 'id']);
+}
+
+export function normalizeBalance(b) {
+  if (!b || typeof b !== 'object') return b;
+  return {
+    user_id: b.user_id != null ? Number(b.user_id) : undefined,
+    carys_points: Number(b.carys_points) || 0,
+    carys_value_display: b.carys_value_display || '',
+    ledger: b.ledger || []
+  };
+}
+
+

@@ -1,8 +1,29 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
+import { useDispatch, useSelector } from 'react-redux';
 import AuthContext from '../../context/AuthContext';
 import Toast from '../../components/common/Toast';
+import { AsyncStatus } from '../../app/asyncUtils';
+import {
+  fetchCatalogue,
+  purchaseItem,
+  equipItem,
+  unequipItem
+} from '../../features/economy/catalogueSlice';
+import {
+  fetchBalance,
+  subscribeToPlan,
+  claimStipend
+} from '../../features/economy/walletSlice';
+import {
+  selectCatalogueItems,
+  selectCataloguePlans,
+  selectCatalogueSubscription,
+  selectCatalogueBalance,
+  selectCatalogueStatus,
+  selectCatalogueError,
+  selectCatalogueMutationStatus
+} from '../../features/economy/selectors';
 import '../../styles/player/shop.css';
 
 // Money formatting helper mirroring legacy utils.js Money object
@@ -40,48 +61,48 @@ const labelFor = (cat) => {
 export function Shop() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const uid = Number(user?.id || user?.user_id || 7);
 
-  const [catalogue, setCatalogue] = useState(null);
+  // Redux selectors
+  const items = useSelector(selectCatalogueItems);
+  const plans = useSelector(selectCataloguePlans);
+  const subscription = useSelector(selectCatalogueSubscription);
+  const balanceCarys = useSelector(selectCatalogueBalance);
+  const catalogueStatus = useSelector(selectCatalogueStatus);
+  const catalogueError = useSelector(selectCatalogueError);
+  const catalogueMutationStatus = useSelector(selectCatalogueMutationStatus);
+
+  // Local UI states (filters, active tab, modals, toast)
   const [activeTab, setActiveTab] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Pending action locks
   const [pendingAction, setPendingAction] = useState(false);
-
-  // Toast feedback
   const [toast, setToast] = useState({ message: '', type: 'info' });
+  const [confirmDialog, setConfirmDialog] = useState(null);
+
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
   };
 
-  // Confirmation modal state (for purchases, subscriptions, and mystery rewards)
-  const [confirmDialog, setConfirmDialog] = useState(null);
-
-  // Fetch catalogue from backend
-  const loadCatalogue = async () => {
+  // Fetch catalogue and balance through Redux thunks
+  const loadCatalogue = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const res = await api.get('/economy/catalogue?viewerId=' + encodeURIComponent(uid));
-      setCatalogue(res);
+      await Promise.all([
+        dispatch(fetchCatalogue(uid)).unwrap(),
+        dispatch(fetchBalance(uid)).unwrap()
+      ]);
     } catch (err) {
       console.error('Failed to load catalogue:', err);
-      setError(err.message || 'Could not load the shop.');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [dispatch, uid]);
 
   useEffect(() => {
     loadCatalogue();
-  }, [uid]);
+  }, [loadCatalogue]);
 
   // Dynamic Categories from items
-  const categories = catalogue?.items
-    ? [...new Set(catalogue.items.map((i) => i.category))].sort()
+  const categories = items.length > 0
+    ? [...new Set(items.map((i) => i.category))].sort()
     : [];
 
   // Tab List: All Items, dynamic categories, Owned, Membership (plans)
@@ -93,7 +114,7 @@ export function Shop() {
   ];
 
   // Filter items based on activeTab
-  let displayedItems = catalogue?.items || [];
+  let displayedItems = items;
   if (activeTab === 'owned') {
     displayedItems = displayedItems.filter((i) => i.owned);
   } else if (activeTab !== 'all' && activeTab !== 'plans') {
@@ -110,7 +131,7 @@ export function Shop() {
         : item.price_display;
 
     const payingCarys = currency === 'carys';
-    const currentBalance = catalogue?.balance_carys || 0;
+    const currentBalance = balanceCarys || 0;
     const after = payingCarys ? currentBalance - (item.price_carys || 0) : null;
 
     const rows = [['Price', priceDisplay]];
@@ -133,15 +154,16 @@ export function Shop() {
         try {
           setPendingAction(true);
           const idempotencyKey = `${uid}-${item.id}-${currency}-${Date.now()}`;
-          const res = await api.post('/economy/purchase', {
-            user_id: uid,
-            item_id: item.id,
-            currency,
-            idempotency_key: idempotencyKey,
-          });
+          const res = await dispatch(
+            purchaseItem({
+              user_id: uid,
+              item_id: item.id,
+              currency,
+              idempotency_key: idempotencyKey,
+            })
+          ).unwrap();
 
           if (res.was_mystery) {
-            await loadCatalogue();
             setConfirmDialog({
               title: `You got ${res.item?.name || 'an item'}!`,
               message: res.item?.description || '',
@@ -149,7 +171,7 @@ export function Shop() {
               rows: [
                 ['Rarity', String(res.item?.rarity || '').toUpperCase()],
                 ['You paid', res.charged || priceDisplay],
-                ['Balance', Money.formatCarys(catalogue?.balance_carys || 0) + ' Carys'],
+                ['Balance', Money.formatCarys(res.balance_carys ?? balanceCarys) + ' Carys'],
               ],
               confirmText: 'Nice',
               cancelText: 'Close',
@@ -160,7 +182,6 @@ export function Shop() {
           } else {
             setConfirmDialog(null);
             showToast(`Bought ${item.name} for ${res.charged || priceDisplay}`, 'success');
-            await loadCatalogue();
           }
         } catch (err) {
           console.error('Purchase failed:', err);
@@ -179,9 +200,8 @@ export function Shop() {
     if (pendingAction) return;
     try {
       setPendingAction(true);
-      await api.post('/economy/equip', { user_id: uid, item_id: itemId });
+      await dispatch(equipItem({ user_id: uid, item_id: itemId })).unwrap();
       showToast('Equipped', 'success');
-      await loadCatalogue();
     } catch (err) {
       console.error('Equip failed:', err);
       showToast(err.message || 'Equip failed', 'error');
@@ -194,9 +214,8 @@ export function Shop() {
     if (pendingAction) return;
     try {
       setPendingAction(true);
-      await api.post('/economy/unequip', { user_id: uid, item_id: itemId });
+      await dispatch(unequipItem({ user_id: uid, item_id: itemId })).unwrap();
       showToast('Removed', 'success');
-      await loadCatalogue();
     } catch (err) {
       console.error('Unequip failed:', err);
       showToast(err.message || 'Unequip failed', 'error');
@@ -222,13 +241,15 @@ export function Shop() {
       onConfirm: async () => {
         try {
           setPendingAction(true);
-          const res = await api.post('/economy/subscribe', {
-            user_id: uid,
-            plan_id: plan.id,
-          });
+          const res = await dispatch(
+            subscribeToPlan({
+              user_id: uid,
+              plan_id: plan.id,
+            })
+          ).unwrap();
           setConfirmDialog(null);
           showToast(`Subscribed — ${Money.formatCarys(res.stipend_carys)} Carys credited`, 'success');
-          await loadCatalogue();
+          dispatch(fetchCatalogue(uid));
         } catch (err) {
           console.error('Subscription failed:', err);
           showToast(err.message || 'Subscription failed', 'error');
@@ -245,9 +266,9 @@ export function Shop() {
     if (pendingAction) return;
     try {
       setPendingAction(true);
-      const res = await api.post('/economy/claim-stipend', { user_id: uid });
+      const res = await dispatch(claimStipend({ user_id: uid })).unwrap();
       showToast(`${Money.formatCarys(res.stipend_carys)} Carys credited`, 'success');
-      await loadCatalogue();
+      dispatch(fetchCatalogue(uid));
     } catch (err) {
       console.error('Claim stipend failed:', err);
       showToast(err.message || 'Claim failed', 'error');
@@ -257,19 +278,19 @@ export function Shop() {
   };
 
   // Calculated Rupee Worth
-  const worthPaise = (catalogue?.balance_carys || 0) * 10;
+  const worthPaise = (balanceCarys || 0) * 10;
   const worthText = 'about ' + Money.formatINR(worthPaise) + ' of value';
 
   // Subscription banner data
-  const sub = catalogue?.subscription;
-  const currentPlan = sub ? (catalogue?.plans || []).find((p) => p.id === sub.tier) : null;
-  const cheapestPlan = (catalogue?.plans || [])
-    .slice()
-    .sort((a, b) => a.price_paise - b.price_paise)[0];
+  const sub = subscription;
+  const currentPlan = sub ? plans.find((p) => p.id === sub.tier) : null;
+  const cheapestPlan = plans.slice().sort((a, b) => a.price_paise - b.price_paise)[0];
 
   const renewsDate = sub?.expires_at
     ? new Date(sub.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
     : '—';
+
+  const isLoading = catalogueStatus === AsyncStatus.LOADING && items.length === 0;
 
   return (
     <div className="page-wrapper">
@@ -300,11 +321,11 @@ export function Shop() {
         <div className="shop-balance">
           <div>
             <div className="shop-balance-val" id="bal-carys">
-              {catalogue ? Money.formatCarys(catalogue.balance_carys) : '—'}
+              {Money.formatCarys(balanceCarys || 0)}
             </div>
             <div className="shop-balance-lbl">Your Carys</div>
             <div className="shop-balance-worth" id="bal-worth">
-              {catalogue ? worthText : ''}
+              {worthText}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -373,14 +394,14 @@ export function Shop() {
         </div>
 
         {/* Content Body */}
-        {loading ? (
+        {isLoading ? (
           <div className="shop-empty">Loading catalogue...</div>
-        ) : error ? (
-          <div className="shop-empty text-danger">Could not load the shop. {error}</div>
+        ) : catalogueError && items.length === 0 ? (
+          <div className="shop-empty text-danger">Could not load the shop. {catalogueError}</div>
         ) : activeTab === 'plans' ? (
           /* Membership Plans Tab */
           <div className="plan-grid">
-            {(catalogue?.plans || []).map((p) => {
+            {plans.map((p) => {
               const isCurrent = sub && sub.tier === p.id;
               return (
                 <div key={p.id} className={`plan-card ${isCurrent ? 'current' : ''}`}>
@@ -406,7 +427,7 @@ export function Shop() {
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
-                      disabled={pendingAction}
+                      disabled={pendingAction || catalogueMutationStatus === AsyncStatus.LOADING}
                       onClick={handleClaimStipend}
                     >
                       Claim this month's Carys
@@ -415,7 +436,7 @@ export function Shop() {
                     <button
                       type="button"
                       className="btn btn-primary btn-sm"
-                      disabled={pendingAction}
+                      disabled={pendingAction || catalogueMutationStatus === AsyncStatus.LOADING}
                       onClick={() => handleSubscribe(p)}
                     >
                       Subscribe
@@ -465,7 +486,7 @@ export function Shop() {
                             <button
                               type="button"
                               className="btn btn-ghost btn-sm"
-                              disabled={pendingAction}
+                              disabled={pendingAction || catalogueMutationStatus === AsyncStatus.LOADING}
                               onClick={() => handleUnequip(item.id)}
                             >
                               Remove
@@ -477,7 +498,7 @@ export function Shop() {
                           <button
                             type="button"
                             className="btn btn-ghost btn-sm"
-                            disabled={pendingAction}
+                            disabled={pendingAction || catalogueMutationStatus === AsyncStatus.LOADING}
                             onClick={() => handleEquip(item.id)}
                           >
                             Equip
@@ -490,7 +511,7 @@ export function Shop() {
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
-                            disabled={pendingAction}
+                            disabled={pendingAction || catalogueMutationStatus === AsyncStatus.LOADING}
                             onClick={() => handleBuy(item, 'carys')}
                           >
                             {Money.formatCarys(item.price_carys)} Carys
@@ -499,7 +520,7 @@ export function Shop() {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          disabled={pendingAction}
+                          disabled={pendingAction || catalogueMutationStatus === AsyncStatus.LOADING}
                           onClick={() => handleBuy(item, 'inr')}
                         >
                           {item.price_display}
