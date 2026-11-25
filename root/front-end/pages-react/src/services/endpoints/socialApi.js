@@ -55,8 +55,12 @@ export const socialApi = {
   },
 
   // Groups
-  async getGroups() {
-    const res = await api.get('/groups');
+  async getGroups({ playerId, viewerId } = {}) {
+    const query = new URLSearchParams();
+    if (playerId != null) query.set('playerId', String(playerId));
+    if (viewerId != null) query.set('viewerId', String(viewerId));
+    const suffix = query.toString() ? `?${query}` : '';
+    const res = await api.get(`/groups${suffix}`);
     return normalizeList(res, ['group_id']);
   },
 
@@ -70,22 +74,50 @@ export const socialApi = {
     return normalizeEntity(res, ['group_id']);
   },
 
-  async updateGroup(id, dto) {
-    const res = await api.patch(`/groups/${id}`, dto);
+  async updateGroup(id, dto, requesterId) {
+    const res = await api.patch(`/groups/${id}?requesterId=${encodeURIComponent(requesterId)}`, dto);
     return normalizeEntity(res, ['group_id']);
   },
 
-  async deleteGroup(id) {
-    await api.delete(`/groups/${id}`);
+  async deleteGroup(id, requesterId) {
+    await api.delete(`/groups/${id}?requesterId=${encodeURIComponent(requesterId)}`);
     return { id: String(id) };
   },
 
-  async joinGroup(groupId, dto) {
-    return api.post(`/groups/${groupId}/join`, dto);
+  async joinGroup(groupId, userId) {
+    return api.post(`/groups/${groupId}/join?userId=${encodeURIComponent(userId)}`);
   },
 
-  async leaveGroup(groupId, dto) {
-    return api.post(`/groups/${groupId}/leave`, dto);
+  async leaveGroup(groupId, userId) {
+    return api.post(`/groups/${groupId}/leave?userId=${encodeURIComponent(userId)}`);
+  },
+
+  async promoteGroupOfficer(groupId, userId, requesterId) {
+    const res = await api.post(`/groups/${groupId}/officers/${userId}?requesterId=${encodeURIComponent(requesterId)}`);
+    return normalizeEntity(res, ['group_id']);
+  },
+
+  async demoteGroupOfficer(groupId, userId, requesterId) {
+    const res = await api.delete(`/groups/${groupId}/officers/${userId}?requesterId=${encodeURIComponent(requesterId)}`);
+    return normalizeEntity(res, ['group_id']);
+  },
+
+  async removeGroupMember(groupId, userId, requesterId) {
+    return api.delete(`/groups/${groupId}/members/${userId}?requesterId=${encodeURIComponent(requesterId)}`);
+  },
+
+  async getGroupRequests(groupId, requesterId) {
+    const res = await api.get(`/groups/${groupId}/requests?requesterId=${encodeURIComponent(requesterId)}`);
+    return normalizeList(res);
+  },
+
+  async respondToGroupRequest(groupId, requestId, accept, requesterId) {
+    const action = accept ? 'accept' : 'reject';
+    return api.post(`/groups/${groupId}/requests/${requestId}/${action}?requesterId=${encodeURIComponent(requesterId)}`);
+  },
+
+  async getGroupTournaments(groupId) {
+    return api.get(`/groups/${groupId}/tournaments`);
   },
 
   async getGroupChat(groupId) {
