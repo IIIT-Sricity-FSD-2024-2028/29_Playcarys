@@ -8,7 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { GameSessionService } from './game-session.service';
-import { EndSessionRequestDto } from './game-session.dto';
+import { EndSessionRequestDto, TerminateSessionRequestDto } from './game-session.dto';
 
 @Controller('sessions')
 export class GameSessionController {
@@ -58,7 +58,22 @@ export class GameSessionController {
   // here that does real work: it writes match_results and updates carys_points,
   // play_time and matches_won.
 
-  // PATCH /sessions/:id/end  — end a match and record its results
+  // PATCH /sessions/purge  — Staff bulk purge of all active sessions
+  @Patch('purge')
+  purgeSessions(@Body() body: TerminateSessionRequestDto) {
+    return this.gameSessionService.purgeSessions(body);
+  }
+
+  // PATCH /sessions/:id/terminate  — Staff termination without fabricating results
+  @Patch(':id/terminate')
+  terminateSession(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: TerminateSessionRequestDto,
+  ) {
+    return this.gameSessionService.terminateSession(id, body);
+  }
+
+  // PATCH /sessions/:id/end  — end a match and record its results (host only)
   @Patch(':id/end')
   endSession(
     @Param('id', ParseIntPipe) id: number,

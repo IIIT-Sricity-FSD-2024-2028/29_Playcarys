@@ -6,14 +6,17 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { GameSessionRepository } from './game-session.repository';
-import { EndSessionDto } from './game-session.dto';
+import { EndSessionDto, TerminateSessionRequestDto } from './game-session.dto';
 import {
   games,
   player_profiles,
   match_results,
   GameSession,
+  roles,
+  users,
 } from '../data/store';
 import { creditCarys } from '../economy/carys.ledger';
+import { appendAudit } from '../data/persistence';
 
 // ── Domain Rules ────────────────────────────────────────────
 // R-SES-1:  Only approved + enabled games can have sessions created
@@ -129,6 +132,88 @@ export class GameSessionService {
     this.repo.update(sessionId, { status: 'ended', duration: durationMinutes });
 
     return { message: 'Session ended successfully', session_id: sessionId, duration_minutes: durationMinutes };
+  }
+
+  // Workflow: Staff terminate a single session (moderator/admin/superuser)
+  // Safely marks the session ended without fabricating results or awarding Carys points.
+  terminateSession(sessionId: number, dto: TerminateSessionRequestDto) {
+    const session = this.repo.findById(sessionId);
+    if (!session) throw new NotFoundException(`Session ${sessionId} not found`);
+
+    const staffUser = users.find((u) => u.user_id === dto.staff_id);
+    if (!staffUser) {
+      throw new NotFoundException(`Staff user ${dto.staff_id} not found`);
+    }
+
+    const staffRole = roles.find((r) => r.role_id === staffUser.role_id)?.role_name;
+    const allowedRoles = new Set(['moderator', 'admin', 'superuser']);
+    if (!staffRole || !allowedRoles.has(staffRole)) {
+      throw new ForbiddenException('Only moderators, admins, or superusers can terminate sessions');
+    }
+
+    if (session.status === 'ended') {
+      throw new BadRequestException('Session is already ended');
+    }
+
+    const now = new Date().toISOString();
+    const startMs = new Date(session.start_time).getTime();
+    const durationMinutes = Math.max(0, Math.round((Date.now() - startMs) / 60000));
+
+    // Update session record without creating fake match results or awarding Carys points
+    this.repo.update(sessionId, { status: 'ended', duration: durationMinutes, end_time: now });
+
+    // Server-side audit logging
+    appendAudit({
+      type: 'system',
+      msg: `Session #${sessionId} terminated by staff`,
+      detail: dto.reason || `Terminated by ${staffRole} ${staffUser.user_name}`,
+      actor: staffUser.user_name,
+      actor_role: staffRole,
+    });
+
+    return {
+      message: 'Session terminated successfully by staff',
+      session_id: sessionId,
+      status: 'ended',
+      duration_minutes: durationMinutes,
+    };
+  }
+
+  // Workflow: Bulk purge active sessions (admin/superuser)
+  purgeSessions(dto: TerminateSessionRequestDto) {
+    const staffUser = users.find((u) => u.user_id === dto.staff_id);
+    if (!staffUser) {
+      throw new NotFoundException(`Staff user ${dto.staff_id} not found`);
+    }
+
+    const staffRole = roles.find((r) => r.role_id === staffUser.role_id)?.role_name;
+    const allowedRoles = new Set(['admin', 'superuser', 'moderator']);
+    if (!staffRole || !allowedRoles.has(staffRole)) {
+      throw new ForbiddenException('Only staff members can purge sessions');
+    }
+
+    const allSessions = this.repo.findAll();
+    const activeSessions = allSessions.filter((s) => s.status !== 'ended');
+    const now = new Date().toISOString();
+
+    for (const session of activeSessions) {
+      const startMs = new Date(session.start_time).getTime();
+      const durationMinutes = Math.max(0, Math.round((Date.now() - startMs) / 60000));
+      this.repo.update(session.session_id, { status: 'ended', duration: durationMinutes, end_time: now });
+    }
+
+    appendAudit({
+      type: 'system',
+      msg: `Purged ${activeSessions.length} active session(s)`,
+      detail: dto.reason || `Bulk session purge by ${staffRole} ${staffUser.user_name}`,
+      actor: staffUser.user_name,
+      actor_role: staffRole,
+    });
+
+    return {
+      message: `Purged ${activeSessions.length} active session(s)`,
+      terminated_count: activeSessions.length,
+    };
   }
 
   // ── Private Helpers ──────────────────────────────────────
