@@ -122,9 +122,12 @@ export function MonitorModal({
   isOpen,
   match,
   matchResults = [],
+  isLoadingResults = false,
+  resultsError = null,
   users = [],
   games = [],
   onClose,
+  onRetryResults,
   onTerminate
 }) {
   const navigate = useNavigate();
@@ -480,9 +483,13 @@ export function MonitorModal({
                           <span className="badge-time">
                             ⏱ Playing: {formatTimeDuration(playerDurationSec)}
                           </span>
-                          {score != null && (
+                          {score != null ? (
                             <span className="badge-score">
                               Score: {Number(score).toLocaleString()}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              No score recorded
                             </span>
                           )}
                           {rank != null && (
@@ -531,6 +538,69 @@ export function MonitorModal({
               })}
             </div>
           )}
+
+          {/* Match Results Status / Empty State */}
+          {isLoadingResults ? (
+            <div
+              style={{
+                marginTop: '0.85rem',
+                padding: '0.85rem 1rem',
+                textAlign: 'center',
+                background: 'var(--bg-input, rgba(255, 255, 255, 0.02))',
+                border: '1px solid var(--border-primary, rgba(255, 255, 255, 0.08))',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.825rem'
+              }}
+            >
+              ⏳ Loading match results...
+            </div>
+          ) : resultsError ? (
+            <div
+              role="alert"
+              style={{
+                marginTop: '0.85rem',
+                padding: '0.85rem 1rem',
+                textAlign: 'center',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.825rem'
+              }}
+            >
+              <div style={{ marginBottom: '0.45rem', color: 'var(--accent-red)' }}>
+                Could not load match results: {resultsError}
+              </div>
+              <button type="button" className="btn btn-outline btn-sm" onClick={onRetryResults}>
+                Retry
+              </button>
+            </div>
+          ) : (!matchResults || matchResults.length === 0) ? (
+            <div
+              className="match-results-empty-state"
+              style={{
+                marginTop: '0.85rem',
+                padding: '0.85rem 1rem',
+                textAlign: 'center',
+                background: 'var(--bg-input, rgba(255, 255, 255, 0.02))',
+                border: '1px dashed var(--border-primary, rgba(255, 255, 255, 0.12))',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.825rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+                <span>📊</span>
+                <strong style={{ color: 'var(--text-primary)' }}>No Match Results Recorded</strong>
+              </div>
+              <span style={{ fontSize: '0.78rem' }}>
+                {isLive
+                  ? 'This match is currently active. Results will be recorded when the session concludes.'
+                  : 'No scores or outcomes were recorded for this session.'}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         {/* Warning if in-progress */}

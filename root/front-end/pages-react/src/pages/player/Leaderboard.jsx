@@ -1,18 +1,29 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import { getDatabase, sameId, getTierFromPoints, hydrateFromServer } from '../../services/playerService';
-import api from '../../services/api';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchLeaderboard } from '../../features/profiles/playerProfileSlice';
+import { selectLeaderboard } from '../../features/profiles/selectors';
+import { fetchUsers } from '../../features/users/userSlice';
+import { selectAllUsers } from '../../features/users/selectors';
+import { selectAuthUser } from '../../features/auth/selectors';
+import { sameId, getTierFromPoints } from '../../services/playerService';
 import '../../styles/player/leaderboard.css';
 
 export function Leaderboard() {
-  const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector(selectAuthUser);
+  const { user: contextUser } = useContext(AuthContext);
+  const user = authUser || contextUser;
   const myUid = user?.userId ?? user?.id ?? user?.user_id ?? 7;
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('pcp'); // 'pcp' | 'wins' | 'points' | 'streaks'
   const [loading, setLoading] = useState(true);
-  const [dbVersion, setDbVersion] = useState(0);
+
+  // Redux store selectors
+  const rawProfiles = useAppSelector(selectLeaderboard);
+  const users = useAppSelector(selectAllUsers);
 
   useEffect(() => {
     let mounted = true;
@@ -20,12 +31,9 @@ export function Leaderboard() {
       try {
         setLoading(true);
         await Promise.allSettled([
-          hydrateFromServer(['player_profiles', 'users', 'match_results']),
-          api.get('/player-profiles/leaderboard').catch(() => null)
+          dispatch(fetchLeaderboard()),
+          dispatch(fetchUsers())
         ]);
-        if (mounted) {
-          setDbVersion((v) => v + 1);
-        }
       } catch (err) {
         console.warn('Failed to load leaderboard data:', err);
       } finally {
@@ -36,36 +44,25 @@ export function Leaderboard() {
     return () => {
       mounted = false;
     };
-  }, []);
-
-  const db = getDatabase();
+  }, [dispatch]);
 
   // Build enriched player list
   const players = useMemo(() => {
-    const rawProfiles = db.player_profiles || [];
-    const users = db.users || [];
-    const matchResults = db.match_results || [];
-
-    const enriched = rawProfiles.map((p) => {
-      const u = users.find((usr) => sameId(usr.user_id || usr.id, p.user_id));
-      const myMatches = new Set(
-        matchResults
-          .filter((r) => sameId(r.player_id, p.user_id))
-          .map((r) => String(r.session_id))
-      );
-      const totalMatches = u?.matches || myMatches.size || 0;
+    const enriched = (rawProfiles || []).map((p) => {
+      const u = users.find((usr) => sameId(usr.user_id || usr.id, p.user_id || p.id));
+      const totalMatches = u?.matches || p.games_played || p.total_matches || p.matches || 0;
       const wins = u?.wins || p.matches_won || 0;
-      const points = p.carys_points || 0;
-      const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0;
-      const streak = u?.loginStreak || 0;
+      const points = p.carys_points || p.points || 0;
+      const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : (p.win_rate || 0);
+      const streak = u?.loginStreak || p.login_streak || p.streak || 0;
       const tier = getTierFromPoints(points);
-      const name = u?.username || u?.user_name || p.player_name || `Player ${p.user_id}`;
+      const name = u?.username || u?.user_name || p.player_name || p.name || `Player ${p.user_id || p.id}`;
       const avatar = u?.avatar || name.slice(0, 2).toUpperCase();
 
       return {
         profile: p,
         user: u,
-        userId: p.user_id,
+        userId: p.user_id || p.id,
         name,
         avatar,
         wins,
@@ -89,7 +86,7 @@ export function Leaderboard() {
     }
 
     return enriched;
-  }, [db, dbVersion, sortBy]);
+  }, [rawProfiles, users, sortBy]);
 
   // Search filter
   const filteredPlayers = useMemo(() => {
@@ -348,53 +345,47 @@ export function Leaderboard() {
                               fontSize: '0.55rem',
                               verticalAlign: 'middle',
                               marginLeft: '0.3rem',
-                              padding: '0.1rem 0.35rem'
+                              padding: '0.1rem 0.4rem'
                             }}
                           >
                             YOU
                           </span>
                         )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.15rem', flexWrap: 'wrap' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
                         <span
                           className="tier-badge"
                           style={{
                             background: `${p.tier.color}22`,
                             color: p.tier.color,
-                            border: `1px solid ${p.tier.color}44`
+                            border: `1px solid ${p.tier.color}44`,
+                            fontSize: '0.62rem',
+                            padding: '0.05rem 0.35rem'
                           }}
                         >
                           {p.tier.name}
                         </span>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                          {p.winRate}% WR
-                        </span>
+                        {p.totalMatches > 0 && ` · ${p.winRate}% win rate`}
                       </div>
                     </div>
                   </div>
 
-                  <div className="lb-pcp-val">{(p.points || 0).toLocaleString()}</div>
+                  <div className="lb-points">
+                    {(p.points || 0).toLocaleString()}
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 400, marginLeft: '0.25rem' }}>
+                      PCP
+                    </span>
+                  </div>
 
                   <div className="lb-stats">
-                    <div style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent-green)' }}>
+                    <div className="stat-pill" style={{ color: 'var(--accent-green)' }}>
                       {p.wins}
                     </div>
-                    <div
-                      style={{
-                        textAlign: 'center',
-                        fontFamily: "'Orbitron', monospace",
-                        fontSize: '0.82rem',
-                        color: p.tier.color
-                      }}
-                    >
-                      {p.points.toLocaleString()}
+                    <div className="stat-pill" style={{ color: 'var(--accent-yellow)' }}>
+                      {(p.points || 0).toLocaleString()}
                     </div>
-                    <div style={{ textAlign: 'center', fontSize: '0.82rem' }}>
-                      {p.streak > 0 ? (
-                        `🔥 ${p.streak}d`
-                      ) : (
-                        <span style={{ color: 'var(--text-secondary)' }}>—</span>
-                      )}
+                    <div className="stat-pill">
+                      {p.streak > 0 ? `🔥 ${p.streak}` : '—'}
                     </div>
                   </div>
                 </div>

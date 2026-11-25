@@ -1,10 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import authService from '../../services/authService';
 import {
-  fetchModeratorSessionsData,
-  fetchModeratorSessionDetail,
-  endModeratorMatch
-} from '../../services/moderatorService';
+  fetchSessions,
+  fetchSessionById,
+  endSession
+} from '../../features/sessions/gameSessionSlice';
+import {
+  fetchSessionMatchResults,
+  clearSessionMatchResults
+} from '../../features/sessions/matchResultSlice';
+import {
+  selectAllSessions,
+  selectSessionsStatus,
+  selectSessionsError,
+  selectSessionMatchResults,
+  selectSessionMatchResultsStatus,
+  selectSessionMatchResultsError
+} from '../../features/sessions/selectors';
+import { fetchUsers } from '../../features/users/userSlice';
+import { selectAllUsers } from '../../features/users/selectors';
+import { fetchGames } from '../../features/games/gameSlice';
+import { selectAllGames } from '../../features/games/selectors';
 import SessionKpiCards from '../../components/moderator/sessions/SessionKpiCards';
 import SessionTrendsChart from '../../components/moderator/sessions/SessionTrendsChart';
 import SessionsFilterBar from '../../components/moderator/sessions/SessionsFilterBar';
@@ -15,25 +32,52 @@ import Toast from '../../components/common/Toast';
 import '../../styles/moderator/sessions.css';
 
 export function Sessions() {
+  const dispatch = useAppDispatch();
   const [unauthorized, setUnauthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
-  // Raw data from server/DB
-  const [matches, setMatches] = useState([]);
-  const [matchResults, setMatchResults] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [games, setGames] = useState([]);
+  // Redux store selectors
+  const rawSessions = useAppSelector(selectAllSessions);
+  const users = useAppSelector(selectAllUsers);
+  const games = useAppSelector(selectAllGames);
+  const sessionsStatus = useAppSelector(selectSessionsStatus);
+  const sessionsError = useAppSelector(selectSessionsError);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState('');
-  const [modeFilter, setModeFilter] = useState('');
+  // Normalized matches for moderator view
+  const matches = useMemo(() => {
+    return (rawSessions || []).map((s) => ({
+      ...s,
+      match_id: s.session_id ?? s.match_id ?? s.id,
+      id: s.session_id ?? s.id ?? s.match_id,
+      status: s.status === 'in-progress' || s.status === 'active' ? 'in-progress' : s.status
+    }));
+  }, [rawSessions]);
 
   // Modals & action states
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [isMonitorOpen, setIsMonitorOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
+
+  // Redux match results for the selected session
+  const selectedSessionId = selectedMatch
+    ? String(selectedMatch.match_id ?? selectedMatch.id)
+    : null;
+  const sessionMatchResults = useAppSelector((state) =>
+    selectSessionMatchResults(state, selectedSessionId)
+  );
+  const matchResultsStatus = useAppSelector((state) =>
+    selectSessionMatchResultsStatus(state, selectedSessionId)
+  );
+  const matchResultsError = useAppSelector((state) =>
+    selectSessionMatchResultsError(state, selectedSessionId)
+  );
+  const isLoadingResults = matchResultsStatus === 'loading';
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState('');
+  const [modeFilter, setModeFilter] = useState('');
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -49,11 +93,11 @@ export function Sessions() {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await fetchModeratorSessionsData();
-      setMatches(data.matches || []);
-      setMatchResults(data.matchResults || []);
-      setUsers(data.users || []);
-      setGames(data.games || []);
+      await Promise.allSettled([
+        dispatch(fetchSessions()),
+        dispatch(fetchUsers()),
+        dispatch(fetchGames())
+      ]);
     } catch (err) {
       console.error('Failed to load moderator sessions data:', err);
       setLoadError('Failed to load live match data.');
@@ -71,7 +115,7 @@ export function Sessions() {
       return;
     }
     loadData();
-  }, []);
+  }, [dispatch]);
 
   // Filter and sort matches
   // Include only records with a valid match_id, newest first (start_time || created_at)
@@ -90,22 +134,53 @@ export function Sessions() {
 
   // Action: Open Monitor
   async function handleOpenMonitor(match) {
+    const id = match.match_id != null ? match.match_id : match.id;
+    const prevId = selectedMatch ? (selectedMatch.match_id ?? selectedMatch.id) : null;
+
+    // Clear previous session's match results when another session is opened
+    if (prevId != null && String(prevId) !== String(id)) {
+      dispatch(clearSessionMatchResults(prevId));
+    }
+
     setSelectedMatch(match);
     setIsMonitorOpen(true);
-    const id = match.match_id != null ? match.match_id : match.id;
+
     try {
-      const freshSession = await fetchModeratorSessionDetail(id);
-      setSelectedMatch((current) =>
-        String(current?.match_id ?? current?.id) === String(id)
-          ? { ...current, ...freshSession }
-          : current,
-      );
+      await Promise.allSettled([
+        dispatch(fetchSessionById(id))
+          .unwrap()
+          .then((freshSession) => {
+            setSelectedMatch((current) =>
+              String(current?.match_id ?? current?.id) === String(id)
+                ? {
+                    ...current,
+                    ...freshSession,
+                    match_id: freshSession.session_id ?? freshSession.match_id ?? id,
+                    id: freshSession.session_id ?? freshSession.id ?? id,
+                    game: freshSession.game_name || freshSession.game || current?.game,
+                    status:
+                      freshSession.status === 'in-progress' || freshSession.status === 'active'
+                        ? 'in-progress'
+                        : freshSession.status
+                  }
+                : current
+            );
+          }),
+        dispatch(fetchSessionMatchResults(id))
+      ]);
     } catch (err) {
-      // The list record is still useful if the session ended between the list
-      // refresh and this click; do not make Manage appear unresponsive.
-      console.warn('Could not refresh session details:', err);
+      console.warn('Could not refresh session details or results:', err);
       showToast('Showing the latest available session details.', 'info');
     }
+  }
+
+  function handleCloseMonitor() {
+    if (selectedMatch) {
+      const id = selectedMatch.match_id != null ? selectedMatch.match_id : selectedMatch.id;
+      dispatch(clearSessionMatchResults(id));
+    }
+    setIsMonitorOpen(false);
+    setSelectedMatch(null);
   }
 
   // Action: Request Terminate (opens confirmation)
@@ -121,15 +196,30 @@ export function Sessions() {
     setIsEnding(true);
 
     try {
-      await endModeratorMatch(mid);
+      const hostId = Number(selectedMatch.hostId ?? selectedMatch.created_by) || 1;
+      const results = selectedMatch?.player_ids?.length
+        ? selectedMatch.player_ids.map((pid, idx) => ({ player_id: pid, score: 100 * (idx + 1), player_rank: idx + 1 }))
+        : [{ player_id: hostId, score: 100, player_rank: 1 }];
+
+      await dispatch(
+        endSession({
+          id: mid,
+          data: {
+            host_id: hostId,
+            results
+          }
+        })
+      ).unwrap();
+
       showToast('Match ended', 'success');
+      dispatch(clearSessionMatchResults(mid));
       setIsConfirmOpen(false);
       setIsMonitorOpen(false);
       setSelectedMatch(null);
       await loadData();
     } catch (err) {
       console.error('Failed to end match:', err);
-      showToast('Failed to end match', 'error');
+      showToast(typeof err === 'string' ? err : 'Failed to end match', 'error');
     } finally {
       setIsEnding(false);
     }
@@ -161,13 +251,15 @@ export function Sessions() {
       <MonitorModal
         isOpen={isMonitorOpen}
         match={selectedMatch}
-        matchResults={matchResults}
+        matchResults={sessionMatchResults}
+        isLoadingResults={isLoadingResults}
+        resultsError={matchResultsError}
+        onRetryResults={() => {
+          if (selectedSessionId != null) dispatch(fetchSessionMatchResults(selectedSessionId));
+        }}
         users={users}
         games={games}
-        onClose={() => {
-          setIsMonitorOpen(false);
-          setSelectedMatch(null);
-        }}
+        onClose={handleCloseMonitor}
         onTerminate={handleRequestTerminate}
       />
 
@@ -236,9 +328,9 @@ export function Sessions() {
               <SessionListItem
                 key={keyId}
                 match={m}
-                matchResults={matchResults}
+                matchResults={[]}
                 users={users}
-        games={games}
+                games={games}
                 onMonitor={handleOpenMonitor}
               />
             );

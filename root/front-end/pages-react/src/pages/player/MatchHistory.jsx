@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import { getDatabase, sameId, formatDate, hydrateFromServer, GAME_ASSETS } from '../../services/playerService';
-import api from '../../services/api';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchPlayerMatchResults } from '../../features/sessions/matchResultSlice';
+import { selectPlayerMatchResults } from '../../features/sessions/selectors';
+import { fetchGames } from '../../features/games/gameSlice';
+import { selectAllGames } from '../../features/games/selectors';
+import { selectAuthUser } from '../../features/auth/selectors';
+import { sameId, formatDate, GAME_ASSETS } from '../../services/playerService';
 import '../../styles/player/match-history.css';
 
 export function MatchHistory() {
-  const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector(selectAuthUser);
+  const { user: contextUser } = useContext(AuthContext);
+  const user = authUser || contextUser;
   const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
 
   const [selectedGameId, setSelectedGameId] = useState('');
@@ -14,9 +22,12 @@ export function MatchHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [openSessionId, setOpenSessionId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [dbVersion, setDbVersion] = useState(0);
 
   const PAGE_SIZE = 15;
+
+  // Redux store selectors
+  const allGames = useAppSelector(selectAllGames);
+  const rawPlayerMatches = useAppSelector((state) => selectPlayerMatchResults(state, userId));
 
   useEffect(() => {
     let mounted = true;
@@ -24,14 +35,9 @@ export function MatchHistory() {
       try {
         setLoading(true);
         await Promise.allSettled([
-          hydrateFromServer(['match_results', 'sessions', 'matches', 'games', 'users']),
-          api.get(`/player-profiles/${userId}/match-history`).catch(() => null),
-          api.get(`/match-results/player/${userId}`).catch(() => null),
-          api.get('/games').catch(() => null)
+          dispatch(fetchPlayerMatchResults(userId)),
+          dispatch(fetchGames())
         ]);
-        if (mounted) {
-          setDbVersion((v) => v + 1);
-        }
       } catch (err) {
         console.warn('Failed to load match history:', err);
       } finally {
@@ -42,10 +48,7 @@ export function MatchHistory() {
     return () => {
       mounted = false;
     };
-  }, [userId]);
-
-  const db = getDatabase();
-  const allGames = db.games || [];
+  }, [dispatch, userId]);
 
   // Helper to determine match outcome
   const getOutcome = (r) => {
@@ -54,6 +57,8 @@ export function MatchHistory() {
     if (r.player_rank != null) {
       return Number(r.player_rank) === 1 ? 'win' : 'loss';
     }
+    if (r.won === true) return 'win';
+    if (r.won === false) return 'loss';
     return 'draw';
   };
 
@@ -67,9 +72,10 @@ export function MatchHistory() {
 
   // All matches for this player, newest first
   const allPlayerMatches = useMemo(() => {
-    const results = (db.match_results || []).filter((r) => sameId(r.player_id, userId));
-    return results.slice().sort((a, b) => new Date(b.joined_at || 0) - new Date(a.joined_at || 0));
-  }, [db, dbVersion, userId]);
+    return (rawPlayerMatches || [])
+      .slice()
+      .sort((a, b) => new Date(b.joined_at || b.created_at || 0) - new Date(a.joined_at || a.created_at || 0));
+  }, [rawPlayerMatches]);
 
   // Insights data (calculated from all matches of player)
   const insights = useMemo(() => {
@@ -79,7 +85,7 @@ export function MatchHistory() {
     const recentForm = allPlayerMatches.slice(0, 12).map((r) => {
       const res = getOutcome(r);
       const ch = res === 'win' ? 'W' : res === 'loss' ? 'L' : 'D';
-      return { res, ch, date: formatDate(r.joined_at), id: r.id || r.session_id };
+      return { res, ch, date: formatDate(r.joined_at || r.created_at), id: r.id || r.session_id };
     });
 
     // Win streak
@@ -93,8 +99,8 @@ export function MatchHistory() {
     const byGame = {};
     allPlayerMatches.forEach((r) => {
       const g = allGames.find((x) => sameId(x.game_id || x.id, r.game_id));
-      const gName = g?.game_name || g?.title || `Game ${r.game_id}`;
-      const imgKey = g?.img || g?.game_image;
+      const gName = g?.game_name || g?.title || r.game_name || `Game ${r.game_id}`;
+      const imgKey = g?.img || g?.game_image || r.game_image;
       const emoji = (imgKey && GAME_ASSETS.EMOJI_MAP[imgKey]) || '🎮';
       if (!byGame[gName]) {
         byGame[gName] = { name: gName, total: 0, wins: 0, emoji };
@@ -425,7 +431,7 @@ export function MatchHistory() {
                         <span className={`result-badge ${badgeCls}`}>{outcome}</span>
                       </div>
                       <div className="row-meta" style={{ marginTop: '0.3rem' }}>
-                        {formatDate(r.joined_at)}
+                        {formatDate(r.joined_at || r.created_at)}
                         {r.duration_seconds ? ` · ⏱️ ${formatDuration(r.duration_seconds)}` : ''}
                       </div>
                     </div>
@@ -521,7 +527,7 @@ export function MatchHistory() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                         <span className="sum-sub" style={{ margin: 0 }}>
-                          Session #{sid} · {formatDate(r.joined_at)}
+                          Session #{sid} · {formatDate(r.joined_at || r.created_at)}
                         </span>
                       </div>
                     </div>
