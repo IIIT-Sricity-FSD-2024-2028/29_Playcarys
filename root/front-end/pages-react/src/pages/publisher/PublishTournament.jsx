@@ -1,6 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
-import publisherService, { getDatabase } from '../../services/publisherService';
+import {
+  fetchTournaments,
+  fetchTournamentById,
+  createTournament,
+  updateTournament,
+  deleteTournament,
+  fetchTournamentStages
+} from '../../features/tournaments/tournamentSlice';
+import {
+  selectAllTournaments,
+  selectTournamentById,
+  selectTournamentMatches
+} from '../../features/tournaments/selectors';
+import {
+  fetchTournamentBracket,
+  startTournament as startTournamentBracket,
+  fetchOverallLeaderboard,
+  startTournamentStage,
+  completeTournamentStage,
+  resolveMatchDispute
+} from '../../features/tournaments/tournamentPlaySlice';
+import { fetchGames } from '../../features/games/gameSlice';
+import { selectAllGames } from '../../features/games/selectors';
+import { fetchUsers } from '../../features/users/userSlice';
+import { selectAllUsers } from '../../features/users/selectors';
+import publisherService from '../../services/publisherService';
 import TournamentCard from '../../components/publisher/tournament/TournamentCard';
 import TournamentEditor from '../../components/publisher/tournament/TournamentEditor';
 import TournamentMgmt from '../../components/publisher/tournament/TournamentMgmt';
@@ -11,6 +37,7 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/tournament.css';
 
 export function PublishTournament() {
+  const dispatch = useAppDispatch();
   const {
     user,
     publisherId,
@@ -18,16 +45,31 @@ export function PublishTournament() {
     authLoading
   } = usePublisherAuth();
 
+  const uid = user?.userId ?? user?.id ?? publisherId ?? 1;
+
   // Active view: 'list' | 'editor' | 'mgmt' | 'mgmt-multi'
   const [view, setView] = useState('list');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Data collections
-  const [tournaments, setTournaments] = useState([]);
-  const [fests, setFests] = useState([]);
-  const [approvedGames, setApprovedGames] = useState([]);
-  const [users, setUsers] = useState([]);
+  // Redux store selectors
+  const allTournaments = useAppSelector(selectAllTournaments);
+  const allGames = useAppSelector(selectAllGames);
+  const users = useAppSelector(selectAllUsers);
+
+  // Publisher-specific views over shared state
+  const tournaments = allTournaments.filter(
+    (t) => String(t.organizer || t.publisher_id) === String(uid) && t.type !== 'multi'
+  );
+  const fests = allTournaments.filter(
+    (t) => t.type === 'multi' && String(t.organizer || t.publisher_id) === String(uid)
+  );
+  const approvedGames = allGames.filter(
+    (g) =>
+      String(g.game_publisher || g.publisherId) === String(uid) &&
+      (g.game_approval_status === 'approved' || g.status === 'approved') &&
+      (g.game_status || 'enabled') === 'enabled'
+  );
 
   // Toast & Modal
   const [toast, setToast] = useState({ message: '', type: 'info' });
@@ -74,25 +116,21 @@ export function PublishTournament() {
   const [activeFestStages, setActiveFestStages] = useState([]);
   const [activeFestOverall, setActiveFestOverall] = useState(null);
 
-  // Load initial publisher tournament data
+  // Load initial publisher tournament data via Redux
   const loadData = async () => {
     if (!isPublisher) return;
     setLoading(true);
-
-    const db = getDatabase();
-    setUsers(db.users || []);
-
-    const uid = user.userId || user.id;
-    const myGames = publisherService.getPublisherApprovedGames(uid);
-    setApprovedGames(myGames);
-
-    const localTourns = await publisherService.getPublisherTournaments(uid);
-    setTournaments(localTourns || []);
-
-    const backendFests = await publisherService.fetchMyFests(uid);
-    setFests(backendFests || []);
-
-    setLoading(false);
+    try {
+      await Promise.allSettled([
+        dispatch(fetchTournaments({ includePrivate: true })),
+        dispatch(fetchGames()),
+        dispatch(fetchUsers())
+      ]);
+    } catch (err) {
+      console.warn('Failed to load publisher tournament data:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -147,8 +185,7 @@ export function PublishTournament() {
       setStartDate('');
       setEndDate('');
     } else {
-      const db = getDatabase();
-      const t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(id));
+      const t = allTournaments.find((x) => String(x.tournament_id || x.id) === String(id));
       if (t) {
         setSelectedGameId(String(t.game_id));
         setName(t.tournament_name || t.name || '');
@@ -312,13 +349,13 @@ export function PublishTournament() {
     }
     setDateOrderError('');
 
-    const uid = parseInt(user?.userId || user?.id || 1, 10);
+    const uidNum = parseInt(user?.userId || user?.id || 1, 10);
     setIsSubmitting(true);
 
-    // Multi-game fests (backend API)
+    // Multi-game fests (backend API via Redux)
     if (selectedType === 'multi' && !editId) {
       const payload = {
-        organizer: uid,
+        organizer: uidNum,
         organizer_role: 'publisher',
         type: 'multi',
         visibility: selectedVisibility,
@@ -341,8 +378,8 @@ export function PublishTournament() {
       };
 
       try {
-        const created = await publisherService.createMultiGameFest(payload);
-        showToast(`Multi-game fest published! 🏅 (ID: #${created?.tournament_id || 'saved'})`, 'success');
+        const created = await dispatch(createTournament(payload)).unwrap();
+        showToast(`Multi-game fest published! 🏅 (ID: #${created?.tournament_id || created?.id || 'saved'})`, 'success');
         if (selectedVisibility === 'private' && created?.invite_code) {
           openConfirm(
             'Invite Code',
@@ -355,41 +392,53 @@ export function PublishTournament() {
         await loadData();
         setView('list');
       } catch (e) {
-        showToast(e.message || 'Could not publish tournament — is backend running?', 'error');
+        showToast(e || 'Could not publish tournament — is backend running?', 'error');
       } finally {
         setIsSubmitting(false);
       }
       return;
     }
 
-    // Single-game (backend API + local DB sync)
+    // Single-game (backend API via Redux)
     try {
-      const created = await publisherService.saveSingleTournament(
-        {
-          name: vName,
+      let created = null;
+      if (editId) {
+        const payload = {
+          tournament_name: vName,
           desc: vDesc,
           prize: vPrize,
-          maxParticipants: maxPlayers,
+          maxParticipants: parseInt(maxPlayers, 10) || 32,
+          start_date: startDate,
+          end_date: endDate,
           regClose: regDeadline,
-          startDate,
-          endDate,
-          gameId: selectedGameId,
-          visibility: selectedVisibility
-        },
-        editId,
-        uid
-      );
-
-      if (editId) {
+          visibility: selectedVisibility || 'public'
+        };
+        created = await dispatch(updateTournament({ id: editId, data: payload })).unwrap();
         showToast('Tournament updated! ✅', 'success');
       } else {
-        showToast(`Tournament published! 🏆 (ID: #${created?.tournament_id || 'saved'})`, 'success');
+        const payload = {
+          organizer: uidNum,
+          organizer_role: 'publisher',
+          type: 'single',
+          format: 'bracket',
+          game_id: parseInt(selectedGameId, 10),
+          tournament_name: vName,
+          desc: vDesc,
+          prize: vPrize,
+          maxParticipants: parseInt(maxPlayers, 10) || 32,
+          start_date: startDate,
+          end_date: endDate,
+          regClose: regDeadline,
+          visibility: selectedVisibility || 'public'
+        };
+        created = await dispatch(createTournament(payload)).unwrap();
+        showToast(`Tournament published! 🏆 (ID: #${created?.tournament_id || created?.id || 'saved'})`, 'success');
       }
 
       await loadData();
       setView('list');
     } catch (err) {
-      showToast(err.message || 'Failed to save tournament', 'error');
+      showToast(err || 'Failed to save tournament', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -402,11 +451,11 @@ export function PublishTournament() {
       'Permanently delete this tournament and all its matches? This cannot be undone.',
       async () => {
         try {
-          await publisherService.deleteSingleTournament(id);
+          await dispatch(deleteTournament(id)).unwrap();
           showToast('Tournament successfully deleted', 'success');
           await loadData();
         } catch (e) {
-          showToast(e.message || 'Failed to delete tournament', 'error');
+          showToast(e || 'Failed to delete tournament', 'error');
         }
       },
       'Delete',
@@ -416,15 +465,12 @@ export function PublishTournament() {
 
   // Single-game Management view
   async function handleOpenMgmt(id) {
-    let t = null;
+    let t = allTournaments.find((x) => String(x.tournament_id || x.id) === String(id));
     try {
-      t = await publisherService.getTournamentDetails(id);
+      const fetched = await dispatch(fetchTournamentById(id)).unwrap();
+      if (fetched) t = fetched;
     } catch (e) {
-      t = tournaments.find((x) => String(x.tournament_id || x.id) === String(id));
-      if (!t) {
-        const db = getDatabase();
-        t = (db.tournaments || []).find((x) => String(x.tournament_id || x.id) === String(id));
-      }
+      // Use existing t from allTournaments
     }
     if (!t) {
       showToast('Could not find tournament details.', 'error');
@@ -433,25 +479,19 @@ export function PublishTournament() {
 
     setActiveTournament(t);
 
-    // Fetch bracket matches
+    // Fetch bracket matches via Redux
     try {
-      const bracketData = await publisherService.getTournamentBracket(id);
-      const bMatches = bracketData?.matches || [];
-      if (bMatches.length > 0) {
-        setActiveMatches(bMatches);
-      } else {
-        const db = getDatabase();
-        const localMatches = (db.tournament_matches || []).filter(
-          (m) => String(m.tournamentId) === String(id)
-        );
-        setActiveMatches(localMatches);
-      }
+      const bracketAction = await dispatch(fetchTournamentBracket(id)).unwrap();
+      const bMatches = Array.isArray(bracketAction?.bracket?.matches)
+        ? bracketAction.bracket.matches
+        : Array.isArray(bracketAction?.matches)
+        ? bracketAction.matches
+        : Array.isArray(bracketAction)
+        ? bracketAction
+        : [];
+      setActiveMatches(bMatches);
     } catch (e) {
-      const db = getDatabase();
-      const localMatches = (db.tournament_matches || []).filter(
-        (m) => String(m.tournamentId) === String(id)
-      );
-      setActiveMatches(localMatches);
+      setActiveMatches([]);
     }
 
     setView('mgmt');
@@ -461,19 +501,20 @@ export function PublishTournament() {
   function handleStartTournament() {
     if (!activeTournament) return;
     const tid = activeTournament.tournament_id || activeTournament.id;
-    const uid = parseInt(user?.userId || user?.id || 1, 10);
+    const uidNum = parseInt(user?.userId || user?.id || 1, 10);
 
     openConfirm(
       'Start Tournament',
       'This will generate the bracket and close registration. Continue?',
       async () => {
         try {
-          await publisherService.startSingleTournament(tid, uid);
+          await dispatch(startTournamentBracket({ id: tid, organizerId: uidNum })).unwrap();
+          await dispatch(fetchTournamentById(tid)).unwrap();
           showToast('Tournament Started! Bracket generated.', 'success');
           await handleOpenMgmt(tid);
           await loadData();
         } catch (e) {
-          showToast(e.message || 'Failed to start tournament', 'error');
+          showToast(e || 'Failed to start tournament', 'error');
         }
       },
       'Start Now',
@@ -489,16 +530,16 @@ export function PublishTournament() {
     openConfirm(
       'Advance Round',
       `Close Round ${round} and open Round ${round + 1}?`,
-      () => {
+      async () => {
         try {
           const res = publisherService.advanceSingleTournamentRound(tid);
-          if (res.completed) {
+          if (res?.completed) {
             showToast('Final round complete — tournament finished!', 'success');
           } else {
-            showToast(`Round ${res.nextRound} is now live.`, 'success');
+            showToast(`Round ${res?.nextRound || round + 1} is now live.`, 'success');
           }
-          handleOpenMgmt(tid);
-          loadData();
+          await handleOpenMgmt(tid);
+          await loadData();
         } catch (e) {
           showToast(e.message || 'Failed to advance round', 'error');
         }
@@ -515,10 +556,22 @@ export function PublishTournament() {
       async () => {
         if (!activeTournament) return;
         const tid = activeTournament.tournament_id || activeTournament.id;
+        const uidNum = parseInt(user?.userId || user?.id || 1, 10);
         const m = activeMatches.find((x) => x.match_id === matchId);
         if (!m) return;
 
-        await publisherService.forceMatchWinner(matchId, winnerId, m.player1, tid);
+        try {
+          await dispatch(
+            resolveMatchDispute({
+              matchId,
+              organizer_id: uidNum,
+              winner_id: parseInt(winnerId, 10) || winnerId,
+              tournamentId: tid
+            })
+          ).unwrap();
+        } catch (e) {
+          publisherService.forceMatchWinner(matchId, winnerId, m.player1, tid);
+        }
         showToast('Match result recorded!', 'success');
         await handleOpenMgmt(tid);
         await loadData();
@@ -532,12 +585,12 @@ export function PublishTournament() {
     if (!activeTournament) return;
     const tid = activeTournament.tournament_id || activeTournament.id;
     try {
-      await publisherService.pauseSingleTournament(tid);
+      await dispatch(updateTournament({ id: tid, data: { status: 'paused' } })).unwrap();
       showToast('Tournament paused ⏸️', 'info');
       await handleOpenMgmt(tid);
       await loadData();
     } catch (e) {
-      showToast(e.message || 'Failed to pause tournament', 'error');
+      showToast(e || 'Failed to pause tournament', 'error');
     }
   }
 
@@ -545,12 +598,12 @@ export function PublishTournament() {
     if (!activeTournament) return;
     const tid = activeTournament.tournament_id || activeTournament.id;
     try {
-      await publisherService.resumeSingleTournament(tid);
+      await dispatch(updateTournament({ id: tid, data: { status: 'in-progress' } })).unwrap();
       showToast('Tournament resumed! ▶️', 'success');
       await handleOpenMgmt(tid);
       await loadData();
     } catch (e) {
-      showToast(e.message || 'Failed to resume tournament', 'error');
+      showToast(e || 'Failed to resume tournament', 'error');
     }
   }
 
@@ -558,79 +611,100 @@ export function PublishTournament() {
     if (!activeTournament) return;
     const tid = activeTournament.tournament_id || activeTournament.id;
     try {
-      await publisherService.cancelSingleTournament(tid, reason);
+      await dispatch(updateTournament({ id: tid, data: { status: 'cancelled' } })).unwrap();
       showToast('Tournament cancelled 🛑', 'info');
       await handleOpenMgmt(tid);
       await loadData();
     } catch (e) {
-      showToast(e.message || 'Failed to cancel tournament', 'error');
+      showToast(e || 'Failed to cancel tournament', 'error');
     }
   }
 
   async function handleDeclareWinner(winnerId, winnerName) {
     if (!activeTournament) return;
     const tid = activeTournament.tournament_id || activeTournament.id;
+    const wName = winnerName || users.find((u) => String(u.id || u.user_id) === String(winnerId))?.user_name || String(winnerId);
     try {
-      await publisherService.declareSingleTournamentWinner(tid, winnerId, winnerName);
-      showToast(`Winner declared: ${winnerName}! 🏆 Tournament completed.`, 'success');
+      await dispatch(
+        updateTournament({
+          id: tid,
+          data: {
+            status: 'completed',
+            winner_id: parseInt(winnerId, 10) || undefined,
+            winner: wName
+          }
+        })
+      ).unwrap();
+      showToast(`Winner declared: ${wName}! 🏆 Tournament completed.`, 'success');
       await handleOpenMgmt(tid);
       await loadData();
     } catch (e) {
-      showToast(e.message || 'Failed to declare winner', 'error');
+      showToast(e || 'Failed to declare winner', 'error');
     }
   }
 
   async function handleExtendDeadline(newDeadline) {
     if (!activeTournament) return;
     const tid = activeTournament.tournament_id || activeTournament.id;
+    const payload = { regClose: newDeadline };
+    if (activeTournament.start_date && new Date(newDeadline) > new Date(activeTournament.start_date)) {
+      payload.start_date = newDeadline;
+    }
     try {
-      await publisherService.extendSingleTournamentDeadline(tid, newDeadline);
+      await dispatch(updateTournament({ id: tid, data: payload })).unwrap();
       showToast('Registration deadline extended! 📅', 'success');
       await handleOpenMgmt(tid);
       await loadData();
     } catch (e) {
-      showToast(e.message || 'Failed to extend deadline', 'error');
+      showToast(e || 'Failed to extend deadline', 'error');
     }
   }
+
   async function handleOpenMgmtMulti(id) {
     try {
-      const details = await publisherService.getFestDetails(id);
-      setActiveFest(details.t);
-      setActiveFestStages(details.stages || []);
-      setActiveFestOverall(details.overall);
+      const [tRes, stagesRes, overallRes] = await Promise.all([
+        dispatch(fetchTournamentById(id)).unwrap(),
+        dispatch(fetchTournamentStages(id)).unwrap(),
+        dispatch(fetchOverallLeaderboard(id)).unwrap()
+      ]);
+      setActiveFest(tRes);
+      setActiveFestStages(stagesRes?.stages || []);
+      setActiveFestOverall(overallRes?.overallLeaderboard || overallRes);
       setView('mgmt-multi');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
-      showToast(e.message || 'Could not load this fest from backend.', 'error');
+      showToast(e || 'Could not load this fest from backend.', 'error');
     }
   }
 
   async function handleStartFestStage(stageId) {
     if (!activeFest) return;
-    const uid = user?.userId || user?.id || 1;
+    const uidNum = parseInt(user?.userId || user?.id || 1, 10);
+    const tid = activeFest.tournament_id || activeFest.id;
     try {
-      await publisherService.startFestStage(activeFest.tournament_id, stageId, uid);
+      await dispatch(startTournamentStage({ id: tid, stageId, organizerId: uidNum })).unwrap();
       showToast('Stage started!', 'success');
-      handleOpenMgmtMulti(activeFest.tournament_id);
+      handleOpenMgmtMulti(tid);
     } catch (e) {
-      showToast(e.message || 'Could not start stage.', 'error');
+      showToast(e || 'Could not start stage.', 'error');
     }
   }
 
   function handleCompleteFestStage(stageId) {
     if (!activeFest) return;
-    const uid = user?.userId || user?.id || 1;
+    const uidNum = parseInt(user?.userId || user?.id || 1, 10);
+    const tid = activeFest.tournament_id || activeFest.id;
 
     openConfirm(
       'Close Stage',
       'Close this stage and lock in its standings?',
       async () => {
         try {
-          await publisherService.completeFestStage(activeFest.tournament_id, stageId, uid);
+          await dispatch(completeTournamentStage({ id: tid, stageId, organizerId: uidNum })).unwrap();
           showToast('Stage closed!', 'success');
-          handleOpenMgmtMulti(activeFest.tournament_id);
+          handleOpenMgmtMulti(tid);
         } catch (e) {
-          showToast(e.message || 'Could not close stage.', 'error');
+          showToast(e || 'Could not close stage.', 'error');
         }
       },
       'Close Stage',
@@ -682,8 +756,7 @@ export function PublishTournament() {
 
           <div id="tournaments-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             {tournaments.map((t) => {
-              const db = getDatabase();
-              const g = (db.games || []).find(
+              const g = allGames.find(
                 (gx) => String(gx.game_id || gx.id) === String(t.game_id)
               );
               return (
