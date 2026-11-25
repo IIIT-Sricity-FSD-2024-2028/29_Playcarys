@@ -5,7 +5,9 @@ import {
   normalizeCatalogueItem,
   normalizeCatalogue,
   normalizeTransaction,
-  normalizeBalance
+  normalizeBalance,
+  normalizePayout,
+  normalizePublisherEarnings
 } from './normalize';
 
 export const economyApi = {
@@ -105,22 +107,31 @@ export const economyApi = {
     return api.post('/economy/claim-stipend', payload);
   },
 
-  // ── Publisher Earnings & Payouts (preserved for future parts) ─
+  // ── Publisher Earnings & Payouts ────────────────────────────
   async getPublisherEarnings(publisherId) {
-    return api.get(`/economy/publishers/${publisherId}/earnings`);
+    const res = await api.get(`/economy/publishers/${publisherId}/earnings`);
+    return normalizePublisherEarnings(res);
   },
 
   async requestPayout(publisherId, dto) {
-    return api.post(`/economy/publishers/${publisherId}/payouts`, dto);
+    const res = await api.post(`/economy/publishers/${publisherId}/payouts`, dto);
+    return normalizePayout(res);
   },
 
   async withdrawPublisher(publisherId, dto) {
-    return api.post(`/economy/publishers/${publisherId}/withdraw`, dto);
+    const res = await api.post(`/economy/publishers/${publisherId}/withdraw`, dto);
+    return normalizePayout(res);
   },
 
-  async getPayouts() {
-    const res = await api.get('/economy/payouts');
-    return normalizeList(res, ['payout_id']);
+  async getPayout(payoutId) {
+    const res = await api.get(`/economy/payouts/${payoutId}`);
+    return normalizePayout(res);
+  },
+
+  async getPayouts(publisherId) {
+    const query = publisherId != null ? `?publisherId=${encodeURIComponent(publisherId)}` : '';
+    const res = await api.get(`/economy/payouts${query}`);
+    return (Array.isArray(res) ? res : []).map(normalizePayout);
   }
 };
 

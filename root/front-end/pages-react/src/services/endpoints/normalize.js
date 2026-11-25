@@ -245,4 +245,39 @@ export function normalizeBalance(b) {
   };
 }
 
+export function normalizePayout(payout) {
+  if (!payout || typeof payout !== 'object') return payout;
+  const entity = normalizeEntity(payout, ['payout_id', 'payoutId']);
+  return {
+    ...entity,
+    payout_id: entity.payout_id != null ? Number(entity.payout_id) : (entity.id ? Number(entity.id) : undefined),
+    publisher_id: entity.publisher_id != null ? Number(entity.publisher_id) : undefined,
+    gross_paise: Number(entity.gross_paise) || 0,
+    platform_cut_paise: Number(entity.platform_cut_paise) || 0,
+    net_paise: Number(entity.net_paise) || 0,
+    net_display: entity.net_display || (entity.net_paise ? `₹${Math.round(entity.net_paise / 100).toLocaleString('en-IN')}` : '₹0'),
+    status: entity.status || 'pending',
+    created_at: entity.created_at || entity.createdAt || ''
+  };
+}
+
+export function normalizePublisherEarnings(data) {
+  if (!data || typeof data !== 'object') return data;
+  return {
+    ...data,
+    publisher_id: data.publisher_id != null ? Number(data.publisher_id) : undefined,
+    available_paise: Number(data.available_paise) || 0,
+    in_transit_paise: Number(data.in_transit_paise) || 0,
+    paid_out_paise: Number(data.paid_out_paise) || 0,
+    lifetime_earned_paise: Number(data.lifetime_earned_paise) || 0,
+    reconciled: !!data.reconciled,
+    active_payout: data.active_payout ? normalizePayout(data.active_payout) : null,
+    history: Array.isArray(data.history) ? data.history.map(normalizePayout) : [],
+    per_game: Array.isArray(data.per_game) ? data.per_game.map((g) => normalizeEntity(g, ['game_id', 'gameId'])) : [],
+    unsettled: data.unsettled || null,
+    withdraw: data.withdraw || {}
+  };
+}
+
+
 

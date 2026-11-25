@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
-import publisherService from '../../services/publisherService';
+import { fetchPublisherEarnings } from '../../features/economy/payoutSlice';
+import {
+  selectPublisherEarnings,
+  selectPayoutStatus,
+  selectPayoutError
+} from '../../features/economy/selectors';
+import { AsyncStatus } from '../../app/asyncUtils';
 import Money from '../../utils/money';
 import LoadingState from '../../components/common/LoadingState';
 import WithdrawModal from '../../components/publisher/earnings/WithdrawModal';
@@ -9,6 +16,7 @@ import '../../styles/publisher/earnings.css';
 
 export function Earnings() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const {
     user,
     publisherId,
@@ -16,35 +24,25 @@ export function Earnings() {
     authLoading
   } = usePublisherAuth();
 
-  const [earnData, setEarnData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const uid = publisherId || user?.userId || user?.user_id || user?.id;
+  const earnData = useSelector((state) => selectPublisherEarnings(state, uid));
+  const status = useSelector(selectPayoutStatus);
+  const error = useSelector(selectPayoutError);
+
   const [showWithdraw, setShowWithdraw] = useState(false);
 
   // `quiet` refreshes the numbers in place (after a withdrawal) without
   // swapping the whole page for the loading screen.
-  async function loadEarnings(quiet = false) {
-    if (!isPublisher) return;
-    if (!quiet) setLoading(true);
-    setError(null);
-
-    try {
-      const uid = user.userId || user.id;
-      const data = await publisherService.getEarnings(uid);
-      setEarnData(data);
-    } catch (err) {
-      console.error('Failed to load publisher earnings:', err);
-      setError(err.message || 'Could not load earnings data');
-    } finally {
-      setLoading(false);
-    }
+  function loadEarnings() {
+    if (!isPublisher || !uid) return;
+    dispatch(fetchPublisherEarnings(uid));
   }
 
   useEffect(() => {
-    if (!authLoading && isPublisher) {
+    if (!authLoading && isPublisher && uid) {
       loadEarnings();
     }
-  }, [authLoading, isPublisher]);
+  }, [authLoading, isPublisher, uid, dispatch]);
 
   // Auth Guard
   if (authLoading) {
@@ -81,6 +79,7 @@ export function Earnings() {
   const u = earnData?.unsettled;
   const w = earnData?.withdraw || {};
   const platformPct = earnData ? 100 - earnData.share_pct : 30;
+  const loading = (status === AsyncStatus.LOADING && !earnData) || (status === AsyncStatus.IDLE && !earnData);
 
   return (
     <div className="page-content">
@@ -109,7 +108,7 @@ export function Earnings() {
         <div id="earn-root">
           <div className="earn-empty">Loading…</div>
         </div>
-      ) : error ? (
+      ) : error && !earnData ? (
         <div id="earn-root">
           <div className="earn-empty">
             Could not load earnings. {error}
@@ -251,7 +250,7 @@ export function Earnings() {
                   </thead>
                   <tbody>
                     {earnData.per_game.map((g) => (
-                      <tr key={g.game_id}>
+                      <tr key={g.game_id || g.id}>
                         <td>{g.game_name}</td>
                         <td className="num">{(g.sessions || 0).toLocaleString('en-IN')}</td>
                         <td className="num">{g.royalty_display}</td>
@@ -290,7 +289,7 @@ export function Earnings() {
                   </thead>
                   <tbody>
                     {earnData.history.map((p) => (
-                      <tr key={p.payout_id || p.period}>
+                      <tr key={p.payout_id || p.id || p.period}>
                         <td>
                           {p.period}
                           {p.destination_masked && (
@@ -335,12 +334,12 @@ export function Earnings() {
 
       {showWithdraw && earnData && (
         <WithdrawModal
-          userId={user.userId || user.id}
+          userId={uid}
           amountPaise={earnData.available_paise}
           resumePayout={earnData.active_payout}
           onClose={(changed) => {
             setShowWithdraw(false);
-            if (changed) loadEarnings(true);
+            if (changed) loadEarnings();
           }}
         />
       )}

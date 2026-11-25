@@ -21,3 +21,9 @@ export const selectWalletMutationError = (state) => state.wallet?.mutationError;
 export const selectPublisherEarnings = (state, publisherId) =>
   state.payouts?.earningsByPublisher[String(publisherId)];
 export const selectPayouts = (state) => state.payouts?.payouts || [];
+export const selectActivePayout = (state) => state.payouts?.activePayout || null;
+export const selectPayoutStatus = (state) => state.payouts?.status;
+export const selectPayoutError = (state) => state.payouts?.error;
+export const selectPayoutMutationStatus = (state) => state.payouts?.mutationStatus;
+export const selectPayoutMutationError = (state) => state.payouts?.mutationError;
+
