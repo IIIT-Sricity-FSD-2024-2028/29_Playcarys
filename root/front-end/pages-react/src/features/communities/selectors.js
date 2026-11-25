@@ -32,6 +32,15 @@ export const selectGroupTournaments = (state, groupId) => state.groups?.tourname
 
 export const selectSearchResults = (state) => state.social?.searchResults || [];
 export const selectFriends = (state) => state.social?.friends || [];
-export const selectFriendRequests = (state) => state.social?.friendRequests || [];
+export const selectFriendRequests = (state) => state.social?.friendRequests || { incoming: [], outgoing: [] };
+export const selectIncomingFriendRequests = (state) => selectFriendRequests(state).incoming || [];
+export const selectOutgoingFriendRequests = (state) => selectFriendRequests(state).outgoing || [];
 export const selectMessagesByContact = (state, contactId) =>
   state.social?.messagesByContact[String(contactId)] || [];
+export const selectPlayerSearchStatus = (state) => state.social?.searchStatus || 'idle';
+export const selectFriendsStatus = (state) => state.social?.friendsStatus || 'idle';
+export const selectFriendRequestsStatus = (state) => state.social?.requestsStatus || 'idle';
+export const selectSocialMutationStatus = (state) => state.social?.mutationStatus || 'idle';
+export const selectSocialError = (state) => state.social?.error || null;
+export const selectMessagesStatus = (state, contactId) =>
+  state.social?.messagesStatusByContact?.[String(contactId)] || 'idle';

@@ -131,8 +131,9 @@ export const socialApi = {
   },
 
   // Friends & Messages
-  async searchPlayers(query) {
-    const res = await api.get(`/players/search?q=${encodeURIComponent(query)}`);
+  async searchPlayers(query, viewerId) {
+    const viewer = viewerId != null ? `&viewerId=${encodeURIComponent(viewerId)}` : '';
+    const res = await api.get(`/players/search?q=${encodeURIComponent(query)}${viewer}`);
     return normalizeList(res, ['user_id', 'player_id']);
   },
 
@@ -142,8 +143,7 @@ export const socialApi = {
   },
 
   async getFriendRequests(userId) {
-    const res = await api.get(`/friends/${userId}/requests`);
-    return normalizeList(res, ['request_id']);
+    return api.get(`/friends/${userId}/requests`);
   },
 
   async sendFriendRequest(dto) {
