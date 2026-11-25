@@ -8,10 +8,18 @@ import {
   startTournament,
   fetchTournamentBracket,
   fetchTournamentOverview,
-  resolveDisputeWinner
+  resolveDisputeWinner,
+  openConfirmStartTournament,
+  closeConfirmStartTournament,
+  openDeclareWinnerModal,
+  closeDeclareWinnerModal,
+  openExtendDeadlineModal,
+  closeExtendDeadlineModal,
+  openCancelTournamentModal,
+  closeCancelTournamentModal
 } from '../../../features/tournaments/tournamentPlaySlice';
 import { selectTournamentMatches } from '../../../features/tournaments/selectors';
-import { entrantCount, entrantName, tournamentService } from '../../../services/tournamentService';
+import { entrantCount, entrantName } from '../../../services/tournamentService';
 import { sameId } from '../../../services/playerService';
 
 export function TournamentOrganizerPanel({
@@ -64,19 +72,13 @@ export function TournamentOrganizerPanel({
       await dispatch(startTournament({ tournamentId: tid, organizerId: userId })).unwrap();
       onShowToast(`${t.name || t.tournament_name} has started! 🚀 Bracket generated.`, 'success');
       setConfirmStartOpen(false);
+      dispatch(closeConfirmStartTournament());
       dispatch(fetchTournamentById(tid));
       dispatch(fetchTournamentBracket(tid));
       dispatch(fetchTournamentOverview(tid));
       if (onStarted) onStarted();
     } catch (err) {
-      try {
-        await tournamentService.startTournament(tid, userId);
-        onShowToast(`${t.name || t.tournament_name} has started! 🚀 Bracket generated.`, 'success');
-        setConfirmStartOpen(false);
-        if (onStarted) onStarted();
-      } catch (legacyErr) {
-        onShowToast(err.message || legacyErr.message || 'Could not start tournament.', 'error');
-      }
+      onShowToast(err?.message || 'Could not start tournament.', 'error');
     } finally {
       setStarting(false);
     }
@@ -89,9 +91,7 @@ export function TournamentOrganizerPanel({
       dispatch(fetchTournamentById(tid));
       if (onStarted) onStarted();
     } catch (err) {
-      await tournamentService.pauseTournament(tid);
-      onShowToast('Tournament paused ⏸️', 'info');
-      if (onStarted) onStarted();
+      onShowToast(err?.message || 'Failed to pause tournament.', 'error');
     }
   }
 
@@ -102,9 +102,7 @@ export function TournamentOrganizerPanel({
       dispatch(fetchTournamentById(tid));
       if (onStarted) onStarted();
     } catch (err) {
-      await tournamentService.resumeTournament(tid);
-      onShowToast('Tournament resumed! ▶️', 'success');
-      if (onStarted) onStarted();
+      onShowToast(err?.message || 'Failed to resume tournament.', 'error');
     }
   }
 
@@ -113,13 +111,11 @@ export function TournamentOrganizerPanel({
       await dispatch(updateTournament({ id: tid, changes: { status: 'cancelled' } })).unwrap();
       onShowToast('Tournament cancelled 🛑', 'info');
       setCancelModalOpen(false);
+      dispatch(closeCancelTournamentModal());
       dispatch(fetchTournamentById(tid));
       if (onStarted) onStarted();
     } catch (err) {
-      await tournamentService.cancelTournament(tid, cancelReason.trim() || 'Cancelled by organizer');
-      onShowToast('Tournament cancelled 🛑', 'info');
-      setCancelModalOpen(false);
-      if (onStarted) onStarted();
+      onShowToast(err?.message || 'Failed to cancel tournament.', 'error');
     }
   }
 
@@ -129,13 +125,11 @@ export function TournamentOrganizerPanel({
       await dispatch(updateTournament({ id: tid, changes: { winner: winnerNameInput.trim(), status: 'completed' } })).unwrap();
       onShowToast(`Winner declared: ${winnerNameInput.trim()}! 🏆`, 'success');
       setWinnerModalOpen(false);
+      dispatch(closeDeclareWinnerModal());
       dispatch(fetchTournamentById(tid));
       if (onStarted) onStarted();
     } catch (err) {
-      await tournamentService.declareWinner(tid, winnerNameInput.trim(), winnerNameInput.trim());
-      onShowToast(`Winner declared: ${winnerNameInput.trim()}! 🏆`, 'success');
-      setWinnerModalOpen(false);
-      if (onStarted) onStarted();
+      onShowToast(err?.message || 'Failed to declare winner.', 'error');
     }
   }
 
@@ -145,13 +139,11 @@ export function TournamentOrganizerPanel({
       await dispatch(updateTournament({ id: tid, changes: { regClose: newDeadline } })).unwrap();
       onShowToast('Registration deadline extended! 📅', 'success');
       setDeadlineModalOpen(false);
+      dispatch(closeExtendDeadlineModal());
       dispatch(fetchTournamentById(tid));
       if (onStarted) onStarted();
     } catch (err) {
-      await tournamentService.extendDeadline(tid, newDeadline);
-      onShowToast('Registration deadline extended! 📅', 'success');
-      setDeadlineModalOpen(false);
-      if (onStarted) onStarted();
+      onShowToast(err?.message || 'Failed to extend registration deadline.', 'error');
     }
   }
 
@@ -162,12 +154,6 @@ export function TournamentOrganizerPanel({
   const allMatches = reduxMatches.length > 0 ? reduxMatches : fallbackMatches;
   const disputedMatches = allMatches.filter((m) => m.status === 'disputed');
 
-  function handleClearDispute(mid) {
-    tournamentService.resetDispute(mid);
-    onShowToast(`Match ${mid} dispute cleared — match is ready for players!`, 'success');
-    if (onStarted) onStarted();
-  }
-
   async function handleResolveWinner(mid, winnerId) {
     try {
       await dispatch(resolveDisputeWinner({ matchId: mid, organizerId: userId, organizer_id: userId, winnerId, winner_id: winnerId, tournamentId: tid })).unwrap();
@@ -175,8 +161,7 @@ export function TournamentOrganizerPanel({
       dispatch(fetchTournamentBracket(tid));
       dispatch(fetchTournamentOverview(tid));
     } catch (err) {
-      tournamentService.resolveDisputeWinner(mid, winnerId);
-      onShowToast(`Match ${mid} resolved! Winner advanced in bracket.`, 'success');
+      onShowToast(err?.message || 'Failed to resolve match dispute.', 'error');
     }
     if (onStarted) onStarted();
   }
@@ -221,8 +206,9 @@ export function TournamentOrganizerPanel({
                 <button
                   type="button"
                   className="btn btn-ghost btn-xs"
-                  style={{ color: 'var(--accent-cyan)', borderColor: 'var(--accent-cyan)' }}
-                  onClick={() => handleClearDispute(dm.match_id)}
+                  disabled={true}
+                  title="Dispute clearing requires backend support (API gap - declare winner or file dispute supported)"
+                  style={{ color: 'var(--accent-cyan)', borderColor: 'var(--accent-cyan)', opacity: 0.6, cursor: 'not-allowed' }}
                 >
                   Clear Dispute (Let Play)
                 </button>
@@ -294,7 +280,10 @@ export function TournamentOrganizerPanel({
                   opacity: ready ? 1 : 0.5,
                   cursor: ready ? 'pointer' : 'not-allowed'
                 }}
-                onClick={() => setConfirmStartOpen(true)}
+                onClick={() => {
+                  dispatch(openConfirmStartTournament(tid));
+                  setConfirmStartOpen(true);
+                }}
                 type="button"
               >
                 {starting ? 'Starting…' : '🚀 Start Tournament'}
@@ -303,6 +292,7 @@ export function TournamentOrganizerPanel({
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
                   setNewDeadline(t.regClose ? t.regClose.slice(0, 16) : '');
+                  dispatch(openExtendDeadlineModal(tid));
                   setDeadlineModalOpen(true);
                 }}
                 type="button"
@@ -311,7 +301,10 @@ export function TournamentOrganizerPanel({
               </button>
               <button
                 className="btn btn-danger btn-sm"
-                onClick={() => setCancelModalOpen(true)}
+                onClick={() => {
+                  dispatch(openCancelTournamentModal(tid));
+                  setCancelModalOpen(true);
+                }}
                 type="button"
               >
                 🛑 Cancel
@@ -331,14 +324,20 @@ export function TournamentOrganizerPanel({
               </button>
               <button
                 className="btn btn-primary btn-sm"
-                onClick={() => setWinnerModalOpen(true)}
+                onClick={() => {
+                  dispatch(openDeclareWinnerModal(tid));
+                  setWinnerModalOpen(true);
+                }}
                 type="button"
               >
                 👑 Announce Winner
               </button>
               <button
                 className="btn btn-danger btn-sm"
-                onClick={() => setCancelModalOpen(true)}
+                onClick={() => {
+                  dispatch(openCancelTournamentModal(tid));
+                  setCancelModalOpen(true);
+                }}
                 type="button"
               >
                 🛑 Cancel
@@ -361,6 +360,7 @@ export function TournamentOrganizerPanel({
                 className="btn btn-ghost btn-sm"
                 onClick={() => {
                   setNewDeadline(t.regClose ? t.regClose.slice(0, 16) : '');
+                  dispatch(openExtendDeadlineModal(tid));
                   setDeadlineModalOpen(true);
                 }}
                 type="button"
@@ -369,14 +369,20 @@ export function TournamentOrganizerPanel({
               </button>
               <button
                 className="btn btn-primary btn-sm"
-                onClick={() => setWinnerModalOpen(true)}
+                onClick={() => {
+                  dispatch(openDeclareWinnerModal(tid));
+                  setWinnerModalOpen(true);
+                }}
                 type="button"
               >
                 👑 Announce Winner
               </button>
               <button
                 className="btn btn-danger btn-sm"
-                onClick={() => setCancelModalOpen(true)}
+                onClick={() => {
+                  dispatch(openCancelTournamentModal(tid));
+                  setCancelModalOpen(true);
+                }}
                 type="button"
               >
                 🛑 Cancel
@@ -400,17 +406,17 @@ export function TournamentOrganizerPanel({
 
       {/* CONFIRM START MODAL */}
       {confirmStartOpen && (
-        <div className="modal-overlay show" onClick={() => setConfirmStartOpen(false)}>
+        <div className="modal-overlay show" onClick={() => { setConfirmStartOpen(false); dispatch(closeConfirmStartTournament()); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', padding: '1.5rem' }}>
             <div className="modal-header d-flex justify-content-between align-items-center mb-3">
               <h3 className="modal-title" style={{ margin: 0, fontSize: '1.2rem', color: '#fff' }}>Start Tournament</h3>
-              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => setConfirmStartOpen(false)}>✕</span>
+              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => { setConfirmStartOpen(false); dispatch(closeConfirmStartTournament()); }}>✕</span>
             </div>
             <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
               Start <b>{t.name || t.tournament_name}</b>? Registration closes and bracket will be generated immediately.
             </div>
             <div className="modal-footer d-flex justify-content-end gap-2 pt-2 border-top border-secondary">
-              <button className="btn btn-ghost btn-sm" onClick={() => setConfirmStartOpen(false)} type="button">
+              <button className="btn btn-ghost btn-sm" onClick={() => { setConfirmStartOpen(false); dispatch(closeConfirmStartTournament()); }} type="button">
                 Cancel
               </button>
               <button
@@ -428,11 +434,11 @@ export function TournamentOrganizerPanel({
 
       {/* EXTEND DEADLINE MODAL */}
       {deadlineModalOpen && (
-        <div className="modal-overlay show" onClick={() => setDeadlineModalOpen(false)}>
+        <div className="modal-overlay show" onClick={() => { setDeadlineModalOpen(false); dispatch(closeExtendDeadlineModal()); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', padding: '1.5rem' }}>
             <div className="modal-header d-flex justify-content-between align-items-center mb-3">
               <h3 className="modal-title" style={{ margin: 0, fontSize: '1.2rem', color: '#fff' }}>📅 Extend Deadline</h3>
-              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => setDeadlineModalOpen(false)}>✕</span>
+              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => { setDeadlineModalOpen(false); dispatch(closeExtendDeadlineModal()); }}>✕</span>
             </div>
             <div className="mb-3">
               <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.4rem', display: 'block' }}>
@@ -447,7 +453,7 @@ export function TournamentOrganizerPanel({
               />
             </div>
             <div className="modal-footer d-flex justify-content-end gap-2 pt-2 border-top border-secondary">
-              <button className="btn btn-ghost btn-sm" onClick={() => setDeadlineModalOpen(false)} type="button">
+              <button className="btn btn-ghost btn-sm" onClick={() => { setDeadlineModalOpen(false); dispatch(closeExtendDeadlineModal()); }} type="button">
                 Cancel
               </button>
               <button className="btn btn-yellow btn-sm" onClick={handleSaveDeadline} disabled={!newDeadline} type="button">
@@ -460,11 +466,11 @@ export function TournamentOrganizerPanel({
 
       {/* DECLARE WINNER MODAL */}
       {winnerModalOpen && (
-        <div className="modal-overlay show" onClick={() => setWinnerModalOpen(false)}>
+        <div className="modal-overlay show" onClick={() => { setWinnerModalOpen(false); dispatch(closeDeclareWinnerModal()); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', padding: '1.5rem' }}>
             <div className="modal-header d-flex justify-content-between align-items-center mb-3">
               <h3 className="modal-title" style={{ margin: 0, fontSize: '1.2rem', color: '#fff' }}>👑 Directly Announce Winner</h3>
-              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => setWinnerModalOpen(false)}>✕</span>
+              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => { setWinnerModalOpen(false); dispatch(closeDeclareWinnerModal()); }}>✕</span>
             </div>
             {candidateEntrants.length > 0 && (
               <div className="mb-3">
@@ -499,7 +505,7 @@ export function TournamentOrganizerPanel({
               />
             </div>
             <div className="modal-footer d-flex justify-content-end gap-2 pt-2 border-top border-secondary">
-              <button className="btn btn-ghost btn-sm" onClick={() => setWinnerModalOpen(false)} type="button">
+              <button className="btn btn-ghost btn-sm" onClick={() => { setWinnerModalOpen(false); dispatch(closeDeclareWinnerModal()); }} type="button">
                 Cancel
               </button>
               <button className="btn btn-primary btn-sm" onClick={handleConfirmWinner} disabled={!winnerNameInput.trim()} type="button">
@@ -512,11 +518,11 @@ export function TournamentOrganizerPanel({
 
       {/* CANCEL TOURNAMENT MODAL */}
       {cancelModalOpen && (
-        <div className="modal-overlay show" onClick={() => setCancelModalOpen(false)}>
+        <div className="modal-overlay show" onClick={() => { setCancelModalOpen(false); dispatch(closeCancelTournamentModal()); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', padding: '1.5rem' }}>
             <div className="modal-header d-flex justify-content-between align-items-center mb-3">
               <h3 className="modal-title" style={{ margin: 0, fontSize: '1.2rem', color: '#f87171' }}>🛑 Cancel Tournament</h3>
-              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => setCancelModalOpen(false)}>✕</span>
+              <span className="modal-close" style={{ cursor: 'pointer' }} onClick={() => { setCancelModalOpen(false); dispatch(closeCancelTournamentModal()); }}>✕</span>
             </div>
             <div className="mb-3">
               <label style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.4rem', display: 'block' }}>
@@ -532,7 +538,7 @@ export function TournamentOrganizerPanel({
               />
             </div>
             <div className="modal-footer d-flex justify-content-end gap-2 pt-2 border-top border-secondary">
-              <button className="btn btn-ghost btn-sm" onClick={() => setCancelModalOpen(false)} type="button">
+              <button className="btn btn-ghost btn-sm" onClick={() => { setCancelModalOpen(false); dispatch(closeCancelTournamentModal()); }} type="button">
                 Back
               </button>
               <button className="btn btn-danger btn-sm" onClick={handleConfirmCancel} type="button">

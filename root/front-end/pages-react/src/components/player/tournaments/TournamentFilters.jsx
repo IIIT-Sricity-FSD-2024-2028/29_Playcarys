@@ -1,9 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../../../app/hooks';
+import { setCreateTournamentStep, setTournamentFilters } from '../../../features/tournaments/tournamentSlice';
 import { KIND_LABEL } from '../../../services/tournamentService';
 
 export function TournamentFilters({ kindFilter = 'all', onSelectKind, onOpenJoinById }) {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const kinds = ['all', 'official', 'casual', 'community'];
 
   return (
@@ -15,25 +18,42 @@ export function TournamentFilters({ kindFilter = 'all', onSelectKind, onOpenJoin
           </h1>
           <p className="text-muted" style={{ margin: 0, fontSize: '0.86rem' }}>
             Official events, casual pickup games, and your groups' community tournaments
-          </p></div><div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}><button className="btn btn-outline" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenJoinById(); }} type="button" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}>🎯 Join by ID</button>
-        {/* action buttons container */}
-        <button
-          className="btn btn-yellow"
-          onClick={() => {
-            navigate('/player/create-tournament');
-          }}
-          type="button"
-        >
-          🏆 Create Tournament
-        </button>
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-outline"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenJoinById();
+            }}
+            type="button"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}
+          >
+            🎯 Join by ID
+          </button>
+          <button
+            className="btn btn-yellow"
+            onClick={() => {
+              dispatch(setCreateTournamentStep(1));
+              navigate('/player/create-tournament');
+            }}
+            type="button"
+          >
+            🏆 Create Tournament
+          </button>
+        </div>
       </div>
-
-      </div><div className="kind-filter-row" id="kind-filter-row">
+      <div className="kind-filter-row" id="kind-filter-row">
         {kinds.map((k) => (
           <button
             key={k}
             className={`kind-filter-tab ${kindFilter === k ? 'active' : ''}`}
-            onClick={() => onSelectKind(k)}
+            onClick={() => {
+              dispatch(setTournamentFilters({ kindFilter: k }));
+              onSelectKind(k);
+            }}
             type="button"
           >
             {KIND_LABEL[k]}

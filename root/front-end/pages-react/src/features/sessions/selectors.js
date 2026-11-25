@@ -50,3 +50,11 @@ export const selectMatchResultsStatus = (state) =>
 
 export const selectMatchResultsError = (state) =>
   state.matchResults?.fetchError || state.matchResults?.error || null;
+
+// ── UI Selectors ─────────────────────────────────────────────
+
+export const selectGameSessionUI = (state) =>
+  state.gameSessions?.ui || {};
+
+export const selectMatchResultUI = (state) =>
+  state.matchResults?.ui || {};

@@ -66,9 +66,10 @@ export const createTournament = createAsyncThunk(
 
 export const updateTournament = createAsyncThunk(
   'tournaments/updateTournament',
-  async ({ id, data: dto }, { rejectWithValue }) => {
+  async ({ id, data: dto, changes }, { rejectWithValue }) => {
     try {
-      const data = await tournamentsApi.updateTournament(id, dto);
+      const payload = dto || changes;
+      const data = await tournamentsApi.updateTournament(id, payload);
       return data;
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to update tournament'));
@@ -160,7 +161,58 @@ const initialState = tournamentsAdapter.getInitialState({
 
   // Compatibility aliases for existing consumers (e.g. Tournaments.jsx)
   status: AsyncStatus.IDLE,
-  error: null
+  error: null,
+
+  // UI state for tournament pages and components
+  ui: {
+    activeTab: 'all',
+    searchQuery: '',
+    formatFilter: '',
+    kindFilter: '',
+    gameFilter: '',
+    detailsModalOpen: false,
+    selectedTournamentId: null,
+    registrationModalOpen: false,
+    registrationTournamentId: null,
+    joinByIdModalOpen: false,
+
+    // Create Tournament wizard UI
+    createStep: 1,
+    createKind: 'casual',
+    createVisibility: 'public',
+    createTeamMode: false,
+    createTeamSize: 2,
+    createGroupId: '',
+    createSelectedGameId: null,
+    createSelectedFormat: 'score',
+    createIsMulti: false,
+    createStages: [],
+    createName: '',
+    createDesc: '',
+    createPrize: '',
+    createMaxParticipants: 16,
+    createRegClose: '',
+    createStartDate: '',
+    createEndDate: '',
+    createdInviteCode: null,
+
+    // Publisher Tournament page UI
+    publisherView: 'list',
+    publisherCurrentStep: 1,
+    publisherStatusFilter: 'all',
+    publisherSelectedGameId: '',
+    publisherEditId: null,
+    publisherActiveTournamentId: null,
+    publisherConfirmModal: {
+      isOpen: false,
+      title: '',
+      message: '',
+      confirmText: 'Confirm',
+      variant: 'primary',
+      actionKey: null,
+      actionPayload: null
+    }
+  }
 });
 
 export const tournamentSlice = createSlice({
@@ -189,6 +241,193 @@ export const tournamentSlice = createSlice({
     resetMutationStatus(state) {
       state.mutationStatus = AsyncStatus.IDLE;
       state.mutationError = null;
+    },
+
+    // UI actions
+    setTournamentActiveTab(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.activeTab = action.payload;
+    },
+    setTournamentFilters(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui = { ...state.ui, ...action.payload };
+    },
+    resetTournamentFilters(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.searchQuery = '';
+      state.ui.formatFilter = '';
+      state.ui.kindFilter = '';
+      state.ui.gameFilter = '';
+    },
+    openTournamentDetails(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.detailsModalOpen = true;
+      state.ui.selectedTournamentId = action.payload != null ? String(action.payload) : null;
+    },
+    closeTournamentDetails(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.detailsModalOpen = false;
+      state.ui.selectedTournamentId = null;
+    },
+    openRegistrationModal(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.registrationModalOpen = true;
+      state.ui.registrationTournamentId = action.payload != null ? String(action.payload) : null;
+    },
+    closeRegistrationModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.registrationModalOpen = false;
+      state.ui.registrationTournamentId = null;
+    },
+    openJoinByIdModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.joinByIdModalOpen = true;
+    },
+    closeJoinByIdModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.joinByIdModalOpen = false;
+    },
+
+    // Create Tournament UI reducers
+    setCreateTournamentStep(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createStep = action.payload;
+    },
+    setCreateTournamentKind(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createKind = action.payload;
+    },
+    setCreateTournamentVisibility(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createVisibility = action.payload;
+    },
+    setCreateTournamentTeamMode(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createTeamMode = action.payload;
+    },
+    setCreateTournamentTeamSize(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createTeamSize = action.payload;
+    },
+    setCreateTournamentGroup(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createGroupId = action.payload;
+    },
+    setCreateTournamentGame(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createSelectedGameId = action.payload;
+    },
+    setCreateTournamentFormat(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createSelectedFormat = action.payload;
+    },
+    setCreateTournamentIsMulti(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createIsMulti = action.payload;
+    },
+    setCreateTournamentStages(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createStages = action.payload;
+    },
+    addCreateTournamentStage(state, action) {
+      if (!state.ui) state.ui = {};
+      if (!Array.isArray(state.ui.createStages)) state.ui.createStages = [];
+      state.ui.createStages.push(action.payload);
+    },
+    removeCreateTournamentStage(state, action) {
+      if (!state.ui) state.ui = {};
+      if (Array.isArray(state.ui.createStages)) {
+        state.ui.createStages.splice(action.payload, 1);
+      }
+    },
+    updateCreateTournamentStage(state, action) {
+      const { index, field, value } = action.payload;
+      if (!state.ui) state.ui = {};
+      if (Array.isArray(state.ui.createStages) && state.ui.createStages[index]) {
+        state.ui.createStages[index] = {
+          ...state.ui.createStages[index],
+          [field]: value
+        };
+      }
+    },
+    setCreateTournamentFields(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui = { ...state.ui, ...action.payload };
+    },
+    setCreatedInviteCode(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createdInviteCode = action.payload;
+    },
+    resetCreateTournamentForm(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.createStep = 1;
+      state.ui.createKind = 'casual';
+      state.ui.createVisibility = 'public';
+      state.ui.createTeamMode = false;
+      state.ui.createTeamSize = 2;
+      state.ui.createGroupId = '';
+      state.ui.createSelectedGameId = null;
+      state.ui.createSelectedFormat = 'score';
+      state.ui.createIsMulti = false;
+      state.ui.createStages = [];
+      state.ui.createName = '';
+      state.ui.createDesc = '';
+      state.ui.createPrize = '';
+      state.ui.createMaxParticipants = 16;
+      state.ui.createRegClose = '';
+      state.ui.createStartDate = '';
+      state.ui.createEndDate = '';
+      state.ui.createdInviteCode = null;
+    },
+
+    // Publisher Tournament UI reducers
+    setPublisherView(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherView = action.payload;
+    },
+    setPublisherWizardStep(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherCurrentStep = action.payload;
+    },
+    setPublisherStatusFilter(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherStatusFilter = action.payload;
+    },
+    setPublisherSelectedGame(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherSelectedGameId = action.payload;
+    },
+    setPublisherEditId(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherEditId = action.payload;
+    },
+    setPublisherActiveTournament(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherActiveTournamentId = action.payload;
+    },
+    openPublisherConfirmModal(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherConfirmModal = {
+        isOpen: true,
+        title: action.payload?.title || 'Confirm',
+        message: action.payload?.message || '',
+        confirmText: action.payload?.confirmText || 'Confirm',
+        variant: action.payload?.variant || 'primary',
+        actionKey: action.payload?.actionKey || null,
+        actionPayload: action.payload?.actionPayload || null
+      };
+    },
+    closePublisherConfirmModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherConfirmModal = {
+        isOpen: false,
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+        variant: 'primary',
+        actionKey: null,
+        actionPayload: null
+      };
     }
   },
   extraReducers: (builder) => {
@@ -422,7 +661,46 @@ export const tournamentSlice = createSlice({
 export const {
   clearTournamentsError,
   resetTournamentsStatus,
-  resetMutationStatus
+  resetMutationStatus,
+
+  // UI actions
+  setTournamentActiveTab,
+  setTournamentFilters,
+  resetTournamentFilters,
+  openTournamentDetails,
+  closeTournamentDetails,
+  openRegistrationModal,
+  closeRegistrationModal,
+  openJoinByIdModal,
+  closeJoinByIdModal,
+
+  // Create Tournament UI
+  setCreateTournamentStep,
+  setCreateTournamentKind,
+  setCreateTournamentVisibility,
+  setCreateTournamentTeamMode,
+  setCreateTournamentTeamSize,
+  setCreateTournamentGroup,
+  setCreateTournamentGame,
+  setCreateTournamentFormat,
+  setCreateTournamentIsMulti,
+  setCreateTournamentStages,
+  addCreateTournamentStage,
+  removeCreateTournamentStage,
+  updateCreateTournamentStage,
+  setCreateTournamentFields,
+  setCreatedInviteCode,
+  resetCreateTournamentForm,
+
+  // Publisher Tournament UI
+  setPublisherView,
+  setPublisherWizardStep,
+  setPublisherStatusFilter,
+  setPublisherSelectedGame,
+  setPublisherEditId,
+  setPublisherActiveTournament,
+  openPublisherConfirmModal,
+  closePublisherConfirmModal
 } = tournamentSlice.actions;
 
 export default tournamentSlice.reducer;

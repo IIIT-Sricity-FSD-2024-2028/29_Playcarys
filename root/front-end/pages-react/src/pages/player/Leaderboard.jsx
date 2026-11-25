@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchLeaderboard } from '../../features/profiles/playerProfileSlice';
+import {
+  setLeaderboardSearch,
+  setLeaderboardTimeRange
+} from '../../features/sessions/matchResultSlice';
 import { selectLeaderboard } from '../../features/profiles/selectors';
 import { fetchUsers } from '../../features/users/userSlice';
 import { selectAllUsers } from '../../features/users/selectors';
@@ -238,14 +242,20 @@ export function Leaderboard() {
               className="form-input"
               placeholder="Search player…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                dispatch(setLeaderboardSearch(e.target.value));
+              }}
               style={{ paddingLeft: '2.2rem' }}
             />
           </div>
           <select
             className="form-select"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              dispatch(setLeaderboardTimeRange(e.target.value));
+            }}
             style={{ width: '160px' }}
           >
             <option value="pcp">🏅 By PCP</option>

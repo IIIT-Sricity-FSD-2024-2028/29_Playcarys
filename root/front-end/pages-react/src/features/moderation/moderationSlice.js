@@ -72,6 +72,7 @@ export const liftBan = createAsyncThunk(
 const initialState = {
   actions: [],
   bans: [],
+  selectedBanTarget: null,
   ...initialAsyncState
 };
 
@@ -85,6 +86,9 @@ export const moderationSlice = createSlice({
     resetModerationStatus(state) {
       state.status = AsyncStatus.IDLE;
       state.error = null;
+    },
+    setSelectedBanTarget(state, action) {
+      state.selectedBanTarget = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -117,6 +121,10 @@ export const moderationSlice = createSlice({
   }
 });
 
-export const { clearModerationError, resetModerationStatus } = moderationSlice.actions;
+export const {
+  clearModerationError,
+  resetModerationStatus,
+  setSelectedBanTarget
+} = moderationSlice.actions;
 
 export default moderationSlice.reducer;

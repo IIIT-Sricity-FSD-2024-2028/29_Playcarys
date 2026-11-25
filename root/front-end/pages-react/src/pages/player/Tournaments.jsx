@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchTournaments, fetchTournamentById } from '../../features/tournaments/tournamentSlice';
+import {
+  fetchTournaments,
+  fetchTournamentById,
+  openTournamentDetails,
+  closeTournamentDetails,
+  openRegistrationModal,
+  closeRegistrationModal,
+  openJoinByIdModal,
+  closeJoinByIdModal,
+  setTournamentFilters
+} from '../../features/tournaments/tournamentSlice';
 import { withdrawFromTournament } from '../../features/tournaments/registrationSlice';
 import {
   selectAllTournaments,
@@ -12,8 +22,7 @@ import { selectAuthUser } from '../../features/auth/selectors';
 import { sameId } from '../../services/playerService';
 import {
   kindOf,
-  isCommunityMember,
-  tournamentService
+  isCommunityMember
 } from '../../services/tournamentService';
 import TournamentFilters from '../../components/player/tournaments/TournamentFilters';
 import TournamentSection from '../../components/player/tournaments/TournamentSection';
@@ -64,15 +73,20 @@ export function Tournaments() {
     const shouldRegister = params.get('register') === 'true';
     if (highlight) {
       setSelectedTournamentId(highlight);
+      dispatch(openTournamentDetails(highlight));
       if (!storeTournaments.some((x) => sameId(x.id || x.tournament_id, highlight))) {
         dispatch(fetchTournamentById(highlight));
       }
       if (shouldRegister) {
         const t = storeTournaments.find((x) => sameId(x.id || x.tournament_id, highlight));
-        if (t) setRegModalTournament(t);
+        if (t) {
+          setRegModalTournament(t);
+          dispatch(openRegistrationModal(highlight));
+        }
       }
     } else if (!routeTournamentId) {
       setSelectedTournamentId(null);
+      dispatch(closeTournamentDetails());
     }
   }, [location.search, routeTournamentId, storeTournaments, dispatch]);
 
@@ -154,9 +168,6 @@ export function Tournaments() {
         teamId: isTeam ? tournament.team_id : undefined
       })).unwrap();
 
-      // Also call legacy helper to notify any local subscribers
-      await tournamentService.withdraw(tournament, userId).catch(() => {});
-
       showToast(`Withdrew from ${tourneyName}`, 'info');
 
       // Refresh tournament in Redux store
@@ -182,10 +193,14 @@ export function Tournaments() {
           tournament={selectedTournament}
           userId={userId}
           onBack={() => {
+            dispatch(closeTournamentDetails());
             setSelectedTournamentId(null);
             navigate('/player/tournaments', { replace: true });
           }}
-          onOpenRegModal={(t) => setRegModalTournament(t)}
+          onOpenRegModal={(t) => {
+            dispatch(openRegistrationModal(t.id || t.tournament_id));
+            setRegModalTournament(t);
+          }}
           onRefresh={async () => {
             dispatch(fetchTournaments());
             if (selectedTournamentId) {
@@ -200,8 +215,14 @@ export function Tournaments() {
         <div className="page-content" id="list-view">
           <TournamentFilters
             kindFilter={kindFilter}
-            onSelectKind={setKindFilter}
-            onOpenJoinById={() => setShowJoinByIdModal(true)}
+            onSelectKind={(k) => {
+              dispatch(setTournamentFilters({ kindFilter: k }));
+              setKindFilter(k);
+            }}
+            onOpenJoinById={() => {
+              dispatch(openJoinByIdModal());
+              setShowJoinByIdModal(true);
+            }}
           />
 
           {tournamentsStatus === 'loading' && storeTournaments.length === 0 && (
@@ -228,10 +249,14 @@ export function Tournaments() {
             }
             userId={userId}
             onSelect={(id) => {
+              dispatch(openTournamentDetails(id));
               setSelectedTournamentId(id);
               navigate(`/player/tournaments?highlight=${id}`);
             }}
-            onRegister={(t) => setRegModalTournament(t)}
+            onRegister={(t) => {
+              dispatch(openRegistrationModal(t.id || t.tournament_id));
+              setRegModalTournament(t);
+            }}
             onWithdraw={handleWithdraw}
             withdrawingId={withdrawingId}
           />
@@ -248,10 +273,14 @@ export function Tournaments() {
             }
             userId={userId}
             onSelect={(id) => {
+              dispatch(openTournamentDetails(id));
               setSelectedTournamentId(id);
               navigate(`/player/tournaments?highlight=${id}`);
             }}
-            onRegister={(t) => setRegModalTournament(t)}
+            onRegister={(t) => {
+              dispatch(openRegistrationModal(t.id || t.tournament_id));
+              setRegModalTournament(t);
+            }}
             onWithdraw={handleWithdraw}
             withdrawingId={withdrawingId}
           />
@@ -268,10 +297,14 @@ export function Tournaments() {
             }
             userId={userId}
             onSelect={(id) => {
+              dispatch(openTournamentDetails(id));
               setSelectedTournamentId(id);
               navigate(`/player/tournaments?highlight=${id}`);
             }}
-            onRegister={(t) => setRegModalTournament(t)}
+            onRegister={(t) => {
+              dispatch(openRegistrationModal(t.id || t.tournament_id));
+              setRegModalTournament(t);
+            }}
             onWithdraw={handleWithdraw}
             withdrawingId={withdrawingId}
           />
@@ -284,7 +317,10 @@ export function Tournaments() {
           tournament={regModalTournament}
           userId={userId}
           isOpen={true}
-          onClose={() => setRegModalTournament(null)}
+          onClose={() => {
+            dispatch(closeRegistrationModal());
+            setRegModalTournament(null);
+          }}
           onSuccess={async () => {
             dispatch(fetchTournaments());
             if (selectedTournamentId) {
@@ -298,14 +334,19 @@ export function Tournaments() {
       {/* Join By ID Modal */}
       <JoinTournamentByIdModal
         isOpen={showJoinByIdModal}
-        onClose={() => setShowJoinByIdModal(false)}
+        onClose={() => {
+          dispatch(closeJoinByIdModal());
+          setShowJoinByIdModal(false);
+        }}
         userId={userId}
         onShowToast={showToast}
         onSelectTournament={(tid, tournament) => {
+          dispatch(openTournamentDetails(tid));
           setSelectedTournamentId(tid);
           navigate(`/player/tournaments?highlight=${tid}`);
         }}
         onRegisterTournament={(tournament) => {
+          dispatch(openRegistrationModal(tournament.id || tournament.tournament_id));
           setRegModalTournament(tournament);
         }}
       />

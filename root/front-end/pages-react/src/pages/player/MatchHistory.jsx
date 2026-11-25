@@ -2,7 +2,12 @@ import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchPlayerMatchResults } from '../../features/sessions/matchResultSlice';
+import {
+  fetchPlayerMatchResults,
+  setMatchHistoryFilter,
+  setMatchHistoryPage,
+  toggleMatchHistoryExpanded
+} from '../../features/sessions/matchResultSlice';
 import { selectPlayerMatchResults } from '../../features/sessions/selectors';
 import { fetchGames } from '../../features/games/gameSlice';
 import { selectAllGames } from '../../features/games/selectors';
@@ -185,6 +190,7 @@ export function MatchHistory() {
   }, [filteredMatches, currentPage]);
 
   const toggleDetail = (sid) => {
+    dispatch(toggleMatchHistoryExpanded(sid));
     setOpenSessionId((prev) => (prev === String(sid) ? null : String(sid)));
   };
 
@@ -337,6 +343,8 @@ export function MatchHistory() {
               type="button"
               className={`filter-btn ${resultFilter === '' ? 'active' : ''}`}
               onClick={() => {
+                dispatch(setMatchHistoryFilter(''));
+                dispatch(setMatchHistoryPage(1));
                 setResultFilter('');
                 setCurrentPage(1);
               }}
@@ -347,6 +355,8 @@ export function MatchHistory() {
               type="button"
               className={`filter-btn ${resultFilter === 'win' ? 'active' : ''}`}
               onClick={() => {
+                dispatch(setMatchHistoryFilter('win'));
+                dispatch(setMatchHistoryPage(1));
                 setResultFilter('win');
                 setCurrentPage(1);
               }}
@@ -357,6 +367,8 @@ export function MatchHistory() {
               type="button"
               className={`filter-btn ${resultFilter === 'loss' ? 'active' : ''}`}
               onClick={() => {
+                dispatch(setMatchHistoryFilter('loss'));
+                dispatch(setMatchHistoryPage(1));
                 setResultFilter('loss');
                 setCurrentPage(1);
               }}
@@ -367,6 +379,8 @@ export function MatchHistory() {
               type="button"
               className={`filter-btn ${resultFilter === 'draw' ? 'active' : ''}`}
               onClick={() => {
+                dispatch(setMatchHistoryFilter('draw'));
+                dispatch(setMatchHistoryPage(1));
                 setResultFilter('draw');
                 setCurrentPage(1);
               }}
@@ -546,7 +560,9 @@ export function MatchHistory() {
               className="page-btn"
               disabled={currentPage === 1}
               onClick={() => {
-                setCurrentPage((p) => Math.max(1, p - 1));
+                const prev = Math.max(1, currentPage - 1);
+                dispatch(setMatchHistoryPage(prev));
+                setCurrentPage(prev);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
@@ -558,6 +574,7 @@ export function MatchHistory() {
                 type="button"
                 className={`page-btn ${currentPage === pNum ? 'active' : ''}`}
                 onClick={() => {
+                  dispatch(setMatchHistoryPage(pNum));
                   setCurrentPage(pNum);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
@@ -570,7 +587,9 @@ export function MatchHistory() {
               className="page-btn"
               disabled={currentPage === totalPages}
               onClick={() => {
-                setCurrentPage((p) => Math.min(totalPages, p + 1));
+                const next = Math.min(totalPages, currentPage + 1);
+                dispatch(setMatchHistoryPage(next));
+                setCurrentPage(next);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >

@@ -53,7 +53,18 @@ const initialState = {
 
   // Compatibility aliases
   status: AsyncStatus.IDLE,
-  error: null
+  error: null,
+
+  // UI state for MatchHistory and Leaderboard
+  ui: {
+    matchHistoryFilter: 'all',
+    matchHistoryTimeRange: 'all',
+    matchHistorySearchQuery: '',
+    matchHistoryPage: 1,
+    matchHistoryExpandedId: null,
+    leaderboardTimeRange: 'all',
+    leaderboardSearchQuery: ''
+  }
 };
 
 export const matchResultSlice = createSlice({
@@ -81,6 +92,37 @@ export const matchResultSlice = createSlice({
         state.sessionResultsStatusById = {};
         state.sessionResultsErrorById = {};
       }
+    },
+
+    // UI actions
+    setMatchHistoryFilter(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.matchHistoryFilter = action.payload;
+    },
+    setMatchHistoryTimeRange(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.matchHistoryTimeRange = action.payload;
+    },
+    setMatchHistorySearch(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.matchHistorySearchQuery = action.payload || '';
+    },
+    setMatchHistoryPage(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.matchHistoryPage = action.payload;
+    },
+    toggleMatchHistoryExpanded(state, action) {
+      if (!state.ui) state.ui = {};
+      const target = action.payload != null ? String(action.payload) : null;
+      state.ui.matchHistoryExpandedId = state.ui.matchHistoryExpandedId === target ? null : target;
+    },
+    setLeaderboardTimeRange(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.leaderboardTimeRange = action.payload;
+    },
+    setLeaderboardSearch(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.leaderboardSearchQuery = action.payload || '';
     }
   },
   extraReducers: (builder) => {
@@ -146,7 +188,16 @@ export const matchResultSlice = createSlice({
 export const {
   clearMatchResultsError,
   resetMatchResultsStatus,
-  clearSessionMatchResults
+  clearSessionMatchResults,
+
+  // UI actions
+  setMatchHistoryFilter,
+  setMatchHistoryTimeRange,
+  setMatchHistorySearch,
+  setMatchHistoryPage,
+  toggleMatchHistoryExpanded,
+  setLeaderboardTimeRange,
+  setLeaderboardSearch
 } = matchResultSlice.actions;
 
 export default matchResultSlice.reducer;

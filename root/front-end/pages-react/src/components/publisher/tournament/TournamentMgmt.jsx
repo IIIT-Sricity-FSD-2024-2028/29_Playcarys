@@ -201,7 +201,10 @@ export function TournamentMgmt({
                 <>
                   <button
                     className="btn btn-purple btn-sm"
-                    onClick={onAdvanceRound}
+                    disabled={true}
+                    title="Rounds advance automatically upon match completion (API gap: no manual advance endpoint)"
+                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                    type="button"
                   >
                     Advance Next Round →
                   </button>

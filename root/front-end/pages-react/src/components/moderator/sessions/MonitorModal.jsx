@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../../../app/hooks';
+import { setSessionCopiedId } from '../../../features/sessions/gameSessionSlice';
+import { setSelectedBanTarget } from '../../../features/moderation/moderationSlice';
 import { getPlayers } from '../../../services/moderatorService';
 
 function formatTimeDuration(totalSeconds) {
@@ -131,6 +134,7 @@ export function MonitorModal({
   onTerminate
 }) {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [copied, setCopied] = useState(false);
 
@@ -203,6 +207,7 @@ export function MonitorModal({
   const formattedEnded = formatTimestamp(match.end_time || match.ended_at);
 
   const copySessionId = () => {
+    dispatch(setSessionCopiedId(mid));
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(mid);
       setCopied(true);
@@ -211,13 +216,20 @@ export function MonitorModal({
   };
 
   const handleEscalateToBan = (playerUser, pid) => {
-    onClose();
     const effectiveUser = playerUser || {
       user_id: pid,
       id: pid,
       user_name: `Player #${pid}`,
       username: `Player #${pid}`
     };
+    dispatch(
+      setSelectedBanTarget({
+        playerId: pid,
+        name: effectiveUser.user_name || effectiveUser.username,
+        role: getResolvedRole(effectiveUser)
+      })
+    );
+    onClose();
     navigate(`/moderator/bans/${pid}?player=${pid}`, {
       state: {
         player: effectiveUser,

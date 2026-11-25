@@ -71,7 +71,17 @@ const initialState = sessionsAdapter.getInitialState({
 
   // Compatibility aliases
   status: AsyncStatus.IDLE,
-  error: null
+  error: null,
+
+  // UI state for moderator sessions view
+  ui: {
+    statusFilter: '',
+    modeFilter: '',
+    monitorModalOpen: false,
+    selectedSessionId: null,
+    confirmEndModalOpen: false,
+    copiedSessionId: null
+  }
 });
 
 export const gameSessionSlice = createSlice({
@@ -93,6 +103,42 @@ export const gameSessionSlice = createSlice({
       state.listError = null;
       state.detailError = null;
       state.mutationError = null;
+    },
+
+    // UI actions
+    setSessionStatusFilter(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.statusFilter = action.payload || '';
+    },
+    setSessionModeFilter(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.modeFilter = action.payload || '';
+    },
+    openSessionMonitor(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.monitorModalOpen = true;
+      state.ui.selectedSessionId = action.payload != null ? String(action.payload) : null;
+    },
+    closeSessionMonitor(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.monitorModalOpen = false;
+      state.ui.selectedSessionId = null;
+      state.ui.copiedSessionId = null;
+    },
+    openConfirmEndSession(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.confirmEndModalOpen = true;
+      if (action.payload != null) {
+        state.ui.selectedSessionId = String(action.payload);
+      }
+    },
+    closeConfirmEndSession(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.confirmEndModalOpen = false;
+    },
+    setSessionCopiedId(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.copiedSessionId = action.payload != null ? String(action.payload) : null;
     }
   },
   extraReducers: (builder) => {
@@ -161,6 +207,18 @@ export const gameSessionSlice = createSlice({
   }
 });
 
-export const { clearSessionsError, resetSessionsStatus } = gameSessionSlice.actions;
+export const {
+  clearSessionsError,
+  resetSessionsStatus,
+
+  // UI actions
+  setSessionStatusFilter,
+  setSessionModeFilter,
+  openSessionMonitor,
+  closeSessionMonitor,
+  openConfirmEndSession,
+  closeConfirmEndSession,
+  setSessionCopiedId
+} = gameSessionSlice.actions;
 
 export default gameSessionSlice.reducer;

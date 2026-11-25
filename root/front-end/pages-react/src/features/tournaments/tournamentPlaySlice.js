@@ -47,8 +47,12 @@ export const startTournament = createAsyncThunk(
   'tournamentPlay/startTournament',
   async (organizerIdOrId, { rejectWithValue }) => {
     try {
-      const id = typeof organizerIdOrId === 'object' ? organizerIdOrId.id : organizerIdOrId;
-      const organizerId = typeof organizerIdOrId === 'object' ? organizerIdOrId.organizerId || organizerIdOrId.organizer_id : undefined;
+      const id = typeof organizerIdOrId === 'object'
+        ? (organizerIdOrId.id || organizerIdOrId.tournamentId)
+        : organizerIdOrId;
+      const organizerId = typeof organizerIdOrId === 'object'
+        ? (organizerIdOrId.organizerId || organizerIdOrId.organizer_id)
+        : undefined;
       const data = await tournamentPlayApi.startTournament(id, organizerId);
       return { id: String(id), result: data };
     } catch (err) {
@@ -320,7 +324,20 @@ const initialState = {
 
   // Compatibility aliases
   status: AsyncStatus.IDLE,
-  error: null
+  error: null,
+
+  // UI state for tournament play views
+  ui: {
+    activeDetailsTab: 'overview',
+    selectedStageIdByTournament: {},
+    chatDraftByTournament: {},
+    reportModalMatchId: null,
+    disputeModalMatchId: null,
+    winnerModalTournamentId: null,
+    deadlineModalTournamentId: null,
+    cancelModalTournamentId: null,
+    confirmStartModalTournamentId: null
+  }
 };
 
 export const tournamentPlaySlice = createSlice({
@@ -355,6 +372,72 @@ export const tournamentPlaySlice = createSlice({
     clearMutationStatus(state) {
       state.mutationStatus = AsyncStatus.IDLE;
       state.mutationError = null;
+    },
+
+    // UI actions
+    setTournamentDetailsTab(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.activeDetailsTab = action.payload;
+    },
+    setTournamentStageSelection(state, action) {
+      const { tournamentId, stageId } = action.payload || {};
+      if (!state.ui) state.ui = {};
+      if (!state.ui.selectedStageIdByTournament) state.ui.selectedStageIdByTournament = {};
+      state.ui.selectedStageIdByTournament[String(tournamentId)] = stageId != null ? String(stageId) : null;
+    },
+    setChatDraft(state, action) {
+      const { tournamentId, text } = action.payload || {};
+      if (!state.ui) state.ui = {};
+      if (!state.ui.chatDraftByTournament) state.ui.chatDraftByTournament = {};
+      state.ui.chatDraftByTournament[String(tournamentId)] = text;
+    },
+    openReportModal(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.reportModalMatchId = action.payload != null ? String(action.payload) : null;
+    },
+    closeReportModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.reportModalMatchId = null;
+    },
+    openDisputeModal(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.disputeModalMatchId = action.payload != null ? String(action.payload) : null;
+    },
+    closeDisputeModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.disputeModalMatchId = null;
+    },
+    openDeclareWinnerModal(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.winnerModalTournamentId = action.payload != null ? String(action.payload) : null;
+    },
+    closeDeclareWinnerModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.winnerModalTournamentId = null;
+    },
+    openExtendDeadlineModal(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.deadlineModalTournamentId = action.payload != null ? String(action.payload) : null;
+    },
+    closeExtendDeadlineModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.deadlineModalTournamentId = null;
+    },
+    openCancelTournamentModal(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.cancelModalTournamentId = action.payload != null ? String(action.payload) : null;
+    },
+    closeCancelTournamentModal(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.cancelModalTournamentId = null;
+    },
+    openConfirmStartTournament(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.confirmStartModalTournamentId = action.payload != null ? String(action.payload) : null;
+    },
+    closeConfirmStartTournament(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.confirmStartModalTournamentId = null;
     }
   },
   extraReducers: (builder) => {
@@ -662,7 +745,24 @@ export const tournamentPlaySlice = createSlice({
 export const {
   clearTournamentPlayError,
   resetTournamentPlayStatus,
-  clearMutationStatus
+  clearMutationStatus,
+
+  // UI actions
+  setTournamentDetailsTab,
+  setTournamentStageSelection,
+  setChatDraft,
+  openReportModal,
+  closeReportModal,
+  openDisputeModal,
+  closeDisputeModal,
+  openDeclareWinnerModal,
+  closeDeclareWinnerModal,
+  openExtendDeadlineModal,
+  closeExtendDeadlineModal,
+  openCancelTournamentModal,
+  closeCancelTournamentModal,
+  openConfirmStartTournament,
+  closeConfirmStartTournament
 } = tournamentPlaySlice.actions;
 
 export default tournamentPlaySlice.reducer;

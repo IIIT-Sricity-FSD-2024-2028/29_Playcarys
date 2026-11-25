@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppDispatch } from '../../../app/hooks';
-import { registerForTournament } from '../../../features/tournaments/registrationSlice';
+import {
+  registerForTournament,
+  setSelectedTeamId as setReduxSelectedTeamId,
+  setInviteCodeDraft as setReduxInviteCodeDraft
+} from '../../../features/tournaments/registrationSlice';
 import { fetchTournamentById } from '../../../features/tournaments/tournamentSlice';
 import api from '../../../services/api';
 import {
-  tournamentService,
   seedOf,
   isCommunityMember,
   myTeamsIn,
@@ -147,21 +150,7 @@ export function TournamentRegistrationModal({
       }
       onClose();
     } catch (err) {
-      // Fallback to legacy service if offline / mock
-      try {
-        if (isTeam) {
-          await tournamentService.registerTeam(tid, selectedTeamId, userId);
-        } else {
-          await tournamentService.registerSolo(tid, userId, inviteCode);
-        }
-        onShowToast(`Registered for ${t.tournament_name || t.name || 'tournament'}! 🏆 Good luck!`, 'success');
-        if (typeof onSuccess === 'function') {
-          await onSuccess();
-        }
-        onClose();
-      } catch (legacyErr) {
-        onShowToast(err.message || legacyErr.message || 'Could not register for tournament.', 'error');
-      }
+      onShowToast(err.message || 'Could not register for tournament.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -304,7 +293,10 @@ export function TournamentRegistrationModal({
                     className="form-input"
                     id="reg-team-select"
                     value={selectedTeamId}
-                    onChange={(e) => setSelectedTeamId(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedTeamId(e.target.value);
+                      dispatch(setReduxSelectedTeamId(e.target.value));
+                    }}
                     style={{ width: '100%', padding: '0.65rem' }}
                   >
                     {eligibleTeams.map((team) => (
@@ -324,7 +316,11 @@ export function TournamentRegistrationModal({
                       className="form-input"
                       placeholder="e.g. 2N8JQR"
                       value={inviteCode}
-                      onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setInviteCode(val);
+                        dispatch(setReduxInviteCodeDraft(val));
+                      }}
                       style={{ textTransform: 'uppercase', width: '100%' }}
                     />
                   </div>
@@ -375,7 +371,11 @@ export function TournamentRegistrationModal({
                     id="reg-invite-code"
                     placeholder="e.g. 2N8JQR"
                     value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setInviteCode(val);
+                      dispatch(setReduxInviteCodeDraft(val));
+                    }}
                     style={{ textTransform: 'uppercase', width: '100%' }}
                   />
                 </div>

@@ -4,7 +4,14 @@ import authService from '../../services/authService';
 import {
   fetchSessions,
   fetchSessionById,
-  endSession
+  endSession,
+  setSessionStatusFilter,
+  setSessionModeFilter,
+  openSessionMonitor,
+  closeSessionMonitor,
+  openConfirmEndSession,
+  closeConfirmEndSession,
+  setSessionCopiedId
 } from '../../features/sessions/gameSessionSlice';
 import {
   fetchSessionMatchResults,
@@ -16,7 +23,8 @@ import {
   selectSessionsError,
   selectSessionMatchResults,
   selectSessionMatchResultsStatus,
-  selectSessionMatchResultsError
+  selectSessionMatchResultsError,
+  selectGameSessionUI
 } from '../../features/sessions/selectors';
 import { fetchUsers } from '../../features/users/userSlice';
 import { selectAllUsers } from '../../features/users/selectors';
@@ -54,10 +62,15 @@ export function Sessions() {
     }));
   }, [rawSessions]);
 
+  // Session UI state from Redux
+  const sessionUI = useAppSelector(selectGameSessionUI);
+  const statusFilter = sessionUI.statusFilter || '';
+  const modeFilter = sessionUI.modeFilter || '';
+  const isMonitorOpen = sessionUI.monitorModalOpen || false;
+  const isConfirmOpen = sessionUI.confirmEndModalOpen || false;
+
   // Modals & action states
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [isMonitorOpen, setIsMonitorOpen] = useState(false);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
 
   // Redux match results for the selected session
@@ -74,10 +87,6 @@ export function Sessions() {
     selectSessionMatchResultsError(state, selectedSessionId)
   );
   const isLoadingResults = matchResultsStatus === 'loading';
-
-  // Filters
-  const [statusFilter, setStatusFilter] = useState('');
-  const [modeFilter, setModeFilter] = useState('');
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -143,7 +152,7 @@ export function Sessions() {
     }
 
     setSelectedMatch(match);
-    setIsMonitorOpen(true);
+    dispatch(openSessionMonitor(id));
 
     try {
       await Promise.allSettled([
@@ -179,14 +188,15 @@ export function Sessions() {
       const id = selectedMatch.match_id != null ? selectedMatch.match_id : selectedMatch.id;
       dispatch(clearSessionMatchResults(id));
     }
-    setIsMonitorOpen(false);
+    dispatch(closeSessionMonitor());
     setSelectedMatch(null);
   }
 
   // Action: Request Terminate (opens confirmation)
   function handleRequestTerminate(match) {
+    const mid = match.match_id != null ? match.match_id : match.id;
     setSelectedMatch(match);
-    setIsConfirmOpen(true);
+    dispatch(openConfirmEndSession(mid));
   }
 
   // Action: Confirm End Match
@@ -197,9 +207,22 @@ export function Sessions() {
 
     try {
       const hostId = Number(selectedMatch.hostId ?? selectedMatch.created_by) || 1;
-      const results = selectedMatch?.player_ids?.length
-        ? selectedMatch.player_ids.map((pid, idx) => ({ player_id: pid, score: 100 * (idx + 1), player_rank: idx + 1 }))
-        : [{ player_id: hostId, score: 100, player_rank: 1 }];
+      let results = [];
+      if (Array.isArray(sessionMatchResults) && sessionMatchResults.length > 0) {
+        results = sessionMatchResults.map((r, idx) => ({
+          player_id: Number(r.player_id) || Number(r.id) || hostId,
+          score: Number(r.score ?? r.game_score ?? 0),
+          player_rank: Number(r.player_rank ?? (idx + 1))
+        }));
+      } else if (Array.isArray(selectedMatch?.player_ids) && selectedMatch.player_ids.length > 0) {
+        results = selectedMatch.player_ids.map((pid, idx) => ({
+          player_id: Number(pid),
+          score: 0,
+          player_rank: idx + 1
+        }));
+      } else {
+        results = [{ player_id: hostId, score: 0, player_rank: 1 }];
+      }
 
       await dispatch(
         endSession({
@@ -213,8 +236,8 @@ export function Sessions() {
 
       showToast('Match ended', 'success');
       dispatch(clearSessionMatchResults(mid));
-      setIsConfirmOpen(false);
-      setIsMonitorOpen(false);
+      dispatch(closeConfirmEndSession());
+      dispatch(closeSessionMonitor());
       setSelectedMatch(null);
       await loadData();
     } catch (err) {
@@ -267,7 +290,7 @@ export function Sessions() {
       <ConfirmEndMatchModal
         isOpen={isConfirmOpen}
         onConfirm={handleConfirmEndMatch}
-        onCancel={() => setIsConfirmOpen(false)}
+        onCancel={() => dispatch(closeConfirmEndSession())}
         submitting={isEnding}
       />
 
@@ -286,9 +309,9 @@ export function Sessions() {
       {/* Filter Bar */}
       <SessionsFilterBar
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={(val) => dispatch(setSessionStatusFilter(val))}
         modeFilter={modeFilter}
-        onModeChange={setModeFilter}
+        onModeChange={(val) => dispatch(setSessionModeFilter(val))}
       />
 
       {/* Match List */}

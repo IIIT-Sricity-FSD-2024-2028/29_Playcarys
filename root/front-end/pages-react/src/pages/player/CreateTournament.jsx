@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../../app/hooks';
+import {
+  createTournament,
+  setCreateTournamentStep,
+  setCreateTournamentKind,
+  setCreateTournamentVisibility,
+  setCreateTournamentTeamMode,
+  setCreateTournamentTeamSize,
+  setCreateTournamentGroup,
+  setCreateTournamentGame,
+  setCreateTournamentFormat,
+  setCreateTournamentIsMulti,
+  addCreateTournamentStage,
+  removeCreateTournamentStage,
+  setCreatedInviteCode as setReduxInviteCode,
+  resetCreateTournamentForm,
+  setTournamentActiveTab
+} from '../../features/tournaments/tournamentSlice';
 import API from '../../services/api';
 import { GAME_ASSETS } from '../../services/playerService';
 import AuthContext from '../../context/AuthContext';
@@ -8,6 +26,7 @@ import '../../styles/player/create-tournament.css';
 
 const CreateTournament = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { user } = useContext(AuthContext);
   const [toast, setToast] = useState({ message: '', type: 'info' });
 
@@ -183,9 +202,11 @@ const CreateTournament = () => {
   const handleAddStage = () => {
     if (games.length === 0) return;
     const gId = games[0].game_id || games[0].id;
+    const newStage = { game_id: gId, format: defaultFormatFor(gId), metric: 'score', direction: 'high', metric_label: 'Score', points_weight: 1 };
+    dispatch(addCreateTournamentStage(newStage));
     setStages([
       ...stages,
-      { game_id: gId, format: defaultFormatFor(gId), metric: 'score', direction: 'high', metric_label: 'Score', points_weight: 1 }
+      newStage
     ]);
   };
 
@@ -194,6 +215,7 @@ const CreateTournament = () => {
       addToast('warning', 'A multi-game festival requires at least 2 stages');
       return;
     }
+    dispatch(removeCreateTournamentStage(idx));
     const copy = [...stages];
     copy.splice(idx, 1);
     setStages(copy);
@@ -294,18 +316,22 @@ const CreateTournament = () => {
   const handleNext = () => {
     if (currentStep === 1) {
       if (!validateStep1()) return;
+      dispatch(setCreateTournamentStep(2));
       setCurrentStep(2);
     } else if (currentStep === 2) {
       if (!validateStep2()) return;
+      dispatch(setCreateTournamentStep(3));
       setCurrentStep(3);
     } else if (currentStep === 3) {
       if (!validateStep3()) return;
+      dispatch(setCreateTournamentStep(4));
       setCurrentStep(4);
     }
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
+      dispatch(setCreateTournamentStep(currentStep - 1));
       setCurrentStep(currentStep - 1);
     }
   };
@@ -359,20 +385,22 @@ const CreateTournament = () => {
 
     try {
       setSubmitting(true);
-      const res = await API.post('/tournaments', payload);
-      const created = res?.data ?? res;
+      const created = await dispatch(createTournament(payload)).unwrap();
       addToast('success', 'Tournament created successfully!');
 
       if (visibility === 'private' && created?.invite_code) {
         setCreatedInviteCode(created.invite_code);
+        dispatch(setReduxInviteCode(created.invite_code));
       } else {
         setTimeout(() => {
+          dispatch(resetCreateTournamentForm());
+          dispatch(setTournamentActiveTab('all'));
           navigate('/player/tournaments');
         }, 1000);
       }
     } catch (err) {
       console.error('Failed to create tournament:', err);
-      const msg = err.response?.data?.message || err.message || 'Failed to create tournament';
+      const msg = err.response?.data?.message || err.message || (typeof err === 'string' ? err : 'Failed to create tournament');
       addToast('error', Array.isArray(msg) ? msg.join(', ') : msg);
     } finally {
       setSubmitting(false);
@@ -382,13 +410,20 @@ const CreateTournament = () => {
   const handleCopyInviteCode = () => {
     if (createdInviteCode) {
       navigator.clipboard.writeText(createdInviteCode);
+      dispatch(setReduxInviteCode(createdInviteCode));
       addToast('success', 'Invite code copied to clipboard!');
     }
   };
 
+  const handleCancelAndBack = () => {
+    dispatch(resetCreateTournamentForm());
+    dispatch(setTournamentActiveTab('all'));
+    navigate('/player/tournaments');
+  };
+
   return (
     <div className="create-tournament-container">
-      <button className="back-link-btn" onClick={() => navigate('/player/tournaments')} type="button">
+      <button className="back-link-btn" onClick={handleCancelAndBack} type="button">
         ← Cancel & Back to Tournaments
       </button>
 
@@ -437,7 +472,7 @@ const CreateTournament = () => {
             </button>
           </div>
           <div>
-            <button className="btn btn-primary btn-lg" onClick={() => navigate('/player/tournaments')} type="button">
+            <button className="btn btn-primary btn-lg" onClick={handleCancelAndBack} type="button">
               Go to Tournaments →
             </button>
           </div>
@@ -483,7 +518,12 @@ const CreateTournament = () => {
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        onClick={() => { setKind('casual'); setIsMulti(false); setStages([]); }}
+                        onClick={() => {
+                          dispatch(setCreateTournamentKind('casual'));
+                          setKind('casual');
+                          setIsMulti(false);
+                          setStages([]);
+                        }}
                         style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                       >
                         Switch to Casual
@@ -912,7 +952,7 @@ const CreateTournament = () => {
                 type="button"
                 className="btn btn-ghost"
                 disabled={submitting}
-                onClick={() => navigate('/player/tournaments')}
+                onClick={handleCancelAndBack}
                 style={{ color: 'var(--text-secondary)' }}
               >
                 ✕ Cancel

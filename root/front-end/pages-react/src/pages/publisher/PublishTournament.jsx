@@ -7,7 +7,15 @@ import {
   createTournament,
   updateTournament,
   deleteTournament,
-  fetchTournamentStages
+  fetchTournamentStages,
+  setPublisherView,
+  setPublisherWizardStep,
+  setPublisherStatusFilter,
+  setPublisherSelectedGame,
+  setPublisherEditId,
+  setPublisherActiveTournament,
+  openPublisherConfirmModal,
+  closePublisherConfirmModal
 } from '../../features/tournaments/tournamentSlice';
 import {
   selectAllTournaments,
@@ -26,7 +34,6 @@ import { fetchGames } from '../../features/games/gameSlice';
 import { selectAllGames } from '../../features/games/selectors';
 import { fetchUsers } from '../../features/users/userSlice';
 import { selectAllUsers } from '../../features/users/selectors';
-import publisherService from '../../services/publisherService';
 import TournamentCard from '../../components/publisher/tournament/TournamentCard';
 import TournamentEditor from '../../components/publisher/tournament/TournamentEditor';
 import TournamentMgmt from '../../components/publisher/tournament/TournamentMgmt';
@@ -144,11 +151,13 @@ export function PublishTournament() {
   }
 
   function openConfirm(title, message, onConfirm, confirmText = 'Confirm', confirmStyle = 'primary') {
+    dispatch(openPublisherConfirmModal({ title, message }));
     setConfirmModal({
       isOpen: true,
       title,
       message,
       onConfirm: () => {
+        dispatch(closePublisherConfirmModal());
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         onConfirm();
       },
@@ -160,6 +169,8 @@ export function PublishTournament() {
   // ── Open Editor ──────────────────────────────────────────────────────────
   function handleOpenEditor(id = null) {
     setEditId(id);
+    dispatch(setPublisherEditId(id));
+    dispatch(setPublisherView('editor'));
     setSelectedType('single');
     setSelectedVisibility('public');
     setStages([]);
@@ -246,6 +257,7 @@ export function PublishTournament() {
         handleAddStage();
       }
       setCurrentStep(2);
+      dispatch(setPublisherWizardStep(2));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -265,6 +277,7 @@ export function PublishTournament() {
         setStageError('');
       }
       setCurrentStep(3);
+      dispatch(setPublisherWizardStep(3));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -303,13 +316,16 @@ export function PublishTournament() {
 
       if (!valid) return;
       setCurrentStep(4);
+      dispatch(setPublisherWizardStep(4));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
   }
 
   function handlePrevStep(step) {
-    setCurrentStep((prev) => Math.max(1, prev - 1));
+    const nextStep = Math.max(1, (step || currentStep) - 1);
+    setCurrentStep(nextStep);
+    dispatch(setPublisherWizardStep(nextStep));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -465,6 +481,8 @@ export function PublishTournament() {
 
   // Single-game Management view
   async function handleOpenMgmt(id) {
+    dispatch(setPublisherView('mgmt'));
+    dispatch(setPublisherActiveTournament(id));
     let t = allTournaments.find((x) => String(x.tournament_id || x.id) === String(id));
     try {
       const fetched = await dispatch(fetchTournamentById(id)).unwrap();
@@ -523,30 +541,9 @@ export function PublishTournament() {
   }
 
   function handleAdvanceRound() {
-    if (!activeTournament) return;
-    const tid = activeTournament.tournament_id || activeTournament.id;
-    const round = activeTournament.currentRound || 1;
-
-    openConfirm(
-      'Advance Round',
-      `Close Round ${round} and open Round ${round + 1}?`,
-      async () => {
-        try {
-          const res = publisherService.advanceSingleTournamentRound(tid);
-          if (res?.completed) {
-            showToast('Final round complete — tournament finished!', 'success');
-          } else {
-            showToast(`Round ${res?.nextRound || round + 1} is now live.`, 'success');
-          }
-          await handleOpenMgmt(tid);
-          await loadData();
-        } catch (e) {
-          showToast(e.message || 'Failed to advance round', 'error');
-        }
-      },
-      'Advance Round',
-      'primary'
-    );
+    // Unsupported server operation: backend has no manual round advance endpoint.
+    // Rounds advance automatically upon match completion.
+    showToast('Rounds advance automatically upon match completion (API gap: no manual advance endpoint)', 'info');
   }
 
   function handleForceWinner(matchId, winnerId, p1Name) {
@@ -569,12 +566,12 @@ export function PublishTournament() {
               tournamentId: tid
             })
           ).unwrap();
+          showToast('Match result recorded!', 'success');
+          await handleOpenMgmt(tid);
+          await loadData();
         } catch (e) {
-          publisherService.forceMatchWinner(matchId, winnerId, m.player1, tid);
+          showToast(typeof e === 'string' ? e : 'Failed to record match result', 'error');
         }
-        showToast('Match result recorded!', 'success');
-        await handleOpenMgmt(tid);
-        await loadData();
       },
       'Confirm Winner',
       'primary'
@@ -661,6 +658,8 @@ export function PublishTournament() {
   }
 
   async function handleOpenMgmtMulti(id) {
+    dispatch(setPublisherView('mgmt-multi'));
+    dispatch(setPublisherActiveTournament(id));
     try {
       const [tRes, stagesRes, overallRes] = await Promise.all([
         dispatch(fetchTournamentById(id)).unwrap(),
@@ -865,7 +864,10 @@ export function PublishTournament() {
           onNextStep={handleNextStep}
           onPrevStep={handlePrevStep}
           onSubmit={handleSubmitTournament}
-          onCancel={() => setView('list')}
+          onCancel={() => {
+            dispatch(setPublisherView('list'));
+            setView('list');
+          }}
           isSubmitting={isSubmitting}
         />
       )}
@@ -881,7 +883,10 @@ export function PublishTournament() {
           }
           matches={activeMatches}
           users={users}
-          onBack={() => setView('list')}
+          onBack={() => {
+            dispatch(setPublisherView('list'));
+            setView('list');
+          }}
           onStartTournament={handleStartTournament}
           onAdvanceRound={handleAdvanceRound}
           onForceWinner={handleForceWinner}
@@ -901,7 +906,10 @@ export function PublishTournament() {
           stages={activeFestStages}
           overall={activeFestOverall}
           games={approvedGames}
-          onBack={() => setView('list')}
+          onBack={() => {
+            dispatch(setPublisherView('list'));
+            setView('list');
+          }}
           onStartStage={handleStartFestStage}
           onCompleteStage={handleCompleteFestStage}
         />

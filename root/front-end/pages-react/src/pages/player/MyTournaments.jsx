@@ -4,8 +4,10 @@ import AuthContext from '../../context/AuthContext';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
   fetchPlayerTournaments,
-  fetchTournaments
+  fetchTournaments,
+  openTournamentDetails
 } from '../../features/tournaments/tournamentSlice';
+import { setMyTournamentsFilter } from '../../features/tournaments/registrationSlice';
 import {
   selectPlayerTournaments,
   selectTournamentsListStatus,
@@ -186,21 +188,30 @@ export function MyTournaments() {
           <button
             type="button"
             className={`comp-tab ${activeTab === 'live' ? 'active' : ''}`}
-            onClick={() => setActiveTab('live')}
+            onClick={() => {
+              setActiveTab('live');
+              dispatch(setMyTournamentsFilter('live'));
+            }}
           >
             🔴 Live {live.length > 0 && `(${live.length})`}
           </button>
           <button
             type="button"
             className={`comp-tab ${activeTab === 'upcoming' ? 'active' : ''}`}
-            onClick={() => setActiveTab('upcoming')}
+            onClick={() => {
+              setActiveTab('upcoming');
+              dispatch(setMyTournamentsFilter('upcoming'));
+            }}
           >
             📅 Upcoming {upcoming.length > 0 && `(${upcoming.length})`}
           </button>
           <button
             type="button"
             className={`comp-tab ${activeTab === 'archive' ? 'active' : ''}`}
-            onClick={() => setActiveTab('archive')}
+            onClick={() => {
+              setActiveTab('archive');
+              dispatch(setMyTournamentsFilter('archive'));
+            }}
           >
             📁 Archive {archive.length > 0 && `(${archive.length})`}
           </button>
@@ -353,7 +364,10 @@ export function MyTournaments() {
                         <button
                           type="button"
                           className="btn btn-cyan btn-sm"
-                          onClick={() => navigate(`/player/tournaments?highlight=${tid}`)}
+                          onClick={() => {
+                            dispatch(openTournamentDetails(tid));
+                            navigate(`/player/tournaments?highlight=${tid}`);
+                          }}
                         >
                           Enter Lobby
                         </button>
@@ -366,7 +380,10 @@ export function MyTournaments() {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          onClick={() => navigate(`/player/tournaments?highlight=${tid}`)}
+                          onClick={() => {
+                            dispatch(openTournamentDetails(tid));
+                            navigate(`/player/tournaments?highlight=${tid}`);
+                          }}
                         >
                           Full Details
                         </button>
@@ -379,7 +396,10 @@ export function MyTournaments() {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          onClick={() => navigate(`/player/tournaments?highlight=${tid}`)}
+                          onClick={() => {
+                            dispatch(openTournamentDetails(tid));
+                            navigate(`/player/tournaments?highlight=${tid}`);
+                          }}
                         >
                           View Results
                         </button>

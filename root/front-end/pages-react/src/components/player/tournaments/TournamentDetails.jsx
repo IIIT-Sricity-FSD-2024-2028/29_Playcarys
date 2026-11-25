@@ -11,7 +11,8 @@ import {
   fetchMatchToken,
   confirmMatchResult,
   disputeMatchResult,
-  resolveDisputeWinner
+  resolveDisputeWinner,
+  setTournamentDetailsTab
 } from '../../../features/tournaments/tournamentPlaySlice';
 import { fetchRegistrations } from '../../../features/tournaments/registrationSlice';
 import {
@@ -27,8 +28,6 @@ import {
   entrantName,
   entrantCount,
   isCommunityMember,
-  sanitizeTournamentMatches,
-  tournamentService,
   hasPrizeMoney
 } from '../../../services/tournamentService';
 import { formatDate, sameId, GAME_ASSETS } from '../../../services/playerService';
@@ -64,11 +63,10 @@ export function TournamentDetails({
   const isPlayerRegistered = useAppSelector((state) => selectIsPlayerRegistered(state, tid, userId));
   const tournamentOverview = useAppSelector((state) => selectTournamentOverview(state, tid));
 
-  // Automatically heal any falsely disputed or unplayed pending matches in local fallback
   useEffect(() => {
-    if (!t) return;
-    sanitizeTournamentMatches(tid, db);
-  }, [tid, db]);
+    if (!tid) return;
+    dispatch(fetchTournamentBracket(tid));
+  }, [tid, dispatch]);
 
   // Score contest resolution
   const gameOf = (db?.games || []).find((g) => sameId(g.game_id || g.id, t.game_id));
@@ -300,19 +298,11 @@ export function TournamentDetails({
         if (tokenData && tokenData.deep_link) {
           window.location.href = tokenData.deep_link;
         } else {
-          tournamentService.enterMatch(t, matchId, userId).then((res) => {
-            if (!res.success && res.reason) {
-              onShowToast(res.reason, 'error');
-            }
-          });
+          onShowToast('Match token generated. Entering match arena…', 'info');
         }
       })
-      .catch(() => {
-        tournamentService.enterMatch(t, matchId, userId).then((res) => {
-          if (!res.success && res.reason) {
-            onShowToast(res.reason, 'error');
-          }
-        });
+      .catch((err) => {
+        onShowToast(err?.message || 'Could not enter match.', 'error');
       });
   }
 
@@ -323,8 +313,7 @@ export function TournamentDetails({
       dispatch(fetchTournamentBracket(tid));
       dispatch(fetchTournamentOverview(tid));
     } catch (err) {
-      tournamentService.confirmResult(mid);
-      onShowToast('Result confirmed! The bracket has updated.', 'success');
+      onShowToast(err?.message || 'Failed to confirm match result.', 'error');
     }
     if (onRefresh) onRefresh();
   }
@@ -342,23 +331,9 @@ export function TournamentDetails({
       dispatch(fetchTournamentBracket(tid));
       dispatch(fetchTournamentOverview(tid));
     } catch (err) {
-      tournamentService.disputeResult(mid);
-      onShowToast(`Match disputed. ${organizerRoleTitle} (${creatorDisplayName}) has been notified to review and resolve the match.`, 'info');
+      onShowToast(err?.message || 'Failed to submit match dispute.', 'error');
     }
     if (onRefresh) onRefresh();
-  }
-
-  function handleResetAndEnterMatch(mid) {
-    tournamentService.resetDispute(mid);
-    onShowToast('Dispute cleared! Entering arena...', 'success');
-    onRefresh();
-    handleEnterMatch(mid);
-  }
-
-  function handleResetDisputeOnly(mid) {
-    tournamentService.resetDispute(mid);
-    onShowToast('Dispute cleared — match is ready to be played.', 'success');
-    onRefresh();
   }
 
   async function handleResolveDisputeWinner(mid, winnerId) {
@@ -368,8 +343,7 @@ export function TournamentDetails({
       dispatch(fetchTournamentBracket(tid));
       dispatch(fetchTournamentOverview(tid));
     } catch (err) {
-      tournamentService.resolveDisputeWinner(mid, winnerId);
-      onShowToast('Dispute resolved! Winner advanced in bracket.', 'success');
+      onShowToast(err?.message || 'Failed to resolve match dispute.', 'error');
     }
     if (onRefresh) onRefresh();
   }
@@ -614,7 +588,9 @@ export function TournamentDetails({
               {(sameId(disputedMatch.player1, uid) || sameId(disputedMatch.player2, uid)) && (
                 <button
                   className="btn btn-purple"
-                  onClick={() => handleResetAndEnterMatch(disputedMatch.match_id)}
+                  disabled={true}
+                  title="Dispute clearing requires backend support (API gap: declare winner or file dispute supported)"
+                  style={{ opacity: 0.6, cursor: 'not-allowed' }}
                   type="button"
                 >
                   ⚔️ Reset Dispute & Enter Arena
@@ -625,8 +601,9 @@ export function TournamentDetails({
                 <>
                   <button
                     className="btn btn-ghost"
-                    style={{ borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}
-                    onClick={() => handleResetDisputeOnly(disputedMatch.match_id)}
+                    disabled={true}
+                    title="Dispute clearing requires backend support (API gap: declare winner or file dispute supported)"
+                    style={{ borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)', opacity: 0.6, cursor: 'not-allowed' }}
                     type="button"
                   >
                     🔄 Clear Dispute (Let Players Play)
@@ -711,7 +688,14 @@ export function TournamentDetails({
         />
 
         {/* Navigation Tabs */}
-        <TournamentTabs activeTab={activeTab} onTabChange={setActiveTab} entrantCount={entrants} />
+        <TournamentTabs
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            dispatch(setTournamentDetailsTab(tab));
+          }}
+          entrantCount={entrants}
+        />
 
         {/* Tab 1: Overview */}
         {activeTab === 'tab-overview' && (

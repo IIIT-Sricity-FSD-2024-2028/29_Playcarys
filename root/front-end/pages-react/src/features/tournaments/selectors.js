@@ -296,3 +296,17 @@ export const selectTournamentPlayDisputesStatus = (state) =>
 export const selectTournamentPlayDisputesError = (state) =>
   state.tournamentPlay?.disputesError || null;
 
+// ── UI Selectors ─────────────────────────────────────────────
+
+export const selectTournamentUI = (state) =>
+  state.tournaments?.ui || {};
+
+export const selectTournamentActiveTab = (state) =>
+  state.tournaments?.ui?.activeTab || 'all';
+
+export const selectTournamentPlayUI = (state) =>
+  state.tournamentPlay?.ui || {};
+
+export const selectRegistrationUI = (state) =>
+  state.registrations?.ui || {};
+

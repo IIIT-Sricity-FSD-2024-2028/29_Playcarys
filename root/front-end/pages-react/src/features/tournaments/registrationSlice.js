@@ -94,7 +94,15 @@ const initialState = {
 
   // Compatibility aliases
   status: AsyncStatus.IDLE,
-  error: null
+  error: null,
+
+  // UI state for registrations and My Tournaments
+  ui: {
+    selectedTeamId: null,
+    inviteCodeDraft: '',
+    myTournamentsFilter: 'all',
+    myTournamentsSearch: ''
+  }
 };
 
 export const registrationSlice = createSlice({
@@ -119,6 +127,24 @@ export const registrationSlice = createSlice({
     clearRegistrationMutationStatus(state) {
       state.mutationStatus = AsyncStatus.IDLE;
       state.mutationError = null;
+    },
+
+    // UI actions
+    setSelectedTeamId(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.selectedTeamId = action.payload != null ? String(action.payload) : null;
+    },
+    setInviteCodeDraft(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.inviteCodeDraft = action.payload || '';
+    },
+    setMyTournamentsFilter(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.myTournamentsFilter = action.payload;
+    },
+    setMyTournamentsSearch(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.myTournamentsSearch = action.payload || '';
     }
   },
   extraReducers: (builder) => {
@@ -261,7 +287,13 @@ export const registrationSlice = createSlice({
 export const {
   clearRegistrationError,
   resetRegistrationStatus,
-  clearRegistrationMutationStatus
+  clearRegistrationMutationStatus,
+
+  // UI actions
+  setSelectedTeamId,
+  setInviteCodeDraft,
+  setMyTournamentsFilter,
+  setMyTournamentsSearch
 } = registrationSlice.actions;
 
 export default registrationSlice.reducer;

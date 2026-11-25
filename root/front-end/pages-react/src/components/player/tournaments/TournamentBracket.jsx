@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
-import { fetchTournamentBracket } from '../../../features/tournaments/tournamentPlaySlice';
+import {
+  fetchTournamentBracket,
+  setTournamentStageSelection
+} from '../../../features/tournaments/tournamentPlaySlice';
 import { fetchTournamentStages } from '../../../features/tournaments/tournamentSlice';
 import {
   selectTournamentBracket,
   selectTournamentStages,
   selectTournamentPlayBracketStatus
 } from '../../../features/tournaments/selectors';
-import { entrantName, tournamentService } from '../../../services/tournamentService';
+import { entrantName } from '../../../services/tournamentService';
 import { sameId } from '../../../services/playerService';
 
 export function TournamentBracket({ tournament, db }) {
@@ -97,7 +100,10 @@ export function TournamentBracket({ tournament, db }) {
               key={st.order}
               type="button"
               className={`btn btn-sm ${selectedStageOrder === st.order ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setSelectedStageOrder(st.order)}
+              onClick={() => {
+                setSelectedStageOrder(st.order);
+                dispatch(setTournamentStageSelection({ tournamentId: tid, stageId: st.stageId, stageOrder: st.order }));
+              }}
               style={{
                 fontWeight: 700,
                 borderRadius: '8px',
@@ -118,7 +124,6 @@ export function TournamentBracket({ tournament, db }) {
             type="button"
             className="btn btn-primary btn-sm"
             onClick={() => {
-              tournamentService.sanitizeTournamentMatches(tid);
               dispatch(fetchTournamentBracket(tid));
             }}
           >
