@@ -3,8 +3,9 @@ import { normalizeEntity, normalizeList } from './normalize';
 
 export const socialApi = {
   // Teams
-  async getTeams() {
-    const res = await api.get('/teams');
+  async getTeams({ playerId } = {}) {
+    const query = playerId != null ? `?playerId=${encodeURIComponent(playerId)}` : '';
+    const res = await api.get(`/teams${query}`);
     return normalizeList(res, ['team_id']);
   },
 
@@ -18,21 +19,28 @@ export const socialApi = {
     return normalizeEntity(res, ['team_id']);
   },
 
-  async updateTeam(id, dto) {
-    const res = await api.patch(`/teams/${id}`, dto);
+  async updateTeam(id, dto, requesterId) {
+    const res = await api.patch(`/teams/${id}?requesterId=${encodeURIComponent(requesterId)}`, dto);
     return normalizeEntity(res, ['team_id']);
   },
 
-  async addTeamMember(teamId, dto) {
-    return api.post(`/teams/${teamId}/members`, dto);
+  async addTeamMember(teamId, dto, requesterId) {
+    const res = await api.post(
+      `/teams/${teamId}/members?requesterId=${encodeURIComponent(requesterId)}`,
+      dto
+    );
+    return normalizeEntity(res, ['team_id']);
   },
 
-  async removeTeamMember(teamId, userId) {
-    return api.delete(`/teams/${teamId}/members/${userId}`);
+  async removeTeamMember(teamId, userId, requesterId) {
+    const res = await api.delete(
+      `/teams/${teamId}/members/${userId}?requesterId=${encodeURIComponent(requesterId)}`
+    );
+    return normalizeEntity(res, ['team_id']);
   },
 
-  async deleteTeam(id) {
-    await api.delete(`/teams/${id}`);
+  async deleteTeam(id, requesterId) {
+    await api.delete(`/teams/${id}?requesterId=${encodeURIComponent(requesterId)}`);
     return { id: String(id) };
   },
 
