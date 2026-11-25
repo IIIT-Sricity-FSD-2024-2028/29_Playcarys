@@ -64,11 +64,10 @@ export const tournamentPlayApi = {
    */
   async startTournament(id, organizerIdOrDto = {}) {
     assertId(id, 'Tournament ID');
-    const body = typeof organizerIdOrDto === 'number' || typeof organizerIdOrDto === 'string'
-      ? { organizer_id: Number(organizerIdOrDto) }
-      : (organizerIdOrDto && typeof organizerIdOrDto === 'object')
-        ? organizerIdOrDto
-        : {};
+    const orgId = typeof organizerIdOrDto === 'number' || typeof organizerIdOrDto === 'string'
+      ? Number(organizerIdOrDto)
+      : Number(organizerIdOrDto?.organizer_id || organizerIdOrDto?.organizerId || 1);
+    const body = { organizer_id: orgId };
     const res = await api.post(`/tournaments/${encodeURIComponent(id)}/start`, body);
     return normalizeBracket(res);
   },
@@ -118,11 +117,10 @@ export const tournamentPlayApi = {
   async startStage(id, stageId, organizerIdOrDto = {}) {
     assertId(id, 'Tournament ID');
     assertId(stageId, 'Stage ID');
-    const body = typeof organizerIdOrDto === 'number' || typeof organizerIdOrDto === 'string'
-      ? { organizer_id: Number(organizerIdOrDto) }
-      : (organizerIdOrDto && typeof organizerIdOrDto === 'object')
-        ? organizerIdOrDto
-        : {};
+    const orgId = typeof organizerIdOrDto === 'number' || typeof organizerIdOrDto === 'string'
+      ? Number(organizerIdOrDto)
+      : Number(organizerIdOrDto?.organizer_id || organizerIdOrDto?.organizerId || 1);
+    const body = { organizer_id: orgId };
     const res = await api.post(
       `/tournaments/${encodeURIComponent(id)}/stages/${encodeURIComponent(stageId)}/start`,
       body
@@ -137,11 +135,10 @@ export const tournamentPlayApi = {
   async completeStage(id, stageId, organizerIdOrDto = {}) {
     assertId(id, 'Tournament ID');
     assertId(stageId, 'Stage ID');
-    const body = typeof organizerIdOrDto === 'number' || typeof organizerIdOrDto === 'string'
-      ? { organizer_id: Number(organizerIdOrDto) }
-      : (organizerIdOrDto && typeof organizerIdOrDto === 'object')
-        ? organizerIdOrDto
-        : {};
+    const orgId = typeof organizerIdOrDto === 'number' || typeof organizerIdOrDto === 'string'
+      ? Number(organizerIdOrDto)
+      : Number(organizerIdOrDto?.organizer_id || organizerIdOrDto?.organizerId || 1);
+    const body = { organizer_id: orgId };
     const res = await api.post(
       `/tournaments/${encodeURIComponent(id)}/stages/${encodeURIComponent(stageId)}/complete`,
       body
@@ -173,7 +170,11 @@ export const tournamentPlayApi = {
     if (!body || typeof body !== 'object') {
       throw new Error('Token verification body is required');
     }
-    return api.post('/tournaments/verify-token', body);
+    const payload = {
+      game_id: Number(body.game_id || body.gameId || 0),
+      token: String(body.token || '')
+    };
+    return api.post('/tournaments/verify-token', payload);
   },
 
   // ── Results & Disputes ─────────────────────────────────────
@@ -198,17 +199,21 @@ export const tournamentPlayApi = {
    */
   async reportMatchResult(matchId, dto) {
     assertId(matchId, 'Match ID');
+    const payload = {
+      reporter_id: Number(dto?.reporter_id || dto?.reporterId || dto?.userId || dto?.user_id || 1),
+      winner_id: dto?.winner_id != null ? dto.winner_id : dto?.winnerId
+    };
     try {
       const res = await api.post(
         `/tournaments/matches/${encodeURIComponent(matchId)}/report`,
-        dto
+        payload
       );
       return normalizeEntity(res);
     } catch (err) {
-      if (dto?.winner_id != null) {
+      if (payload.winner_id != null) {
         const res = await api.post(
           `/tournaments/matches/${encodeURIComponent(matchId)}/result`,
-          dto
+          payload
         );
         return normalizeBracket(res);
       }
@@ -222,9 +227,10 @@ export const tournamentPlayApi = {
    */
   async confirmMatchResult(matchId, dto) {
     assertId(matchId, 'Match ID');
-    const body = typeof dto === 'number' || typeof dto === 'string'
-      ? { user_id: Number(dto) }
-      : dto;
+    const uid = typeof dto === 'number' || typeof dto === 'string'
+      ? Number(dto)
+      : Number(dto?.user_id || dto?.userId || 1);
+    const body = { user_id: uid };
     const res = await api.post(
       `/tournaments/matches/${encodeURIComponent(matchId)}/confirm`,
       body
@@ -238,9 +244,16 @@ export const tournamentPlayApi = {
    */
   async disputeMatchResult(matchId, dto) {
     assertId(matchId, 'Match ID');
+    const uid = typeof dto === 'number' || typeof dto === 'string'
+      ? Number(dto)
+      : Number(dto?.user_id || dto?.userId || 1);
+    const body = {
+      user_id: uid,
+      ...(dto?.reason ? { reason: String(dto.reason) } : {})
+    };
     const res = await api.post(
       `/tournaments/matches/${encodeURIComponent(matchId)}/dispute`,
-      dto
+      body
     );
     return normalizeEntity(res);
   },
@@ -251,9 +264,12 @@ export const tournamentPlayApi = {
    */
   async resolveMatchDispute(matchId, dto) {
     assertId(matchId, 'Match ID');
+    const orgId = Number(dto?.organizer_id || dto?.organizerId || 1);
+    const winner = dto?.winner_id != null ? dto.winner_id : dto?.winnerId;
+    const body = { organizer_id: orgId, winner_id: winner };
     const res = await api.post(
       `/tournaments/matches/${encodeURIComponent(matchId)}/resolve`,
-      dto
+      body
     );
     return normalizeBracket(res);
   },
@@ -287,12 +303,12 @@ export const tournamentPlayApi = {
    */
   async postChat(id, dto) {
     assertId(id, 'Tournament ID');
-    const payload = typeof dto === 'string'
-      ? { body: dto }
-      : {
-          ...dto,
-          body: dto?.body || dto?.message || ''
-        };
+    const uid = typeof dto === 'object' ? Number(dto?.user_id || dto?.userId || 1) : 1;
+    const bodyText = typeof dto === 'string' ? dto : String(dto?.body || dto?.message || '');
+    const payload = {
+      user_id: uid,
+      body: bodyText
+    };
     const res = await api.post(`/tournaments/${encodeURIComponent(id)}/chat`, payload);
     return normalizeChatMessage(res);
   }
