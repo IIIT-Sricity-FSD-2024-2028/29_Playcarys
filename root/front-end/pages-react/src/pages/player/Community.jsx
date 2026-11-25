@@ -4,11 +4,16 @@ import api from '../../services/api';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 import { tournamentService, entrantCount, entrantName, isRegistered } from '../../services/tournamentService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchGroups as loadGroups, fetchGroupById as loadGroupById } from '../../features/communities/groupSlice';
+import { fetchTeams as loadTeams } from '../../features/communities/teamSlice';
+import { selectAllGroups, selectAllTeams, selectGroupById, selectGroupsStatus, selectTeamsStatus } from '../../features/communities/selectors';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/community.css';
 
 export function Community() {
   const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { groupId: paramGroupId, id: paramId, groupTab: paramGroupTab, tab: paramTab } = useParams();
@@ -23,8 +28,9 @@ export function Community() {
   const rawGroupId = paramGroupId || paramId || searchParams.get('groupId') || searchParams.get('id');
   const initialGroupId = rawGroupId ? Number(rawGroupId) : null;
   const [selectedGroupId, setSelectedGroupId] = useState(initialGroupId);
-  const [activeGroup, setActiveGroup] = useState(null);
-  const [loadingGroupDetail, setLoadingGroupDetail] = useState(false);
+  const activeGroup = useAppSelector((state) =>
+    selectedGroupId ? selectGroupById(state, selectedGroupId) : null
+  );
 
   const rawTab = paramGroupTab || paramTab || searchParams.get('groupTab') || 'roster';
   const normalizedInitialTab = rawTab.toLowerCase().startsWith('tourn') ? 'tournaments' : rawTab;
@@ -48,10 +54,12 @@ export function Community() {
   }, [paramGroupId, paramId, paramGroupTab, paramTab]);
 
   // Groups & Teams Data
-  const [groups, setGroups] = useState([]);
-  const [teams, setTeams] = useState([]);
+  const groups = useAppSelector(selectAllGroups);
+  const teams = useAppSelector(selectAllTeams);
+  const groupsStatus = useAppSelector(selectGroupsStatus);
+  const teamsStatus = useAppSelector(selectTeamsStatus);
   const [linkedMap, setLinkedMap] = useState({});
-  const [loading, setLoading] = useState(true);
+  const loading = groupsStatus === 'loading' || teamsStatus === 'loading';
 
   // Group Detail - Chat state
   const [chatMessages, setChatMessages] = useState([]);
@@ -139,9 +147,7 @@ export function Community() {
   // Load Groups
   const fetchGroups = async () => {
     try {
-      const res = await api.get(`/groups?viewerId=${uid}`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setGroups(list);
+      await dispatch(loadGroups({ viewerId: uid })).unwrap();
     } catch (err) {
       console.error('Failed to load groups:', err);
       showToast('Could not load groups from the backend.', 'error');
@@ -167,9 +173,7 @@ export function Community() {
   // Load Teams
   const fetchTeams = async () => {
     try {
-      const res = await api.get(`/teams?playerId=${uid}`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setTeams(list);
+      const list = await dispatch(loadTeams({ playerId: uid })).unwrap();
       await fetchLinkedAccounts(list);
     } catch (err) {
       console.error('Failed to load teams:', err);
@@ -180,23 +184,11 @@ export function Community() {
   // Load Specific Group Detail
   const fetchGroupDetail = async (gid) => {
     try {
-      setLoadingGroupDetail(true);
-      const res = await api.get(`/groups/${gid}`);
-      const data = res?.data || res;
-      setActiveGroup(data);
+      await dispatch(loadGroupById(gid)).unwrap();
     } catch (err) {
       console.error('Failed to load group detail:', err);
-      const dbInstance = getDatabase();
-      const local = groups.find((g) => sameId(g.group_id || g.id, gid)) ||
-        (dbInstance?.groups || []).find((g) => sameId(g.group_id || g.id, gid));
-      if (local) {
-        setActiveGroup(local);
-      } else {
-        showToast('Group not found.', 'error');
-        setSelectedGroupId(null);
-      }
-    } finally {
-      setLoadingGroupDetail(false);
+      showToast('Group not found.', 'error');
+      setSelectedGroupId(null);
     }
   };
 
@@ -275,9 +267,7 @@ export function Community() {
   useEffect(() => {
     let isMounted = true;
     const loadAll = async () => {
-      setLoading(true);
       await Promise.all([fetchGroups(), fetchTeams()]);
-      if (isMounted) setLoading(false);
     };
     loadAll();
     return () => {
@@ -289,8 +279,6 @@ export function Community() {
   useEffect(() => {
     if (selectedGroupId) {
       fetchGroupDetail(selectedGroupId);
-    } else {
-      setActiveGroup(null);
     }
   }, [selectedGroupId]);
 
@@ -431,9 +419,6 @@ export function Community() {
       setShowEditGroup(false);
       showToast('Group details updated! 🛡️', 'success');
       await fetchGroups();
-      if (selectedGroupId && Number(selectedGroupId) === Number(editingGroupId)) {
-        setActiveGroup(updated || { ...activeGroup, name: trimmed, desc: editGroupDesc.trim(), visibility: editGroupVisibility, join_mode: editGroupJoinMode });
-      }
     } catch (err) {
       console.error('Failed to update group:', err);
       showToast(err.message || 'Could not update the group.', 'error');
@@ -989,7 +974,7 @@ export function Community() {
       saveDatabase(freshDb);
       window.dispatchEvent(new Event('storage'));
       showToast('Team invitation declined.', 'info');
-      setTeams((prev) => [...prev]);
+      void fetchTeams();
     } catch (err) {
       console.error('Failed to decline team invite:', err);
     }
