@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
-import notificationService from '../../services/notificationService';
-import socialService from '../../services/socialService';
-import { useChat } from '../../context/ChatContext';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification, replyToNotification } from '../../features/notifications/notificationSlice';
+import { selectAllNotifications, selectNotificationsStatus } from '../../features/notifications/selectors';
+import { fetchFriendRequests, respondToFriendRequest } from '../../features/communities/socialSlice';
+import { selectIncomingFriendRequests } from '../../features/communities/selectors';
+import { addTeamMember } from '../../features/communities/teamSlice';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import '../../styles/player/notifications-hub.css';
-import api from '../../services/api';
-import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 
 const TYPE_CONFIG = {
   friend_request: { icon: '👤', label: 'Social', color: '#7c3aed', cat: 'social' },
@@ -50,11 +51,13 @@ export function Notifications() {
   const { user } = useContext(AuthContext);
   const userId = user?.userId ?? user?.id ?? user?.user_id ?? 7;
   const roleName = user?.role || 'player';
-  const { respondToRequest } = useChat();
+  const dispatch = useAppDispatch();
+  const notifications = useAppSelector(selectAllNotifications);
+  const notificationsStatus = useAppSelector(selectNotificationsStatus);
+  const incomingRequests = useAppSelector(selectIncomingFriendRequests);
 
-  const [notifications, setNotifications] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
-  const [loading, setLoading] = useState(true);
+  const loading = notificationsStatus === 'loading';
   const [replyOpenId, setReplyOpenId] = useState(null);
   const [replyText, setReplyText] = useState({});
   const [toast, setToast] = useState(null);
@@ -66,29 +69,12 @@ export function Notifications() {
     setTimeout(() => setToast(null), 3500);
   }
 
-  const getClearedSet = (uid) => {
-    try {
-      const raw = localStorage.getItem(`playcarys_cleared_notifs_${uid}`);
-      return new Set(raw ? JSON.parse(raw) : []);
-    } catch {
-      return new Set();
-    }
-  };
-
   const loadNotifications = async () => {
     try {
-      setLoading(true);
-      const data = await notificationService.getNotifications(userId, roleName);
-      const clearedSet = getClearedSet(userId);
-      const activeList = Array.isArray(data)
-        ? data.filter((n) => !clearedSet.has(n.id) && !clearedSet.has(String(n.id)))
-        : [];
-      setNotifications(activeList);
+      await dispatch(fetchNotifications({ userId, roleName })).unwrap();
     } catch (err) {
       console.warn('Failed to load notifications from backend:', err);
       showToast('Could not load notifications.', 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -104,10 +90,7 @@ export function Notifications() {
 
   const handleMarkRead = async (notifId) => {
     try {
-      await notificationService.markAsRead(notifId, userId, roleName, true);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notifId ? { ...n, read: true } : n))
-      );
+      await dispatch(markNotificationRead({ id: notifId, audience: { userId, roleName } })).unwrap();
       showToast('Notification marked as read', 'success');
     } catch (err) {
       showToast('Failed to mark notification as read', 'error');
@@ -116,8 +99,7 @@ export function Notifications() {
 
   const handleMarkAllRead = async () => {
     try {
-      await notificationService.markAllAsRead(userId, roleName);
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      await dispatch(markAllNotificationsRead({ userId, roleName })).unwrap();
       showToast('All notifications marked as read', 'success');
     } catch (err) {
       showToast('Failed to mark all as read', 'error');
@@ -135,23 +117,10 @@ export function Notifications() {
       // 1. Delete direct notifications on the backend
       const directNotifs = notifications.filter((n) => n.toUser != null);
       for (const n of directNotifs) {
-        await notificationService.deleteNotification(n.id, userId, roleName).catch(() => {});
+        await dispatch(deleteNotification({ id: n.id, audience: { userId, roleName } })).unwrap().catch(() => {});
       }
 
-      // 2. Add cleared notifications to user-specific cleared set
-      try {
-        const clearedSet = getClearedSet(userId);
-        notifications.forEach((n) => {
-          clearedSet.add(n.id);
-          clearedSet.add(String(n.id));
-        });
-        localStorage.setItem(`playcarys_cleared_notifs_${userId}`, JSON.stringify([...clearedSet]));
-      } catch (e) {
-        console.warn('Could not persist cleared notifications:', e);
-      }
-
-      // 3. Immediately clear notifications from state
-      setNotifications([]);
+      await dispatch(markAllNotificationsRead({ userId, roleName })).unwrap();
       setIsClearModalOpen(false);
       showToast('All notifications cleared', 'info');
     } catch (err) {
@@ -170,17 +139,17 @@ export function Notifications() {
       if (!requestId) {
         // Notifications raised before request ids existed: find the pending
         // request from that sender instead.
-        const { incoming } = await socialService.listRequests(userId);
-        const match = incoming.find((r) => String(r.from_user) === String(n.fromUserId));
+        const requests = await dispatch(fetchFriendRequests(userId)).unwrap();
+        const match = (requests.incoming || incomingRequests).find((r) => String(r.from_user) === String(n.fromUserId));
         requestId = match ? match.id : null;
       }
       if (!requestId) {
-        setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+        await dispatch(markNotificationRead({ id: n.id, audience: { userId, roleName } })).unwrap();
         showToast('That request was already answered.', 'info');
         return;
       }
-      await respondToRequest(requestId, action);
-      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      await dispatch(respondToFriendRequest({ requestId, userId, action })).unwrap();
+      await dispatch(markNotificationRead({ id: n.id, audience: { userId, roleName } })).unwrap();
       showToast(
         action === 'accept' ? `You are now friends with ${n.from}.` : 'Friend request declined.',
         action === 'accept' ? 'success' : 'info'
@@ -192,52 +161,12 @@ export function Notifications() {
 
   const handleTeamInvite = async (n, action) => {
     try {
-      const freshDb = getDatabase();
       if (action === 'accept') {
-        try {
-          await api.post(`/teams/${n.team_id}/members?requesterId=${n.fromUserId}`, {
-            user_id: userId,
-          });
-        } catch (apiErr) {
-          console.warn('Backend add member warning:', apiErr);
-        }
-
-        if (Array.isArray(freshDb.teams)) {
-          const targetTeam = freshDb.teams.find((t) => sameId(t.team_id || t.id, n.team_id));
-          if (targetTeam) {
-            if (!Array.isArray(targetTeam.member_ids)) targetTeam.member_ids = [];
-            if (!targetTeam.member_ids.some((m) => sameId(m, userId))) {
-              targetTeam.member_ids.push(userId);
-            }
-          }
-        }
-
-        if (Array.isArray(freshDb.notifications)) {
-          const notif = freshDb.notifications.find((x) => sameId(x.id, n.id));
-          if (notif) {
-            notif.read = true;
-            notif.status = 'accepted';
-          }
-        }
-        saveDatabase(freshDb);
-        window.dispatchEvent(new Event('storage'));
-        setNotifications((prev) =>
-          prev.map((x) => (sameId(x.id, n.id) ? { ...x, read: true, status: 'accepted' } : x))
-        );
+        await dispatch(addTeamMember({ teamId: n.team_id, userId, requesterId: n.fromUserId })).unwrap();
+        await dispatch(markNotificationRead({ id: n.id, audience: { userId, roleName } })).unwrap();
         showToast(`You joined team "${n.team_name || 'Squad'}"! 🎉`, 'success');
       } else {
-        if (Array.isArray(freshDb.notifications)) {
-          const notif = freshDb.notifications.find((x) => sameId(x.id, n.id));
-          if (notif) {
-            notif.read = true;
-            notif.status = 'declined';
-          }
-        }
-        saveDatabase(freshDb);
-        window.dispatchEvent(new Event('storage'));
-        setNotifications((prev) =>
-          prev.map((x) => (sameId(x.id, n.id) ? { ...x, read: true, status: 'declined' } : x))
-        );
+        await dispatch(markNotificationRead({ id: n.id, audience: { userId, roleName } })).unwrap();
         showToast('Team invitation declined.', 'info');
       }
     } catch (err) {
@@ -262,10 +191,7 @@ export function Notifications() {
     try {
       // Stored by the server. The old version only changed this page's state and
       // then said "sent", so a reload made the reply vanish.
-      const saved = await notificationService.reply(notifId, userId, user?.username || 'You', txt);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notifId ? { ...n, replies: saved?.replies || n.replies } : n))
-      );
+      await dispatch(replyToNotification({ notificationId: notifId, fromUserId: userId, from: user?.username || 'You', msg: txt })).unwrap();
       setReplyText((prev) => ({ ...prev, [notifId]: '' }));
       setReplyOpenId(null);
       showToast('Reply sent', 'success');
