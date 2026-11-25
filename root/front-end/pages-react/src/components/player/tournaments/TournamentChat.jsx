@@ -1,36 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { tournamentService } from '../../../services/tournamentService';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import {
+  fetchTournamentChat,
+  sendTournamentChatMessage
+} from '../../../features/tournaments/tournamentPlaySlice';
+import { selectTournamentChat } from '../../../features/tournaments/selectors';
 
 export function TournamentChat({ tournamentId, userId, isRegistered, onShowToast }) {
-  const [messages, setMessages] = useState([]);
+  const dispatch = useAppDispatch();
+  const messages = useAppSelector((state) => selectTournamentChat(state, tournamentId));
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
   const logRef = useRef(null);
 
-  const fetchMessages = () => {
-    if (!tournamentId) return;
-    tournamentService
-      .fetchChat(tournamentId)
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setMessages(data);
-        }
-      })
-      .catch(() => {});
-  };
-
   useEffect(() => {
-    fetchMessages();
+    if (!tournamentId) return;
+    dispatch(fetchTournamentChat(tournamentId));
+
     const timer = setInterval(() => {
-      if (!document.hidden) {
-        fetchMessages();
+      if (!document.hidden && tournamentId) {
+        dispatch(fetchTournamentChat(tournamentId));
       }
     }, 5000);
 
     return () => {
       clearInterval(timer);
     };
-  }, [tournamentId]);
+  }, [dispatch, tournamentId]);
 
   useEffect(() => {
     if (logRef.current) {
@@ -46,8 +42,12 @@ export function TournamentChat({ tournamentId, userId, isRegistered, onShowToast
     setChatInput('');
 
     try {
-      await tournamentService.sendChat(tournamentId, userId, trimmed);
-      fetchMessages();
+      await dispatch(sendTournamentChatMessage({
+        tournamentId,
+        userId,
+        body: trimmed
+      })).unwrap();
+      dispatch(fetchTournamentChat(tournamentId));
     } catch (err) {
       setChatInput(trimmed); // restore text on failure
       if (onShowToast) {

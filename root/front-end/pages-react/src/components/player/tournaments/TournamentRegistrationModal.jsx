@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useAppDispatch } from '../../../app/hooks';
+import { registerForTournament } from '../../../features/tournaments/registrationSlice';
+import { fetchTournamentById } from '../../../features/tournaments/tournamentSlice';
 import api from '../../../services/api';
 import {
   tournamentService,
@@ -19,6 +22,7 @@ export function TournamentRegistrationModal({
   onSuccess,
   onShowToast
 }) {
+  const dispatch = useAppDispatch();
   const [inviteCode, setInviteCode] = useState('');
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -41,7 +45,7 @@ export function TournamentRegistrationModal({
       .get(`/teams?playerId=${parseInt(userId, 10)}`)
       .then((data) => {
         if (!isMounted) return;
-        const myTeamsList = Array.isArray(data) ? data : db.teams || [];
+        const myTeamsList = Array.isArray(data) ? data : db?.teams || [];
         setTeams(myTeamsList);
         const eligible = myTeamsList.filter(
           (team) =>
@@ -55,7 +59,7 @@ export function TournamentRegistrationModal({
       })
       .catch(() => {
         if (!isMounted) return;
-        const fallback = (db.teams || []).filter((tm) =>
+        const fallback = (db?.teams || []).filter((tm) =>
           (tm.member_ids || []).some((m) => sameId(m, userId))
         );
         setTeams(fallback);
@@ -111,6 +115,7 @@ export function TournamentRegistrationModal({
 
   async function handleRegister() {
     setSubmitting(true);
+    const tid = t.tournament_id || t.id;
     try {
       if (!isCommunityMemberUser) {
         throw new Error(`Only members of "${groupTag?.name || 'this community'}" can register for this tournament.`);
@@ -119,26 +124,44 @@ export function TournamentRegistrationModal({
         if (!selectedTeamId) {
           throw new Error('Please select a team.');
         }
-        await tournamentService.registerTeam(
-          t.tournament_id || t.id,
-          selectedTeamId,
-          userId
-        );
+        await dispatch(registerForTournament({
+          tournamentId: tid,
+          teamId: selectedTeamId,
+          playerId: userId,
+          requesterId: userId
+        })).unwrap();
         onShowToast('Team registered! 🏆 Good luck!', 'success');
       } else {
-        await tournamentService.registerSolo(
-          t.tournament_id || t.id,
-          userId,
-          inviteCode
-        );
+        await dispatch(registerForTournament({
+          tournamentId: tid,
+          playerId: userId,
+          invite_code: inviteCode || undefined
+        })).unwrap();
         onShowToast(`Registered for ${t.tournament_name || t.name || 'tournament'}! 🏆 Good luck!`, 'success');
       }
+
+      dispatch(fetchTournamentById(tid));
+
       if (typeof onSuccess === 'function') {
         await onSuccess();
       }
       onClose();
     } catch (err) {
-      onShowToast(err.message || 'Could not register for tournament.', 'error');
+      // Fallback to legacy service if offline / mock
+      try {
+        if (isTeam) {
+          await tournamentService.registerTeam(tid, selectedTeamId, userId);
+        } else {
+          await tournamentService.registerSolo(tid, userId, inviteCode);
+        }
+        onShowToast(`Registered for ${t.tournament_name || t.name || 'tournament'}! 🏆 Good luck!`, 'success');
+        if (typeof onSuccess === 'function') {
+          await onSuccess();
+        }
+        onClose();
+      } catch (legacyErr) {
+        onShowToast(err.message || legacyErr.message || 'Could not register for tournament.', 'error');
+      }
     } finally {
       setSubmitting(false);
     }

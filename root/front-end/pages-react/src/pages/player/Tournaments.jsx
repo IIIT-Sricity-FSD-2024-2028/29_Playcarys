@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchTournaments } from '../../features/tournaments/tournamentSlice';
+import { fetchTournaments, fetchTournamentById } from '../../features/tournaments/tournamentSlice';
 import { withdrawFromTournament } from '../../features/tournaments/registrationSlice';
 import {
   selectAllTournaments,
@@ -9,7 +9,7 @@ import {
   selectTournamentsError
 } from '../../features/tournaments/selectors';
 import { selectAuthUser } from '../../features/auth/selectors';
-import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
+import { sameId } from '../../services/playerService';
 import {
   kindOf,
   isCommunityMember,
@@ -42,7 +42,6 @@ export function Tournaments() {
   const [toast, setToast] = useState(null);
   const [withdrawingId, setWithdrawingId] = useState(null);
   const [showJoinByIdModal, setShowJoinByIdModal] = useState(false);
-  const [db, setDb] = useState(() => ({ ...getDatabase() }));
 
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -65,6 +64,9 @@ export function Tournaments() {
     const shouldRegister = params.get('register') === 'true';
     if (highlight) {
       setSelectedTournamentId(highlight);
+      if (!storeTournaments.some((x) => sameId(x.id || x.tournament_id, highlight))) {
+        dispatch(fetchTournamentById(highlight));
+      }
       if (shouldRegister) {
         const t = storeTournaments.find((x) => sameId(x.id || x.tournament_id, highlight));
         if (t) setRegModalTournament(t);
@@ -72,7 +74,7 @@ export function Tournaments() {
     } else if (!routeTournamentId) {
       setSelectedTournamentId(null);
     }
-  }, [location.search, routeTournamentId, storeTournaments]);
+  }, [location.search, routeTournamentId, storeTournaments, dispatch]);
 
   // Suspended account check
   if (user && user.status === 'suspended') {
@@ -94,10 +96,11 @@ export function Tournaments() {
   // Visibility filtering (private tournaments visible only to organizer or registered)
   const isVisible = (t) => {
     const isOrg = sameId(t.organizer || t.organizer_id, userId);
-    const inReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
+    const inReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId))
+      || (t.registered_team_ids || []).map(String).includes(String(userId));
 
     if (t.group_id != null) {
-      const isMember = isCommunityMember(t.group_id, userId, db);
+      const isMember = isCommunityMember(t.group_id, userId);
       if (!isMember && !isOrg && !inReg) {
         return false;
       }
@@ -110,7 +113,7 @@ export function Tournaments() {
   let allTournaments = storeTournaments.filter(isVisible);
 
   if (kindFilter !== 'all') {
-    allTournaments = allTournaments.filter((t) => kindOf(t, db) === kindFilter);
+    allTournaments = allTournaments.filter((t) => (t.kind || kindOf(t)) === kindFilter);
   }
 
   const activeTournaments = allTournaments.filter((t) => t.status === 'in-progress');
@@ -156,9 +159,9 @@ export function Tournaments() {
 
       showToast(`Withdrew from ${tourneyName}`, 'info');
 
-      // Refresh tournaments list from backend
+      // Refresh tournament in Redux store
+      dispatch(fetchTournamentById(tid));
       dispatch(fetchTournaments());
-      setDb({ ...getDatabase() });
     } catch (err) {
       showToast(err.message || 'Could not withdraw from tournament.', 'error');
     } finally {
@@ -178,7 +181,6 @@ export function Tournaments() {
         <TournamentDetails
           tournament={selectedTournament}
           userId={userId}
-          db={db}
           onBack={() => {
             setSelectedTournamentId(null);
             navigate('/player/tournaments', { replace: true });
@@ -186,7 +188,9 @@ export function Tournaments() {
           onOpenRegModal={(t) => setRegModalTournament(t)}
           onRefresh={async () => {
             dispatch(fetchTournaments());
-            setDb({ ...getDatabase() });
+            if (selectedTournamentId) {
+              dispatch(fetchTournamentById(selectedTournamentId));
+            }
           }}
           onShowToast={showToast}
           onWithdraw={handleWithdraw}
@@ -223,7 +227,6 @@ export function Tournaments() {
                 : `No live ${kindFilter} tournaments right now`
             }
             userId={userId}
-            db={db}
             onSelect={(id) => {
               setSelectedTournamentId(id);
               navigate(`/player/tournaments?highlight=${id}`);
@@ -244,7 +247,6 @@ export function Tournaments() {
                 : `No upcoming ${kindFilter} tournaments — why not create one?`
             }
             userId={userId}
-            db={db}
             onSelect={(id) => {
               setSelectedTournamentId(id);
               navigate(`/player/tournaments?highlight=${id}`);
@@ -265,7 +267,6 @@ export function Tournaments() {
                 : `No completed ${kindFilter} tournaments yet`
             }
             userId={userId}
-            db={db}
             onSelect={(id) => {
               setSelectedTournamentId(id);
               navigate(`/player/tournaments?highlight=${id}`);
@@ -282,12 +283,13 @@ export function Tournaments() {
         <TournamentRegistrationModal
           tournament={regModalTournament}
           userId={userId}
-          db={db}
           isOpen={true}
           onClose={() => setRegModalTournament(null)}
           onSuccess={async () => {
             dispatch(fetchTournaments());
-            setDb({ ...getDatabase() });
+            if (selectedTournamentId) {
+              dispatch(fetchTournamentById(selectedTournamentId));
+            }
           }}
           onShowToast={showToast}
         />
@@ -297,7 +299,6 @@ export function Tournaments() {
       <JoinTournamentByIdModal
         isOpen={showJoinByIdModal}
         onClose={() => setShowJoinByIdModal(false)}
-        db={db}
         userId={userId}
         onShowToast={showToast}
         onSelectTournament={(tid, tournament) => {

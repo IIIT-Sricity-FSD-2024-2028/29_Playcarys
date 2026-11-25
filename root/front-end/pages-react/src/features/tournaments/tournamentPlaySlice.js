@@ -195,6 +195,8 @@ export const resolveMatchDispute = createAsyncThunk(
   }
 );
 
+export const resolveDisputeWinner = resolveMatchDispute;
+
 export const fetchOrganizerDisputes = createAsyncThunk(
   'tournamentPlay/fetchDisputes',
   async (organizerId, { rejectWithValue }) => {

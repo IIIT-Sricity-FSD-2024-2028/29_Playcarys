@@ -123,7 +123,10 @@ export const selectTournamentBracket = (state, tournamentId) =>
 export const selectTournamentMatches = (state, tournamentId) => {
   if (tournamentId == null || !state.tournamentPlay?.byTournament) return [];
   const entry = state.tournamentPlay.byTournament[String(tournamentId)];
-  return entry?.bracket?.matches || entry?.overview?.matches || [];
+  if (Array.isArray(entry?.bracket)) return entry.bracket;
+  if (Array.isArray(entry?.bracket?.matches)) return entry.bracket.matches;
+  if (Array.isArray(entry?.overview?.matches)) return entry.overview.matches;
+  return [];
 };
 
 export const selectTournamentMatchById = (state, tournamentId, matchId) => {
@@ -140,13 +143,19 @@ export const selectTournamentLeaderboard = (state, tournamentId) =>
 export const selectTournamentStandings = (state, tournamentId) => {
   if (tournamentId == null || !state.tournamentPlay?.byTournament) return [];
   const entry = state.tournamentPlay.byTournament[String(tournamentId)];
-  return entry?.leaderboard?.standings || entry?.overview?.standings || [];
+  if (Array.isArray(entry?.leaderboard)) return entry.leaderboard;
+  if (Array.isArray(entry?.leaderboard?.standings)) return entry.leaderboard.standings;
+  if (Array.isArray(entry?.overview?.standings)) return entry.overview.standings;
+  return [];
 };
 
-export const selectTournamentChat = (state, tournamentId) =>
-  (tournamentId != null && state.tournamentPlay?.byTournament)
-    ? state.tournamentPlay.byTournament[String(tournamentId)]?.chat || []
-    : [];
+export const selectTournamentChat = (state, tournamentId) => {
+  if (tournamentId == null || !state.tournamentPlay?.byTournament) return [];
+  const entry = state.tournamentPlay.byTournament[String(tournamentId)];
+  if (Array.isArray(entry?.chat)) return entry.chat;
+  if (Array.isArray(entry?.chat?.messages)) return entry.chat.messages;
+  return [];
+};
 
 export const selectTournamentOverallLeaderboard = (state, tournamentId) =>
   (tournamentId != null && state.tournamentPlay?.byTournament)

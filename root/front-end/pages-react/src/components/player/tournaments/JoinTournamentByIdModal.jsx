@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { fetchTournamentById } from '../../../features/tournaments/tournamentSlice';
+import { selectAllTournaments } from '../../../features/tournaments/selectors';
 import API from '../../../services/api';
 import { sameId } from '../../../services/playerService';
 import { kindOf, hasPrizeMoney, KIND_LABEL } from '../../../services/tournamentService';
@@ -13,6 +16,8 @@ export function JoinTournamentByIdModal({
   userId,
   onShowToast
 }) {
+  const dispatch = useAppDispatch();
+  const allTournaments = useAppSelector(selectAllTournaments);
   const [tournamentIdInput, setTournamentIdInput] = useState('');
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
@@ -42,25 +47,36 @@ export function JoinTournamentByIdModal({
     setSearching(true);
     setFoundTournament(null);
 
-    // 1. Look in local database
-    const local = (db?.tournaments || []).find((t) => sameId(t.id || t.tournament_id, cleanId));
+    // 1. Look in Redux store tournaments
+    const local = allTournaments.find((t) => sameId(t.id || t.tournament_id, cleanId))
+      || (db?.tournaments || []).find((t) => sameId(t.id || t.tournament_id, cleanId));
     if (local) {
       setFoundTournament(local);
       setSearching(false);
       return;
     }
 
-    // 2. Fetch from backend if not in local list (e.g. unlisted private tournament)
+    // 2. Fetch from backend via Redux thunk
     try {
-      const res = await API.get(`/tournaments/${cleanId}`);
-      const data = res?.data ?? res;
+      const data = await dispatch(fetchTournamentById(cleanId)).unwrap();
       if (data && (data.tournament_id || data.id)) {
         setFoundTournament(data);
       } else {
         setError(`Tournament #${cleanId} was not found.`);
       }
     } catch (err) {
-      setError(`Tournament #${cleanId} could not be found or does not exist.`);
+      // Fallback direct API check
+      try {
+        const res = await API.get(`/tournaments/${cleanId}`);
+        const data = res?.data ?? res;
+        if (data && (data.tournament_id || data.id)) {
+          setFoundTournament(data);
+        } else {
+          setError(`Tournament #${cleanId} was not found.`);
+        }
+      } catch (fallbackErr) {
+        setError(`Tournament #${cleanId} could not be found or does not exist.`);
+      }
     } finally {
       setSearching(false);
     }

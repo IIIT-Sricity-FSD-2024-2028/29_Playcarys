@@ -11,8 +11,9 @@ export const KIND_LABEL = {
 export function kindOf(t, db) {
   if (!t) return 'casual';
   if (t.kind) return t.kind;
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
   const organizerId = t.organizer || t.organizer_id;
-  const role = t.organizer_role || (db.users || []).find((u) => sameId(u.user_id || u.id, organizerId))?.role;
+  const role = t.organizer_role || (targetDb?.users || []).find((u) => sameId(u.user_id || u.id, organizerId))?.role;
   if (role === 'publisher') return 'official';
   if (t.group_id != null) return 'community';
   return 'casual';
@@ -43,7 +44,8 @@ export function hasPrizeMoney(t) {
 
 export function isCommunityMember(groupId, userId, db) {
   if (groupId == null) return false;
-  const group = (db?.groups || []).find((g) => sameId(g.group_id || g.id, groupId));
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+  const group = (targetDb?.groups || []).find((g) => sameId(g.group_id || g.id, groupId));
   if (!group) return false;
   if (sameId(group.owner_id, userId)) return true;
   if ((group.officer_ids || []).some((m) => sameId(m, userId))) return true;
@@ -52,17 +54,19 @@ export function isCommunityMember(groupId, userId, db) {
 
 export function myTeams(userId, db) {
   const uid = String(userId);
-  return (db.teams || []).filter((tm) => (tm.member_ids || []).some((m) => sameId(m, uid)));
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+  return (targetDb?.teams || []).filter((tm) => (tm.member_ids || []).some((m) => sameId(m, uid)));
 }
 
 export function myTeamsIn(t, userId, db) {
   const tid = String(t.tournament_id || t.id);
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
   const entered = new Set(
-    (db.team_tournament || [])
+    (targetDb?.team_tournament || [])
       .filter((r) => sameId(r.tournament_id, tid))
       .map((r) => String(r.team_id))
   );
-  return myTeams(userId, db).filter((tm) => entered.has(String(tm.team_id)));
+  return myTeams(userId, targetDb).filter((tm) => entered.has(String(tm.team_id)));
 }
 
 export function isRegistered(t, userId, db) {
@@ -74,34 +78,40 @@ export function isRegistered(t, userId, db) {
     return myTeamsIn(t, userId, db).length > 0;
   }
 
-  // 1. Authoritative check: player_tournament table in local database
-  if (db && Array.isArray(db.player_tournament)) {
-    return db.player_tournament.some(
+  // 1. Authoritative check: registeredPlayers on tournament object
+  const players = t.registeredPlayers || t.registered_player_ids || [];
+  if (players.map(String).includes(uid)) {
+    return true;
+  }
+
+  // 2. Fallback check: player_tournament table in local database
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+  if (targetDb && Array.isArray(targetDb.player_tournament)) {
+    return targetDb.player_tournament.some(
       (pt) => sameId(pt.player_id, uid) && sameId(pt.tournament_id, tid)
     );
   }
 
-  // 2. Fallback check: registeredPlayers on tournament object
-  const players = t.registeredPlayers || t.registered_player_ids || [];
-  return players.map(String).includes(uid);
+  return false;
 }
 
 export function entrantCount(t, db) {
   if (!t) return 0;
-  const tid = t.tournament_id || t.id;
-  if (t.team_size) {
-    return (db?.team_tournament || []).filter((r) => sameId(r.tournament_id, tid)).length;
+  if (typeof t.participants === 'number' && t.participants >= 0) {
+    return t.participants;
   }
-  if (db && Array.isArray(db.player_tournament)) {
-    const ptList = db.player_tournament.filter((pt) => sameId(pt.tournament_id, tid));
-    if (ptList.length > 0) return ptList.length;
+  const tid = t.tournament_id || t.id;
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+  if (t.team_size) {
+    return (targetDb?.team_tournament || []).filter((r) => sameId(r.tournament_id, tid)).length;
   }
   const players = t.registeredPlayers || t.registered_player_ids;
   if (Array.isArray(players) && players.length > 0) {
     return players.length;
   }
-  if (typeof t.participants === 'number' && t.participants >= 0) {
-    return t.participants;
+  if (targetDb && Array.isArray(targetDb.player_tournament)) {
+    const ptList = targetDb.player_tournament.filter((pt) => sameId(pt.tournament_id, tid));
+    if (ptList.length > 0) return ptList.length;
   }
   return 0;
 }
@@ -109,16 +119,18 @@ export function entrantCount(t, db) {
 export function entrantName(t, slot, db) {
   if (slot == null) return 'TBD';
   if (String(slot) === 'BYE') return 'BYE';
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
   if (t && t.team_size) {
-    const team = (db.teams || []).find((x) => sameId(x.team_id, slot));
+    const team = (targetDb?.teams || []).find((x) => sameId(x.team_id, slot));
     return team ? team.name : `Team ${slot}`;
   }
-  const user = (db.users || []).find((u) => sameId(u.id || u.user_id, slot));
+  const user = (targetDb?.users || []).find((u) => sameId(u.id || u.user_id, slot));
   return user?.user_name || user?.username || String(slot);
 }
 
 export function seedOf(uid, db) {
-  const sorted = [...(db.player_profiles || [])].sort(
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+  const sorted = [...(targetDb?.player_profiles || [])].sort(
     (a, b) => (b.carys_points || 0) - (a.carys_points || 0)
   );
   const idx = sorted.findIndex((p) => sameId(p.user_id, uid));
@@ -126,7 +138,8 @@ export function seedOf(uid, db) {
 }
 
 export function pcpOf(uid, db) {
-  const prof = (db.player_profiles || []).find((p) => sameId(p.user_id, uid));
+  const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+  const prof = (targetDb?.player_profiles || []).find((p) => sameId(p.user_id, uid));
   return prof?.carys_points || 0;
 }
 

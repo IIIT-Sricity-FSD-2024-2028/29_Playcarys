@@ -1,22 +1,41 @@
 import React, { useState, useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { fetchTournamentBracket } from '../../../features/tournaments/tournamentPlaySlice';
+import { fetchTournamentStages } from '../../../features/tournaments/tournamentSlice';
+import {
+  selectTournamentBracket,
+  selectTournamentStages,
+  selectTournamentPlayBracketStatus
+} from '../../../features/tournaments/selectors';
 import { entrantName, tournamentService } from '../../../services/tournamentService';
 import { sameId } from '../../../services/playerService';
 
 export function TournamentBracket({ tournament, db }) {
-  const [bracketMatches, setBracketMatches] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
   const [selectedStageOrder, setSelectedStageOrder] = useState(1);
 
   const t = tournament;
   const tid = t?.tournament_id || t?.id;
 
-  const rawStages = (Array.isArray(t?.games) && t.games.length > 0)
-    ? t.games
-    : (Array.isArray(t?.stages) && t.stages.length > 0)
-      ? t.stages
-      : (Array.isArray(t?.stage_games) && t.stage_games.length > 0)
-        ? t.stage_games
-        : (db?.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
+  const reduxBracket = useAppSelector((state) => selectTournamentBracket(state, tid));
+  const reduxStages = useAppSelector((state) => selectTournamentStages(state, tid));
+  const bracketStatus = useAppSelector(selectTournamentPlayBracketStatus);
+
+  useEffect(() => {
+    if (!tid) return;
+    dispatch(fetchTournamentBracket(tid));
+    dispatch(fetchTournamentStages(tid));
+  }, [dispatch, tid]);
+
+  const rawStages = (Array.isArray(reduxStages) && reduxStages.length > 0)
+    ? reduxStages
+    : (Array.isArray(t?.games) && t.games.length > 0)
+      ? t.games
+      : (Array.isArray(t?.stages) && t.stages.length > 0)
+        ? t.stages
+        : (Array.isArray(t?.stage_games) && t.stage_games.length > 0)
+          ? t.stage_games
+          : (db?.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
 
   const isMultiTitle = (t?.tournament_name || t?.name || '').toLowerCase().includes('multi');
   let effectiveStages = rawStages;
@@ -41,39 +60,13 @@ export function TournamentBracket({ tournament, db }) {
     })
     : [];
 
-  // Try fetching bracket from API, fallback to local DB matches
-  useEffect(() => {
-    if (!t) return;
-    let isMounted = true;
-    setLoading(true);
+  const bracketMatches = Array.isArray(reduxBracket)
+    ? reduxBracket
+    : Array.isArray(reduxBracket?.matches)
+      ? reduxBracket.matches
+      : (db?.tournament_matches || []).filter((m) => sameId(m.tournamentId, tid));
 
-    tournamentService
-      .fetchBracket(tid)
-      .then((data) => {
-        if (!isMounted) return;
-        if (Array.isArray(data) && data.length > 0) {
-          setBracketMatches(data);
-        } else {
-          const local = (db?.tournament_matches || []).filter((m) =>
-            sameId(m.tournamentId, tid)
-          );
-          setBracketMatches(local);
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        const local = (db?.tournament_matches || []).filter((m) =>
-          sameId(m.tournamentId, tid)
-        );
-        setBracketMatches(local);
-        setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [t, tid, db]);
+  const loading = bracketStatus === 'loading' && bracketMatches.length === 0;
 
   if (loading) {
     return <div style={{ padding: '1.5rem', color: 'var(--text-secondary)' }}>Loading bracket…</div>;
@@ -126,8 +119,7 @@ export function TournamentBracket({ tournament, db }) {
             className="btn btn-primary btn-sm"
             onClick={() => {
               tournamentService.sanitizeTournamentMatches(tid);
-              const local = (getDatabase()?.tournament_matches || []).filter((m) => sameId(m.tournamentId, tid));
-              setBracketMatches(local);
+              dispatch(fetchTournamentBracket(tid));
             }}
           >
             ⚡ Generate Stage {selectedStageOrder} Bracket Now

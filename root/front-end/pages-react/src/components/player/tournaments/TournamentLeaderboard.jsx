@@ -1,62 +1,60 @@
-import React, { useState, useEffect } from 'react';
-import { tournamentService, seedOf, pcpOf, entrantCount } from '../../../services/tournamentService';
+import React, { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { fetchTournamentLeaderboard } from '../../../features/tournaments/tournamentPlaySlice';
+import { fetchRegistrations } from '../../../features/tournaments/registrationSlice';
+import {
+  selectTournamentLeaderboard,
+  selectRegistrationsByTournament,
+  selectTournamentPlayLeaderboardStatus,
+  selectTournamentPlayLeaderboardError
+} from '../../../features/tournaments/selectors';
+import { seedOf, pcpOf, entrantCount } from '../../../services/tournamentService';
 import { sameId } from '../../../services/playerService';
 
 export function TournamentLeaderboard({ tournament, userId, db, isScoreContest }) {
-  const [leaderboardData, setLeaderboardData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
+  const dispatch = useAppDispatch();
   const t = tournament;
   const tid = t?.tournament_id || t?.id;
   const myUid = String(userId);
 
+  const reduxLeaderboard = useAppSelector((state) => selectTournamentLeaderboard(state, tid));
+  const reduxRegistrations = useAppSelector((state) => selectRegistrationsByTournament(state, tid));
+  const status = useAppSelector(selectTournamentPlayLeaderboardStatus);
+  const error = useAppSelector(selectTournamentPlayLeaderboardError);
+
   useEffect(() => {
-    if (!isScoreContest || !tid) return;
+    if (!tid) return;
+    if (isScoreContest) {
+      dispatch(fetchTournamentLeaderboard(tid));
+    }
+    dispatch(fetchRegistrations(tid));
+  }, [dispatch, isScoreContest, tid]);
 
-    let isMounted = true;
-    setLoading(true);
-    setError(null);
-
-    tournamentService
-      .fetchLeaderboard(tid)
-      .then((data) => {
-        if (!isMounted) return;
-        setLeaderboardData(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.message || 'Could not load leaderboard.');
-        setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isScoreContest, tid]);
+  const loading = status === 'loading' && !reduxLeaderboard;
+  const leaderboardData = reduxLeaderboard;
 
   const max = t?.maxParticipants || t?.max_participants || 16;
   const isTeam = Boolean(t?.team_size);
   const unitLabel = isTeam ? 'Teams' : 'Players';
 
-  // Comprehensive entrant discovery across all local & tournament storage
+  // Comprehensive entrant discovery across Redux registrations, tournament DTO and fallback local storage
+  const fromRedux = reduxRegistrations.map((r) => String(r.playerId || r.player_id || r.id));
   const fromPt = (db?.player_tournament || [])
     .filter((pt) => sameId(pt.tournament_id, tid))
     .map((pt) => String(pt.player_id));
   const fromReg = (t?.registeredPlayers || t?.registered_player_ids || []).map((p) =>
     typeof p === 'object' ? String(p.id || p.user_id) : String(p)
   );
-  const allSoloPlayerIds = [...new Set([...fromPt, ...fromReg])].filter(Boolean);
+  const allSoloPlayerIds = [...new Set([...fromRedux, ...fromPt, ...fromReg])].filter(Boolean);
 
   const registeredTeamRows = isTeam
     ? (db?.team_tournament || []).filter((tt) => sameId(tt.tournament_id, tid))
     : [];
 
   const rawCount = entrantCount(t, db);
-  const registeredCount = isTeam
-    ? Math.max(rawCount, registeredTeamRows.length)
-    : Math.max(rawCount, allSoloPlayerIds.length);
+  const registeredCount = t?.participants ?? (isTeam
+    ? Math.max(rawCount, (t?.registered_team_ids || []).length, registeredTeamRows.length)
+    : Math.max(rawCount, allSoloPlayerIds.length));
 
   const isFull = registeredCount >= max;
   const spotsRemaining = Math.max(0, max - registeredCount);

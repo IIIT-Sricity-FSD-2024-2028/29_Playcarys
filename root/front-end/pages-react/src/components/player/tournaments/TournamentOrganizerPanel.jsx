@@ -1,4 +1,16 @@
 import React, { useState } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import {
+  updateTournament,
+  fetchTournamentById
+} from '../../../features/tournaments/tournamentSlice';
+import {
+  startTournament,
+  fetchTournamentBracket,
+  fetchTournamentOverview,
+  resolveDisputeWinner
+} from '../../../features/tournaments/tournamentPlaySlice';
+import { selectTournamentMatches } from '../../../features/tournaments/selectors';
 import { entrantCount, entrantName, tournamentService } from '../../../services/tournamentService';
 import { sameId } from '../../../services/playerService';
 
@@ -9,6 +21,7 @@ export function TournamentOrganizerPanel({
   onStarted,
   onShowToast
 }) {
+  const dispatch = useAppDispatch();
   const [starting, setStarting] = useState(false);
   const [confirmStartOpen, setConfirmStartOpen] = useState(false);
   const [deadlineModalOpen, setDeadlineModalOpen] = useState(false);
@@ -25,7 +38,7 @@ export function TournamentOrganizerPanel({
   }
 
   const tid = t.tournament_id || t.id;
-  const entrants = entrantCount(t, db);
+  const entrants = t.participants ?? entrantCount(t, db);
   const isBracket = t.format === 'bracket';
   const min = isBracket ? 2 : 1;
   const ready = entrants >= min;
@@ -33,14 +46,14 @@ export function TournamentOrganizerPanel({
 
   // Candidate entrants for quick winner selection
   const candidateEntrants = [];
-  if (t.team_size && Array.isArray(db.team_tournament)) {
+  if (t.team_size && Array.isArray(db?.team_tournament)) {
     (db.team_tournament || []).filter((r) => sameId(r.tournament_id, tid)).forEach((r) => {
-      const tm = (db.teams || []).find((x) => sameId(x.team_id, r.team_id));
+      const tm = (db?.teams || []).find((x) => sameId(x.team_id, r.team_id));
       candidateEntrants.push({ id: r.team_id, name: tm ? tm.name : `Team #${r.team_id}` });
     });
-  } else if (Array.isArray(db.player_tournament)) {
+  } else if (Array.isArray(db?.player_tournament)) {
     (db.player_tournament || []).filter((r) => sameId(r.tournament_id, tid)).forEach((r) => {
-      const u = (db.users || []).find((x) => sameId(x.id || x.user_id, r.player_id));
+      const u = (db?.users || []).find((x) => sameId(x.id || x.user_id, r.player_id));
       candidateEntrants.push({ id: r.player_id, name: u?.user_name || u?.username || `Player #${r.player_id}` });
     });
   }
@@ -48,12 +61,22 @@ export function TournamentOrganizerPanel({
   async function handleConfirmStart() {
     setStarting(true);
     try {
-      await tournamentService.startTournament(tid, userId);
+      await dispatch(startTournament({ tournamentId: tid, organizerId: userId })).unwrap();
       onShowToast(`${t.name || t.tournament_name} has started! 🚀 Bracket generated.`, 'success');
       setConfirmStartOpen(false);
+      dispatch(fetchTournamentById(tid));
+      dispatch(fetchTournamentBracket(tid));
+      dispatch(fetchTournamentOverview(tid));
       if (onStarted) onStarted();
     } catch (err) {
-      onShowToast(err.message || 'Could not start tournament.', 'error');
+      try {
+        await tournamentService.startTournament(tid, userId);
+        onShowToast(`${t.name || t.tournament_name} has started! 🚀 Bracket generated.`, 'success');
+        setConfirmStartOpen(false);
+        if (onStarted) onStarted();
+      } catch (legacyErr) {
+        onShowToast(err.message || legacyErr.message || 'Could not start tournament.', 'error');
+      }
     } finally {
       setStarting(false);
     }
@@ -61,62 +84,83 @@ export function TournamentOrganizerPanel({
 
   async function handlePause() {
     try {
+      await dispatch(updateTournament({ id: tid, changes: { status: 'paused' } })).unwrap();
+      onShowToast('Tournament paused ⏸️', 'info');
+      dispatch(fetchTournamentById(tid));
+      if (onStarted) onStarted();
+    } catch (err) {
       await tournamentService.pauseTournament(tid);
       onShowToast('Tournament paused ⏸️', 'info');
       if (onStarted) onStarted();
-    } catch (err) {
-      onShowToast(err.message || 'Could not pause tournament.', 'error');
     }
   }
 
   async function handleResume() {
     try {
+      await dispatch(updateTournament({ id: tid, changes: { status: 'in-progress' } })).unwrap();
+      onShowToast('Tournament resumed! ▶️', 'success');
+      dispatch(fetchTournamentById(tid));
+      if (onStarted) onStarted();
+    } catch (err) {
       await tournamentService.resumeTournament(tid);
       onShowToast('Tournament resumed! ▶️', 'success');
       if (onStarted) onStarted();
-    } catch (err) {
-      onShowToast(err.message || 'Could not resume tournament.', 'error');
     }
   }
 
   async function handleConfirmCancel() {
     try {
+      await dispatch(updateTournament({ id: tid, changes: { status: 'cancelled' } })).unwrap();
+      onShowToast('Tournament cancelled 🛑', 'info');
+      setCancelModalOpen(false);
+      dispatch(fetchTournamentById(tid));
+      if (onStarted) onStarted();
+    } catch (err) {
       await tournamentService.cancelTournament(tid, cancelReason.trim() || 'Cancelled by organizer');
       onShowToast('Tournament cancelled 🛑', 'info');
       setCancelModalOpen(false);
       if (onStarted) onStarted();
-    } catch (err) {
-      onShowToast(err.message || 'Could not cancel tournament.', 'error');
     }
   }
 
   async function handleConfirmWinner() {
     if (!winnerNameInput.trim()) return;
     try {
+      await dispatch(updateTournament({ id: tid, changes: { winner: winnerNameInput.trim(), status: 'completed' } })).unwrap();
+      onShowToast(`Winner declared: ${winnerNameInput.trim()}! 🏆`, 'success');
+      setWinnerModalOpen(false);
+      dispatch(fetchTournamentById(tid));
+      if (onStarted) onStarted();
+    } catch (err) {
       await tournamentService.declareWinner(tid, winnerNameInput.trim(), winnerNameInput.trim());
       onShowToast(`Winner declared: ${winnerNameInput.trim()}! 🏆`, 'success');
       setWinnerModalOpen(false);
       if (onStarted) onStarted();
-    } catch (err) {
-      onShowToast(err.message || 'Could not declare winner.', 'error');
     }
   }
 
   async function handleSaveDeadline() {
     if (!newDeadline) return;
     try {
+      await dispatch(updateTournament({ id: tid, changes: { regClose: newDeadline } })).unwrap();
+      onShowToast('Registration deadline extended! 📅', 'success');
+      setDeadlineModalOpen(false);
+      dispatch(fetchTournamentById(tid));
+      if (onStarted) onStarted();
+    } catch (err) {
       await tournamentService.extendDeadline(tid, newDeadline);
       onShowToast('Registration deadline extended! 📅', 'success');
       setDeadlineModalOpen(false);
       if (onStarted) onStarted();
-    } catch (err) {
-      onShowToast(err.message || 'Could not extend deadline.', 'error');
     }
   }
 
-  const disputedMatches = (db.tournament_matches || []).filter(
-    (m) => sameId(m.tournamentId, tid) && m.status === 'disputed'
+  const reduxMatches = useAppSelector((state) => selectTournamentMatches(state, tid));
+  const fallbackMatches = (db?.tournament_matches || []).filter(
+    (m) => sameId(m.tournamentId, tid)
   );
+  const allMatches = reduxMatches.length > 0 ? reduxMatches : fallbackMatches;
+  const disputedMatches = allMatches.filter((m) => m.status === 'disputed');
 
   function handleClearDispute(mid) {
     tournamentService.resetDispute(mid);
@@ -124,9 +168,16 @@ export function TournamentOrganizerPanel({
     if (onStarted) onStarted();
   }
 
-  function handleResolveWinner(mid, winnerId) {
-    tournamentService.resolveDisputeWinner(mid, winnerId);
-    onShowToast(`Match ${mid} resolved! Winner advanced in bracket.`, 'success');
+  async function handleResolveWinner(mid, winnerId) {
+    try {
+      await dispatch(resolveDisputeWinner({ matchId: mid, organizerId: userId, organizer_id: userId, winnerId, winner_id: winnerId, tournamentId: tid })).unwrap();
+      onShowToast(`Match ${mid} resolved! Winner advanced in bracket.`, 'success');
+      dispatch(fetchTournamentBracket(tid));
+      dispatch(fetchTournamentOverview(tid));
+    } catch (err) {
+      tournamentService.resolveDisputeWinner(mid, winnerId);
+      onShowToast(`Match ${mid} resolved! Winner advanced in bracket.`, 'success');
+    }
     if (onStarted) onStarted();
   }
 

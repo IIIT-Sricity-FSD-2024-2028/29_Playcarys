@@ -1,4 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import {
+  fetchTournamentById,
+  fetchTournamentStages
+} from '../../../features/tournaments/tournamentSlice';
+import {
+  fetchTournamentOverview,
+  fetchTournamentBracket,
+  fetchTournamentLeaderboard,
+  fetchMatchToken,
+  confirmMatchResult,
+  disputeMatchResult,
+  resolveDisputeWinner
+} from '../../../features/tournaments/tournamentPlaySlice';
+import { fetchRegistrations } from '../../../features/tournaments/registrationSlice';
+import {
+  selectTournamentStages,
+  selectTournamentMatches,
+  selectTournamentOverview,
+  selectRegistrationsByTournament,
+  selectIsPlayerRegistered
+} from '../../../features/tournaments/selectors';
 import {
   isRegistered,
   myTeamsIn,
@@ -27,6 +49,7 @@ export function TournamentDetails({
   onWithdraw,
   withdrawingId
 }) {
+  const dispatch = useAppDispatch();
   const [activeTab, setActiveTab] = useState('tab-overview');
 
   const t = tournament;
@@ -35,34 +58,53 @@ export function TournamentDetails({
   const tid = t.tournament_id || t.id;
   const uid = String(userId);
 
-  // Automatically heal any falsely disputed or unplayed pending matches
+  const reduxMatches = useAppSelector((state) => selectTournamentMatches(state, tid));
+  const reduxStages = useAppSelector((state) => selectTournamentStages(state, tid));
+  const reduxRegistrations = useAppSelector((state) => selectRegistrationsByTournament(state, tid));
+  const isPlayerRegistered = useAppSelector((state) => selectIsPlayerRegistered(state, tid, userId));
+  const tournamentOverview = useAppSelector((state) => selectTournamentOverview(state, tid));
+
+  // Automatically heal any falsely disputed or unplayed pending matches in local fallback
   useEffect(() => {
     if (!t) return;
     sanitizeTournamentMatches(tid, db);
   }, [tid, db]);
 
-  const reg = isRegistered(t, userId, db);
-  const entrants = entrantCount(t, db);
-  const max = t.maxParticipants || t.max_participants || 16;
-  const isFull = entrants >= max;
-  const regClosed = t.regClose ? new Date() > new Date(t.regClose) : false;
-
   // Score contest resolution
-  const gameOf = (db.games || []).find((g) => sameId(g.game_id || g.id, t.game_id));
+  const gameOf = (db?.games || []).find((g) => sameId(g.game_id || g.id, t.game_id));
   const isScoreContest = t.format
     ? t.format === 'score'
     : gameOf && gameOf.game_mode
       ? gameOf.game_mode === 'single'
       : String(t.game_id) === '8';
 
-  const publisherUser = (db.users || []).find((u) => sameId(u.user_id || u.id, t.publisherId || t.organizer));
+  // Dispatch Redux thunks to fetch tournament play, bracket, stages and registrations
+  useEffect(() => {
+    if (!tid) return;
+    dispatch(fetchTournamentOverview(tid));
+    dispatch(fetchTournamentBracket(tid));
+    dispatch(fetchTournamentStages(tid));
+    dispatch(fetchRegistrations(tid));
+    if (isScoreContest) {
+      dispatch(fetchTournamentLeaderboard(tid));
+    }
+  }, [dispatch, tid, isScoreContest]);
+
+  const isDirectlyRegistered = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(uid);
+  const reg = isPlayerRegistered || isDirectlyRegistered || isRegistered(t, userId, db);
+  const entrants = t.participants ?? (reduxRegistrations.length > 0 ? reduxRegistrations.length : entrantCount(t, db));
+  const max = t.maxParticipants || t.max_participants || 16;
+  const isFull = entrants >= max;
+  const regClosed = t.regClose ? new Date() > new Date(t.regClose) : false;
+
+  const publisherUser = (db?.users || []).find((u) => sameId(u.user_id || u.id, t.publisherId || t.organizer));
 
   // Creator & Organizer resolution (never 'PlayCarys')
   const organizerId = t.organizer ?? t.organizer_id ?? t.publisherId ?? t.publisher_id ?? t.created_by ?? t.createdBy ?? t.user_id;
-  const creatorUser = (db.users || []).find((u) => sameId(u.user_id || u.id, organizerId));
-  const groupObj = t.group_id != null ? (db.groups || []).find((g) => sameId(g.group_id || g.id, t.group_id)) : null;
-  const groupOwnerUser = groupObj ? (db.users || []).find((u) => sameId(u.user_id || u.id, groupObj.owner_id)) : null;
-  const pubProf = (db.publisher_profiles || []).find((p) => sameId(p.user_id, organizerId));
+  const creatorUser = (db?.users || []).find((u) => sameId(u.user_id || u.id, organizerId));
+  const groupObj = t.group_id != null ? (db?.groups || []).find((g) => sameId(g.group_id || g.id, t.group_id)) : null;
+  const groupOwnerUser = groupObj ? (db?.users || []).find((u) => sameId(u.user_id || u.id, groupObj.owner_id)) : null;
+  const pubProf = (db?.publisher_profiles || []).find((p) => sameId(p.user_id, organizerId));
 
   const isPlayCarys = (str) => !str || /^playcarys$/i.test(String(str).trim());
 
@@ -146,17 +188,19 @@ export function TournamentDetails({
     return null;
   };
 
-  let rawStages = (Array.isArray(t.games) && t.games.length > 0)
-    ? t.games
-    : (Array.isArray(t.stages) && t.stages.length > 0)
-      ? t.stages
-      : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
-        ? t.stage_games
-        : (db.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
+  let rawStages = (Array.isArray(reduxStages) && reduxStages.length > 0)
+    ? reduxStages
+    : (Array.isArray(t.games) && t.games.length > 0)
+      ? t.games
+      : (Array.isArray(t.stages) && t.stages.length > 0)
+        ? t.stages
+        : (Array.isArray(t.stage_games) && t.stage_games.length > 0)
+          ? t.stage_games
+          : (db?.tournament_games || []).filter((tg) => sameId(tg.tournament_id, tid));
 
   const isMultiTitle = (t.tournament_name || t.name || '').toLowerCase().includes('multi');
   if (rawStages.length < 2 && (t.type === 'multi' || isMultiTitle)) {
-    const gList = db.games || [];
+    const gList = db?.games || [];
     const chessG = gList.find((g) => (g.game_name || g.name || '').toLowerCase().includes('chess')) || gList[0] || { game_id: 7, game_name: 'Chess Pro' };
     const hextrisG = gList.find((g) => (g.game_name || g.name || '').toLowerCase().includes('hextris')) || gList[1] || { game_id: 8, game_name: 'Hextris' };
     rawStages = [
@@ -170,7 +214,7 @@ export function TournamentDetails({
   const tournamentGamesList = isMultiGame
     ? rawStages.map((s, idx) => {
       const sGameId = s.game_id || s.gameId;
-      const gObj = (db.games || []).find((g) => sameId(g.game_id || g.id, sGameId));
+      const gObj = (db?.games || []).find((g) => sameId(g.game_id || g.id, sGameId));
       const gName = gObj?.game_name || gObj?.name || gObj?.title || s.game_name || s.name || (t.game ? `${t.game} Stage ${idx + 1}` : `Stage ${idx + 1} Game`);
       const isSc = s.format === 'score' || (!s.format && isScoreContest);
       return {
@@ -204,9 +248,12 @@ export function TournamentDetails({
     ? myTeamsIn(t, userId, db).map((tm) => String(tm.team_id))
     : [uid];
 
-  const myMatch = (db.tournament_matches || []).find(
+  const fallbackMatches = (db?.tournament_matches || []).filter((m) => sameId(m.tournamentId, t.id || t.tournament_id));
+  const allMatches = reduxMatches.length > 0 ? reduxMatches : fallbackMatches;
+
+  const myMatch = allMatches.find(
     (m) =>
-      sameId(m.tournamentId, t.id || t.tournament_id) &&
+      sameId(m.tournamentId || tid, tid) &&
       (mySlots.includes(String(m.player1)) || mySlots.includes(String(m.player2))) &&
       (m.status === 'waiting' || (m.status === 'pending' && !m.reportedWinner && !m.reportedBy)) &&
       m.player1 &&
@@ -216,17 +263,17 @@ export function TournamentDetails({
   );
 
   // Matches pending verification or in dispute (must have an actual reported winner or reporter)
-  const pendingMatch = (db.tournament_matches || []).find(
+  const pendingMatch = allMatches.find(
     (m) =>
-      sameId(m.tournamentId, t.id || t.tournament_id) &&
+      sameId(m.tournamentId || tid, tid) &&
       (sameId(m.player1, uid) || sameId(m.player2, uid)) &&
       m.status === 'pending' &&
       (m.reportedWinner != null || m.reportedBy != null)
   );
 
-  const disputedMatch = (db.tournament_matches || []).find(
+  const disputedMatch = allMatches.find(
     (m) =>
-      sameId(m.tournamentId, t.id || t.tournament_id) &&
+      sameId(m.tournamentId || tid, tid) &&
       (sameId(m.player1, uid) || sameId(m.player2, uid) || sameId(organizerId, userId)) &&
       m.status === 'disputed'
   );
@@ -247,17 +294,39 @@ export function TournamentDetails({
   }
 
   function handleEnterMatch(matchId) {
-    tournamentService.enterMatch(t, matchId, userId).then((res) => {
-      if (!res.success && res.reason) {
-        onShowToast(res.reason, 'error');
-      }
-    });
+    dispatch(fetchMatchToken({ matchId, userId }))
+      .unwrap()
+      .then((tokenData) => {
+        if (tokenData && tokenData.deep_link) {
+          window.location.href = tokenData.deep_link;
+        } else {
+          tournamentService.enterMatch(t, matchId, userId).then((res) => {
+            if (!res.success && res.reason) {
+              onShowToast(res.reason, 'error');
+            }
+          });
+        }
+      })
+      .catch(() => {
+        tournamentService.enterMatch(t, matchId, userId).then((res) => {
+          if (!res.success && res.reason) {
+            onShowToast(res.reason, 'error');
+          }
+        });
+      });
   }
 
-  function handleConfirmResult(mid) {
-    tournamentService.confirmResult(mid);
-    onShowToast('Result confirmed! The bracket has updated.', 'success');
-    onRefresh();
+  async function handleConfirmResult(mid) {
+    try {
+      await dispatch(confirmMatchResult({ matchId: mid, userId })).unwrap();
+      onShowToast('Result confirmed! The bracket has updated.', 'success');
+      dispatch(fetchTournamentBracket(tid));
+      dispatch(fetchTournamentOverview(tid));
+    } catch (err) {
+      tournamentService.confirmResult(mid);
+      onShowToast('Result confirmed! The bracket has updated.', 'success');
+    }
+    if (onRefresh) onRefresh();
   }
 
   const organizerRoleTitle = isCommunityTourn
@@ -266,10 +335,17 @@ export function TournamentDetails({
       ? 'Tournament Publisher'
       : 'Tournament Organizer';
 
-  function handleDisputeResult(mid) {
-    tournamentService.disputeResult(mid);
-    onShowToast(`Match disputed. ${organizerRoleTitle} (${creatorDisplayName}) has been notified to review and resolve the match.`, 'info');
-    onRefresh();
+  async function handleDisputeResult(mid) {
+    try {
+      await dispatch(disputeMatchResult({ matchId: mid, userId, reason: 'Disputed by participant' })).unwrap();
+      onShowToast(`Match disputed. ${organizerRoleTitle} (${creatorDisplayName}) has been notified to review and resolve the match.`, 'info');
+      dispatch(fetchTournamentBracket(tid));
+      dispatch(fetchTournamentOverview(tid));
+    } catch (err) {
+      tournamentService.disputeResult(mid);
+      onShowToast(`Match disputed. ${organizerRoleTitle} (${creatorDisplayName}) has been notified to review and resolve the match.`, 'info');
+    }
+    if (onRefresh) onRefresh();
   }
 
   function handleResetAndEnterMatch(mid) {
@@ -285,10 +361,17 @@ export function TournamentDetails({
     onRefresh();
   }
 
-  function handleResolveDisputeWinner(mid, winnerId) {
-    tournamentService.resolveDisputeWinner(mid, winnerId);
-    onShowToast('Dispute resolved! Winner advanced in bracket.', 'success');
-    onRefresh();
+  async function handleResolveDisputeWinner(mid, winnerId) {
+    try {
+      await dispatch(resolveDisputeWinner({ matchId: mid, organizerId: userId, organizer_id: userId, winnerId, winner_id: winnerId, tournamentId: tid })).unwrap();
+      onShowToast('Dispute resolved! Winner advanced in bracket.', 'success');
+      dispatch(fetchTournamentBracket(tid));
+      dispatch(fetchTournamentOverview(tid));
+    } catch (err) {
+      tournamentService.resolveDisputeWinner(mid, winnerId);
+      onShowToast('Dispute resolved! Winner advanced in bracket.', 'success');
+    }
+    if (onRefresh) onRefresh();
   }
 
   // Helper for timeline

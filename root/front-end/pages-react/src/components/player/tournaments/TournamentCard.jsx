@@ -1,4 +1,6 @@
 import React from 'react';
+import { useAppSelector } from '../../../app/hooks';
+import { selectIsPlayerRegistered } from '../../../features/tournaments/selectors';
 import {
   kindOf,
   entrantCount,
@@ -22,12 +24,15 @@ export function TournamentCard({
   const rawTid = t.tournament_id || t.id;
   const tid = rawTid ? String(rawTid) : '';
   const isWithdrawing = Boolean(withdrawingId && sameId(withdrawingId, rawTid));
-  const entrants = entrantCount(t, db);
+  const entrants = t.participants ?? entrantCount(t, db);
   const max = t.maxParticipants || t.max_participants || 16;
   const pct = max ? Math.min(100, Math.round((entrants / max) * 100)) : 0;
-  const reg = isRegistered(t, userId, db);
+
+  const isPlayerRegRedux = useAppSelector((state) => selectIsPlayerRegistered(state, rawTid, userId));
+  const isDirectlyReg = (t.registeredPlayers || t.registered_player_ids || []).map(String).includes(String(userId));
+  const reg = isPlayerRegRedux || isDirectlyReg || isRegistered(t, userId, db);
   const isLive = t.status === 'in-progress';
-  const kind = kindOf(t, db);
+  const kind = t.kind || kindOf(t, db);
   const isTeam = !!t.team_size;
   const regClosed = t.regClose ? new Date() > new Date(t.regClose) : false;
   const isFull = entrants >= max;
