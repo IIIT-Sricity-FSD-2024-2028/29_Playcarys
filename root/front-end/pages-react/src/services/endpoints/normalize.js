@@ -170,3 +170,40 @@ export function normalizeTournamentOverview(data) {
   }
   return item;
 }
+
+export function normalizeReport(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const entity = normalizeEntity(raw, ['report_id', 'reportId']);
+  const reason = entity.reason || entity.action_reason || entity.desc || '';
+  const isContact = entity.type === 'Contact Admin' || entity.type === 'admin_contact';
+  return {
+    ...entity,
+    desc: entity.desc || reason,
+    reason: entity.reason || reason,
+    reporterName: entity.reporterName || entity.reporter_name || (entity.reported_by ? `Player #${entity.reported_by}` : 'Anonymous'),
+    reportedName: entity.reportedName || entity.reported_name || (entity.reported_user ? `Player #${entity.reported_user}` : (isContact ? 'None' : 'Unknown User')),
+    session: entity.session || (entity.sessionId ? `Session #${entity.sessionId}` : 'General'),
+    time: entity.time || entity.report_date || 'recently',
+    isContact
+  };
+}
+
+export function normalizeBan(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const entity = normalizeEntity(raw, ['ban_id', 'id']);
+  const playerId = entity.playerId != null ? entity.playerId : entity.player_id;
+  return {
+    ...entity,
+    playerId,
+    playerName: entity.playerName || entity.player_name || (playerId ? `Player #${playerId}` : 'Unknown Player'),
+    duration: entity.duration || '7 Days',
+    reason: entity.reason || 'Violation of Community Guidelines',
+    active: entity.active !== false
+  };
+}
+
+export function normalizeModeratorAction(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  return normalizeEntity(raw, ['action_id', 'actionId']);
+}
+

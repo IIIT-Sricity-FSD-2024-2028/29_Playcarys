@@ -1,12 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import authService from '../../services/authService';
+import { isPlayer } from '../../services/moderatorService';
+import { AsyncStatus } from '../../app/asyncUtils';
 import {
-  isPlayer,
-  fetchModeratorBansData,
-  issueModeratorBan,
-  liftModeratorBan
-} from '../../services/moderatorService';
+  fetchBans,
+  actOnReport,
+  liftBan
+} from '../../features/moderation/moderationSlice';
+import {
+  selectBans,
+  selectModerationStatus,
+  selectModerationError
+} from '../../features/moderation/selectors';
+import { fetchUsers } from '../../features/users/userSlice';
+import { selectAllUsers, selectUsersStatus } from '../../features/users/selectors';
+import profilesApi from '../../services/endpoints/profilesApi';
 import BanKpiCards from '../../components/moderator/bans/BanKpiCards';
 import BannedPlayerItem from '../../components/moderator/bans/BannedPlayerItem';
 import ActivePlayerItem from '../../components/moderator/bans/ActivePlayerItem';
@@ -20,21 +30,25 @@ export function Bans() {
   const location = useLocation();
   const params = useParams();
   const [searchParams] = useSearchParams();
+  const dispatch = useDispatch();
 
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
 
-  // Raw data from server/DB
-  const [users, setUsers] = useState([]);
-  const [bans, setBans] = useState([]);
+  // Redux state selectors
+  const users = useSelector(selectAllUsers);
+  const bans = useSelector(selectBans);
+  const moderationStatus = useSelector(selectModerationStatus);
+  const moderationError = useSelector(selectModerationError);
+  const usersStatus = useSelector(selectUsersStatus);
+
+  // Player profiles for display (level, carys points)
   const [profiles, setProfiles] = useState([]);
 
-  // Search filter
+  // Search filter (kept local)
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
 
-  // View state: 'main' | 'ban'
+  // View state: 'main' | 'ban' (kept local)
   const [view, setView] = useState(() => {
     if (location.state?.player) return 'ban';
     if (params.playerId || searchParams.get('player') || searchParams.get('playerId') || searchParams.get('userId')) return 'ban';
@@ -45,7 +59,7 @@ export function Bans() {
   const [fromReport, setFromReport] = useState(() => location.state?.fromReport || null);
   const [banSubmitting, setBanSubmitting] = useState(false);
 
-  // Unban modal state
+  // Unban modal state (kept local)
   const [unbanPlayerTarget, setUnbanPlayerTarget] = useState(null);
   const [isUnbanModalOpen, setIsUnbanModalOpen] = useState(false);
   const [unbanSubmitting, setUnbanSubmitting] = useState(false);
@@ -60,22 +74,18 @@ export function Bans() {
     }, 4500);
   }
 
-  async function loadData() {
-    setLoading(true);
-    setLoadError(null);
+  const loadData = useCallback(async () => {
     try {
-      const data = await fetchModeratorBansData();
-      setUsers(data.users || []);
-      setBans(data.bans || []);
-      setProfiles(data.playerProfiles || data.profiles || []);
+      await Promise.all([
+        dispatch(fetchBans()).unwrap(),
+        dispatch(fetchUsers()).unwrap(),
+        profilesApi.getPlayerProfiles().then((res) => setProfiles(res || [])).catch(() => [])
+      ]);
     } catch (err) {
       console.error('Failed to load ban management data:', err);
-      setLoadError('Failed to load player and ban records.');
       showToast('Failed to load player and ban records', 'error');
-    } finally {
-      setLoading(false);
     }
-  }
+  }, [dispatch]);
 
   useEffect(() => {
     document.title = 'PlayCarys — Ban Management';
@@ -86,7 +96,7 @@ export function Bans() {
     }
     setSession(currentSession);
     loadData();
-  }, []);
+  }, [loadData]);
 
   // When url param or search param is present, locate player in users list
   useEffect(() => {
@@ -115,7 +125,7 @@ export function Bans() {
         setView('ban');
       }
     }
-  }, [params.playerId, searchParams, users]);
+  }, [params.playerId, searchParams, users, selectedPlayer]);
 
   // Synchronize state if navigated from Reports or external link
   useEffect(() => {
@@ -170,22 +180,28 @@ export function Bans() {
   async function handleIssueBan({ duration, reason }) {
     if (!selectedPlayer) return;
     const targetUserId = selectedPlayer.user_id != null ? selectedPlayer.user_id : selectedPlayer.id;
+    const playerName = selectedPlayer.username || selectedPlayer.user_name || `Player #${targetUserId}`;
+    const moderatorId = session?.userId != null ? Number(session.userId) : 3;
     setBanSubmitting(true);
 
     try {
-      const res = await issueModeratorBan({
-        targetUserId,
-        duration,
-        reason,
-        session
-      });
-      showToast(`${res.playerName} has been banned for ${duration}`, 'success');
+      await dispatch(
+        actOnReport({
+          moderator_id: moderatorId,
+          report_id: fromReport?.id ? Number(fromReport.id) : undefined,
+          action_type: 'ban',
+          action_reason: reason.trim(),
+          target_user_id: Number(targetUserId),
+          ban_duration: duration
+        })
+      ).unwrap();
+
+      showToast(`${playerName} has been banned for ${duration}`, 'success');
       setView('main');
       setSelectedPlayer(null);
       setInitialReason('');
       setFromReport(null);
       navigate('/moderator/bans', { replace: true });
-      await loadData();
     } catch (err) {
       console.error('Failed to issue ban:', err);
       showToast(err.message || 'Failed to issue ban', 'error');
@@ -204,17 +220,21 @@ export function Bans() {
   async function handleConfirmUnban() {
     if (!unbanPlayerTarget) return;
     const targetUserId = unbanPlayerTarget.user_id != null ? unbanPlayerTarget.user_id : unbanPlayerTarget.id;
+    const playerName = unbanPlayerTarget.username || unbanPlayerTarget.user_name || `Player #${targetUserId}`;
+    const moderatorId = session?.userId != null ? Number(session.userId) : 3;
     setUnbanSubmitting(true);
 
     try {
-      const res = await liftModeratorBan({
-        targetUserId,
-        session
-      });
-      showToast(`${res.playerName} has been unbanned`, 'success');
+      await dispatch(
+        liftBan({
+          playerId: Number(targetUserId),
+          moderatorId
+        })
+      ).unwrap();
+
+      showToast(`${playerName} has been unbanned`, 'success');
       setIsUnbanModalOpen(false);
       setUnbanPlayerTarget(null);
-      await loadData();
     } catch (err) {
       console.error('Failed to unban player:', err);
       showToast(err.message || 'Failed to unban player', 'error');
@@ -233,6 +253,11 @@ export function Bans() {
       </div>
     );
   }
+
+  const isLoading =
+    (moderationStatus === AsyncStatus.LOADING || usersStatus === AsyncStatus.LOADING) &&
+    users.length === 0 &&
+    bans.length === 0;
 
   return (
     <div className="bans-container page-content">
@@ -283,12 +308,12 @@ export function Bans() {
             />
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-secondary)' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
               <p>Loading player and ban records...</p>
             </div>
-          ) : loadError ? (
+          ) : moderationError && users.length === 0 ? (
             <div
               style={{
                 textAlign: 'center',
@@ -300,7 +325,7 @@ export function Bans() {
             >
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
               <h3 style={{ color: 'var(--accent-red)', marginBottom: '0.5rem' }}>Failed to Load Data</h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>{loadError}</p>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>{moderationError}</p>
               <button type="button" className="btn btn-outline btn-sm" onClick={loadData}>
                 Retry
               </button>

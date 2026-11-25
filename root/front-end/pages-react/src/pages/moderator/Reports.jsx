@@ -1,13 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import authService from '../../services/authService';
+import { AsyncStatus } from '../../app/asyncUtils';
 import {
-  fetchModeratorReports,
-  reviewReportAction,
-  resolveReportAction,
-  dismissReportAction,
-  submitPlayerWarning
-} from '../../services/moderatorService';
+  fetchReports,
+  updateReportStatus
+} from '../../features/moderation/reportSlice';
+import { actOnReport } from '../../features/moderation/moderationSlice';
+import {
+  selectAllReports,
+  selectReportsStatus,
+  selectReportsError
+} from '../../features/moderation/selectors';
+import { fetchUsers } from '../../features/users/userSlice';
+import { selectAllUsers } from '../../features/users/selectors';
 import ReportsFilterBar from '../../components/moderator/reports/ReportsFilterBar';
 import ReportListItem from '../../components/moderator/reports/ReportListItem';
 import TakeActionView from '../../components/moderator/reports/TakeActionView';
@@ -17,26 +24,28 @@ import '../../styles/moderator/reports.css';
 
 export function Reports() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
-  // Data & loading state
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
-  const [reports, setReports] = useState([]);
-  const [users, setUsers] = useState([]);
+  // Redux state selectors
+  const reports = useSelector(selectAllReports);
+  const reportsStatus = useSelector(selectReportsStatus);
+  const reportsError = useSelector(selectReportsError);
+  const users = useSelector(selectAllUsers);
 
-  // Filtering state
+  // Filtering state (kept local)
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
-  // View state: 'list' | 'action'
+  // View state: 'list' | 'action' (kept local)
   const [view, setView] = useState('list');
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [actionSubmitting, setActionSubmitting] = useState(false);
 
-  // Warn modal state
+  // Warn modal state (kept local)
   const [warnReport, setWarnReport] = useState(null);
   const [warnModalOpen, setWarnModalOpen] = useState(false);
   const [warnSubmitting, setWarnSubmitting] = useState(false);
@@ -51,21 +60,17 @@ export function Reports() {
     }, 4500);
   }
 
-  async function loadData() {
-    setLoading(true);
-    setLoadError(null);
+  const loadData = useCallback(async () => {
     try {
-      const data = await fetchModeratorReports();
-      setReports(data.reports);
-      setUsers(data.users);
+      await Promise.all([
+        dispatch(fetchReports()).unwrap(),
+        dispatch(fetchUsers()).unwrap()
+      ]);
     } catch (err) {
-      console.error('Failed to load moderator reports:', err);
-      setLoadError('Failed to load reports. Please try again.');
+      console.error('Failed to load reports:', err);
       showToast('Failed to load reports', 'error');
-    } finally {
-      setLoading(false);
     }
-  }
+  }, [dispatch]);
 
   useEffect(() => {
     document.title = 'PlayCarys — Player Reports';
@@ -76,7 +81,7 @@ export function Reports() {
     }
     setSession(currentSession);
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Filter logic
   const filteredReports = reports.filter((r) => {
@@ -103,7 +108,7 @@ export function Reports() {
       const reporter = (r.reporterName || '').toLowerCase();
       const reported = (r.reportedName || '').toLowerCase();
       const idStr = String(r.id || '').toLowerCase();
-      const desc = (r.desc || '').toLowerCase();
+      const desc = (r.desc || r.reason || '').toLowerCase();
 
       const matchesSearch =
         reporter.includes(term) ||
@@ -127,9 +132,17 @@ export function Reports() {
 
     if (target.status === 'pending') {
       try {
-        const res = await reviewReportAction(id, session, target);
-        showToast(res.message || 'Report marked as Under Review', 'info');
-        await loadData();
+        const requesterId = session?.userId != null ? Number(session.userId) : 3;
+        const moderatorName = session?.username || 'ModeratorOne';
+        await dispatch(
+          updateReportStatus({
+            id,
+            requester_user_id: requesterId,
+            status: 'under-review',
+            actionNote: `Under review by Moderator ${moderatorName}`
+          })
+        ).unwrap();
+        showToast('Report marked as Under Review', 'info');
       } catch (err) {
         console.error('Error reviewing report:', err);
         showToast('Failed to mark report as under review', 'error');
@@ -150,8 +163,16 @@ export function Reports() {
     // If report was pending, automatically transition to under-review
     if (target.status === 'pending') {
       try {
-        await reviewReportAction(id, session, target);
-        await loadData();
+        const requesterId = session?.userId != null ? Number(session.userId) : 3;
+        const moderatorName = session?.username || 'ModeratorOne';
+        await dispatch(
+          updateReportStatus({
+            id,
+            requester_user_id: requesterId,
+            status: 'under-review',
+            actionNote: `Under review by Moderator ${moderatorName}`
+          })
+        ).unwrap();
       } catch (err) {
         console.warn('Could not auto-update pending status:', err);
       }
@@ -166,19 +187,19 @@ export function Reports() {
     }
 
     setActionSubmitting(true);
-    const activeReport = reports.find((r) => String(r.id) === String(selectedReportId));
     try {
-      await resolveReportAction({
-        reportId: selectedReportId,
-        notes: payload.notes,
-        severity: payload.severity,
-        session,
-        report: activeReport
-      });
+      const requesterId = session?.userId != null ? Number(session.userId) : 3;
+      await dispatch(
+        updateReportStatus({
+          id: selectedReportId,
+          requester_user_id: requesterId,
+          status: 'resolved',
+          actionNote: payload.notes
+        })
+      ).unwrap();
       showToast('Report resolved ✅', 'success');
       setView('list');
       setSelectedReportId(null);
-      await loadData();
     } catch (err) {
       console.error('Failed to resolve report:', err);
       showToast('Failed to resolve report', 'error');
@@ -195,18 +216,19 @@ export function Reports() {
     }
 
     setActionSubmitting(true);
-    const activeReport = reports.find((r) => String(r.id) === String(selectedReportId));
     try {
-      await dismissReportAction({
-        reportId: selectedReportId,
-        notes: payload.notes,
-        session,
-        report: activeReport
-      });
+      const requesterId = session?.userId != null ? Number(session.userId) : 3;
+      await dispatch(
+        updateReportStatus({
+          id: selectedReportId,
+          requester_user_id: requesterId,
+          status: 'rejected',
+          actionNote: payload.notes
+        })
+      ).unwrap();
       showToast('Report dismissed', 'info');
       setView('list');
       setSelectedReportId(null);
-      await loadData();
     } catch (err) {
       console.error('Failed to dismiss report:', err);
       showToast('Failed to dismiss report', 'error');
@@ -296,18 +318,31 @@ export function Reports() {
   async function handleSubmitWarning(customMsg) {
     if (!warnReport) return;
     setWarnSubmitting(true);
+
+    const targetUserId = warnReport.isContact
+      ? warnReport.reported_by
+      : warnReport.reported_user;
+    const targetPlayerName = warnReport.isContact ? warnReport.reporterName : warnReport.reportedName;
+    const defaultMsg = `You received a warning regarding ${warnReport.type}. Please follow community guidelines.`;
+    const msg = customMsg || defaultMsg;
+    const moderatorId = session?.userId != null ? Number(session.userId) : 3;
+
     try {
-      const res = await submitPlayerWarning({
-        reportId: warnReport.id,
-        customMsg,
-        session,
-        report: warnReport,
-        users
-      });
+      if (targetUserId && !isNaN(Number(targetUserId))) {
+        await dispatch(
+          actOnReport({
+            moderator_id: moderatorId,
+            report_id: Number(warnReport.id),
+            action_type: 'warning',
+            action_reason: msg,
+            target_user_id: Number(targetUserId)
+          })
+        ).unwrap();
+      }
+
       setWarnModalOpen(false);
       setWarnReport(null);
-      showToast(`⚠️ Warning sent to ${res.targetPlayerName}`, 'success');
-      await loadData();
+      showToast(`⚠️ Warning sent to ${targetPlayerName}`, 'success');
     } catch (err) {
       console.error('Failed to send warning:', err);
       showToast('Failed to send warning', 'error');
@@ -328,6 +363,7 @@ export function Reports() {
   }
 
   const activeActionReport = reports.find((r) => String(r.id) === String(selectedReportId));
+  const isLoading = reportsStatus === AsyncStatus.LOADING && reports.length === 0;
 
   return (
     <div className="reports-container page-content">
@@ -371,12 +407,12 @@ export function Reports() {
             onTypeChange={setTypeFilter}
           />
 
-          {loading ? (
+          {isLoading ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-secondary)' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⏳</div>
               <p>Loading reports...</p>
             </div>
-          ) : loadError ? (
+          ) : reportsError && reports.length === 0 ? (
             <div
               style={{
                 textAlign: 'center',
@@ -388,7 +424,7 @@ export function Reports() {
             >
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
               <h3 style={{ color: 'var(--accent-red)', marginBottom: '0.5rem' }}>Failed to Load Reports</h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>{loadError}</p>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>{reportsError}</p>
               <button type="button" className="btn btn-outline btn-sm" onClick={loadData}>
                 Retry
               </button>

@@ -176,7 +176,28 @@ export const userSlice = createSlice({
       // fetchRoles
       .addCase(fetchRoles.fulfilled, (state, action) => {
         state.roles = action.payload;
-      });
+      })
+      // Synchronize ban status updates from moderation actions
+      .addMatcher(
+        (action) => action.type === 'moderation/actOnReport/fulfilled',
+        (state, action) => {
+          if (action.meta?.arg?.action_type === 'ban') {
+            const targetId = String(action.meta.arg.target_user_id);
+            if (state.entities[targetId]) {
+              usersAdapter.updateOne(state, { id: targetId, changes: { status: 'banned' } });
+            }
+          }
+        }
+      )
+      .addMatcher(
+        (action) => action.type === 'moderation/liftBan/fulfilled',
+        (state, action) => {
+          const targetId = String(action.payload?.playerId || action.meta?.arg?.playerId);
+          if (targetId && state.entities[targetId]) {
+            usersAdapter.updateOne(state, { id: targetId, changes: { status: 'active' } });
+          }
+        }
+      );
   }
 });
 
