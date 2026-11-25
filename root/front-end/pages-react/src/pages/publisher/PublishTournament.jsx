@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import {
@@ -10,6 +10,13 @@ import {
   fetchTournamentStages,
   setPublisherView,
   setPublisherWizardStep,
+  setPublisherSelectedType as setReduxPublisherType,
+  setPublisherSelectedVisibility as setReduxPublisherVisibility,
+  setPublisherStages as setReduxPublisherStages,
+  setPublisherFormField,
+  resetPublisherForm,
+  setPublisherToast,
+  clearPublisherToast,
   setPublisherStatusFilter,
   setPublisherSelectedGame,
   setPublisherEditId,
@@ -54,8 +61,32 @@ export function PublishTournament() {
 
   const uid = user?.userId ?? user?.id ?? publisherId ?? 1;
 
-  // Active view: 'list' | 'editor' | 'mgmt' | 'mgmt-multi'
-  const [view, setView] = useState('list');
+  const publisherUI = useAppSelector((state) => state.tournaments?.ui || {});
+  const publisherForm = publisherUI.publisherForm || {};
+  const view = publisherUI.publisherView || 'list';
+  const setView = (value) => dispatch(setPublisherView(value));
+  const editId = publisherUI.publisherEditId ?? null;
+  const setEditId = (value) => dispatch(setPublisherEditId(value));
+  const currentStep = publisherUI.publisherCurrentStep || 1;
+  const setCurrentStep = (value) => dispatch(setPublisherWizardStep(value));
+  const selectedType = publisherUI.publisherSelectedType || 'single';
+  const setSelectedType = (value) => dispatch(setReduxPublisherType(value));
+  const selectedVisibility = publisherUI.publisherSelectedVisibility || 'public';
+  const setSelectedVisibility = (value) => dispatch(setReduxPublisherVisibility(value));
+  const selectedGameId = publisherUI.publisherSelectedGameId || '';
+  const setSelectedGameId = (value) => dispatch(setPublisherSelectedGame(value));
+  const stages = publisherUI.publisherStages || [];
+  const setStages = (value) => dispatch(setReduxPublisherStages(value));
+  const { name = '', description = '', prize = '₹', maxPlayers = '32', regDeadline = '', startDate = '', endDate = '' } = publisherForm;
+  const setFormField = (field, value) => dispatch(setPublisherFormField({ field, value }));
+  const setName = (value) => setFormField('name', value);
+  const setDescription = (value) => setFormField('description', value);
+  const setPrize = (value) => setFormField('prize', value);
+  const setMaxPlayers = (value) => setFormField('maxPlayers', value);
+  const setRegDeadline = (value) => setFormField('regDeadline', value);
+  const setStartDate = (value) => setFormField('startDate', value);
+  const setEndDate = (value) => setFormField('endDate', value);
+  const toast = publisherUI.publisherToast || { message: '', type: 'info' };
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -79,38 +110,18 @@ export function PublishTournament() {
   );
 
   // Toast & Modal
-  const [toast, setToast] = useState({ message: '', type: 'info' });
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: null,
-    confirmText: 'Confirm',
-    confirmStyle: 'primary'
-  });
+  const confirmModal = publisherUI.publisherConfirmModal || { isOpen: false };
+  const confirmActionRef = useRef(null);
 
   // Editor form state
-  const [editId, setEditId] = useState(null);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedType, setSelectedType] = useState('single');
-  const [selectedVisibility, setSelectedVisibility] = useState('public');
-  const [selectedGameId, setSelectedGameId] = useState('');
   const [gameError, setGameError] = useState('');
-  const [stages, setStages] = useState([]);
   const [stageError, setStageError] = useState('');
-  const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
-  const [description, setDescription] = useState('');
   const [descriptionError, setDescriptionError] = useState('');
-  const [prize, setPrize] = useState('₹');
   const [prizeError, setPrizeError] = useState('');
-  const [maxPlayers, setMaxPlayers] = useState('32');
   const [maxPlayersError, setMaxPlayersError] = useState('');
-  const [regDeadline, setRegDeadline] = useState('');
   const [regDeadlineError, setRegDeadlineError] = useState('');
-  const [startDate, setStartDate] = useState('');
   const [startDateError, setStartDateError] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [endDateError, setEndDateError] = useState('');
   const [dateOrderError, setDateOrderError] = useState('');
 
@@ -147,30 +158,29 @@ export function PublishTournament() {
   }, [authLoading, isPublisher]);
 
   function showToast(message, type = 'info') {
-    setToast({ message, type });
+    dispatch(setPublisherToast({ message, type }));
   }
 
   function openConfirm(title, message, onConfirm, confirmText = 'Confirm', confirmStyle = 'primary') {
-    dispatch(openPublisherConfirmModal({ title, message }));
-    setConfirmModal({
-      isOpen: true,
-      title,
-      message,
-      onConfirm: () => {
-        dispatch(closePublisherConfirmModal());
-        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-        onConfirm();
-      },
-      confirmText,
-      confirmStyle
-    });
+    confirmActionRef.current = onConfirm;
+    dispatch(openPublisherConfirmModal({ title, message, confirmText, variant: confirmStyle }));
+  }
+
+  function handleConfirmAction() {
+    const action = confirmActionRef.current;
+    confirmActionRef.current = null;
+    dispatch(closePublisherConfirmModal());
+    action?.();
+  }
+
+  function handleCancelConfirm() {
+    confirmActionRef.current = null;
+    dispatch(closePublisherConfirmModal());
   }
 
   // ── Open Editor ──────────────────────────────────────────────────────────
   function handleOpenEditor(id = null) {
     setEditId(id);
-    dispatch(setPublisherEditId(id));
-    dispatch(setPublisherView('editor'));
     setSelectedType('single');
     setSelectedVisibility('public');
     setStages([]);
@@ -187,25 +197,22 @@ export function PublishTournament() {
     setDateOrderError('');
 
     if (!id) {
-      setSelectedGameId(approvedGames.length > 0 ? String(approvedGames[0].id || approvedGames[0].game_id) : '');
-      setName('');
-      setDescription('');
-      setPrize('₹');
-      setMaxPlayers('32');
-      setRegDeadline('');
-      setStartDate('');
-      setEndDate('');
+      const defaultGameId = approvedGames.length > 0 ? String(approvedGames[0].id || approvedGames[0].game_id) : '';
+      setSelectedGameId(defaultGameId);
+      dispatch(resetPublisherForm());
     } else {
       const t = allTournaments.find((x) => String(x.tournament_id || x.id) === String(id));
       if (t) {
         setSelectedGameId(String(t.game_id));
-        setName(t.tournament_name || t.name || '');
-        setDescription(t.desc || '');
-        setPrize(t.prize || '₹');
-        setMaxPlayers(String(t.maxParticipants || 32));
-        setRegDeadline(t.regClose || '');
-        setStartDate(t.start_date || t.startDate || '');
-        setEndDate(t.end_date || '');
+        dispatch(resetPublisherForm({
+          name: t.tournament_name || t.name || '',
+          description: t.desc || '',
+          prize: t.prize || '₹',
+          maxPlayers: String(t.maxParticipants || 32),
+          regDeadline: t.regClose || '',
+          startDate: t.start_date || t.startDate || '',
+          endDate: t.end_date || ''
+        }));
       }
     }
 
@@ -220,8 +227,8 @@ export function PublishTournament() {
       return;
     }
     const defaultGameId = String(approvedGames[0].id || approvedGames[0].game_id);
-    setStages((prev) => [
-      ...prev,
+    const nextStages = [
+      ...stages,
       {
         rowId: Date.now() + Math.random(),
         game_id: defaultGameId,
@@ -231,23 +238,27 @@ export function PublishTournament() {
         metric_label: 'Score',
         points_weight: 1
       }
-    ]);
+    ];
+    dispatch(setReduxPublisherStages(nextStages));
+    setStages(nextStages);
   }
 
   function handleUpdateStage(rowId, field, value) {
-    setStages((prev) =>
-      prev.map((s) => {
+    const nextStages = stages.map((s) => {
         if (s.rowId !== rowId) return s;
         return {
           ...s,
           [field]: field === 'points_weight' ? parseFloat(value) || 1 : value
         };
-      })
-    );
+      });
+    dispatch(setReduxPublisherStages(nextStages));
+    setStages(nextStages);
   }
 
   function handleRemoveStage(rowId) {
-    setStages((prev) => prev.filter((s) => s.rowId !== rowId));
+    const nextStages = stages.filter((s) => s.rowId !== rowId);
+    dispatch(setReduxPublisherStages(nextStages));
+    setStages(nextStages);
   }
 
   // Step validation
@@ -257,7 +268,6 @@ export function PublishTournament() {
         handleAddStage();
       }
       setCurrentStep(2);
-      dispatch(setPublisherWizardStep(2));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -277,7 +287,6 @@ export function PublishTournament() {
         setStageError('');
       }
       setCurrentStep(3);
-      dispatch(setPublisherWizardStep(3));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -316,7 +325,6 @@ export function PublishTournament() {
 
       if (!valid) return;
       setCurrentStep(4);
-      dispatch(setPublisherWizardStep(4));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -325,7 +333,6 @@ export function PublishTournament() {
   function handlePrevStep(step) {
     const nextStep = Math.max(1, (step || currentStep) - 1);
     setCurrentStep(nextStep);
-    dispatch(setPublisherWizardStep(nextStep));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -481,7 +488,6 @@ export function PublishTournament() {
 
   // Single-game Management view
   async function handleOpenMgmt(id) {
-    dispatch(setPublisherView('mgmt'));
     dispatch(setPublisherActiveTournament(id));
     let t = allTournaments.find((x) => String(x.tournament_id || x.id) === String(id));
     try {
@@ -658,7 +664,6 @@ export function PublishTournament() {
   }
 
   async function handleOpenMgmtMulti(id) {
-    dispatch(setPublisherView('mgmt-multi'));
     dispatch(setPublisherActiveTournament(id));
     try {
       const [tRes, stagesRes, overallRes] = await Promise.all([
@@ -865,7 +870,6 @@ export function PublishTournament() {
           onPrevStep={handlePrevStep}
           onSubmit={handleSubmitTournament}
           onCancel={() => {
-            dispatch(setPublisherView('list'));
             setView('list');
           }}
           isSubmitting={isSubmitting}
@@ -884,7 +888,6 @@ export function PublishTournament() {
           matches={activeMatches}
           users={users}
           onBack={() => {
-            dispatch(setPublisherView('list'));
             setView('list');
           }}
           onStartTournament={handleStartTournament}
@@ -907,7 +910,6 @@ export function PublishTournament() {
           overall={activeFestOverall}
           games={approvedGames}
           onBack={() => {
-            dispatch(setPublisherView('list'));
             setView('list');
           }}
           onStartStage={handleStartFestStage}
@@ -920,7 +922,7 @@ export function PublishTournament() {
         <Toast
           message={toast.message}
           type={toast.type}
-          onClose={() => setToast({ message: '', type: 'info' })}
+          onClose={() => dispatch(clearPublisherToast())}
         />
       )}
 
@@ -930,9 +932,9 @@ export function PublishTournament() {
         title={confirmModal.title}
         message={confirmModal.message}
         confirmText={confirmModal.confirmText}
-        confirmStyle={confirmModal.confirmStyle}
-        onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        confirmStyle={confirmModal.variant}
+        onConfirm={handleConfirmAction}
+        onCancel={handleCancelConfirm}
       />
     </div>
   );

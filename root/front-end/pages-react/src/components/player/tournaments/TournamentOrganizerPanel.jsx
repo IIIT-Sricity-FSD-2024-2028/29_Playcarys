@@ -69,7 +69,7 @@ export function TournamentOrganizerPanel({
   async function handleConfirmStart() {
     setStarting(true);
     try {
-      await dispatch(startTournament({ tournamentId: tid, organizerId: userId })).unwrap();
+      await dispatch(startTournament(tid)).unwrap();
       onShowToast(`${t.name || t.tournament_name} has started! 🚀 Bracket generated.`, 'success');
       setConfirmStartOpen(false);
       dispatch(closeConfirmStartTournament());

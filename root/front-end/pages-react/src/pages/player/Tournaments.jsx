@@ -10,6 +10,8 @@ import {
   closeRegistrationModal,
   openJoinByIdModal,
   closeJoinByIdModal,
+  openWithdrawConfirmation,
+  closeWithdrawConfirmation,
   setTournamentFilters
 } from '../../features/tournaments/tournamentSlice';
 import { withdrawFromTournament } from '../../features/tournaments/registrationSlice';
@@ -22,7 +24,8 @@ import { selectAuthUser } from '../../features/auth/selectors';
 import { sameId } from '../../services/playerService';
 import {
   kindOf,
-  isCommunityMember
+  isCommunityMember,
+  myTeamsIn
 } from '../../services/tournamentService';
 import TournamentFilters from '../../components/player/tournaments/TournamentFilters';
 import TournamentSection from '../../components/player/tournaments/TournamentSection';
@@ -47,7 +50,10 @@ export function Tournaments() {
   const [kindFilter, setKindFilter] = useState('all');
   const [selectedTournamentId, setSelectedTournamentId] = useState(null);
   const [regModalTournament, setRegModalTournament] = useState(null);
-  const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const withdrawTargetId = useAppSelector((state) => state.tournaments?.ui?.withdrawConfirmationTournamentId);
+  const withdrawTarget = withdrawTargetId
+    ? storeTournaments.find((t) => sameId(t.tournament_id || t.id, withdrawTargetId)) || null
+    : null;
   const [toast, setToast] = useState(null);
   const [withdrawingId, setWithdrawingId] = useState(null);
   const [showJoinByIdModal, setShowJoinByIdModal] = useState(false);
@@ -143,7 +149,7 @@ export function Tournaments() {
       return;
     }
     if (withdrawingId) return;
-    setWithdrawTarget(tournament);
+    dispatch(openWithdrawConfirmation(tid));
   }
 
   // Confirmed withdrawal execution
@@ -158,6 +164,18 @@ export function Tournaments() {
 
     const isTeam = !!tournament.team_size;
     const tourneyName = tournament.tournament_name || tournament.name || tournament.desc || 'this tournament';
+    const team = isTeam ? myTeamsIn(tournament, userId)[0] : null;
+    const teamId = team?.team_id || team?.id || tournament.team_id;
+    if (isTeam && !teamId) {
+      showToast('Could not find your registered team for this tournament.', 'error');
+      dispatch(closeWithdrawConfirmation());
+      return;
+    }
+    if (isTeam && team?.captain_id != null && String(team.captain_id) !== String(userId)) {
+      showToast('Only the team captain can withdraw this team.', 'error');
+      dispatch(closeWithdrawConfirmation());
+      return;
+    }
 
     setWithdrawingId(tid);
     try {
@@ -165,18 +183,21 @@ export function Tournaments() {
       await dispatch(withdrawFromTournament({
         tournamentId: tid,
         playerId: userId,
-        teamId: isTeam ? tournament.team_id : undefined
+        requesterId: userId,
+        teamId: isTeam ? teamId : undefined
       })).unwrap();
 
       showToast(`Withdrew from ${tourneyName}`, 'info');
 
-      // Refresh tournament in Redux store
-      dispatch(fetchTournamentById(tid));
-      dispatch(fetchTournaments());
+      // Refresh the server-backed tournament data after the mutation succeeds.
+      await Promise.allSettled([
+        dispatch(fetchTournamentById(tid)),
+        dispatch(fetchTournaments())
+      ]);
     } catch (err) {
-      showToast(err.message || 'Could not withdraw from tournament.', 'error');
+      showToast((typeof err === 'string' ? err : err?.message) || 'Could not withdraw from tournament.', 'error');
     } finally {
-      setWithdrawTarget(null);
+      dispatch(closeWithdrawConfirmation());
       setWithdrawingId(null);
     }
   }
@@ -368,7 +389,7 @@ export function Tournaments() {
           loadingText="Withdrawing..."
           onCancel={() => {
             if (!withdrawingId) {
-              setWithdrawTarget(null);
+              dispatch(closeWithdrawConfirmation());
             }
           }}
           onConfirm={handleConfirmWithdraw}

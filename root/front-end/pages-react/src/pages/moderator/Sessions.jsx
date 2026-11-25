@@ -11,7 +11,9 @@ import {
   closeSessionMonitor,
   openConfirmEndSession,
   closeConfirmEndSession,
-  setSessionCopiedId
+  setSessionCopiedId,
+  setSessionToast,
+  clearSessionToast
 } from '../../features/sessions/gameSessionSlice';
 import {
   fetchSessionMatchResults,
@@ -89,12 +91,12 @@ export function Sessions() {
   const isLoadingResults = matchResultsStatus === 'loading';
 
   // Toast
-  const [toast, setToast] = useState(null);
+  const toast = useAppSelector((state) => state.gameSessions?.ui?.toast || null);
 
   function showToast(message, type = 'success') {
-    setToast({ message, type });
+    dispatch(setSessionToast({ message, type }));
     setTimeout(() => {
-      setToast((curr) => (curr?.message === message ? null : curr));
+      dispatch(clearSessionToast());
     }, 4500);
   }
 
@@ -214,14 +216,6 @@ export function Sessions() {
           score: Number(r.score ?? r.game_score ?? 0),
           player_rank: Number(r.player_rank ?? (idx + 1))
         }));
-      } else if (Array.isArray(selectedMatch?.player_ids) && selectedMatch.player_ids.length > 0) {
-        results = selectedMatch.player_ids.map((pid, idx) => ({
-          player_id: Number(pid),
-          score: 0,
-          player_rank: idx + 1
-        }));
-      } else {
-        results = [{ player_id: hostId, score: 0, player_rank: 1 }];
       }
 
       await dispatch(
@@ -229,7 +223,7 @@ export function Sessions() {
           id: mid,
           data: {
             host_id: hostId,
-            results
+            ...(results.length > 0 ? { results } : {})
           }
         })
       ).unwrap();
@@ -266,7 +260,7 @@ export function Sessions() {
         <Toast
           message={toast.message}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={() => dispatch(clearSessionToast())}
         />
       )}
 

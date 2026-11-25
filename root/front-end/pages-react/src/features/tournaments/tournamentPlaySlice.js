@@ -7,6 +7,19 @@ import {
 
 // ── Async Thunks ─────────────────────────────────────────────
 
+export const launchTournamentGame = createAsyncThunk(
+  'tournamentPlay/launchGame',
+  async ({ gameId, tournamentId }) => {
+    if (typeof window === 'undefined') return { gameId: String(gameId), tournamentId: String(tournamentId) };
+    if (window.GameLaunch && window.GameLaunch.hasEngine(String(gameId))) {
+      window.GameLaunch.launch(String(gameId), { mode: 'tournament', tournamentId });
+    } else {
+      window.location.href = `/pages/player/games.html?highlight=${encodeURIComponent(gameId)}`;
+    }
+    return { gameId: String(gameId), tournamentId: String(tournamentId) };
+  }
+);
+
 export const fetchTournamentOverview = createAsyncThunk(
   'tournamentPlay/fetchOverview',
   async (id, { rejectWithValue }) => {
@@ -336,7 +349,8 @@ const initialState = {
     winnerModalTournamentId: null,
     deadlineModalTournamentId: null,
     cancelModalTournamentId: null,
-    confirmStartModalTournamentId: null
+    confirmStartModalTournamentId: null,
+    lastLaunchedGame: null
   }
 };
 
@@ -442,6 +456,9 @@ export const tournamentPlaySlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(launchTournamentGame.fulfilled, (state, action) => {
+        state.ui.lastLaunchedGame = action.payload;
+      })
       // ── fetchTournamentOverview ───────────────────────────
       .addCase(fetchTournamentOverview.pending, (state, action) => {
         state.overviewStatus = AsyncStatus.LOADING;

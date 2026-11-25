@@ -80,7 +80,8 @@ const initialState = sessionsAdapter.getInitialState({
     monitorModalOpen: false,
     selectedSessionId: null,
     confirmEndModalOpen: false,
-    copiedSessionId: null
+    copiedSessionId: null,
+    toast: null
   }
 });
 
@@ -139,6 +140,14 @@ export const gameSessionSlice = createSlice({
     setSessionCopiedId(state, action) {
       if (!state.ui) state.ui = {};
       state.ui.copiedSessionId = action.payload != null ? String(action.payload) : null;
+    },
+    setSessionToast(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.toast = action.payload || null;
+    },
+    clearSessionToast(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.toast = null;
     }
   },
   extraReducers: (builder) => {
@@ -218,7 +227,9 @@ export const {
   closeSessionMonitor,
   openConfirmEndSession,
   closeConfirmEndSession,
-  setSessionCopiedId
+  setSessionCopiedId,
+  setSessionToast,
+  clearSessionToast
 } = gameSessionSlice.actions;
 
 export default gameSessionSlice.reducer;

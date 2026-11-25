@@ -12,6 +12,7 @@ import {
   confirmMatchResult,
   disputeMatchResult,
   resolveDisputeWinner,
+  launchTournamentGame,
   setTournamentDetailsTab
 } from '../../../features/tournaments/tournamentPlaySlice';
 import { fetchRegistrations } from '../../../features/tournaments/registrationSlice';
@@ -284,11 +285,7 @@ export function TournamentDetails({
   // Launch handlers
   function handlePlayGame() {
     const gameId = String(t.game_id);
-    if (typeof window !== 'undefined' && window.GameLaunch && window.GameLaunch.hasEngine(gameId)) {
-      window.GameLaunch.launch(gameId, { mode: 'tournament', tournamentId: tid });
-    } else {
-      window.location.href = `/pages/player/games.html?highlight=${gameId}`;
-    }
+    dispatch(launchTournamentGame({ gameId, tournamentId: tid }));
   }
 
   function handleEnterMatch(matchId) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppDispatch } from '../../app/hooks';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
   createTournament,
   setCreateTournamentStep,
@@ -12,9 +12,12 @@ import {
   setCreateTournamentGame,
   setCreateTournamentFormat,
   setCreateTournamentIsMulti,
+  setCreateTournamentStages,
   addCreateTournamentStage,
   removeCreateTournamentStage,
   setCreatedInviteCode as setReduxInviteCode,
+  setCreateTournamentToast,
+  clearCreateTournamentToast,
   resetCreateTournamentForm,
   setTournamentActiveTab
 } from '../../features/tournaments/tournamentSlice';
@@ -27,11 +30,11 @@ import '../../styles/player/create-tournament.css';
 const CreateTournament = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const toast = useAppSelector((state) => state.tournaments?.ui?.createToast || { message: '', type: 'info' });
   const { user } = useContext(AuthContext);
-  const [toast, setToast] = useState({ message: '', type: 'info' });
 
   const addToast = (type, message) => {
-    setToast({ type, message });
+    dispatch(setCreateTournamentToast({ type, message }));
   };
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -95,8 +98,11 @@ const CreateTournament = () => {
           setGames(approved);
           if (approved.length > 0) {
             const firstId = approved[0].game_id || approved[0].id;
+            dispatch(setCreateTournamentGame(firstId));
             setSelectedGameId(firstId);
-            setSelectedFormat(teamMode ? 'bracket' : ((approved[0].game_mode || approved[0].mode) === 'multi' ? 'bracket' : 'score'));
+            const firstFormat = teamMode ? 'bracket' : ((approved[0].game_mode || approved[0].mode) === 'multi' ? 'bracket' : 'score');
+            dispatch(setCreateTournamentFormat(firstFormat));
+            setSelectedFormat(firstFormat);
           }
         }
       } catch (err) {
@@ -167,7 +173,9 @@ const CreateTournament = () => {
     if (teamMode) {
       setSelectedFormat('bracket');
       if (stages.length > 0) {
-        setStages(stages.map((s) => ({ ...s, format: 'bracket' })));
+        const nextStages = stages.map((s) => ({ ...s, format: 'bracket' }));
+        dispatch(setCreateTournamentStages(nextStages));
+        setStages(nextStages);
       }
     }
   }, [teamMode]);
@@ -176,6 +184,8 @@ const CreateTournament = () => {
   useEffect(() => {
     if (kind === 'casual' && isMulti) {
       setIsMulti(false);
+      dispatch(setCreateTournamentIsMulti(false));
+      dispatch(setCreateTournamentStages([]));
       setStages([]);
     }
   }, [kind, isMulti]);
@@ -183,18 +193,23 @@ const CreateTournament = () => {
   // When switching to multi-game festival, initialize 2 stages if empty
   const handleToggleMulti = (e) => {
     const checked = e.target.checked;
+    dispatch(setCreateTournamentIsMulti(checked));
     setIsMulti(checked);
     if (checked && stages.length < 2 && games.length > 0) {
       const g1 = games[0].game_id || games[0].id;
       const g2 = games[1] ? (games[1].game_id || games[1].id) : g1;
-      setStages([
+      const nextStages = [
         { game_id: g1, format: defaultFormatFor(g1), metric: 'score', direction: 'high', metric_label: 'Score', points_weight: 1 },
         { game_id: g2, format: defaultFormatFor(g2), metric: 'score', direction: 'high', metric_label: 'Score', points_weight: 1 }
-      ]);
+      ];
+      dispatch(setCreateTournamentStages(nextStages));
+      setStages(nextStages);
     }
   };
 
   const handleSelectGame = (gId) => {
+    dispatch(setCreateTournamentGame(gId));
+    dispatch(setCreateTournamentFormat(defaultFormatFor(gId)));
     setSelectedGameId(gId);
     setSelectedFormat(defaultFormatFor(gId));
   };
@@ -218,6 +233,7 @@ const CreateTournament = () => {
     dispatch(removeCreateTournamentStage(idx));
     const copy = [...stages];
     copy.splice(idx, 1);
+    dispatch(setCreateTournamentStages(copy));
     setStages(copy);
   };
 
@@ -228,6 +244,7 @@ const CreateTournament = () => {
       copy[idx].format = defaultFormatFor(val);
     }
     setStages(copy);
+    dispatch(setCreateTournamentStages(copy));
   };
 
   // Step 1 Validation
@@ -491,7 +508,7 @@ const CreateTournament = () => {
               <div className="toggle-row">
                 <div
                   className={`toggle-opt ${kind === 'casual' ? 'selected' : ''}`}
-                  onClick={() => { setKind('casual'); setIsMulti(false); setStages([]); }}
+                  onClick={() => { dispatch(setCreateTournamentKind('casual')); dispatch(setCreateTournamentIsMulti(false)); dispatch(setCreateTournamentStages([])); setKind('casual'); setIsMulti(false); setStages([]); }}
                 >
                   <div className="t-icon">🎲</div>
                   <div className="t-title">Casual Clash</div>
@@ -499,7 +516,7 @@ const CreateTournament = () => {
                 </div>
                 <div
                   className={`toggle-opt ${kind === 'community' ? 'selected' : ''}`}
-                  onClick={() => setKind('community')}
+                  onClick={() => { dispatch(setCreateTournamentKind('community')); setKind('community'); }}
                 >
                   <div className="t-icon">🛡️</div>
                   <div className="t-title">Community Group</div>
@@ -520,6 +537,8 @@ const CreateTournament = () => {
                         className="btn btn-ghost btn-sm"
                         onClick={() => {
                           dispatch(setCreateTournamentKind('casual'));
+                          dispatch(setCreateTournamentIsMulti(false));
+                          dispatch(setCreateTournamentStages([]));
                           setKind('casual');
                           setIsMulti(false);
                           setStages([]);
@@ -550,7 +569,7 @@ const CreateTournament = () => {
               <div className="toggle-row">
                 <div
                   className={`toggle-opt ${visibility === 'public' ? 'selected' : ''}`}
-                  onClick={() => setVisibility('public')}
+                  onClick={() => { dispatch(setCreateTournamentVisibility('public')); setVisibility('public'); }}
                 >
                   <div className="t-icon">🌐</div>
                   <div className="t-title">Public</div>
@@ -558,7 +577,7 @@ const CreateTournament = () => {
                 </div>
                 <div
                   className={`toggle-opt ${visibility === 'private' ? 'selected' : ''}`}
-                  onClick={() => setVisibility('private')}
+                  onClick={() => { dispatch(setCreateTournamentVisibility('private')); setVisibility('private'); }}
                 >
                   <div className="t-icon">🔒</div>
                   <div className="t-title">Private / Invite-Only</div>
@@ -571,7 +590,7 @@ const CreateTournament = () => {
               <div className="toggle-row">
                 <div
                   className={`toggle-opt ${!teamMode ? 'selected' : ''}`}
-                  onClick={() => setTeamMode(false)}
+                  onClick={() => { dispatch(setCreateTournamentTeamMode(false)); setTeamMode(false); }}
                 >
                   <div className="t-icon">🧍</div>
                   <div className="t-title">Solo (1v1 / FFA)</div>
@@ -579,7 +598,7 @@ const CreateTournament = () => {
                 </div>
                 <div
                   className={`toggle-opt ${teamMode ? 'selected' : ''}`}
-                  onClick={() => setTeamMode(true)}
+                  onClick={() => { dispatch(setCreateTournamentTeamMode(true)); setTeamMode(true); }}
                 >
                   <div className="t-icon">👥</div>
                   <div className="t-title">Teams</div>
@@ -995,7 +1014,7 @@ const CreateTournament = () => {
         <Toast
           message={toast.message}
           type={toast.type}
-          onClose={() => setToast({ message: '', type: 'info' })}
+          onClose={() => dispatch(clearCreateTournamentToast())}
         />
       )}
     </div>

@@ -175,6 +175,7 @@ const initialState = tournamentsAdapter.getInitialState({
     registrationModalOpen: false,
     registrationTournamentId: null,
     joinByIdModalOpen: false,
+    withdrawConfirmationTournamentId: null,
 
     // Create Tournament wizard UI
     createStep: 1,
@@ -195,10 +196,23 @@ const initialState = tournamentsAdapter.getInitialState({
     createStartDate: '',
     createEndDate: '',
     createdInviteCode: null,
+    createToast: null,
 
     // Publisher Tournament page UI
     publisherView: 'list',
     publisherCurrentStep: 1,
+    publisherSelectedType: 'single',
+    publisherSelectedVisibility: 'public',
+    publisherStages: [],
+    publisherForm: {
+      name: '',
+      description: '',
+      prize: '₹',
+      maxPlayers: '32',
+      regDeadline: '',
+      startDate: '',
+      endDate: ''
+    },
     publisherStatusFilter: 'all',
     publisherSelectedGameId: '',
     publisherEditId: null,
@@ -211,6 +225,16 @@ const initialState = tournamentsAdapter.getInitialState({
       variant: 'primary',
       actionKey: null,
       actionPayload: null
+    },
+    publisherToast: null,
+    publisherMgmt: {
+      showDeadlineModal: false,
+      deadlineInput: '',
+      showWinnerModal: false,
+      selectedWinnerId: '',
+      customWinnerName: '',
+      showCancelModal: false,
+      cancelReasonInput: ''
     }
   }
 });
@@ -287,6 +311,14 @@ export const tournamentSlice = createSlice({
       if (!state.ui) state.ui = {};
       state.ui.joinByIdModalOpen = false;
     },
+    openWithdrawConfirmation(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.withdrawConfirmationTournamentId = action.payload != null ? String(action.payload) : null;
+    },
+    closeWithdrawConfirmation(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.withdrawConfirmationTournamentId = null;
+    },
 
     // Create Tournament UI reducers
     setCreateTournamentStep(state, action) {
@@ -358,6 +390,14 @@ export const tournamentSlice = createSlice({
       if (!state.ui) state.ui = {};
       state.ui.createdInviteCode = action.payload;
     },
+    setCreateTournamentToast(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.createToast = action.payload || null;
+    },
+    clearCreateTournamentToast(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.createToast = null;
+    },
     resetCreateTournamentForm(state) {
       if (!state.ui) state.ui = {};
       state.ui.createStep = 1;
@@ -388,6 +428,50 @@ export const tournamentSlice = createSlice({
     setPublisherWizardStep(state, action) {
       if (!state.ui) state.ui = {};
       state.ui.publisherCurrentStep = action.payload;
+    },
+    setPublisherSelectedType(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherSelectedType = action.payload;
+    },
+    setPublisherSelectedVisibility(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherSelectedVisibility = action.payload;
+    },
+    setPublisherStages(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherStages = action.payload;
+    },
+    setPublisherFormField(state, action) {
+      if (!state.ui) state.ui = {};
+      if (!state.ui.publisherForm) state.ui.publisherForm = {};
+      const { field, value } = action.payload;
+      state.ui.publisherForm[field] = value;
+    },
+    resetPublisherForm(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherForm = {
+        name: action.payload?.name ?? '',
+        description: action.payload?.description ?? '',
+        prize: action.payload?.prize ?? '₹',
+        maxPlayers: action.payload?.maxPlayers ?? '32',
+        regDeadline: action.payload?.regDeadline ?? '',
+        startDate: action.payload?.startDate ?? '',
+        endDate: action.payload?.endDate ?? ''
+      };
+    },
+    setPublisherMgmtField(state, action) {
+      if (!state.ui) state.ui = {};
+      if (!state.ui.publisherMgmt) state.ui.publisherMgmt = {};
+      const { field, value } = action.payload;
+      state.ui.publisherMgmt[field] = value;
+    },
+    setPublisherToast(state, action) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherToast = action.payload || null;
+    },
+    clearPublisherToast(state) {
+      if (!state.ui) state.ui = {};
+      state.ui.publisherToast = null;
     },
     setPublisherStatusFilter(state, action) {
       if (!state.ui) state.ui = {};
@@ -647,6 +731,16 @@ export const tournamentSlice = createSlice({
               (id) => String(id) !== String(action.payload.playerId)
             );
           }
+          if (action.payload.teamId && t.registered_team_ids) {
+            t.registered_team_ids = t.registered_team_ids.filter(
+              (id) => String(id) !== String(action.payload.teamId)
+            );
+            if (Array.isArray(t.registered_teams)) {
+              t.registered_teams = t.registered_teams.filter(
+                (team) => String(team.team_id || team.id) !== String(action.payload.teamId)
+              );
+            }
+          }
         }
         const playerId = action.payload.playerId != null ? String(action.payload.playerId) : null;
         if (playerId && state.playerTournamentIdsByPlayerId?.[playerId]) {
@@ -673,6 +767,8 @@ export const {
   closeRegistrationModal,
   openJoinByIdModal,
   closeJoinByIdModal,
+  openWithdrawConfirmation,
+  closeWithdrawConfirmation,
 
   // Create Tournament UI
   setCreateTournamentStep,
@@ -690,11 +786,21 @@ export const {
   updateCreateTournamentStage,
   setCreateTournamentFields,
   setCreatedInviteCode,
+  setCreateTournamentToast,
+  clearCreateTournamentToast,
   resetCreateTournamentForm,
 
   // Publisher Tournament UI
   setPublisherView,
   setPublisherWizardStep,
+  setPublisherSelectedType,
+  setPublisherSelectedVisibility,
+  setPublisherStages,
+  setPublisherFormField,
+  resetPublisherForm,
+  setPublisherMgmtField,
+  setPublisherToast,
+  clearPublisherToast,
   setPublisherStatusFilter,
   setPublisherSelectedGame,
   setPublisherEditId,

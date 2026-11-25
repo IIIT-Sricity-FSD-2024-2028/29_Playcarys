@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { setPublisherMgmtField } from '../../../features/tournaments/tournamentSlice';
 import { getStatusBadgeData, formatDate } from '../../../services/publisherService';
 
 export function TournamentMgmt({
@@ -17,13 +19,25 @@ export function TournamentMgmt({
   onDeclareWinner,
   onExtendDeadline
 }) {
-  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
-  const [deadlineInput, setDeadlineInput] = useState('');
-  const [showWinnerModal, setShowWinnerModal] = useState(false);
-  const [selectedWinnerId, setSelectedWinnerId] = useState('');
-  const [customWinnerName, setCustomWinnerName] = useState('');
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReasonInput, setCancelReasonInput] = useState('');
+  const dispatch = useAppDispatch();
+  const modalState = useAppSelector((state) => state.tournaments?.ui?.publisherMgmt || {});
+  const {
+    showDeadlineModal = false,
+    deadlineInput = '',
+    showWinnerModal = false,
+    selectedWinnerId = '',
+    customWinnerName = '',
+    showCancelModal = false,
+    cancelReasonInput = ''
+  } = modalState;
+  const setField = (field, value) => dispatch(setPublisherMgmtField({ field, value }));
+  const setShowDeadlineModal = (value) => setField('showDeadlineModal', value);
+  const setDeadlineInput = (value) => setField('deadlineInput', value);
+  const setShowWinnerModal = (value) => setField('showWinnerModal', value);
+  const setSelectedWinnerId = (value) => setField('selectedWinnerId', value);
+  const setCustomWinnerName = (value) => setField('customWinnerName', value);
+  const setShowCancelModal = (value) => setField('showCancelModal', value);
+  const setCancelReasonInput = (value) => setField('cancelReasonInput', value);
 
   if (!tournament) return null;
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../../app/hooks';
+import { fetchTeams } from '../../../features/communities/teamSlice';
 import {
   registerForTournament,
   setSelectedTeamId as setReduxSelectedTeamId,
@@ -16,16 +18,19 @@ import {
 } from '../../../services/tournamentService';
 import { formatDate, sameId } from '../../../services/playerService';
 
+const EMPTY_DB = { users: [], teams: [], team_tournament: [], groups: [] };
+
 export function TournamentRegistrationModal({
   tournament,
   userId,
-  db,
+  db = EMPTY_DB,
   isOpen,
   onClose,
   onSuccess,
   onShowToast
 }) {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [inviteCode, setInviteCode] = useState('');
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -34,8 +39,6 @@ export function TournamentRegistrationModal({
 
   const t = tournament;
   const isTeam = !!(t && t.team_size);
-
-  if (!isOpen || !t) return null;
 
   // Fetch or resolve user's teams when modal opens for team tournament
   useEffect(() => {
@@ -84,7 +87,7 @@ export function TournamentRegistrationModal({
 
   if (!isOpen || !t) return null;
 
-  const u = (db.users || []).find((user) => sameId(user.id || user.user_id, userId));
+  const u = (db?.users || []).find((user) => sameId(user.id || user.user_id, userId));
   const username = u?.username || u?.user_name || 'You';
   const avatar = u?.avatar || '🎮';
   const wins = u?.wins || 0;
@@ -93,7 +96,7 @@ export function TournamentRegistrationModal({
   // Team state calculations
   const myTeamIds = new Set(teams.map((tm) => String(tm.team_id)));
   const alreadyIn = isTeam
-    ? (db.team_tournament || []).find(
+    ? (db?.team_tournament || []).find(
         (r) =>
           sameId(r.tournament_id, t.tournament_id || t.id) &&
           myTeamIds.has(String(r.team_id))
@@ -150,10 +153,16 @@ export function TournamentRegistrationModal({
       }
       onClose();
     } catch (err) {
-      onShowToast(err.message || 'Could not register for tournament.', 'error');
+      onShowToast((typeof err === 'string' ? err : err?.message) || 'Could not register for tournament.', 'error');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleManageTeams() {
+    await dispatch(fetchTeams());
+    onClose();
+    navigate('/player/community?tab=teams');
   }
 
   return createPortal(
@@ -420,9 +429,7 @@ export function TournamentRegistrationModal({
           ) : isTeam && !eligibleTeams.length ? (
             <button
               className="btn btn-purple"
-              onClick={() => {
-                window.location.href = '/pages/player/community.html?tab=teams';
-              }}
+              onClick={handleManageTeams}
               type="button"
             >
               Manage My Teams →

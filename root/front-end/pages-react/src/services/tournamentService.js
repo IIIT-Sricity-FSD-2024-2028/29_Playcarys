@@ -75,6 +75,11 @@ export function isRegistered(t, userId, db) {
   const tid = String(t.tournament_id || t.id);
 
   if (t.team_size) {
+    if (Array.isArray(t.registered_team_ids)) {
+      const targetDb = db || (typeof getDatabase === 'function' ? getDatabase() : null);
+      const myTeamIds = myTeams(userId, targetDb).map((team) => String(team.team_id || team.id));
+      return t.registered_team_ids.map(String).some((teamId) => myTeamIds.includes(teamId));
+    }
     return myTeamsIn(t, userId, db).length > 0;
   }
 
