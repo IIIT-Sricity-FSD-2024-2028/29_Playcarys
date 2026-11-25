@@ -5,8 +5,8 @@ import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 import { tournamentService, entrantCount, entrantName, isRegistered } from '../../services/tournamentService';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchGroups as loadGroups, fetchGroupById as loadGroupById, createGroup, updateGroup, joinGroup, leaveGroup, promoteGroupOfficer, demoteGroupOfficer, removeGroupMember, postGroupChatMessage, respondToGroupRequest } from '../../features/communities/groupSlice';
-import { fetchTeams as loadTeams, createTeam, updateTeam, addTeamMember, removeTeamMember, deleteTeam, postTeamChatMessage } from '../../features/communities/teamSlice';
+import { fetchGroups as loadGroups, fetchGroupById as loadGroupById, createGroup, updateGroup, joinGroup, leaveGroup, promoteGroupOfficer, demoteGroupOfficer, removeGroupMember, postGroupChatMessage, respondToGroupRequest, fetchGroupChat as loadGroupChat, fetchGroupRequests as loadGroupRequests, fetchGroupTournaments as loadGroupTournaments } from '../../features/communities/groupSlice';
+import { fetchTeams as loadTeams, createTeam, updateTeam, addTeamMember, removeTeamMember, deleteTeam, postTeamChatMessage, fetchTeamChat as loadTeamChat } from '../../features/communities/teamSlice';
 import { selectAllGroups, selectAllTeams, selectGroupById, selectGroupsStatus, selectTeamsStatus } from '../../features/communities/selectors';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/community.css';
@@ -196,9 +196,8 @@ export function Community() {
   const fetchChat = async (gid) => {
     try {
       setLoadingChat(true);
-      const res = await api.get(`/groups/${gid}/chat`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setChatMessages(list);
+      const { chat } = await dispatch(loadGroupChat(gid)).unwrap();
+      setChatMessages(chat);
     } catch (e) {
       setChatMessages([]);
     } finally {
@@ -210,9 +209,8 @@ export function Community() {
   const fetchRequests = async (gid) => {
     try {
       setLoadingRequests(true);
-      const res = await api.get(`/groups/${gid}/requests?requesterId=${uid}`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setJoinRequests(list);
+      const { requests } = await dispatch(loadGroupRequests({ groupId: gid, requesterId: uid })).unwrap();
+      setJoinRequests(requests);
     } catch (e) {
       setJoinRequests([]);
     } finally {
@@ -224,8 +222,7 @@ export function Community() {
   const fetchGroupTournaments = async (gid) => {
     try {
       setLoadingTournaments(true);
-      const res = await api.get(`/groups/${gid}/tournaments`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const { tournaments: list } = await dispatch(loadGroupTournaments(gid)).unwrap();
       const dbInstance = getDatabase();
       const local = (dbInstance.tournaments || []).filter((t) => sameId(t.group_id, gid));
       const mergedMap = new Map();
@@ -1010,8 +1007,7 @@ export function Community() {
   const fetchTeamChat = async (teamId) => {
     try {
       setLoadingTeamChat(true);
-      const res = await api.get(`/teams/${teamId}/chat`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const { chat: list } = await dispatch(loadTeamChat(teamId)).unwrap();
       const dbInstance = getDatabase();
       const localMsgs = (dbInstance?.messages || [])
         .filter((m) => sameId(m.team_id, teamId))
