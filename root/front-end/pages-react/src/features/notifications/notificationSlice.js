@@ -27,9 +27,9 @@ export const fetchNotifications = createAsyncThunk(
 
 export const fetchUserNotifications = createAsyncThunk(
   'notifications/fetchUserNotifications',
-  async (userId, { rejectWithValue }) => {
+  async ({ userId, roleName }, { rejectWithValue }) => {
     try {
-      const data = await notificationsApi.getUserNotifications(userId);
+      const data = await notificationsApi.getUserNotifications(userId, roleName);
       return data;
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to fetch user notifications'));
@@ -39,9 +39,9 @@ export const fetchUserNotifications = createAsyncThunk(
 
 export const fetchUnreadCount = createAsyncThunk(
   'notifications/fetchUnreadCount',
-  async (userId, { rejectWithValue }) => {
+  async ({ userId, roleName }, { rejectWithValue }) => {
     try {
-      const data = await notificationsApi.getUnreadCount(userId);
+      const data = await notificationsApi.getUnreadCount(userId, roleName);
       return typeof data === 'number' ? data : (data?.count || data?.unread_count || 0);
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to fetch unread count'));
@@ -51,9 +51,9 @@ export const fetchUnreadCount = createAsyncThunk(
 
 export const fetchDirectory = createAsyncThunk(
   'notifications/fetchDirectory',
-  async (_, { rejectWithValue }) => {
+  async (viewerId, { rejectWithValue }) => {
     try {
-      const data = await notificationsApi.getDirectory();
+      const data = await notificationsApi.getDirectory(viewerId);
       return data;
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to fetch directory'));
@@ -99,10 +99,10 @@ export const replyToNotification = createAsyncThunk(
 
 export const markNotificationRead = createAsyncThunk(
   'notifications/markRead',
-  async (id, { rejectWithValue }) => {
+  async ({ id, audience, read = true }, { rejectWithValue }) => {
     try {
-      await notificationsApi.markAsRead(id);
-      return String(id);
+      const notification = await notificationsApi.markAsRead(id, audience, read);
+      return { id: String(id), read, notification };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to mark notification read'));
     }
@@ -111,10 +111,10 @@ export const markNotificationRead = createAsyncThunk(
 
 export const markAllNotificationsRead = createAsyncThunk(
   'notifications/markAllRead',
-  async (userId, { rejectWithValue }) => {
+  async (audience, { rejectWithValue }) => {
     try {
-      await notificationsApi.markAllAsRead(userId);
-      return String(userId);
+      await notificationsApi.markAllAsRead(audience);
+      return audience;
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to mark all read'));
     }
@@ -123,9 +123,9 @@ export const markAllNotificationsRead = createAsyncThunk(
 
 export const deleteNotification = createAsyncThunk(
   'notifications/deleteNotification',
-  async (id, { rejectWithValue }) => {
+  async ({ id, audience }, { rejectWithValue }) => {
     try {
-      await notificationsApi.deleteNotification(id);
+      await notificationsApi.deleteNotification(id, audience);
       return String(id);
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to delete notification'));
@@ -196,18 +196,25 @@ export const notificationSlice = createSlice({
       // replyToNotification
       .addCase(replyToNotification.fulfilled, (state, action) => {
         if (action.payload) {
-          notificationsAdapter.addOne(state, action.payload);
-          state.threadMessages.push(action.payload);
+          notificationsAdapter.upsertOne(state, action.payload);
+          state.threadMessages = [action.payload, ...(action.payload.replies || [])];
         }
       })
       // markNotificationRead
       .addCase(markNotificationRead.fulfilled, (state, action) => {
-        const id = action.payload;
+        const { id, read, notification } = action.payload;
         const n = state.entities[id];
-        if (n && !n.is_read && !n.read) {
-          n.is_read = true;
-          n.read = true;
+        const wasUnread = n && !n.is_read && !n.read;
+        if (notification) {
+          notificationsAdapter.upsertOne(state, notification);
+        } else if (n) {
+          n.is_read = read;
+          n.read = read;
+        }
+        if (wasUnread && read) {
           state.unreadCount = Math.max(0, state.unreadCount - 1);
+        } else if (!wasUnread && !read) {
+          state.unreadCount += 1;
         }
       })
       // markAllNotificationsRead
