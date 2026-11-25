@@ -5,8 +5,8 @@ import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 import { tournamentService, entrantCount, entrantName, isRegistered } from '../../services/tournamentService';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchGroups as loadGroups, fetchGroupById as loadGroupById } from '../../features/communities/groupSlice';
-import { fetchTeams as loadTeams } from '../../features/communities/teamSlice';
+import { fetchGroups as loadGroups, fetchGroupById as loadGroupById, createGroup, updateGroup, joinGroup, leaveGroup, promoteGroupOfficer, demoteGroupOfficer, removeGroupMember, postGroupChatMessage, respondToGroupRequest } from '../../features/communities/groupSlice';
+import { fetchTeams as loadTeams, createTeam, updateTeam, addTeamMember, removeTeamMember, deleteTeam, postTeamChatMessage } from '../../features/communities/teamSlice';
 import { selectAllGroups, selectAllTeams, selectGroupById, selectGroupsStatus, selectTeamsStatus } from '../../features/communities/selectors';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/community.css';
@@ -370,13 +370,13 @@ export function Community() {
     }
     try {
       setSubmittingGroup(true);
-      const res = await api.post('/groups', {
+      const res = await dispatch(createGroup({
         name: trimmed,
         desc: groupDesc.trim(),
         owner_id: uid,
         visibility: groupVisibility,
         join_mode: groupJoinMode,
-      });
+      })).unwrap();
       setShowCreateGroup(false);
       showToast(`${res.name || trimmed} created! 🛡️`, 'success');
       const newId = res.group_id || res.id;
@@ -410,12 +410,12 @@ export function Community() {
     }
     try {
       setSubmittingEditGroup(true);
-      const updated = await api.patch(`/groups/${editingGroupId}?requesterId=${uid}`, {
+      await dispatch(updateGroup({ id: editingGroupId, requesterId: uid, data: {
         name: trimmed,
         desc: editGroupDesc.trim(),
         visibility: editGroupVisibility,
         join_mode: editGroupJoinMode,
-      });
+      } })).unwrap();
       setShowEditGroup(false);
       showToast('Group details updated! 🛡️', 'success');
       await fetchGroups();
@@ -430,7 +430,7 @@ export function Community() {
   // --- Handlers: Group Actions (Membership & Officers) ---
   const handleJoinGroup = async (gid) => {
     try {
-      const res = await api.post(`/groups/${gid}/join?userId=${uid}`);
+      const res = await dispatch(joinGroup({ groupId: gid, userId: uid })).unwrap();
       showToast(res.message || 'Joined group! 🛡️', 'success');
       await fetchGroupDetail(gid);
       await fetchGroups();
@@ -442,7 +442,7 @@ export function Community() {
   const handleLeaveGroup = async (gid) => {
     if (!window.confirm(`Leave ${activeGroup?.name || 'this group'}?`)) return;
     try {
-      await api.post(`/groups/${gid}/leave?userId=${uid}`);
+      await dispatch(leaveGroup({ groupId: gid, userId: uid })).unwrap();
       showToast('Left the group.', 'info');
       await fetchGroupDetail(gid);
       await fetchGroups();
@@ -453,7 +453,7 @@ export function Community() {
 
   const handlePromoteOfficer = async (userId) => {
     try {
-      await api.post(`/groups/${selectedGroupId}/officers/${userId}?requesterId=${uid}`);
+      await dispatch(promoteGroupOfficer({ groupId: selectedGroupId, userId, requesterId: uid })).unwrap();
       showToast('Promoted to officer.', 'success');
       await fetchGroupDetail(selectedGroupId);
     } catch (e) {
@@ -463,7 +463,7 @@ export function Community() {
 
   const handleDemoteOfficer = async (userId) => {
     try {
-      await api.del(`/groups/${selectedGroupId}/officers/${userId}?requesterId=${uid}`);
+      await dispatch(demoteGroupOfficer({ groupId: selectedGroupId, userId, requesterId: uid })).unwrap();
       showToast('Officer removed.', 'info');
       await fetchGroupDetail(selectedGroupId);
     } catch (e) {
@@ -474,7 +474,7 @@ export function Community() {
   const handleKickMember = async (userId) => {
     if (!window.confirm('Remove this member from the group?')) return;
     try {
-      await api.del(`/groups/${selectedGroupId}/members/${userId}?requesterId=${uid}`);
+      await dispatch(removeGroupMember({ groupId: selectedGroupId, userId, requesterId: uid })).unwrap();
       showToast('Member removed.', 'info');
       await fetchGroupDetail(selectedGroupId);
     } catch (e) {
@@ -488,7 +488,7 @@ export function Community() {
     if (!text || !selectedGroupId) return;
     setChatInput('');
     try {
-      await api.post(`/groups/${selectedGroupId}/chat`, { from_user: uid, body: text });
+      await dispatch(postGroupChatMessage({ groupId: selectedGroupId, fromUser: uid, body: text })).unwrap();
       await fetchChat(selectedGroupId);
     } catch (err) {
       showToast(err.message || 'Could not send message.', 'error');
@@ -497,7 +497,7 @@ export function Community() {
 
   const handleRespondRequest = async (requestId, accept) => {
     try {
-      await api.post(`/groups/${selectedGroupId}/requests/${requestId}/${accept ? 'accept' : 'reject'}?requesterId=${uid}`);
+      await dispatch(respondToGroupRequest({ groupId: selectedGroupId, requestId, accept, requesterId: uid })).unwrap();
       showToast(accept ? 'Accepted.' : 'Declined.', 'success');
       await fetchGroupDetail(selectedGroupId);
       await fetchRequests(selectedGroupId);
@@ -815,7 +815,7 @@ export function Community() {
     }
     try {
       setSubmittingTeam(true);
-      await api.post('/teams', { name: trimmed, captain_id: uid });
+      await dispatch(createTeam({ name: trimmed, captain_id: uid })).unwrap();
       setShowCreateTeam(false);
       setTeamName('');
       showToast(`${trimmed} created! ⚔️`, 'success');
@@ -925,9 +925,7 @@ export function Community() {
   const handleAcceptTeamInvite = async (inv) => {
     try {
       try {
-        await api.post(`/teams/${inv.team_id}/members?requesterId=${inv.fromUserId}`, {
-          user_id: uid,
-        });
+        await dispatch(addTeamMember({ teamId: inv.team_id, userId: uid, requesterId: inv.fromUserId })).unwrap();
       } catch (apiErr) {
         console.warn('Backend add member warning:', apiErr);
       }
@@ -982,7 +980,7 @@ export function Community() {
 
   const handleRemoveMember = async (teamId, memberUserId) => {
     try {
-      await api.del(`/teams/${teamId}/members/${memberUserId}?requesterId=${uid}`);
+      await dispatch(removeTeamMember({ teamId, userId: memberUserId, requesterId: uid })).unwrap();
       showToast('Removed.', 'info');
       await fetchTeams();
     } catch (err) {
@@ -995,7 +993,7 @@ export function Community() {
     const teamId = confirmDeleteModal.teamId;
     if (!teamId) return;
     try {
-      await api.del(`/teams/${teamId}?requesterId=${uid}`);
+      await dispatch(deleteTeam({ id: teamId, requesterId: uid })).unwrap();
       showToast('Team deleted.', 'info');
       setConfirmDeleteModal({ isOpen: false, teamId: null });
       if (teamToManage && sameId(teamToManage.team_id || teamToManage.id, teamId)) {
@@ -1067,7 +1065,7 @@ export function Community() {
     setSendingTeamChat(true);
     try {
       try {
-        await api.post(`/teams/${tid}/chat`, { from_user: uid, body: text });
+        await dispatch(postTeamChatMessage({ teamId: tid, fromUser: uid, body: text })).unwrap();
       } catch (errBackend) {
         console.warn('Backend team chat fallback:', errBackend);
       }
@@ -1112,7 +1110,7 @@ export function Community() {
     setSubmittingEditTeam(true);
     try {
       try {
-        await api.patch(`/teams/${editTeamId}?requesterId=${uid}`, { name: trimmed });
+        await dispatch(updateTeam({ id: editTeamId, requesterId: uid, data: { name: trimmed } })).unwrap();
       } catch (backendErr) {
         console.warn('Backend patch team fallback:', backendErr);
       }
@@ -1141,7 +1139,7 @@ export function Community() {
     if (!window.confirm('Are you sure you want to leave this team?')) return;
     try {
       try {
-        await api.del(`/teams/${teamId}/members/${uid}?requesterId=${uid}`);
+        await dispatch(removeTeamMember({ teamId, userId: uid, requesterId: uid })).unwrap();
       } catch (backendErr) {
         console.warn('Backend leave team fallback:', backendErr);
       }
