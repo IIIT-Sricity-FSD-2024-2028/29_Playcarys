@@ -5,6 +5,8 @@ import { fetchPlayerProfile, updatePlayerProfile } from '../../features/profiles
 import { selectPlayerProfile } from '../../features/profiles/selectors';
 import { fetchPlayerAchievements, fetchPlayerTitles, setPlayerTitle } from '../../features/games/achievementSlice';
 import { selectPlayerAchievements, selectPlayerTitles } from '../../features/games/selectors';
+import { fetchLinkedAccounts, fetchPlatforms, linkAccount, unlinkAccount } from '../../features/profiles/linkedAccountSlice';
+import { selectLinkedAccounts, selectPlatforms } from '../../features/profiles/selectors';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, hydrateFromServer } from '../../services/playerService';
 import authService from '../../services/authService';
@@ -38,8 +40,8 @@ export function Profile() {
   const [achievementsLoading, setAchievementsLoading] = useState(true);
 
   // Linked accounts
-  const [platforms, setPlatforms] = useState([]);
-  const [linkedAccounts, setLinkedAccounts] = useState([]);
+  const platforms = useAppSelector(selectPlatforms);
+  const linkedAccounts = useAppSelector((state) => selectLinkedAccounts(state, uid));
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [inGameName, setInGameName] = useState('');
   const [linkingAccount, setLinkingAccount] = useState(false);
@@ -212,20 +214,20 @@ export function Profile() {
   // 3. Load linked accounts & platforms
   const loadLinkedAccounts = async () => {
     try {
-      const pRes = await api.get('/linked-accounts/platforms');
-      const platformList = Array.isArray(pRes) ? pRes : Array.isArray(pRes?.data) ? pRes.data : [];
-      setPlatforms(platformList);
-      if (platformList.length > 0 && !selectedPlatform) {
-        setSelectedPlatform(platformList[0].key);
-      }
-
-      const aRes = await api.get(`/linked-accounts/player/${uid}`);
-      const accList = Array.isArray(aRes) ? aRes : Array.isArray(aRes?.data) ? aRes.data : [];
-      setLinkedAccounts(accList);
+      await Promise.all([
+        dispatch(fetchPlatforms()).unwrap(),
+        dispatch(fetchLinkedAccounts(uid)).unwrap(),
+      ]);
     } catch (err) {
       console.warn('Could not load linked accounts:', err);
     }
   };
+
+  useEffect(() => {
+    if (!selectedPlatform && platforms.length > 0) {
+      setSelectedPlatform(platforms[0].key);
+    }
+  }, [platforms, selectedPlatform]);
 
   // Hydrate DB tables from server on mount
   useEffect(() => {
@@ -284,11 +286,11 @@ export function Profile() {
     }
     try {
       setLinkingAccount(true);
-      await api.post('/linked-accounts', {
+      await dispatch(linkAccount({
         player_id: uid,
         platform: selectedPlatform,
         in_game_name: trimmed,
-      });
+      })).unwrap();
       setInGameName('');
       showToast('Linked! 🔗', 'success');
       await loadLinkedAccounts();
@@ -303,7 +305,7 @@ export function Profile() {
   // Handle unlink account
   const handleUnlinkAccount = async (linkId) => {
     try {
-      await api.del(`/linked-accounts/${linkId}?requesterId=${uid}`);
+      await dispatch(unlinkAccount(linkId)).unwrap();
       showToast('Unlinked.', 'info');
       await loadLinkedAccounts();
     } catch (err) {
