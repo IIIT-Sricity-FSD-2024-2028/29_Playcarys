@@ -112,12 +112,10 @@ export function LoginPanel(props) {
       return;
     }
 
-    const found = findLoginUser(username.trim(), col.role);
-    if (found.error) {
-      if (found.badUsername) setUserBad(true);
-      setError(found.error);
-      return;
-    }
+    // The local DB is only a cache. A just-registered publisher exists first
+    // on the API, so never reject the sign-in before the API can verify it.
+    const localLookup = findLoginUser(username.trim(), col.role);
+    const found = localLookup.error ? null : localLookup;
     if (!password) {
       if (passRef.current) passRef.current.focus();
       setError('Please enter your password.');
@@ -131,16 +129,16 @@ export function LoginPanel(props) {
       }
     }
 
-    const user = found.user;
-    const body = { password: password };
-    if (user.email) {
-      body.email = user.email;
-    } else {
-      body.username = found.username;
-    }
+    const user = found?.user;
+    const body = { password: password, username: username.trim() };
+    if (user?.email) body.email = user.email;
     // Narrows the match when one email holds both a player and a studio account.
-    if (user.role_id != null) {
+    if (user?.role_id != null) {
       body.role_id = Number(user.role_id);
+    } else if (col.role === 'publisher') {
+      body.role_id = 5;
+    } else if (col.role === 'player') {
+      body.role_id = 4;
     }
 
     setBusy('signing');
@@ -174,6 +172,10 @@ export function LoginPanel(props) {
       setBusy('waiting');
       let handoff;
       try {
+        if (!user) {
+          setError('This account is already signed in elsewhere. Please use a device that has signed in before to approve the handoff.');
+          return;
+        }
         handoff = await resolveSessionConflict(user, askToSignInHere);
       } finally {
         setBusy('');
@@ -199,10 +201,16 @@ export function LoginPanel(props) {
     }
 
     // Signed in: keep the session and the signed API token, then let the page move on.
-    const session = buildSession(result.data.user, result.data.session_token);
+    const signedInUser = result.data.user;
+    if (signedInUser?.role !== col.role) {
+      const labels = { player: 'Player', publisher: 'Publisher', moderator: 'Moderator', admin: 'Admin', superuser: 'Superuser' };
+      setError(`This login is for ${labels[col.role] || col.role} accounts only.`);
+      return;
+    }
+    const session = buildSession(signedInUser, result.data.session_token);
     login(session, result.data.token);
-    showToast('success', `Welcome back, ${found.username}!`);
-    onSignedIn(found.role);
+    showToast('success', `Welcome back, ${signedInUser.username || signedInUser.user_name}!`);
+    onSignedIn(signedInUser.role);
   }
 
   function handleOverlayClick(e) {

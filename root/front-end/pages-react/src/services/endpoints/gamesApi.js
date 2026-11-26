@@ -1,6 +1,24 @@
 import api from '../api';
 import { normalizeEntity, normalizeList } from './normalize';
 
+// The API uses game_approval_status / game_status, while older page code used
+// status / enabled. Keep both representations consistent at the API boundary.
+const normalizeGame = (game) => {
+  const entity = normalizeEntity(game);
+  if (!entity) return entity;
+  const approvalStatus = String(entity.game_approval_status ?? entity.approval_status ?? entity.status ?? '').toLowerCase();
+  const gameStatus = String(entity.game_status ?? (entity.enabled === false ? 'disabled' : 'enabled')).toLowerCase();
+  return {
+    ...entity,
+    status: approvalStatus,
+    game_approval_status: approvalStatus,
+    game_status: gameStatus,
+    enabled: gameStatus === 'enabled'
+  };
+};
+
+const normalizeGameList = (data) => normalizeList(data).map(normalizeGame);
+
 export const gamesApi = {
   async getGames(params = {}) {
     const query = new URLSearchParams();
@@ -9,12 +27,12 @@ export const gamesApi = {
     if (params.active != null) query.append('active', String(params.active));
     const qs = query.toString();
     const res = await api.get(`/games${qs ? `?${qs}` : ''}`);
-    return normalizeList(res);
+    return normalizeGameList(res);
   },
 
   async getGameById(id) {
     const res = await api.get(`/games/${id}`);
-    return normalizeEntity(res);
+    return normalizeGame(res);
   },
 
   async getScanManifest(id) {
@@ -27,17 +45,19 @@ export const gamesApi = {
 
   async createGame(dto) {
     const res = await api.post('/games', dto);
-    return normalizeEntity(res);
+    return normalizeGame(res);
   },
 
   async updateGame(id, dto) {
     const res = await api.patch(`/games/${id}`, dto);
-    return normalizeEntity(res);
+    return normalizeGame(res);
   },
 
   async setGameState(id, enabled) {
-    const res = await api.patch(`/games/${id}/state`, { enabled });
-    return normalizeEntity(res);
+    const res = await api.patch(`/games/${id}/state`, {
+      game_status: enabled ? 'enabled' : 'disabled'
+    });
+    return normalizeGame(res);
   },
 
   async deleteGame(id) {

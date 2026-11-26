@@ -98,15 +98,15 @@ export function Landing() {
     goHome(role);
   }
 
-  function handlePlayerRegistered(user, sessionToken) {
-    login(buildSession(user, sessionToken), null);
+  function handlePlayerRegistered(user, sessionToken, token) {
+    login(buildSession(user, sessionToken), token);
     showToast('success', `Account created! Welcome, ${user.username}!`);
     setShowRegister(false);
     goHome('player');
   }
 
-  function handlePublisherRegistered(user, sessionToken) {
-    login(buildSession(user, sessionToken), null);
+  function handlePublisherRegistered(user, sessionToken, token) {
+    login(buildSession(user, sessionToken), token);
     showToast('success', `Studio registered! Welcome, ${user.username}!`);
     setShowPubRegister(false);
     goHome('publisher');

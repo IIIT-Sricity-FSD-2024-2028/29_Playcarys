@@ -369,7 +369,7 @@ export async function signUpBlockedReason() {
   return '';
 }
 
-export function registerPlayer(values) {
+export async function registerPlayer(values) {
   const errors = firstError([
     ['username', values.username, [{ type: 'required' }, { type: 'minLen', n: 3, msg: 'Username must be at least 3 characters' }, { type: 'maxLen', n: 20, msg: 'Username max 20 characters' }]],
     ['email', values.email, [{ type: 'required' }, { type: 'email' }]],
@@ -378,49 +378,15 @@ export function registerPlayer(values) {
   ]);
   if (Object.keys(errors).length > 0) return { errors };
 
-  const username = values.username.trim();
-  const emailVal = values.email.trim();
-
-  if (DB.users.find((u) => u.username && u.username.toLowerCase() === username.toLowerCase())) {
-    return { errors: { username: 'Username already taken' } };
-  }
-  // An address may hold one player account and one studio account, so only players are checked.
-  if (DB.emailTakenForRole(emailVal, 'player')) {
-    return { errors: { email: 'A player account already uses this email' } };
-  }
-
-  const numId = Date.now();
-  const newUser = {
-    user_id: numId,
-    user_name: username,
-    role_id: 4,
-    id: String(numId),
-    username: username,
-    email: emailVal,
+  return registerWithServer({
+    user_name: values.username.trim(),
+    email: values.email.trim(),
     password: values.password,
-    role: 'player',
-    avatar: username.slice(0, 2).toUpperCase(),
-    status: 'active',
-    joinDate: today(),
-    lastSeen: today()
-  };
-
-  if (!DB.player_profiles) DB.player_profiles = [];
-  DB.player_profiles.push({
-    user_id: numId,
-    player_name: username,
-    carys_points: 100,
-    play_time: 0,
-    matches_won: 0,
-    player_status: true
+    role_id: 4
   });
-  DB.users.push(newUser);
-  const sessionToken = claimNewSession(newUser);
-  DB.save();
-  return { user: newUser, sessionToken };
 }
 
-export function registerPublisher(values) {
+export async function registerPublisher(values) {
   const errors = firstError([
     ['username', values.username, [{ type: 'required' }, { type: 'minLen', n: 3, msg: 'Studio name must be at least 3 characters' }, { type: 'maxLen', n: 30, msg: 'Studio name max 30 characters' }]],
     ['email', values.email, [{ type: 'required' }, { type: 'email' }]],
@@ -430,47 +396,46 @@ export function registerPublisher(values) {
   ]);
   if (Object.keys(errors).length > 0) return { errors };
 
-  const username = values.username.trim();
-  const emailVal = values.email.trim();
-  let rawPhone = values.phone.trim();
-  if (rawPhone.startsWith('0')) rawPhone = rawPhone.substring(1); // remove leading zero
-  const phoneVal = values.countryCode + ' ' + rawPhone;
-
-  if (DB.users.find((u) => u.username && u.username.toLowerCase() === username.toLowerCase())) {
-    return { errors: { username: 'Studio name already taken' } };
-  }
-  if (DB.emailTakenForRole(emailVal, 'publisher')) {
-    return { errors: { email: 'A studio account already uses this email' } };
-  }
-
-  const numId = Date.now();
-  const newPublisher = {
-    user_id: numId,
-    user_name: username,
-    role_id: 5,
-    id: String(numId),
-    username: username,
-    email: emailVal,
-    phone_number: phoneVal,
+  return registerWithServer({
+    user_name: values.username.trim(),
+    email: values.email.trim(),
     password: values.password,
-    role: 'publisher',
-    avatar: username.slice(0, 2).toUpperCase(),
-    status: 'active',
-    joinDate: today(),
-    lastSeen: today()
-  };
-
-  if (!DB.publisher_profiles) DB.publisher_profiles = [];
-  DB.publisher_profiles.push({
-    user_id: numId,
-    total_games: 0,
-    approved_games: 0,
-    active_games: 0
+    role_id: 5
   });
-  DB.users.push(newPublisher);
-  const sessionToken = claimNewSession(newPublisher);
-  DB.save();
-  return { user: newPublisher, sessionToken };
+}
+
+// Registration must use the same backend as authenticated API features. The
+// former browser-only path created an ID the server did not know and discarded
+// the bearer token, so a new player could not use friends until they logged in
+// a second time.
+async function registerWithServer(payload) {
+  let response;
+  try {
+    response = await fetch(getApiBase() + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    return { errors: { username: 'Could not reach the server. Please try again.' } };
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+    return { errors: { username: message || 'Could not create the account. Please try again.' } };
+  }
+
+  const user = {
+    ...(data.user || {}),
+    ...data,
+    id: data.user_id ?? data.id,
+    user_id: data.user_id ?? data.id,
+    username: data.username || data.user_name || data.user?.username,
+    user_name: data.user_name || data.username || data.user?.username,
+    role: data.role || data.user?.role
+  };
+  return { user, sessionToken: data.session_token, token: data.token };
 }
 
 // The old Auth.claimSession for a brand-new account: nobody holds it yet, so just stamp it.
