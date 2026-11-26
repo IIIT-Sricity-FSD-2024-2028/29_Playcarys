@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import api from '../../services/api';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 import { tournamentService, entrantCount, entrantName, isRegistered } from '../../services/tournamentService';
@@ -8,6 +7,9 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchGroups as loadGroups, fetchGroupById as loadGroupById, createGroup, updateGroup, joinGroup, leaveGroup, promoteGroupOfficer, demoteGroupOfficer, removeGroupMember, postGroupChatMessage, respondToGroupRequest, fetchGroupChat as loadGroupChat, fetchGroupRequests as loadGroupRequests, fetchGroupTournaments as loadGroupTournaments } from '../../features/communities/groupSlice';
 import { fetchTeams as loadTeams, createTeam, updateTeam, addTeamMember, removeTeamMember, deleteTeam, postTeamChatMessage, fetchTeamChat as loadTeamChat } from '../../features/communities/teamSlice';
 import { selectAllGroups, selectAllTeams, selectGroupById, selectGroupsStatus, selectTeamsStatus } from '../../features/communities/selectors';
+import { updateTournament, deleteTournament } from '../../features/tournaments/tournamentSlice';
+import { fetchTournamentBracket, startTournament as startTournamentPlay, resolveMatchDispute } from '../../features/tournaments/tournamentPlaySlice';
+import { fetchLinkedAccounts as loadLinkedAccounts } from '../../features/profiles/linkedAccountSlice';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/community.css';
 
@@ -160,8 +162,8 @@ export function Community() {
     const pairs = await Promise.all(
       memberIds.map(async (id) => {
         try {
-          const res = await api.get(`/linked-accounts/player/${id}`);
-          return [id, Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])];
+          const { accounts } = await dispatch(loadLinkedAccounts(id)).unwrap();
+          return [id, accounts];
         } catch (e) {
           return [id, []];
         }
@@ -559,7 +561,7 @@ export function Community() {
 
     try {
       setSubmittingEditTourn(true);
-      await api.patch(`/tournaments/${editTournId}`, payload);
+      await dispatch(updateTournament({ id: editTournId, data: payload })).unwrap();
       setShowEditTourn(false);
       showToast('Tournament updated! 🏆', 'success');
       await fetchGroupTournaments(selectedGroupId);
@@ -574,8 +576,8 @@ export function Community() {
   const fetchBracket = async (tid) => {
     try {
       setLoadingBracket(true);
-      const res = await api.get(`/tournaments/${tid}/bracket`);
-      let list = res?.matches || (Array.isArray(res) ? res : []);
+      const { bracket } = await dispatch(fetchTournamentBracket(tid)).unwrap();
+      let list = bracket?.matches || (Array.isArray(bracket) ? bracket : []);
       if (!list || list.length === 0) {
         const dbInstance = getDatabase();
         list = (dbInstance.tournament_matches || []).filter((m) => sameId(m.tournamentId, tid));
@@ -624,7 +626,7 @@ export function Community() {
         dbInstance.tournaments.push({ ...manageTourn, tournament_id: parseInt(tid, 10) || tid });
         saveDatabase(dbInstance);
       }
-      await tournamentService.startTournament(tid, uid);
+      await dispatch(startTournamentPlay({ tournamentId: tid, organizerId: uid })).unwrap();
       showToast('Tournament Started! Bracket generated. 🚀', 'success');
       const updatedDb = getDatabase();
       const freshT = (updatedDb.tournaments || []).find((x) => sameId(x.tournament_id || x.id, tid));
@@ -706,10 +708,7 @@ export function Community() {
 
       // 2. Also notify backend
       try {
-        await api.post(`/tournaments/matches/${matchId}/resolve`, {
-          organizer_id: uid,
-          winner_id: winnerId,
-        });
+        await dispatch(resolveMatchDispute({ matchId, tournamentId: manageTourn?.tournament_id || manageTourn?.id, organizer_id: uid, winner_id: winnerId })).unwrap();
       } catch (errBackend) {
         console.warn('Backend match resolve notice:', errBackend?.message || errBackend);
       }
@@ -789,7 +788,7 @@ export function Community() {
   const handleDeleteTournament = async (tid) => {
     if (!window.confirm('Are you sure you want to delete this tournament? This cannot be undone.')) return;
     try {
-      await api.del(`/tournaments/${tid}`);
+      await dispatch(deleteTournament(tid)).unwrap();
       showToast('Tournament deleted.', 'info');
       await fetchGroupTournaments(selectedGroupId);
     } catch (err) {
