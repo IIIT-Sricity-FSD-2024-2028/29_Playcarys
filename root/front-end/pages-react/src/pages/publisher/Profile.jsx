@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
-import publisherService from '../../services/publisherService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {
+  fetchPublisherProfileSuite,
+  fetchPublisherApiKeys,
+  updatePublisherOnboarding,
+  updatePublisherProfileDetails
+} from '../../features/profiles/publisherProfileSlice';
 import PublisherProfileCard from '../../components/publisher/profile/PublisherProfileCard';
 import PublisherOnboardingTracker from '../../components/publisher/profile/PublisherOnboardingTracker';
 import PublisherApiKeyManager from '../../components/publisher/profile/PublisherApiKeyManager';
@@ -11,6 +17,7 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/profile.css';
 
 export function Profile() {
+  const dispatch = useAppDispatch();
   const {
     user,
     login,
@@ -18,11 +25,12 @@ export function Profile() {
     isPublisher,
     authLoading
   } = usePublisherAuth();
+  const userId = user?.userId || user?.id;
+  const profileData = useAppSelector((state) => state.publisherProfile?.profileSuitesByUserId?.[String(userId)] || null);
+  const onboardingData = useAppSelector((state) => state.publisherProfile?.profilesByUserId?.[String(userId)] || null);
+  const apiKeys = useAppSelector((state) => state.publisherProfile?.apiKeysByUserId?.[String(userId)] || []);
+  const suiteStatus = useAppSelector((state) => state.publisherProfile?.suiteStatus);
 
-  const [profileData, setProfileData] = useState(null);
-  const [onboardingData, setOnboardingData] = useState(null);
-  const [apiKeys, setApiKeys] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'info' });
@@ -33,39 +41,22 @@ export function Profile() {
 
   // Load publisher profile, onboarding & API keys
   async function loadProfile() {
-    if (!isPublisher) return;
-    setLoading(true);
-
+    if (!isPublisher || !userId) return;
     try {
-      const uid = user.userId || user.id;
-      const [fullData, onboarding, keys] = await Promise.all([
-        publisherService.getPublisherFullProfile(uid),
-        publisherService.getOnboarding(uid),
-        publisherService.getApiKeys(uid),
-      ]);
-
-      setProfileData(fullData);
-      setOnboardingData(onboarding);
-      setApiKeys(keys || []);
+      await dispatch(fetchPublisherProfileSuite(userId)).unwrap();
     } catch (err) {
       console.error('Failed to load publisher profile suite:', err);
       showToast('Could not load profile data', 'error');
-    } finally {
-      setLoading(false);
     }
   }
 
   const reloadKeys = async () => {
-    const uid = user.userId || user.id;
-    const keys = await publisherService.getApiKeys(uid);
-    setApiKeys(keys || []);
+    await dispatch(fetchPublisherApiKeys(userId)).unwrap();
   };
 
   const handleAdvanceStage = async (nextStage) => {
     try {
-      const uid = user.userId || user.id;
-      const updated = await publisherService.updateOnboarding(uid, { stage: nextStage });
-      setOnboardingData(updated);
+      const { profile: updated } = await dispatch(updatePublisherOnboarding({ userId, data: { stage: nextStage } })).unwrap();
       showToast(`Advanced to ${updated.current_stage}!`, 'success');
     } catch (err) {
       console.error('Failed to advance onboarding stage:', err);
@@ -77,7 +68,7 @@ export function Profile() {
     if (!authLoading && isPublisher) {
       loadProfile();
     }
-  }, [authLoading, isPublisher]);
+  }, [authLoading, isPublisher, userId]);
 
   // Handle saving edited details
   async function handleSaveProfile(updateData, onError) {
@@ -85,8 +76,7 @@ export function Profile() {
     setIsSaving(true);
 
     try {
-      const uid = user.userId || user.id;
-      const { updatedUser } = await publisherService.updatePublisherProfile(uid, updateData);
+      const { updatedUser } = await dispatch(updatePublisherProfileDetails({ userId, data: updateData })).unwrap();
 
       // Update AuthContext session so navbar and header update in real time
       if (login && updatedUser) {
@@ -142,7 +132,7 @@ export function Profile() {
     );
   }
 
-  if (loading || !profileData) {
+  if (suiteStatus === 'loading' || !profileData) {
     return <LoadingState message="Loading studio profile…" minHeight="60vh" />;
   }
 
@@ -223,6 +213,7 @@ export function Profile() {
       {/* ── API Key Management ── */}
       <PublisherApiKeyManager
         apiKeys={apiKeys}
+        userId={userId}
         onKeysChanged={reloadKeys}
         showToast={showToast}
       />

@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, createEntityAdapter } from '@reduxjs/toolkit';
 import gamesApi from '../../services/endpoints/gamesApi';
 import playerService from '../../services/playerService';
+import publisherService from '../../services/publisherService';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -121,10 +122,83 @@ export const submitGameReview = createAsyncThunk(
   }
 );
 
+// Publisher workflows retain their compatibility/cache behavior in
+// publisherService, but components must enter them through Redux.
+export const fetchPublisherGameWorkspace = createAsyncThunk(
+  'games/fetchPublisherWorkspace',
+  async (publisherId, { rejectWithValue }) => {
+    try {
+      const games = await publisherService.getPublisherGames(publisherId);
+      return { publisherId: String(publisherId), games, genres: publisherService.getGenres() };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher games'));
+    }
+  }
+);
+
+export const savePublisherGameEdit = createAsyncThunk(
+  'games/savePublisherEdit',
+  async ({ gameId, publisherId, data }, { rejectWithValue }) => {
+    try {
+      const game = await publisherService.saveGameEdit(gameId, data, publisherId);
+      return { gameId: String(gameId), game };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to update game details'));
+    }
+  }
+);
+
+export const deletePublisherGame = createAsyncThunk(
+  'games/deletePublisherGame',
+  async ({ gameId, publisherId }, { rejectWithValue }) => {
+    try {
+      await publisherService.deleteGame(gameId, publisherId);
+      return String(gameId);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to delete game'));
+    }
+  }
+);
+
+export const fetchPublisherGameAnalytics = createAsyncThunk(
+  'games/fetchPublisherAnalytics',
+  async (gameId, { rejectWithValue }) => {
+    try {
+      return { gameId: String(gameId), data: publisherService.getGameAnalytics(gameId) };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to load game analytics'));
+    }
+  }
+);
+
+export const publishPublisherGame = createAsyncThunk(
+  'games/publishPublisherGame',
+  async ({ game, session, publisherId, bundleFile, achievements }, { rejectWithValue }) => {
+    try {
+      if (publisherService.checkTitleExists(game.title || game.game_name)) {
+        throw new Error('A game with this title already exists.');
+      }
+      const savedGame = await publisherService.saveGameRecord(game, session);
+      const gameId = savedGame?.game_id || savedGame?.id;
+      if (bundleFile) {
+        const uploaded = await publisherService.uploadBundle(gameId, publisherId, bundleFile);
+        if (uploaded?.play_path) await publisherService.updateGamePlayPath(gameId, uploaded.play_path);
+      }
+      const achievementResult = await publisherService.submitAchievements(gameId, publisherId, achievements);
+      return { game: savedGame, achievementResult };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to submit game for review'));
+    }
+  }
+);
+
 const initialState = gamesAdapter.getInitialState({
   selectedGameId: null,
   favoriteGameIds: [],
   publisherGameIdsByPublisherId: {},
+  publisherGenres: [],
+  publisherWorkspaceStatus: AsyncStatus.IDLE,
+  analyticsByGameId: {},
   listStatus: AsyncStatus.IDLE,
   detailStatus: AsyncStatus.IDLE,
   mutationStatus: AsyncStatus.IDLE,
@@ -231,6 +305,30 @@ export const gameSlice = createSlice({
         if (game) {
           game.views = (Number(game.views) || 0) + 1;
         }
+      })
+      .addCase(fetchPublisherGameWorkspace.pending, (state) => {
+        state.publisherWorkspaceStatus = AsyncStatus.LOADING;
+      })
+      .addCase(fetchPublisherGameWorkspace.fulfilled, (state, action) => {
+        state.publisherWorkspaceStatus = AsyncStatus.SUCCEEDED;
+        gamesAdapter.upsertMany(state, action.payload.games);
+        state.publisherGameIdsByPublisherId[action.payload.publisherId] = action.payload.games.map((game) => String(game.id || game.game_id));
+        state.publisherGenres = action.payload.genres || [];
+      })
+      .addCase(fetchPublisherGameWorkspace.rejected, (state) => {
+        state.publisherWorkspaceStatus = AsyncStatus.FAILED;
+      })
+      .addCase(savePublisherGameEdit.fulfilled, (state, action) => {
+        if (action.payload.game) gamesAdapter.upsertOne(state, action.payload.game);
+      })
+      .addCase(deletePublisherGame.fulfilled, (state, action) => {
+        gamesAdapter.removeOne(state, action.payload);
+      })
+      .addCase(fetchPublisherGameAnalytics.fulfilled, (state, action) => {
+        state.analyticsByGameId[action.payload.gameId] = action.payload.data;
+      })
+      .addCase(publishPublisherGame.fulfilled, (state, action) => {
+        if (action.payload.game) gamesAdapter.upsertOne(state, action.payload.game);
       });
   }
 });

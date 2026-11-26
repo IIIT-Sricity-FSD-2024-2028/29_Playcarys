@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import profilesApi from '../../services/endpoints/profilesApi';
+import publisherService from '../../services/publisherService';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -68,8 +69,104 @@ export const completePublisherDemoVerification = createAsyncThunk(
   }
 );
 
+export const fetchPublisherApplications = createAsyncThunk(
+  'publisherProfile/fetchApplications',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await profilesApi.getPublisherApplications();
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher applications'));
+    }
+  }
+);
+
+export const reviewPublisherApplication = createAsyncThunk(
+  'publisherProfile/reviewApplication',
+  async ({ userId, data }, { rejectWithValue }) => {
+    try {
+      return { userId: String(userId), profile: await profilesApi.reviewPublisherApplication(userId, data) };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to save publisher review'));
+    }
+  }
+);
+
+export const fetchPublisherProfileSuite = createAsyncThunk(
+  'publisherProfile/fetchProfileSuite',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const [profile, onboarding, apiKeys] = await Promise.all([
+        publisherService.getPublisherFullProfile(userId),
+        publisherService.getOnboarding(userId),
+        publisherService.getApiKeys(userId)
+      ]);
+      return { userId: String(userId), profile, onboarding, apiKeys };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher profile'));
+    }
+  }
+);
+
+export const updatePublisherProfileDetails = createAsyncThunk(
+  'publisherProfile/updateProfileDetails',
+  async ({ userId, data }, { rejectWithValue }) => {
+    try {
+      const result = await publisherService.updatePublisherProfile(userId, data);
+      return { userId: String(userId), result };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to update publisher profile'));
+    }
+  }
+);
+
+export const fetchPublisherApiKeys = createAsyncThunk(
+  'publisherProfile/fetchApiKeys',
+  async (userId, { rejectWithValue }) => {
+    try {
+      return { userId: String(userId), apiKeys: await publisherService.getApiKeys(userId) };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher API keys'));
+    }
+  }
+);
+
+export const createPublisherApiKey = createAsyncThunk(
+  'publisherProfile/createApiKey',
+  async ({ userId, data }, { rejectWithValue }) => {
+    try {
+      return { userId: String(userId), result: await publisherService.createApiKey(data) };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to create publisher API key'));
+    }
+  }
+);
+
+export const revokePublisherApiKey = createAsyncThunk(
+  'publisherProfile/revokeApiKey',
+  async ({ userId, keyId }, { rejectWithValue }) => {
+    try {
+      await publisherService.revokeApiKey(keyId);
+      return { userId: String(userId), keyId: String(keyId) };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to revoke publisher API key'));
+    }
+  }
+);
+
 const initialState = {
   profilesByUserId: {},
+  profileSuitesByUserId: {},
+  apiKeysByUserId: {},
+  suiteStatus: AsyncStatus.IDLE,
+  suiteError: null,
+  apiKeysStatus: AsyncStatus.IDLE,
+  apiKeysError: null,
+  profileMutationStatus: AsyncStatus.IDLE,
+  profileMutationError: null,
+  applications: [],
+  applicationsStatus: AsyncStatus.IDLE,
+  applicationsError: null,
+  reviewStatus: AsyncStatus.IDLE,
   listStatus: AsyncStatus.IDLE,
   listError: null,
   detailStatus: AsyncStatus.IDLE,
@@ -125,6 +222,82 @@ export const publisherProfileSlice = createSlice({
       })
       .addCase(completePublisherDemoVerification.fulfilled, (state, action) => {
         state.profilesByUserId[action.payload.userId] = action.payload.profile;
+      })
+      .addCase(fetchPublisherApplications.pending, (state) => {
+        state.applicationsStatus = AsyncStatus.LOADING;
+        state.applicationsError = null;
+      })
+      .addCase(fetchPublisherApplications.fulfilled, (state, action) => {
+        state.applicationsStatus = AsyncStatus.SUCCEEDED;
+        state.applications = action.payload;
+      })
+      .addCase(fetchPublisherApplications.rejected, (state, action) => {
+        state.applicationsStatus = AsyncStatus.FAILED;
+        state.applicationsError = action.payload || action.error?.message;
+      })
+      .addCase(reviewPublisherApplication.pending, (state) => {
+        state.reviewStatus = AsyncStatus.LOADING;
+        state.applicationsError = null;
+      })
+      .addCase(reviewPublisherApplication.fulfilled, (state, action) => {
+        state.reviewStatus = AsyncStatus.SUCCEEDED;
+        state.profilesByUserId[action.payload.userId] = action.payload.profile;
+        state.applications = state.applications.filter((application) => String(application.user_id || application.id) !== action.payload.userId);
+      })
+      .addCase(reviewPublisherApplication.rejected, (state, action) => {
+        state.reviewStatus = AsyncStatus.FAILED;
+        state.applicationsError = action.payload || action.error?.message;
+      })
+      .addCase(fetchPublisherProfileSuite.pending, (state) => {
+        state.suiteStatus = AsyncStatus.LOADING;
+        state.suiteError = null;
+      })
+      .addCase(fetchPublisherProfileSuite.fulfilled, (state, action) => {
+        const { userId, profile, onboarding, apiKeys } = action.payload;
+        state.suiteStatus = AsyncStatus.SUCCEEDED;
+        state.profileSuitesByUserId[userId] = profile;
+        state.profilesByUserId[userId] = onboarding;
+        state.apiKeysByUserId[userId] = apiKeys || [];
+      })
+      .addCase(fetchPublisherProfileSuite.rejected, (state, action) => {
+        state.suiteStatus = AsyncStatus.FAILED;
+        state.suiteError = action.payload || 'Failed to fetch publisher profile';
+      })
+      .addCase(updatePublisherProfileDetails.pending, (state) => {
+        state.profileMutationStatus = AsyncStatus.LOADING;
+        state.profileMutationError = null;
+      })
+      .addCase(updatePublisherProfileDetails.fulfilled, (state, action) => {
+        state.profileMutationStatus = AsyncStatus.SUCCEEDED;
+        const suite = state.profileSuitesByUserId[action.payload.userId];
+        if (suite) {
+          suite.user = { ...suite.user, ...action.payload.result.updatedUser };
+          suite.profile = { ...suite.profile, ...action.payload.result.updatedProfile };
+        }
+      })
+      .addCase(updatePublisherProfileDetails.rejected, (state, action) => {
+        state.profileMutationStatus = AsyncStatus.FAILED;
+        state.profileMutationError = action.payload || 'Failed to update publisher profile';
+      })
+      .addCase(fetchPublisherApiKeys.pending, (state) => {
+        state.apiKeysStatus = AsyncStatus.LOADING;
+        state.apiKeysError = null;
+      })
+      .addCase(fetchPublisherApiKeys.fulfilled, (state, action) => {
+        state.apiKeysStatus = AsyncStatus.SUCCEEDED;
+        state.apiKeysByUserId[action.payload.userId] = action.payload.apiKeys || [];
+      })
+      .addCase(fetchPublisherApiKeys.rejected, (state, action) => {
+        state.apiKeysStatus = AsyncStatus.FAILED;
+        state.apiKeysError = action.payload || 'Failed to fetch publisher API keys';
+      })
+      .addCase(createPublisherApiKey.fulfilled, (state, action) => {
+        const keys = state.apiKeysByUserId[action.payload.userId] || [];
+        state.apiKeysByUserId[action.payload.userId] = [action.payload.result, ...keys];
+      })
+      .addCase(revokePublisherApiKey.fulfilled, (state, action) => {
+        state.apiKeysByUserId[action.payload.userId] = (state.apiKeysByUserId[action.payload.userId] || [])
+          .filter((key) => String(key.id || key.key_id) !== action.payload.keyId);
       });
   }
 });

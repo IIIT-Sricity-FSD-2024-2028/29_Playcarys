@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import publisherService from '../../../services/publisherService';
+import { useAppDispatch } from '../../../app/hooks';
+import { createPublisherApiKey, revokePublisherApiKey } from '../../../features/profiles/publisherProfileSlice';
 
 export function PublisherApiKeyManager({
   apiKeys = [],
+  userId,
   onKeysChanged,
   showToast,
 }) {
+  const dispatch = useAppDispatch();
   const [isCreating, setIsCreating] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [keyName, setKeyName] = useState('');
@@ -106,10 +109,10 @@ export function PublisherApiKeyManager({
     setIsCreating(true);
     setErrorMessage('');
     try {
-      const res = await publisherService.createApiKey({
+      const { result: res } = await dispatch(createPublisherApiKey({ userId, data: {
         name: keyName.trim(),
         scopes: selectedScopes,
-      });
+      } })).unwrap();
 
       setGeneratedSecretData(res);
       setShowModal(false);
@@ -134,7 +137,7 @@ export function PublisherApiKeyManager({
     }
 
     try {
-      await publisherService.revokeApiKey(key.id || key.key_id);
+      await dispatch(revokePublisherApiKey({ userId, keyId: key.id || key.key_id })).unwrap();
       showToast?.(`API key "${key.name}" revoked`, 'success');
       onKeysChanged?.();
     } catch (err) {
