@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import api from '../../services/api';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchPlayerProfile, updatePlayerProfile } from '../../features/profiles/playerProfileSlice';
+import { selectPlayerProfile } from '../../features/profiles/selectors';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, hydrateFromServer } from '../../services/playerService';
 import authService from '../../services/authService';
@@ -9,6 +12,7 @@ import '../../styles/player/profile.css';
 
 export function Profile() {
   const { user, setUser } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
 
   const [dbVersion, setDbVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -64,19 +68,12 @@ export function Profile() {
 
   // Determine current user ID canonical representation
   const uid = Number(user?.id || user?.user_id || user?.userId || 7);
+  const storedPlayerProfile = useAppSelector((state) => selectPlayerProfile(state, uid));
 
   // 1. Calculate & load profile data from backend & DB
   const loadProfile = async () => {
-    let curUser = null;
-    let pp = null;
-    try {
-      const [uRes, pRes] = await Promise.all([
-        api.get(`/users/${uid}`).catch(() => null),
-        api.get(`/player-profiles/${uid}`).catch(() => null),
-      ]);
-      curUser = uRes;
-      pp = pRes;
-    } catch (e) {}
+    let curUser = user;
+    let pp = storedPlayerProfile;
 
     const db = getDatabase();
     if (!curUser) {
@@ -252,13 +249,17 @@ export function Profile() {
     };
   }, [uid]);
 
+  useEffect(() => {
+    dispatch(fetchPlayerProfile(uid));
+  }, [dispatch, uid]);
+
   // On mount and when dbVersion changes
   useEffect(() => {
     loadProfile();
     loadGameAchievements();
     loadLinkedAccounts();
     setLoading(false);
-  }, [uid, dbVersion]);
+  }, [uid, dbVersion, storedPlayerProfile, user]);
 
   // Handle active title selection
   const handleTitleChange = async (e) => {
@@ -414,14 +415,8 @@ export function Profile() {
         }
       }
 
-      // Persist username + email changes to NestJS backend
-      // PATCH /users/:id is admin-only, so we use PATCH /player-profiles/:id
-      // for player_name and fall back to a db-import for the user record.
-      try {
-        await api.patch(`/player-profiles/${uid}`, { player_name: uName });
-      } catch (patchErr) {
-        console.warn('Could not patch player-profile on backend:', patchErr);
-      }
+      // Profile mutations pass through the Redux thunk and update its cached entity.
+      await dispatch(updatePlayerProfile({ userId: uid, data: { player_name: uName } })).unwrap();
 
       // Update local DB cache so the UI reflects the change immediately
       const db = getDatabase();
