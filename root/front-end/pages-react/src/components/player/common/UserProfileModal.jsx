@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import socialService from '../../../services/socialService';
+import { useAppDispatch } from '../../../app/hooks';
+import { removeFriend } from '../../../features/communities/socialSlice';
 import ConfirmModal from '../../common/ConfirmModal';
 
 export function UserProfileModal({
@@ -11,6 +12,7 @@ export function UserProfileModal({
   onMessage,
   onUnfriend
 }) {
+  const dispatch = useAppDispatch();
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
 
   if (!isOpen || !user) return null;
@@ -26,7 +28,7 @@ export function UserProfileModal({
 
   async function executeRemoveFriend() {
     try {
-      await socialService.removeFriend(currentUserId, user.id || user.user_id);
+      await dispatch(removeFriend({ userId: currentUserId, friendId: user.id || user.user_id })).unwrap();
       setIsRemoveConfirmOpen(false);
       if (onUnfriend) onUnfriend(user);
       if (typeof window !== 'undefined' && window.dispatchEvent) {
