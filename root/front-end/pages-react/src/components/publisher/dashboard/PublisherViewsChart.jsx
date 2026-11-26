@@ -7,10 +7,12 @@ export function PublisherViewsChart(props) {
   const chartInstance = useRef(null);
 
   const sortedGames = [...games].sort((a, b) => (b.views || 0) - (a.views || 0));
+  const gamesWithViews = sortedGames.filter((g) => (g.views || 0) > 0);
   const totalViews = sortedGames.reduce((acc, g) => acc + (g.views || 0), 0);
+  const isSingleDataPoint = gamesWithViews.length === 1;
 
   useEffect(() => {
-    if (!games.length || totalViews === 0 || !canvasRef.current) return;
+    if (!games.length || totalViews === 0 || isSingleDataPoint || !canvasRef.current) return;
 
     if (chartInstance.current) {
       chartInstance.current.destroy();
@@ -119,8 +121,15 @@ export function PublisherViewsChart(props) {
 
   return (
     <div className="card">
-      <h3 className="side-h">📊 Views by Game</h3>
-      <p className="side-note">Where your traffic goes</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+        <div>
+          <h3 className="side-h" style={{ margin: 0 }}>📊 Views by Game</h3>
+          <p className="side-note" style={{ margin: '0.2rem 0 0 0' }}>Where your traffic goes</p>
+        </div>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+          ⏱️ Synced Just Now
+        </span>
+      </div>
       <div
         id="analytics-bars"
         style={{ height: '210px', position: 'relative' }}
@@ -140,7 +149,7 @@ export function PublisherViewsChart(props) {
         ) : totalViews === 0 ? (
           <div
             style={{
-              height: '220px',
+              height: '200px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -160,6 +169,19 @@ export function PublisherViewsChart(props) {
               <br />
               Views accumulate when players browse your games.
             </div>
+          </div>
+        ) : isSingleDataPoint ? (
+          <div style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.15)', borderRadius: 'var(--radius-md)', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+              <strong style={{ color: 'var(--text-primary)' }}>{gamesWithViews[0].title || gamesWithViews[0].game_name}</strong>
+              <span style={{ color: '#00d4ff', fontWeight: 700 }}>{gamesWithViews[0].views.toLocaleString()} views (100%)</span>
+            </div>
+            <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: '100%', background: 'linear-gradient(90deg, #7c3aed, #00d4ff)', borderRadius: '4px' }} />
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.85rem', marginBottom: 0, textAlign: 'center' }}>
+              💡 Publish 2 or more titles to unlock comparative doughnut distribution analytics.
+            </p>
           </div>
         ) : (
           <canvas ref={canvasRef} id="viewsChart" />

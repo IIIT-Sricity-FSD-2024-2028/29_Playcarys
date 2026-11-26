@@ -1,106 +1,101 @@
-// User management data operations, copied from the old pages/admin/users.html.
-// Each function changes DB the same way the old page did; the page then calls refresh().
+// Admin user-management helpers.
+//
+// The user records themselves now live in the Redux `users` slice and every change is
+// a real API call (see features/users/useUsers.js). What stays here:
+//   - pure list helpers (filtering, uniqueness checks, counts) over the slice's users
+//   - the notification + audit side effects the old page wrote into the legacy DB.
+//     Those two belong to the notifications / audit features and move with them; they run
+//     only AFTER the server has accepted the change.
 import { getDB, getSession, dispatchUserNotification } from './adminService';
 import { recordAudit } from './adminAuditService';
 
-const ROLE_ID = { player: 4, publisher: 5, moderator: 3, admin: 2, superuser: 1 };
+// ── Pure helpers over slice users (the { id, username, role, ... } UI shape) ──
 
-// Search box: keep users whose username or email contains the text.
-function filterList(items, query, fields) {
-  if (!query.trim()) return items;
+function matches(item, query, fields) {
+  if (!query.trim()) return true;
   const q = query.toLowerCase();
-  return items.filter((item) => fields.some((f) => String(item[f] || '').toLowerCase().includes(q)));
+  return fields.some((f) => String(item[f] || '').toLowerCase().includes(q));
 }
 
 // The list on the page: search + role + status filters, without yourself.
-export function listUsers(query, role, status) {
-  const me = getSession();
-  let users = filterList(getDB().users, query, ['username', 'email']);
-  users = users.filter((u) => u.id !== (me ? me.userId : undefined));
-  if (role) users = users.filter((u) => u.role === role);
-  if (status) users = users.filter((u) => u.status === status);
-  return users;
+export function filterUsers(users, meId, query, role, status) {
+  return users.filter(
+    (u) =>
+      matches(u, query, ['username', 'email']) &&
+      (meId == null || String(u.id) !== String(meId)) &&
+      (!role || u.role === role) &&
+      (!status || u.status === status)
+  );
 }
 
-export function findUserById(id) {
-  return getDB().users.find((u) => u.id === id);
+export function isUsernameTaken(users, username, editId) {
+  const target = username.toLowerCase();
+  return users.some((u) => u.username.toLowerCase() === target && String(u.id) !== String(editId));
 }
 
-export function isUsernameTaken(username, editId) {
-  return !!getDB().users.find((u) => u.username.toLowerCase() === username.toLowerCase() && u.id !== editId);
+// The server allows one address per role (a player and a studio account may share one),
+// so the pre-check uses the same rule instead of rejecting every repeated address.
+export function isEmailTakenForRole(users, email, role, editId) {
+  const target = email.toLowerCase();
+  return users.some(
+    (u) => u.email.toLowerCase() === target && u.role === role && String(u.id) !== String(editId)
+  );
 }
 
-export function isEmailTaken(email, editId) {
-  return !!getDB().users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.id !== editId);
+export function countUsers(users) {
+  const byRole = (role) => users.filter((u) => u.role === role).length;
+  return {
+    totalUsers: users.length,
+    players: byRole('player'),
+    publishers: byRole('publisher'),
+    moderators: byRole('moderator')
+  };
 }
 
-export function updateUser(id, username, email, role, status) {
+// ── Side effects (legacy DB: notifications + audit) ──
+
+function notify(u, message) {
+  const s = getSession();
+  dispatchUserNotification(u.username, s.role, s.username, message);
   const db = getDB();
-  const u = findUserById(id);
-  u.user_name = username;
-  u.email = email;
-  if (role) u.role_id = ROLE_ID[role] || u.role_id;
-  u.status = status;
-  u.avatar = username.slice(0, 2).toUpperCase();
-  db.save();
+  if (db && typeof db.save === 'function') db.save();
+}
+
+export function recordUserEdited(username, role, status) {
   recordAudit('user', `User ${username} edited`, `Role: ${role}, Status: ${status}`);
 }
 
-export function createUser(username, email, role, status, password) {
-  const db = getDB();
-  const numId = Date.now();
-  db.users.push({
-    user_id: numId,
-    user_name: username,
-    role_id: ROLE_ID[role] || 4,
-    email: email,
-    status: status,
-    password: password,
-    avatar: username.slice(0, 2).toUpperCase(),
-    joinDate: new Date().toISOString().slice(0, 10),
-    lastSeen: new Date().toISOString().slice(0, 10)
-  });
-
-  if (role === 'player') {
-    if (!db.player_profiles) db.player_profiles = [];
-    db.player_profiles.push({ user_id: numId, player_name: username, carys_points: 100, play_time: 0, matches_won: 0, player_status: true });
-  } else if (role === 'publisher') {
-    if (!db.publisher_profiles) db.publisher_profiles = [];
-    db.publisher_profiles.push({ user_id: numId, total_games: 0, approved_games: 0, active_games: 0 });
-  }
-  db.save();
+export function recordUserCreated(username, role, status) {
   recordAudit('user', `New user added: ${username}`, `Role: ${role}, Status: ${status}`);
 }
 
-export function suspendUser(u, days, reason) {
-  const s = getSession();
-  u.status = 'suspended';
-  u.suspendUntil = new Date(Date.now() + days * 86400000).toISOString();
-  dispatchUserNotification(u.username, s.role, s.username, `You have been suspended for ${days} days. Reason: ${reason}`);
-  getDB().save();
+export function recordSuspended(u, days, reason) {
+  notify(u, `You have been suspended for ${days} days. Reason: ${reason}`);
   recordAudit('ban', `${u.username} suspended for ${days} days`, `Reason: ${reason}`);
 }
 
-export function revokeSuspension(u, reason) {
-  const s = getSession();
-  u.status = 'active';
-  delete u.suspendUntil;
-  dispatchUserNotification(u.username, s.role, s.username, `Your suspension has been revoked. Note: ${reason}`);
-  getDB().save();
+export function recordSuspensionRevoked(u, reason) {
+  notify(u, `Your suspension has been revoked. Note: ${reason}`);
   recordAudit('ban', `Suspension revoked for ${u.username}`, `Note: ${reason}`);
 }
 
-export function banUser(u, reason) {
-  const s = getSession();
-  u.status = 'banned';
-  dispatchUserNotification(u.username, s.role, s.username, `You have been permanently banned. Reason: ${reason}`);
-  getDB().save();
+export function recordBanned(u, reason) {
+  notify(u, `You have been permanently banned. Reason: ${reason}`);
   recordAudit('ban', `${u.username} banned permanently`, `Reason: ${reason}`);
 }
 
-// Deleting an account means two things: remove the row, and add the id to the `deleted_users` list.
-// Without the list the server keeps the account and the next sync brings it back (the old page had
-// this bug: "Ban + Delete" only banned). The server removes the account and its leftovers from the list.
+export function recordBannedAndDeleted(u, reason) {
+  notify(u, `You have been permanently banned and deleted. Reason: ${reason}`);
+  recordAudit('ban', `${u.username} banned and deleted`, `Reason: ${reason}`);
+}
+
+export function recordUnbanned(u) {
+  recordAudit('ban', `${u.username} unbanned`, 'Ban lifted by an admin');
+}
+
+// Still used by adminHubService (legacy cache removal). Deleting an account means two things:
+// remove the row, and add the id to the `deleted_users` list, otherwise the server keeps the
+// account and the next sync brings it back. Goes away when the Hub moves to the users slice.
 export function removeUserForGood(u) {
   const db = getDB();
   if (!Array.isArray(db.deleted_users)) db.deleted_users = [];
@@ -110,22 +105,4 @@ export function removeUserForGood(u) {
   }
   const idx = db.users.findIndex((user) => user.id === u.id);
   if (idx !== -1) db.users.splice(idx, 1);
-}
-
-export function banAndDeleteUser(u, reason) {
-  const db = getDB();
-  const s = getSession();
-  u.status = 'banned';
-  dispatchUserNotification(u.username, s.role, s.username, `You have been permanently banned and deleted. Reason: ${reason}`);
-  db.save();
-  removeUserForGood(u);
-  db.save();
-  recordAudit('ban', `${u.username} banned and deleted`, `Reason: ${reason}`);
-}
-
-// The old page forgot to save here, so an unban was lost when the page reloaded.
-export function unbanUser(u) {
-  u.status = 'active';
-  getDB().save();
-  recordAudit('ban', `${u.username} unbanned`, 'Ban lifted by an admin');
 }

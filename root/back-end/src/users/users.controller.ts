@@ -8,6 +8,8 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Roles } from '../roles/roles.decorator';
@@ -19,11 +21,20 @@ import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto, AssignRoleDto } from
 // runs where @Roles is present, so `PATCH /users/:id {"role_id":1}` promoted
 // any account to superuser with no header at all. Verified against this server.
 //
-// Reads stay open because the pages hydrate from db-export anyway (which is
-// itself unauthenticated — a separate, still-open finding). Everything that
-// WRITES is now staff-only, and the guard grants a staff role only from a
-// signed token.
+// Listing accounts is staff-only; a signed-in user may read their own record.
+// Everything that WRITES is staff-only, and the guard grants a staff role only
+// from a signed token. (db-export is still unauthenticated: a separate finding.)
 // ────────────────────────────────────────────────────────────
+
+// Only a superuser may mint or promote a superuser. create/update accept a role_id,
+// and an admin is allowed to call both — without this check an admin could set
+// role_id 1 on any account (including their own) and become a superuser.
+const SUPERUSER_ROLE_ID = 1;
+function assertMaySetRole(req: any, roleId?: number) {
+  if (roleId === SUPERUSER_ROLE_ID && String(req?.auth?.role).toLowerCase() !== 'superuser') {
+    throw new ForbiddenException('Only a superuser can assign the superuser role');
+  }
+}
 
 @Controller('users')
 export class UsersController {
@@ -32,6 +43,7 @@ export class UsersController {
   // GET /users
   // GET /users?role_id=4
   @Get()
+  @Roles('admin', 'moderator', 'superuser')
   findAll(@Query('role_id') roleId?: string) {
     if (roleId) return this.usersService.findByRole(parseInt(roleId, 10));
     return this.usersService.findAll();
@@ -46,22 +58,33 @@ export class UsersController {
   // nothing in the spec asks for.
 
   // GET /users/:id
+  // Staff may read any account. Anyone else signed in may read only their own
+  // record (the player profile and publisher pages load it), which needs a
+  // signed token: a bare role header proves nothing about whose record it is.
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  @Roles('admin', 'moderator', 'superuser', 'player', 'publisher')
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const role = String(req?.auth?.role || '').toLowerCase();
+    const isStaff = ['admin', 'moderator', 'superuser'].includes(role);
+    if (!isStaff && Number(req?.auth?.sub) !== id) {
+      throw new ForbiddenException('You can only view your own account');
+    }
     return this.usersService.findOne(id);
   }
 
   // POST /users
   @Post()
   @Roles('admin', 'superuser')
-  create(@Body() dto: CreateUserDto) {
+  create(@Body() dto: CreateUserDto, @Req() req: any) {
+    assertMaySetRole(req, dto.role_id);
     return this.usersService.create(dto);
   }
 
   // PATCH /users/:id
   @Patch(':id')
   @Roles('admin', 'superuser')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto, @Req() req: any) {
+    assertMaySetRole(req, dto.role_id);
     return this.usersService.update(id, dto);
   }
 

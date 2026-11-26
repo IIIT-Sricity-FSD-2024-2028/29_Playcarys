@@ -5,7 +5,7 @@ export function PublisherDashboardHeader(props) {
   const { username = 'Publisher', pendingCount = 0, liveCount = 0, totalGames = 0 } = props;
   const navigate = useNavigate();
 
-  let subtitle = '';
+  let subtitle;
   const bits = [];
   if (pendingCount > 0) bits.push(`${pendingCount} awaiting review`);
   if (liveCount > 0) bits.push(`${liveCount} live`);

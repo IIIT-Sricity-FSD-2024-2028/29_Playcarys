@@ -82,6 +82,27 @@ export const loginUser = createAsyncThunk(
 );
 
 /**
+ * Thunk: auth/establishSession
+ * Used after the landing page has already verified the password with the server
+ * (landingAuthService.serverLogin, which also handles the 409 device hand-off) or
+ * after a registration. Persists the session + API token through authService and
+ * publishes the user to Redux, so the slice is the single owner of session state.
+ * Note: the token is handed to authService / storage, NOT stored in Redux state.
+ */
+export const establishSession = createAsyncThunk(
+  'auth/establishSession',
+  async ({ session, token }, { rejectWithValue }) => {
+    try {
+      if (!session) return null;
+      authService.setSession(session, token);
+      return normalizeEntity(session);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to start session'));
+    }
+  }
+);
+
+/**
  * Thunk: auth/logout
  * Releases backend session and clears local session.
  */
@@ -174,6 +195,16 @@ export const authSlice = createSlice({
         handleRejected(state, action);
         state.user = null;
         state.isAuthenticated = false;
+      })
+      // establishSession
+      .addCase(establishSession.fulfilled, (state, action) => {
+        handleFulfilled(state);
+        state.user = action.payload;
+        state.isAuthenticated = Boolean(action.payload);
+        state.devIdentityError = null;
+      })
+      .addCase(establishSession.rejected, (state, action) => {
+        handleRejected(state, action);
       })
       // logoutUser
       .addCase(logoutUser.pending, (state) => {

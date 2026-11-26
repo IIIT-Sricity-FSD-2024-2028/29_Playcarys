@@ -12,6 +12,7 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes } from '@nestjs/swagger';
@@ -86,7 +87,11 @@ export class GameController {
   // POST /games  — Publisher: Submit game for listing
   @Post()
   @Roles('publisher', 'admin', 'superuser')
-  create(@Body() dto: CreateGameDto) {
+  create(@Body() dto: CreateGameDto, @Req() req: any) {
+    // A publisher always publishes as themselves; staff may create on a publisher's behalf.
+    if (req.auth?.sub && req.auth?.role === 'publisher') {
+      dto.game_publisher = req.auth.sub;
+    }
     return this.gameService.create(dto);
   }
 
@@ -97,9 +102,13 @@ export class GameController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateGameRequestDto,
+    @Req() req: any,
   ) {
+    const actorId = req.auth?.sub;
+    const actorRole = req.auth?.role;
     const { publisher_id, ...dto } = body;
-    return this.gameService.update(id, dto, publisher_id);
+    const effectivePublisherId = actorRole === 'publisher' ? actorId : publisher_id;
+    return this.gameService.update(id, dto, effectivePublisherId);
   }
 
   // PATCH /games/:id/state  — Publisher: Set Game State (enable/disable)
@@ -108,9 +117,14 @@ export class GameController {
   setGameState(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: SetGameStateRequestDto,
+    @Req() req: any,
+    @Headers('role') callerRole?: string,
   ) {
+    const actorId = req.auth?.sub;
+    const actorRole = req.auth?.role;
     const { publisher_id, ...dto } = body;
-    return this.gameService.setGameState(id, dto, publisher_id);
+    const effectivePublisherId = actorRole === 'publisher' ? actorId : publisher_id;
+    return this.gameService.setGameState(id, dto, effectivePublisherId, actorRole || callerRole);
   }
 
   // POST /games/:id/bundle  — Publisher: upload the playable build (Model A)
@@ -140,11 +154,15 @@ export class GameController {
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: { buffer?: Buffer; size?: number; originalname?: string } | undefined,
     @Body() body: UploadBundleDto,
+    @Req() req: any,
   ) {
     if (!file?.buffer?.length) {
       throw new BadRequestException('No bundle uploaded. Send the archive as the "bundle" form field.');
     }
-    return this.gameService.installBundle(id, file.buffer, body.publisher_id);
+    const actorId = req.auth?.sub;
+    const actorRole = req.auth?.role;
+    const effectivePublisherId = actorRole === 'publisher' ? actorId : body.publisher_id;
+    return this.gameService.installBundle(id, file.buffer, effectivePublisherId);
   }
 
   // DELETE /games/:id/bundle  — Publisher: remove an uploaded build
@@ -152,9 +170,13 @@ export class GameController {
   @Roles('publisher', 'admin', 'superuser')
   removeBundle(
     @Param('id', ParseIntPipe) id: number,
-    @Query('publisherId', ParseIntPipe) publisherId: number,
+    @Req() req: any,
+    @Query('publisherId', new ParseIntPipe({ optional: true })) publisherId?: number,
   ) {
-    return this.gameService.removeBundle(id, publisherId);
+    const actorId = req.auth?.sub;
+    const actorRole = req.auth?.role;
+    const effectivePublisherId = actorRole === 'publisher' ? actorId : publisherId;
+    return this.gameService.removeBundle(id, effectivePublisherId);
   }
 
   // GET /games/:id/review  — Admin: everything needed to decide on a listing
@@ -186,9 +208,14 @@ export class GameController {
   approveGame(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ApproveGameDto,
+    @Req() req: any,
     @Headers('role') callerRole?: string,
   ) {
-    return this.gameService.approveGame(id, dto, callerRole || 'admin');
+    if (req.auth?.sub) {
+      dto.reviewer_id = req.auth.sub;
+    }
+    const role = req.auth?.role || callerRole || 'admin';
+    return this.gameService.approveGame(id, dto, role);
   }
 
   // DELETE /games/:id

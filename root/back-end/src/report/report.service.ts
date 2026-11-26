@@ -40,9 +40,12 @@ export class ReportService {
     return this.enrichAll(this.repo.findAll());
   }
 
-  findOne(id: number) {
+  findOne(id: number, restrictedReporterId?: number) {
     const report = this.repo.findById(id);
     if (!report) throw new NotFoundException(`Report ${id} not found`);
+    if (restrictedReporterId !== undefined && report.reported_by !== restrictedReporterId) {
+      throw new ForbiddenException('You do not have permission to view this report');
+    }
     return this.enrich(report);
   }
 
@@ -82,7 +85,7 @@ export class ReportService {
     const newId = this.repo.nextId();
     const report = this.repo.create({
       report_id: newId,
-      reported_by: dto.reported_by,
+      reported_by: dto.reported_by!,
       reported_user: dto.reported_user,
       type: dto.type,
       reason: dto.reason.trim(),
@@ -92,7 +95,11 @@ export class ReportService {
       sessionId: dto.sessionId ?? 0,
       time: 'Just now',
       actionNote: '',
-    });
+      evidence_url: dto.evidence_url ?? '',
+      evidence_text: dto.evidence_text ?? '',
+      evidence_status: dto.evidence_status ?? 'unverified',
+      severity: dto.severity ?? 'medium',
+    } as any);
 
     return this.enrich(report);
   }

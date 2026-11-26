@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import publisherService from '../../services/publisherService';
 import PublisherProfileCard from '../../components/publisher/profile/PublisherProfileCard';
+import PublisherOnboardingTracker from '../../components/publisher/profile/PublisherOnboardingTracker';
+import PublisherApiKeyManager from '../../components/publisher/profile/PublisherApiKeyManager';
 import StudioStatistics from '../../components/publisher/profile/StudioStatistics';
 import EditStudioModal from '../../components/publisher/profile/EditStudioModal';
 import Toast from '../../components/common/Toast';
@@ -18,6 +20,8 @@ export function Profile() {
   } = usePublisherAuth();
 
   const [profileData, setProfileData] = useState(null);
+  const [onboardingData, setOnboardingData] = useState(null);
+  const [apiKeys, setApiKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,22 +31,47 @@ export function Profile() {
     setToast({ message, type });
   }
 
-  // Load publisher profile & statistics
+  // Load publisher profile, onboarding & API keys
   async function loadProfile() {
     if (!isPublisher) return;
     setLoading(true);
 
     try {
       const uid = user.userId || user.id;
-      const data = await publisherService.getPublisherFullProfile(uid);
-      setProfileData(data);
+      const [fullData, onboarding, keys] = await Promise.all([
+        publisherService.getPublisherFullProfile(uid),
+        publisherService.getOnboarding(uid),
+        publisherService.getApiKeys(uid),
+      ]);
+
+      setProfileData(fullData);
+      setOnboardingData(onboarding);
+      setApiKeys(keys || []);
     } catch (err) {
-      console.error('Failed to load publisher profile:', err);
+      console.error('Failed to load publisher profile suite:', err);
       showToast('Could not load profile data', 'error');
     } finally {
       setLoading(false);
     }
   }
+
+  const reloadKeys = async () => {
+    const uid = user.userId || user.id;
+    const keys = await publisherService.getApiKeys(uid);
+    setApiKeys(keys || []);
+  };
+
+  const handleAdvanceStage = async (nextStage) => {
+    try {
+      const uid = user.userId || user.id;
+      const updated = await publisherService.updateOnboarding(uid, { stage: nextStage });
+      setOnboardingData(updated);
+      showToast(`Advanced to ${updated.current_stage}!`, 'success');
+    } catch (err) {
+      console.error('Failed to advance onboarding stage:', err);
+      showToast(err.message || 'Failed to advance stage', 'error');
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && isPublisher) {
@@ -130,8 +159,8 @@ export function Profile() {
 
       {/* Page Header */}
       <div className="page-header mb-3">
-        <h1>Studio Profile</h1>
-        <p className="text-muted">Manage your publisher account and security settings</p>
+        <h1>Studio Profile & Settings</h1>
+        <p className="text-muted">Manage studio compliance, onboarding, security, and developer API keys</p>
       </div>
 
       {/* Profile Card */}
@@ -145,12 +174,18 @@ export function Profile() {
         onEdit={() => setIsModalOpen(true)}
       />
 
-      {/* Security & Statistics Grid */}
-      <div className="cards-grid-2">
+      {/* ── 6-Stage Onboarding & Compliance Tracker ── */}
+      <PublisherOnboardingTracker
+        onboardingData={onboardingData}
+        onAdvanceStage={handleAdvanceStage}
+      />
+
+      {/* ── Security & Statistics Grid ── */}
+      <div className="cards-grid-2 mt-3">
         {/* Security Settings Card */}
         <div className="card">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-            🔒 Security Settings
+            🔒 Studio Security Settings
           </h3>
 
           <div className="security-box">
@@ -159,7 +194,7 @@ export function Profile() {
                 2-Step Verification <span className="coming-soon-badge">Coming Soon</span>
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Protect your publisher account with an extra layer of security.
+                Protect your publisher account with hardware keys or authenticator apps.
               </div>
             </div>
             <button
@@ -184,6 +219,13 @@ export function Profile() {
           status={profileData.status}
         />
       </div>
+
+      {/* ── API Key Management ── */}
+      <PublisherApiKeyManager
+        apiKeys={apiKeys}
+        onKeysChanged={reloadKeys}
+        showToast={showToast}
+      />
 
       {/* Edit Studio Details Modal */}
       <EditStudioModal

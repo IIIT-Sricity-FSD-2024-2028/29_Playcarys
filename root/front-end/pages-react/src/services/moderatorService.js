@@ -64,7 +64,7 @@ export async function fetchModeratorDashboardData(sessionUserId) {
   const reports = reportsRes.status === 'fulfilled' && Array.isArray(reportsRes.value) ? reportsRes.value : (db.reports || []);
   const bans = bansRes.status === 'fulfilled' && Array.isArray(bansRes.value) ? bansRes.value : (db.bans || []);
   const users = usersRes.status === 'fulfilled' && Array.isArray(usersRes.value) ? usersRes.value : (db.users || []);
-  let matches = [];
+  let matches;
   if (sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)) {
     matches = sessionsRes.value.map((s) => ({
       ...s,
@@ -609,7 +609,7 @@ export async function fetchModeratorSessionsData() {
   ]);
 
   const db = getDatabase();
-  let matches = [];
+  let matches;
   if (sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)) {
     matches = sessionsRes.value.map((s) => ({
       ...s,
@@ -678,7 +678,7 @@ export async function endModeratorMatch(matchId) {
     ? sessionData.player_ids.map((pid, idx) => ({ player_id: pid, score: 100 * (idx + 1), player_rank: idx + 1 }))
     : [{ player_id: hostId, score: 100, player_rank: 1 }];
 
-  let ended = false;
+  let ended;
   try {
     await api.patch(`/sessions/${numId}/end`, {
       host_id: hostId,

@@ -1,3 +1,4 @@
+import api from './api';
 // Admin data service.
 //
 // Holds the data logic the old admin pages used (data/db.js + js/utils.js), copied
@@ -179,6 +180,19 @@ export function dispatchRoleNotification(targetRole, fromSessionRole, fromSessio
     });
   });
   db.save();
+  // Backend notification dispatch
+  try {
+    api.post('/notifications', {
+      toRole: targetRole,
+      toUser: null,
+      from: fromSessionName,
+      avatar: '⚙️',
+      fromRole: fromSessionRole || 'system',
+      fromUserId: Number(senderId) || 1,
+      msg: msg,
+      type: 'system'
+    }).catch(() => {});
+  } catch (err) {}
 }
 
 // Send a notification to one user, found by username. Skips an identical unread one.
@@ -210,6 +224,19 @@ export function dispatchUserNotification(targetUsername, fromSessionRole, fromSe
     replies: []
   });
   db.save();
+  // Backend notification dispatch
+  try {
+    api.post('/notifications', {
+      toRole: null,
+      toUser: Number(uid),
+      from: fromSessionName,
+      avatar: '⚙️',
+      fromRole: fromSessionRole || 'system',
+      fromUserId: Number(senderId) || 1,
+      msg: msg,
+      type: 'system'
+    }).catch(() => {});
+  } catch (err) {}
 }
 
 // ── Dashboard actions (old dashboard.html) ───────────────────────
@@ -239,6 +266,18 @@ export function sendAdminEscalation(session, target, msg) {
     replies: []
   });
   db.save();
+  try {
+    api.post('/notifications', {
+      toRole: null,
+      toUser: Number(target.user_id || target.id),
+      from: session.username,
+      avatar: session.avatar || session.username.slice(0, 2).toUpperCase(),
+      fromRole: 'admin',
+      fromUserId: Number(session.userId) || 1,
+      msg: '[Admin Escalation] ' + msg.trim(),
+      type: 'system'
+    }).catch(() => {});
+  } catch (err) {}
 }
 
 // One private message to every moderator.
@@ -259,6 +298,18 @@ export function sendModeratorBroadcast(session, moderators, msg) {
       read: false,
       replies: []
     });
+    try {
+      api.post('/notifications', {
+        toRole: null,
+        toUser: Number(mod.user_id || mod.id),
+        from: session.username,
+        avatar: session.avatar || session.username.slice(0, 2).toUpperCase(),
+        fromRole: 'admin',
+        fromUserId: Number(session.userId) || 1,
+        msg: '[Admin Broadcast] ' + msg.trim(),
+        type: 'system'
+      }).catch(() => {});
+    } catch (err) {}
   });
   db.save();
 }

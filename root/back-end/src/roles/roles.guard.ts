@@ -2,6 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 import { bearerFrom, verifyToken } from '../auth/token.util';
+import { publisher_profiles } from '../data/store';
 
 /**
  * Roles that can act on other people's data or on the platform itself.
@@ -38,6 +39,18 @@ export class RolesGuard implements CanActivate {
     if (payload) {
       request.auth = payload;
       const role = String(payload.role).toLowerCase();
+      if (role === 'publisher' && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+        const path = String(request.originalUrl || request.url).split('?')[0];
+        const profile = publisher_profiles.find(p => p.user_id === Number(payload.sub));
+        const verified = profile?.kyc_status === 'verified' && !(process.env.NODE_ENV === 'production' && (profile as any)?.verification_mode === 'sandbox');
+        const paymentsReady = verified && ['payment_ready', 'publishing_eligible'].includes(profile?.onboarding_stage || '');
+        if (/\/(games|tournaments|publisher\/api-keys)(\/|$)/.test(path) && !verified) {
+          throw new ForbiddenException('Complete publisher identity review before publishing games, creating tournaments or generating API keys.');
+        }
+        if (/\/(economy|payouts|payments)(\/|$)/.test(path) && !paymentsReady) {
+          throw new ForbiddenException('Complete publisher identity and payment-profile review before using financial features.');
+        }
+      }
       if (role === 'superuser') return true;
       if (requiredRoles.some((r) => r.toLowerCase() === role)) return true;
       throw new ForbiddenException(
@@ -55,6 +68,9 @@ export class RolesGuard implements CanActivate {
     }
 
     const incomingRole = String(roleHeader).toLowerCase();
+    if (incomingRole === 'publisher') {
+      throw new ForbiddenException('Publisher access requires a signed session. Please sign in again.');
+    }
 
     if (PRIVILEGED.has(incomingRole)) {
       throw new ForbiddenException(

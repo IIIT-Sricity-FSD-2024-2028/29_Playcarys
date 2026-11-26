@@ -27,19 +27,27 @@ export function GamesSection(props) {
   const games = listHubGames(filter);
 
   // Pending games are decided in the review console, not here.
-  function handleToggle(row) {
+  async function handleToggle(row) {
     const g = db.games.find((x) => x.id === row.id) || row; // always the live row, never an old copy
-    toggleGameEnabled(g, addAudit);
-    toast.info(`${g.title} ${g.enabled ? 'enabled' : 'blacklisted'}`);
-    refresh();
+    try {
+      await toggleGameEnabled(g, addAudit);
+      toast.info(`${g.title} ${g.enabled ? 'enabled' : 'blacklisted'}`);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || 'Failed to toggle game state');
+    }
   }
 
   function handleDelete(row) {
     const g = db.games.find((x) => x.id === row.id) || row;
-    confirmAction('Delete Game', `Delete "${g.title}"?`, () => {
-      deleteGame(g, addAudit);
-      toast.success('Game deleted');
-      refresh();
+    confirmAction('Delete Game', `Delete "${g.title}"?`, async () => {
+      try {
+        await deleteGame(g, addAudit);
+        toast.success('Game deleted');
+        refresh();
+      } catch (err) {
+        toast.error(err.message || 'Failed to delete game');
+      }
     });
   }
 

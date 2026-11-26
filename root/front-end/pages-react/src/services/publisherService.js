@@ -1291,7 +1291,66 @@ export const publisherService = {
       updatedUser: targetUser,
       updatedProfile: targetProfile
     };
+  },
+
+  // ── Milestone 8: API Keys & Onboarding ─────────────────────────
+
+  async getOnboarding(userId) {
+    try {
+      return await api.get('/publisher/onboarding');
+    } catch (err) {
+      return {
+        user_id: userId,
+        current_stage: 'account_created',
+        current_stage_index: 1,
+        total_stages: 6,
+        progress_percent: 17,
+        publisher_type: 'individual',
+        kyc_status: 'not_submitted',
+        can_publish: false,
+        can_generate_keys: false,
+        stages: [
+          { id: 'account_created', index: 1, title: 'Account Created', isCompleted: true, isCurrent: true },
+          { id: 'email_verified', index: 2, title: 'Email Verified', isCompleted: false, isCurrent: false },
+          { id: 'profile_complete', index: 3, title: 'Studio Profile Complete', isCompleted: false, isCurrent: false },
+          { id: 'identity_verified', index: 4, title: 'Identity Verification (KYC)', isCompleted: false, isCurrent: false },
+          { id: 'payment_ready', index: 5, title: 'Payment Profile Ready', isCompleted: false, isCurrent: false },
+          { id: 'publishing_eligible', index: 6, title: 'Publishing Eligible 🚀', isCompleted: false, isCurrent: false }
+        ]
+      };
+    }
+  },
+
+  async updateOnboarding(userId, updateData) {
+    return await api.patch('/publisher/onboarding', updateData);
+  },
+
+  async getApiKeys(userId) {
+    try {
+      const keys = await api.get('/publisher/api-keys');
+      return Array.isArray(keys) ? keys : [];
+    } catch (err) {
+      console.warn('Failed to fetch publisher api keys:', err);
+      return [];
+    }
+  },
+
+  async createApiKey(payload) {
+    return await api.post('/publisher/api-keys', payload);
+  },
+
+  async revokeApiKey(keyId) {
+    return await api.delete(`/publisher/api-keys/${keyId}`);
+  },
+
+  async getFinanceOverview(publisherId) {
+    return await api.get(`/economy/publishers/${publisherId}/finance`);
+  },
+
+  async depositFunds(publisherId, payload) {
+    return await api.post(`/economy/publishers/${publisherId}/deposit`, payload);
   }
 };
+
 
 export default publisherService;

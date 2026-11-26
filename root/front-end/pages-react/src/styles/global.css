@@ -1,5 +1,21 @@
 @import "../../../css/variables.css";
 
+/* Shared rhythm and surfaces across player, publisher and staff screens. */
+.page-content { box-sizing: border-box; min-width: 0; }
+.page-header, .page-header-row { margin-bottom: 28px; row-gap: 16px; }
+.page-header h1, .page-header-row h1 { line-height: 1.25; margin-bottom: 10px; font-size: clamp(26px, 3vw, 38px); }
+.page-header p, .page-header-row p { line-height: 1.6; margin-top: 8px; }
+.card { border-radius: 16px; border-color: #29364b; }
+.card h2, .card h3 { line-height: 1.4; }
+.form-group { min-width: 0; }
+.form-label { line-height: 1.5; margin-bottom: 8px; }
+button, input, select, textarea { font-family: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #49d8ed; outline-offset: 3px; }
+.shortlist-summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px; margin-bottom: 20px; border: 1px solid #29364b; border-radius: 14px; background: #111c2c; }
+.demo-verification-panel { padding: 20px; margin-bottom: 24px; background: #242017; border: 1px solid #80652c; border-radius: 14px; color: #f6dda0; }
+.demo-verification-panel p { line-height: 1.6; margin-block: 10px 16px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+
 #root {
   min-height: 100vh;
   display: flex;

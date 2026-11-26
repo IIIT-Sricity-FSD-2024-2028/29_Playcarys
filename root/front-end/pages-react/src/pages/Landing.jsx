@@ -175,6 +175,7 @@ export function Landing() {
           onClose={closeLoginPanel}
           onSignedIn={handleSignedIn}
           onOpenRegister={() => { closeLoginPanel(); openRegister(); }}
+          onOpenPublisherRegister={() => { closeLoginPanel(); setShowPubRegister(true); }}
           showToast={showToast}
         />
       )}

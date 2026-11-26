@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import {
-  fetchUsers,
-  createUserRecord,
-  updateUserRecord,
-  updateUserStatus,
-  sendUserNotification
-} from '../../services/superuserService';
+import { sendUserNotification } from '../../services/superuserService';
+import { useUsers } from '../../features/users/useUsers';
 import SuperuserUsersKPIs from '../../components/superuser/users/SuperuserUsersKPIs';
 import SuperuserUsersTable from '../../components/superuser/users/SuperuserUsersTable';
 import SuperuserAddUserModal from '../../components/superuser/users/SuperuserAddUserModal';
@@ -24,8 +19,7 @@ export function Users() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { users, load, create, update, setStatus } = useUsers();
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -47,12 +41,9 @@ export function Users() {
   // Load data
   async function loadData() {
     try {
-      const list = await fetchUsers();
-      setUsers(list);
+      await load();
     } catch (err) {
       console.error('Failed to load users:', err);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -98,7 +89,7 @@ export function Users() {
   // Action handlers
   async function handleAddUser(newUserData) {
     try {
-      const created = await createUserRecord(newUserData);
+      const created = await create(newUserData);
       showToast(`User "${created.username}" created as ${capitalize(newUserData.role)}`, 'success');
       await loadData();
     } catch (err) {
@@ -110,7 +101,7 @@ export function Users() {
   async function handleSaveEdit(user, updateData) {
     try {
       const uid = user.user_id ?? user.id;
-      await updateUserRecord(uid, updateData);
+      await update(uid, updateData);
       showToast(`${updateData.username} updated`, 'success');
       await loadData();
     } catch (err) {
@@ -122,7 +113,7 @@ export function Users() {
   async function handleSuspend(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await updateUserStatus(uid, 'suspended');
+      await setStatus(uid, 'suspended');
       sendUserNotification(
         user.username,
         session?.role || 'superuser',
@@ -140,7 +131,7 @@ export function Users() {
   async function handleReinstate(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await updateUserStatus(uid, 'active');
+      await setStatus(uid, 'active');
       sendUserNotification(
         user.username,
         session?.role || 'superuser',
@@ -158,7 +149,7 @@ export function Users() {
   async function handleBan(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await updateUserStatus(uid, 'banned');
+      await setStatus(uid, 'banned');
       sendUserNotification(
         user.username,
         session?.role || 'superuser',
@@ -176,7 +167,7 @@ export function Users() {
   async function handleUnban(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await updateUserStatus(uid, 'active');
+      await setStatus(uid, 'active');
       sendUserNotification(
         user.username,
         session?.role || 'superuser',

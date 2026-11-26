@@ -31,7 +31,7 @@ const STAFF_COLUMN = {
 };
 
 export function LoginPanel(props) {
-  const { type, onClose, onSignedIn, onOpenRegister, showToast } = props;
+  const { type, onClose, onSignedIn, onOpenRegister, onOpenPublisherRegister, showToast } = props;
   const { login } = useContext(AuthContext);
 
   const isStaff = type === 'admin';
@@ -380,6 +380,36 @@ export function LoginPanel(props) {
                   >
                     Register →
                   </span>
+                </div>
+              </>
+            )}
+
+            {type === 'publisher' && (
+              <>
+                <div style={{ textAlign: 'center', marginTop: '0.9rem', fontSize: '0.82rem' }}>
+                  <span
+                    style={{ color: 'var(--accent-cyan)', cursor: 'pointer', fontWeight: 600 }}
+                    onClick={runForgotPassword}
+                  >
+                    Forgot your password?
+                  </span>
+                </div>
+                <div style={{ textAlign: 'center', marginTop: '0.75rem', padding: '0.6rem', background: 'rgba(56, 189, 248, 0.08)', borderRadius: 'var(--radius-md, 8px)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  New studio or indie game creator?{' '}
+                  <div style={{ marginTop: '0.35rem' }}>
+                    <a
+                      href="/publisher/onboarding"
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: 'var(--accent-cyan)', fontWeight: 600, display: 'inline-block' }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onOpenPublisherRegister();
+                      }}
+                      data-testid="publisher-register-btn"
+                    >
+                      🚀 Create Publisher Account / Apply →
+                    </a>
+                  </div>
                 </div>
               </>
             )}

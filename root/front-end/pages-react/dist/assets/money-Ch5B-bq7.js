@@ -1,0 +1,1 @@
+const a={formatINR(n,r){const t=Math.round(Number(n)||0),i=t/100,e=r&&r.decimals!=null?r.decimals:t%100===0?0:2;return"₹"+i.toLocaleString("en-IN",{minimumFractionDigits:e,maximumFractionDigits:e})},formatCarys(n){return(Number(n)||0).toLocaleString("en-IN")}};export{a as M};

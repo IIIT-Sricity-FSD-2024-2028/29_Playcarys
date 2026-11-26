@@ -114,7 +114,7 @@ export function Hub() {
           />
           <TournamentsSection active={section === 'tournaments'} addAudit={addAudit} />
           <AnalyticsSection active={section === 'analytics'} />
-          <AuditSection active={section === 'audit'} auditLog={auditLog} onClear={handleClearAuditLog} onReload={loadAudit} />
+          <AuditSection active={section === 'audit'} auditLog={auditLog} onClear={handleClearAuditLog} onReload={loadAudit} canClear={user?.role === 'superuser'} />
           <SystemSection active={section === 'system'} auditLog={auditLog || []} addAudit={addAudit} />
         </div>
       </div>

@@ -1,0 +1,1 @@
+const a=t=>{var s;return((s=t.platform)==null?void 0:s.systemSettings)||{}},c=t=>{var s;return((s=t.analytics)==null?void 0:s.metrics)||null},e=t=>{var s;return(s=t.analytics)==null?void 0:s.status},l=t=>{var s;return((s=t.audit)==null?void 0:s.logs)||[]};export{a,c as b,e as c,l as s};

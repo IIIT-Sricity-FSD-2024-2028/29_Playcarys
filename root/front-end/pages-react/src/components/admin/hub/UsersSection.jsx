@@ -71,38 +71,52 @@ export function UsersSection(props) {
     setTimeout(() => onNavigate('users'), 1500);
   }
 
-  function handleSave() {
+  async function handleSave() {
     const usernameMsg = validateField(form.username, [{ type: 'required' }, { type: 'minLen', n: 3 }, { type: 'maxLen', n: 20 }]);
     const emailMsg = validateField(form.email, [{ type: 'required' }, { type: 'email' }]);
     const passwordMsg = isEdit ? '' : validateField(form.password, [{ type: 'required' }, { type: 'password' }]);
-    setErrors({ username: usernameMsg, email: emailMsg, password: passwordMsg });
-    if (usernameMsg || emailMsg || passwordMsg) return;
 
     const username = form.username.trim();
     const email = form.email.trim();
 
-    if (isUsernameTaken(username, editId)) {
-      setErrors({ username: 'Username already taken', email: '', password: '' });
-      return;
+    let dupUserMsg = '';
+    let dupEmailMsg = '';
+    if (!usernameMsg && isUsernameTaken(username, editId)) {
+      dupUserMsg = 'Username already taken';
     }
-    if (isEmailTaken(email, editId)) {
-      setErrors({ username: '', email: 'Email already registered', password: '' });
-      return;
+    if (!emailMsg && isEmailTaken(email, editId)) {
+      dupEmailMsg = 'Email already registered';
     }
 
-    saveHubUser(isEdit, editId, username, email, form.role, form.status, form.password, addAudit);
-    toast.success(isEdit ? 'User updated' : 'User added');
-    setModalOpen(false);
-    refresh();
+    const nextErrors = {
+      username: usernameMsg || dupUserMsg,
+      email: emailMsg || dupEmailMsg,
+      password: passwordMsg
+    };
+    setErrors(nextErrors);
+    if (nextErrors.username || nextErrors.email || nextErrors.password) return;
+
+    try {
+      await saveHubUser(isEdit, editId, username, email, form.role, form.status, form.password, addAudit);
+      toast.success(isEdit ? 'User updated' : 'User added');
+      setModalOpen(false);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save user');
+    }
   }
 
   function handleDelete(id) {
     const u = findUser(id);
     if (!u) return;
-    confirmAction('Delete User', `Permanently delete ${u.username}? Cannot be undone.`, () => {
-      deleteHubUser(u, addAudit);
-      toast.success('User deleted');
-      refresh();
+    confirmAction('Delete User', `Permanently delete ${u.username}? Cannot be undone.`, async () => {
+      try {
+        await deleteHubUser(u, addAudit);
+        toast.success('User deleted');
+        refresh();
+      } catch (err) {
+        toast.error(err.message || 'Failed to delete user');
+      }
     });
   }
 

@@ -80,6 +80,46 @@ export interface PublisherProfile {
   /** Gross the platform has already converted into balance_paise. Prevents double-crediting. */
   settled_pcp?: number;
   settled_rake_paise?: number;
+
+  // ── Onboarding & Compliance ────────────────────────────────
+  onboarding_stage?:
+    | 'account_created'
+    | 'email_verified'
+    | 'profile_complete'
+    | 'identity_verified'
+    | 'payment_ready'
+    | 'publishing_eligible';
+  publisher_type?: 'individual' | 'organization';
+  kyc_status?: 'not_submitted' | 'pending' | 'verified' | 'rejected';
+  tax_id?: string;
+  direct_grant_paise?: number;
+  deposit_balance_paise?: number;
+  reserved_prize_paise?: number;
+}
+
+export interface FiatLedgerEntry {
+  transaction_id: string;
+  user_id: number;
+  role: 'publisher' | 'player';
+  type: 'deposit' | 'earning' | 'withdrawal' | 'prize_reservation' | 'prize_release' | 'prize_winnings' | 'adjustment';
+  amount_paise: number;
+  balance_after_paise: number;
+  reference_id: string;
+  status: 'pending' | 'completed' | 'reserved' | 'reversed';
+  description: string;
+  is_sandbox: boolean;
+  created_at: string;
+}
+
+export interface PublisherApiKey {
+  id: string;
+  user_id: number;
+  key_id: string; // "pk_live_<16 hex>"
+  secret_hash: string; // SHA-256 hash of secret
+  name: string;
+  scopes: string[];
+  created_at: string;
+  last_used_at?: string | null;
 }
 
 export interface Game {
@@ -601,7 +641,7 @@ export interface ModeratorAction {
   action_id: number;
   moderator_id: number;
   report_id: number;
-  action_type: 'warning' | 'restrict' | 'ban' | 'review';
+  action_type: 'warning' | 'restrict' | 'ban' | 'review' | 'no_action' | 'escalate';
   action_date: string;
   action_reason: string;
 }
@@ -628,6 +668,18 @@ export interface Ban {
   bannedDate: string;
   expiresDate: string;
   active: boolean;
+  violationCategory?: string;
+  evidenceSummary?: string;
+  evidenceStatus?: string;
+  reportId?: number;
+  sessionId?: number;
+  requiresSeniorApproval?: boolean;
+  secondReviewerId?: number;
+  secondReviewerName?: string;
+  appealStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+  appealReason?: string;
+  appealDecidedBy?: string;
+  appealDecidedAt?: string;
 }
 
 export interface Notification {
@@ -750,6 +802,33 @@ export const player_profiles: PlayerProfile[] = loadedData.player_profiles || [
   { user_id: 10, player_name: 'ShadowMaster', carys_points: 6200, play_time: 1120, matches_won: 310, player_status: true },
   { user_id: 11, player_name: 'ToxicPlayer', carys_points: 940, play_time: 214, matches_won: 47, player_status: false },
 ];
+
+if (!users.some((u) => u.user_id === 7 || (u.user_name || (u as any).username) === 'DragonSlayer')) {
+  users.push({ user_id: 7, user_name: 'DragonSlayer', role_id: 4, email: 'dragon@example.com', password: 'Dr@gon$lay3r', avatar: 'DS', status: 'active', joinDate: '2024-02-14', lastSeen: '2026-03-24' });
+} else {
+  const dsUser = users.find((u) => u.user_id === 7 || (u.user_name || (u as any).username) === 'DragonSlayer');
+  if (dsUser) { dsUser.password = 'Dr@gon$lay3r'; dsUser.status = 'active'; }
+}
+
+if (!player_profiles.some((p) => p.user_id === 7)) {
+  player_profiles.push({ user_id: 7, player_name: 'DragonSlayer', carys_points: 4680, play_time: 892, matches_won: 234, player_status: true });
+}
+
+export const publisher_api_keys: PublisherApiKey[] = loadedData.publisher_api_keys || [
+  {
+    id: 'key_live_epic_1',
+    user_id: 5,
+    key_id: 'pk_live_8f3a9e2b1c4d5e6f',
+    secret_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    name: 'Production Matchmaking Server',
+    scopes: ['telemetry:write', 'tournaments:read'],
+    created_at: '2026-04-01T12:00:00Z',
+    last_used_at: '2026-11-06T09:30:00Z',
+  },
+];
+
+// The seeded demo studios (Epic Games Studio, Indie Dev Studios).
+const DEMO_STUDIO_IDS = [5, 6];
 
 export const publisher_profiles: PublisherProfile[] = loadedData.publisher_profiles || [
   { user_id: 5, total_games: 4, approved_games: 3, active_games: 3 },
@@ -1166,25 +1245,111 @@ export const group_join_requests: GroupJoinRequest[] = loadedData.group_join_req
 // use the dual-report/confirm/dispute/resolve flow that already exists for
 // every un-integrated game (see tournament-play.service.ts) — no new result
 // pipeline, because that fallback was always built for exactly this case.
+export type LinkedAccountTrustState =
+  | 'unlinked'
+  | 'self-declared'
+  | 'proof-pending'
+  | 'verified'
+  | 'verification-expired'
+  | 'revoked';
+
+export type VerificationMethod =
+  | 'none'
+  | 'oauth2'
+  | 'openid2'
+  | 'code_challenge'
+  | 'moderator_manual';
+
 export interface LinkedGameAccount {
   link_id: number;
   player_id: number;
-  /** A short key, e.g. 'valorant' | 'pubg' | 'codm' | 'freefire' | 'other'. */
   platform: string;
-  /** Display label, e.g. 'Valorant'. */
   platform_label: string;
   in_game_name: string;
+  provider_account_id?: string;
+  trust_state: LinkedAccountTrustState;
+  verification_method: VerificationMethod;
+  verification_notes?: string;
   linked_at: string;
+  verified_at?: string;
+  expires_at?: string;
 }
 export const linked_game_accounts: LinkedGameAccount[] = loadedData.linked_game_accounts || [];
 
-/** Deep-link templates for the "Launch Game" button. {name} is replaced with the player's in_game_name. */
-export const EXTERNAL_GAME_PLATFORMS: { key: string; label: string; launch_url: string }[] = [
-  { key: 'valorant', label: 'Valorant', launch_url: 'https://playvalorant.com/' },
-  { key: 'pubg', label: 'PUBG', launch_url: 'https://www.pubg.com/' },
-  { key: 'codm', label: 'Call of Duty', launch_url: 'https://www.callofduty.com/' },
-  { key: 'freefire', label: 'Free Fire', launch_url: 'https://ff.garena.com/' },
-  { key: 'other', label: 'Other', launch_url: '' },
+export interface GamePlatformMetadata {
+  key: string;
+  label: string;
+  launch_url: string;
+  format_hint: string;
+  pattern?: string;
+  supports_oauth: boolean;
+}
+
+export const EXTERNAL_GAME_PLATFORMS: GamePlatformMetadata[] = [
+  {
+    key: 'valorant',
+    label: 'Valorant (Riot Games)',
+    launch_url: 'https://playvalorant.com/',
+    format_hint: 'Riot ID format: Name#Tag (e.g. TenZ#0001)',
+    pattern: '^[a-zA-Z0-9_\\s]{3,16}#[a-zA-Z0-9]{3,5}$',
+    supports_oauth: true,
+  },
+  {
+    key: 'steam',
+    label: 'Steam (Valve)',
+    launch_url: 'https://steamcommunity.com/',
+    format_hint: 'SteamID64 (17 digits) or Profile Vanity URL',
+    pattern: '^([0-9]{17}|[a-zA-Z0-9_-]{3,32})$',
+    supports_oauth: true,
+  },
+  {
+    key: 'battlenet',
+    label: 'Battle.net (Blizzard)',
+    launch_url: 'https://battle.net/',
+    format_hint: 'BattleTag format: Name#1234',
+    pattern: '^[a-zA-Z0-9]{3,12}#[0-9]{4,6}$',
+    supports_oauth: true,
+  },
+  {
+    key: 'epic',
+    label: 'Epic Games',
+    launch_url: 'https://store.epicgames.com/',
+    format_hint: 'Epic Display Name (3-16 chars) or 32-char Account ID',
+    pattern: '^[a-zA-Z0-9_\\s-]{3,32}$',
+    supports_oauth: true,
+  },
+  {
+    key: 'discord',
+    label: 'Discord',
+    launch_url: 'https://discord.com/',
+    format_hint: 'Discord Username (e.g. player_tag)',
+    pattern: '^[a-zA-Z0-9_.-]{2,32}$',
+    supports_oauth: true,
+  },
+  {
+    key: 'pubg',
+    label: 'PUBG: BATTLEGROUNDS',
+    launch_url: 'https://www.pubg.com/',
+    format_hint: 'In-game player name (3-24 characters)',
+    pattern: '^[a-zA-Z0-9_-]{3,24}$',
+    supports_oauth: false,
+  },
+  {
+    key: 'codm',
+    label: 'Call of Duty: Mobile',
+    launch_url: 'https://www.callofduty.com/',
+    format_hint: 'Activision ID (Name#1234567) or Nickname',
+    pattern: '^.+$',
+    supports_oauth: false,
+  },
+  {
+    key: 'other',
+    label: 'Other Custom Platform',
+    launch_url: '',
+    format_hint: 'In-game nickname',
+    pattern: '^.+$',
+    supports_oauth: false,
+  },
 ];
 
 /**
@@ -1365,6 +1530,15 @@ export interface CosmeticItem {
    * only what the purchase hands back, not what the item is.
    */
   is_mystery?: boolean;
+
+  /** Compatibility declarations: e.g. full-face helmet incompatible with visors */
+  compatibility?: {
+    incompatible_slots?: string[];
+    incompatible_items?: number[];
+  };
+
+  /** Item availability status */
+  enabled?: boolean;
 
   /**
    * glTF binary for this item, served from /assets/avatar3d/.
@@ -1566,6 +1740,7 @@ export const subscriptions: Subscription[] = loadedData.subscriptions || [];
 export const transactions: Transaction[] = loadedData.transactions || [];
 export const carys_ledger: CarysLedgerEntry[] = loadedData.carys_ledger || [];
 export const payouts: Payout[] = loadedData.payouts || [];
+export const fiat_ledger: FiatLedgerEntry[] = loadedData.fiat_ledger || [];
 
 // ============================================================
 //  MIGRATION: USD floats → INR paise
@@ -1724,6 +1899,16 @@ function migrateEconomyToInr(): void {
     // which is why sessions showed up in the table but never in the totals.)
     if (p.settled_pcp === undefined) p.settled_pcp = 0;
     if (p.settled_rake_paise === undefined) p.settled_rake_paise = 0;
+    // Publisher onboarding (KYC + payment review) came after the two seeded demo
+    // studios (Epic Games Studio = 5, Indie Dev Studios = 6) were created, so
+    // their profiles have no kyc_status. RolesGuard refuses publisher writes
+    // until a profile is verified, which would stop the demo studios from
+    // publishing games or creating tournaments. Treat only those two as already
+    // reviewed; every other studio (self sign-up included) goes through review.
+    if (DEMO_STUDIO_IDS.includes(Number(p.user_id)) && p.kyc_status === undefined) {
+      p.kyc_status = 'verified';
+      if (!p.onboarding_stage) p.onboarding_stage = 'publishing_eligible';
+    }
   }
 }
 
@@ -1752,6 +1937,15 @@ const AVATAR_WEARABLES: CosmeticItem[] = [
   { id: 107, name: "Neon Visor",       category: "avatar_face",     slot: "face",     price_paise: 14_900, price_carys: 1_000, rarity: "rare",      preview: "🥽", description: "Half-mirrored visor with a cyan sweep.", model_url: "/assets/avatar3d/107-neon-visor.glb", attach_bone: "Head", attach_offset: [0, 0.045, 0.012], attach_scale: 1 },
   { id: 108, name: "Ember Aura",       category: "avatar_aura",     slot: "aura",     price_paise: 29_900, price_carys: 2_000, rarity: "epic",      preview: "🔥", description: "Slow embers that rise behind you while you idle.", model_url: "/assets/avatar3d/108-ember-aura.glb", attach_bone: "Hips", attach_offset: [0, -0.9, 0], attach_scale: 1 },
   { id: 109, name: "Pixel Companion",  category: "avatar_pet",      slot: "pet",      price_paise: 29_900, price_carys: 2_000, rarity: "epic",      preview: "🐉", description: "A small drake that hovers at your shoulder.", model_url: "/assets/avatar3d/109-pixel-companion.glb", attach_bone: "LeftShoulder", attach_offset: [0.16, 0.14, 0], attach_scale: 1 },
+  { id: 111, name: "MMA Sparring Headgear", category: "avatar_headgear", slot: "headgear", price_paise: 14_900, price_carys: 1_000, rarity: "rare", preview: "🥊", description: "Reinforced leather combat headgear with cheek pads for aggressive sparring.", compatibility: { incompatible_slots: ["face"] } },
+  { id: 112, name: "Fighter Headband", category: "avatar_headgear", slot: "headgear", price_paise: 7_900, price_carys: 500, rarity: "common", preview: "🎗️", description: "Traditional crimson fighter headband signifying discipline and ring honor." },
+  { id: 113, name: "Mouthguard & War Paint", category: "avatar_face", slot: "face", price_paise: 7_900, price_carys: 500, rarity: "common", preview: "⚡", description: "High-impact silicone mouthguard with intimidation facial markings." },
+  { id: 114, name: "Carbon Combat Visor", category: "avatar_face", slot: "face", price_paise: 29_900, price_carys: 2_000, rarity: "epic", preview: "🎭", description: "Ultra-lightweight aerodynamic carbon visor designed for cage combat.", compatibility: { incompatible_slots: ["headgear"] } },
+  { id: 115, name: "Pro MMA Shorts & Gloves", category: "avatar_outfit", slot: "outfit", price_paise: 14_900, price_carys: 1_000, rarity: "rare", preview: "🩳", description: "Four-way stretch split-seam fight shorts with curved competition 4oz gloves." },
+  { id: 116, name: "Muay Thai Trunks & Wraps", category: "avatar_outfit", slot: "outfit", price_paise: 29_900, price_carys: 2_000, rarity: "epic", preview: "🎽", description: "Authentic satin kickboxing trunks with heavy wrist wraps for lethal striking." },
+  { id: 117, name: "Heavyweight Striker Build", category: "avatar_body", slot: "body", price_paise: 29_900, price_carys: 2_000, rarity: "epic", preview: "🥋", description: "Powerhouse heavyweight fighter physique built for pure knockout force." },
+  { id: 118, name: "Cage Flame Aura", category: "avatar_aura", slot: "aura", price_paise: 49_900, price_carys: 3_000, rarity: "legendary", preview: "🔥", description: "Intense arena flame aura radiating behind the championship contender." },
+  { id: 119, name: "Corner Mascot Bulldog", category: "avatar_pet", slot: "pet", price_paise: 14_900, price_carys: 1_000, rarity: "rare", preview: "🐕", description: "Loyal corner team bulldog companion who guards your fighter corner." },
 ];
 
 /**

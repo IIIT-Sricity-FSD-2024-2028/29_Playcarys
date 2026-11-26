@@ -60,7 +60,7 @@ export function TournamentsSection(props) {
     if (errors[field]) setErrors({ ...errors, [field]: '' });
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     const nameMsg = validateField(form.name, [{ type: 'required' }, { type: 'minLen', n: 5, msg: 'Min 5 characters' }]);
     const descMsg = validateField(form.desc, [{ type: 'required' }, { type: 'minLen', n: 10, msg: 'Min 10 characters' }]);
     const maxMsg = validateField(form.max, [{ type: 'required' }, { type: 'numeric' }, { type: 'custom', fn: (v) => v >= 4 && v <= 1024, msg: 'Must be between 4 and 1024' }]);
@@ -68,34 +68,50 @@ export function TournamentsSection(props) {
     setErrors({ name: nameMsg, desc: descMsg, max: maxMsg, start: startMsg });
     if (nameMsg || descMsg || maxMsg || startMsg) return;
 
-    createTournament(form.name, form.desc, form.gameId, form.max, form.start, form.prize, addAudit);
-    toast.success('Tournament created!');
-    setModalOpen(false);
-    refresh();
+    try {
+      await createTournament(form.name, form.desc, form.gameId, form.max, form.start, form.prize, addAudit);
+      toast.success('Tournament created!');
+      setModalOpen(false);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || 'Failed to create tournament');
+    }
   }
 
-  function handleStart(id) {
+  async function handleStart(id) {
     const t = findTournament(id);
-    setTournamentStatus(t, 'in-progress', 'started', addAudit);
-    toast.success(`${t.name} started!`);
-    refresh();
+    try {
+      await setTournamentStatus(t, 'in-progress', 'started', addAudit);
+      toast.success(`${t.name} started!`);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || 'Failed to start tournament');
+    }
   }
 
   function handleEnd(id) {
     const t = findTournament(id);
-    confirmAction('End Tournament', `Mark "${t.name}" as completed?`, () => {
-      setTournamentStatus(t, 'completed', 'completed', addAudit);
-      toast.info(`${t.name} completed`);
-      refresh();
+    confirmAction('End Tournament', `Mark "${t.name}" as completed?`, async () => {
+      try {
+        await setTournamentStatus(t, 'completed', 'completed', addAudit);
+        toast.info(`${t.name} completed`);
+        refresh();
+      } catch (err) {
+        toast.error(err.message || 'Failed to complete tournament');
+      }
     }, 'info');
   }
 
   function handleDelete(id) {
     const t = findTournament(id);
-    confirmAction('Delete Tournament', `Delete "${t.name}"?`, () => {
-      deleteTournament(t, addAudit);
-      toast.success('Tournament deleted');
-      refresh();
+    confirmAction('Delete Tournament', `Delete "${t.name}"?`, async () => {
+      try {
+        await deleteTournament(t, addAudit);
+        toast.success('Tournament deleted');
+        refresh();
+      } catch (err) {
+        toast.error(err.message || 'Failed to delete tournament');
+      }
     });
   }
 

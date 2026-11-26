@@ -15,3 +15,12 @@ export class LinkGameAccountDto {
   @MinLength(1)
   in_game_name: string;
 }
+
+export class VerifyProofDto {
+  @IsInt()
+  player_id: number;
+
+  @IsString()
+  @MinLength(3)
+  proof_token: string;
+}

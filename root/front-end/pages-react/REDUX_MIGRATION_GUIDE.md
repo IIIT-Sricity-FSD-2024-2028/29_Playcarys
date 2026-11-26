@@ -1,251 +1,116 @@
-# Playcarys Redux Migration Guide
+# PlayCarys Redux Migration Guide
 
-This guide establishes the shared Redux Toolkit architecture, ownership boundaries, and coding conventions for converting `root/front-end/pages-react` to React Redux.
+Goal: every page reads its data from **Redux feature slices**, and every change goes through a **real NestJS API call**. The legacy browser-side copy of the database (`DB`, `window.DB`, `getDatabase()`, localStorage snapshots) is removed feature by feature, until nothing depends on it.
 
----
-
-## 1. Team Ownership Map
-
-Each teammate has an isolated domain. **Do not modify files owned by another teammate.**
-Shared core files (`store.js`, `main.jsx`, `package.json`, `routes/`, `layouts/`, and `services/api.js`) are locked and do not need edits.
-
-| Teammate | Assigned Domain | Owned Slice File | Owned Pages & Components |
-|---|---|---|---|
-| **Teammate 1** | Player Pages & Features | `src/store/slices/playerSlice.js` | `src/pages/player/*` (Dashboard, Games, Tournaments, MyTournaments, CreateTournament, Community, Shop, Profile, Leaderboard, MatchHistory, Notifications) |
-| **Teammate 2** | Publisher & Staff Inbox | `src/store/slices/publisherSlice.js`<br/>`src/store/slices/staffSlice.js` | `src/pages/publisher/*` (Dashboard, PublishGame, PublishTournament, MyGames, Profile, Earnings)<br/>`src/pages/staff/Inbox.jsx` |
-| **Teammate 3** | Admin & Moderator | `src/store/slices/adminSlice.js`<br/>`src/store/slices/moderatorSlice.js` | `src/pages/admin/*` (Dashboard, Settings, Approvals, Users, GameReview, Hub)<br/>`src/pages/moderator/*` (Dashboard, Reports, Sessions, Bans) |
-| **Teammate 4** | Superuser Platform Oversight | `src/store/slices/superuserSlice.js` | `src/pages/superuser/*` (Dashboard, Hub, Users, Admins, Games, Reports, Settings) |
-| **Teammate 5** | Auth, Landing, Setup & Integration | `src/store/slices/authSlice.js`<br/>`src/store/store.js`<br/>`src/store/asyncUtils.js`<br/>`src/store/hooks.js` | `src/pages/Landing.jsx`<br/>`src/context/AuthContext.jsx`<br/>`src/context/ChatContext.jsx`<br/>Redux foundation & final integration |
+State is organised **by business feature, not by actor**. A game used by players, publishers, admins and superusers lives in one shared `games` slice.
 
 ---
 
-## 2. Store Structure & State Shapes
+## 1. Where things live
 
-All domain reducers are registered upfront in `src/store/store.js`:
-
-```javascript
-store.getState() => {
-  auth:      authSliceState,
-  player:    playerSliceState,
-  publisher: publisherSliceState,
-  staff:     staffSliceState,
-  admin:     adminSliceState,
-  moderator: moderatorSliceState,
-  superuser: superuserSliceState
-}
+```
+src/
+├── main.jsx                 <Provider store={store}> (one provider only)
+├── app/
+│   ├── store.js             registers every slice (root store, locked, see §6)
+│   ├── hooks.js             useAppDispatch / useAppSelector
+│   └── asyncUtils.js        AsyncStatus, extractErrorMessage, handlePending/Fulfilled/Rejected
+├── features/<domain>/
+│   ├── <name>Slice.js       state + async thunks
+│   └── selectors.js         every read the UI needs
+├── services/
+│   ├── api.js               the only HTTP client (adds Authorization + role headers)
+│   └── endpoints/<x>Api.js  one module per backend controller, normalises ids
+└── context/AuthContext.jsx  compatibility wrapper over the auth slice (see §5)
 ```
 
-### Domain State Shapes
+Registered slices (state key → file):
 
-#### `auth` (`src/store/slices/authSlice.js`)
-```javascript
-{
-  user: null,           // { id, username, email, role, avatar, status } (NO passwords, NO tokens)
-  isAuthenticated: false,
-  status: 'idle',       // 'idle' | 'loading' | 'succeeded' | 'failed'
-  error: null           // string | null
-}
+| Domain | State keys |
+|---|---|
+| Identity | `auth`, `users` |
+| Profiles | `playerProfile`, `publisherProfile`, `linkedAccounts` |
+| Games | `games`, `gameReview`, `gameSaves`, `achievements` |
+| Tournaments | `tournaments`, `registrations`, `tournamentPlay` |
+| Communities | `teams`, `groups`, `social` |
+| Moderation | `reports`, `moderation` |
+| Notifications | `notifications` |
+| Sessions | `gameSessions`, `matchResults` |
+| Economy | `wallet`, `catalogue`, `payouts` |
+| Platform | `platform`, `analytics`, `audit` |
+
+## 2. The pattern for every feature
+
+1. **Endpoint module** (`services/endpoints/xApi.js`): thin functions over `api.get/post/patch/del`. Run results through `normalizeEntity` / `normalizeList` so every entity has a string `id` (the backend sends `user_id`, `game_id`, ... and the alias is kept too).
+2. **Slice** (`features/x/xSlice.js`): one `createAsyncThunk` per operation, `rejectWithValue(extractErrorMessage(err, 'fallback'))`, and an `createEntityAdapter({ selectId: (e) => String(e.id) })` for collections.
+3. **Status/error shape:** every slice has `{ status: 'idle' | 'loading' | 'succeeded' | 'failed', error: string | null }`. Use the helpers from `app/asyncUtils.js` in the reducers.
+4. **Selectors** (`features/x/selectors.js`): export `selectAllX`, `selectXById(state, id)` (stringifies the id), `selectXStatus`, `selectXError`, plus any derived reads.
+5. **Component:**
+
+   ```jsx
+   const dispatch = useAppDispatch();
+   const items = useAppSelector(selectAllItems);
+   const status = useAppSelector(selectItemsStatus);
+   useEffect(() => { dispatch(fetchItems()); }, [dispatch]);
+   ```
+
+   Reference implementation: `pages/player/Games.jsx` (games) and `context/AuthContext.jsx` (auth).
+
+## 3. Rules
+
+- **Confirm backend support first.** Use the existing controllers (`back-end/src/*/*.controller.ts`, Swagger at `/api/docs`). Do not invent endpoints and do not treat a local-cache mutation as a successful server operation. If an endpoint is missing, record it in the "API gaps" list below.
+- **IDs are strings in Redux.** Never compare `user.id === otherId` without `String(...)`. `normalizeEntity` produces `id`; legacy fields (`user_id`, `userId`) stay on the object.
+- **Transient UI state stays local:** search text, filters, modal visibility, route-selected ids, form drafts.
+- **Migrate incrementally.** Replace a page's cache reads only once its slice and API flow work. Remove a legacy helper only when no consumer is left (`grep` for it first).
+- **Never store tokens or passwords in Redux.** The session token lives in `authService` (sessionStorage / localStorage); Redux holds only the session's user fields.
+- **No duplicate sources of truth.** If a page reads a slice, it must not also read `DB` for the same data.
+
+## 4. Ownership
+
+| Member | Owns |
+|---|---|
+| 1. Foundation, auth, users | `app/*`, `main.jsx`, `services/api.js`, `services/endpoints/normalize.js`, `AuthContext`, `auth`, `users`, admin/superuser user-management pages |
+| 2. Games and profiles | `games`, `gameReview`, `gameSaves`, `achievements`, `playerProfile`, `publisherProfile`, `linkedAccounts` |
+| 3. Communities and notifications | `teams`, `groups`, `social`, `notifications`, staff Inbox |
+| 4. Tournaments and results | `tournaments`, `registrations`, `tournamentPlay`, `gameSessions`, `matchResults` |
+| 5. Moderation, economy, platform | `reports`, `moderation`, `wallet`, `catalogue`, `payouts`, `platform`, `analytics`, `audit` |
+
+Edit only your own feature folders and the pages you migrate. Changes to `app/store.js`, `services/api.js`, `normalize.js` or `AuthContext` go through Member 1.
+
+## 5. Auth
+
+- `features/auth/authSlice.js` owns session state: `initSession`, `loginUser`, `logoutUser`, `setUser`.
+- `authService` stays the storage layer (session, API token, dev identity). The slice calls it; components do not write the session directly.
+- `AuthContext` is kept as a **compatibility layer**: it exposes `{ user, loading, login, logout, refreshIdentity }` backed by the slice, so the many existing consumers keep working. Move consumers to `useAppSelector(selectAuthUser)` over time; delete the context only when none are left.
+- One signed-in device per account: the server returns 409 when another device holds the account. `landingAuthService` runs the hand-off flow, then signs in again with `force: true`. This must keep working through the slice.
+- **Every portal needs a real sign-in.** The temporary dev identity (`ENABLE_TEMP_DEV_IDENTITY` in `authService`) is off, so `/player`, `/publisher`, `/moderator` and `/superuser` no longer fall back to a demo user. The moderator, publisher and superuser layouts send a visitor without the right role back to `/`.
+- Publisher writes need a signed token and a verified studio: `RolesGuard` refuses a header-only publisher, and refuses games / tournaments / API keys until `kyc_status` is `verified` (financial routes also need the payment review). The seeded demo studios (users 5 and 6) are treated as verified; new studios go through `/publisher/onboarding` and the admin's Publisher Applications review.
+
+## 6. Shared files (locked)
+
+`app/store.js`, `app/hooks.js`, `app/asyncUtils.js`, `services/api.js`, `services/endpoints/normalize.js`, `context/AuthContext.jsx`, `main.jsx`. Ask Member 1 before changing them.
+
+## 7. Legacy data layer still to remove
+
+Files that still read the legacy `DB` / `getDatabase()` (at last count) are listed by:
+
+```bash
+grep -rlE "window\.DB|getDatabase|getDB\(" src
 ```
 
-#### `player` (`src/store/slices/playerSlice.js`)
-```javascript
-{
-  games: [],
-  currentGame: null,
-  tournaments: [],
-  currentTournament: null,
-  leaderboard: [],
-  matchHistory: [],
-  notifications: [],
-  profile: null,
-  status: 'idle',
-  error: null
-}
-```
+When your feature is fully migrated, that list must no longer contain your files.
 
-#### `publisher` (`src/store/slices/publisherSlice.js`)
-```javascript
-{
-  myGames: [],
-  myTournaments: [],
-  earnings: null,
-  stats: null,
-  currentDraft: null,
-  status: 'idle',
-  error: null
-}
-```
+## 8. API gaps (add here, do not simulate)
 
-#### `staff` (`src/store/slices/staffSlice.js`)
-```javascript
-{
-  notifications: [],
-  unreadCount: 0,
-  directory: null,
-  activeThread: null,
-  status: 'idle',
-  error: null
-}
-```
+- Admin user suspend with an expiry: the backend `PATCH /users/:id/status` only sets `status`, so the number of days typed in the admin Users dialog is no longer stored. (Nothing ever read the old `suspendUntil` field, so no behaviour was lost.)
+- User notification on suspend/ban and the audit entry: these still go through the legacy `DB` helpers (`dispatchUserNotification`, `recordAudit`) after the server accepts the change. They move with the notifications and audit features (Members 3 and 5).
+- `GET /users` is staff-only and `GET /users/:id` is staff or the signed-in user's own record. `GET /roles`, `GET /db-export` and `POST /db-import` are still unauthenticated, and `db-export` returns the same user list; the fix is to authenticate `db-export` and move the pages off it.
+- Pages ported from the React-only branch call the backend through `services/*Service.js` / `api.js`, not through slices yet: admin Publisher Applications (`/publisher/applications`), publisher Onboarding, Finance and API keys (`/publisher/onboarding`, `/economy/publishers/:id/finance`, `/publisher/api-keys`), and the support tickets API (`/support/tickets`, no page yet). They are real API calls, so they work; move them into the matching slices (publisher profile: Member 2, economy/payouts and moderation: Member 5) when those features are migrated.
+- `services/superuserService.js` still has the old `fetchUsers` / `createUserRecord` / `updateUserRecord` / `updateUserStatus` / `updateUserRole` / `deleteUserRecord`, used by `superuser/Reports`, `superuser/Settings` and `adminHubService`. Delete them when those three move to the users slice.
 
-#### `admin` (`src/store/slices/adminSlice.js`)
-```javascript
-{
-  stats: null,
-  users: [],
-  pendingApprovals: [],
-  auditLogs: [],
-  settings: {},
-  gameReviewItem: null,
-  status: 'idle',
-  error: null
-}
-```
+## 9. Definition of done
 
-#### `moderator` (`src/store/slices/moderatorSlice.js`)
-```javascript
-{
-  stats: null,
-  reports: [],
-  sessions: [],
-  bans: [],
-  activeReport: null,
-  status: 'idle',
-  error: null
-}
-```
-
-#### `superuser` (`src/store/slices/superuserSlice.js`)
-```javascript
-{
-  platformStats: null,
-  users: [],
-  admins: [],
-  games: [],
-  reports: [],
-  recentActivity: [],
-  systemSettings: {},
-  status: 'idle',
-  error: null
-}
-```
-
----
-
-## 3. Consistent `createAsyncThunk` Conventions
-
-All asynchronous actions across every slice **MUST** follow these standard conventions.
-
-### 1. Naming Standard
-- Format: `<domain>/<actionName>` (camelCase for action name)
-- Examples:
-  - `player/fetchGames`
-  - `publisher/fetchMyGames`
-  - `admin/fetchPendingApprovals`
-  - `moderator/fetchReports`
-  - `superuser/fetchPlatformStats`
-  - `auth/login`
-
-### 2. Implementation Pattern
-Always wrap API calls in a `try...catch` block, call backend endpoints using existing `services/api.js` or service helpers, and return `rejectWithValue(extractErrorMessage(err))` on error.
-
-```javascript
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
-import {
-  AsyncStatus,
-  initialAsyncState,
-  extractErrorMessage,
-  handlePending,
-  handleFulfilled,
-  handleRejected
-} from '../asyncUtils';
-
-export const fetchPlayerGames = createAsyncThunk(
-  'player/fetchGames',
-  async (_, { rejectWithValue }) => {
-    try {
-      const data = await api.get('/games');
-      return Array.isArray(data) ? data : [];
-    } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch player games'));
-    }
-  }
-);
-```
-
-### 3. Extra Reducers Lifecycle Handling
-Use builder callback notation with standardized helper utilities or inline state mutation:
-
-```javascript
-extraReducers: (builder) => {
-  builder
-    .addCase(fetchPlayerGames.pending, (state) => {
-      handlePending(state); // sets state.status = 'loading', state.error = null
-    })
-    .addCase(fetchPlayerGames.fulfilled, (state, action) => {
-      handleFulfilled(state); // sets state.status = 'succeeded', state.error = null
-      state.games = action.payload;
-    })
-    .addCase(fetchPlayerGames.rejected, (state, action) => {
-      handleRejected(state, action); // sets state.status = 'failed', state.error = action.payload
-    });
-}
-```
-
----
-
-## 4. Reading State and Dispatching in Components
-
-Components use the shared hooks from `src/store/hooks.js` (or `src/store`):
-
-```jsx
-import React, { useEffect } from 'react';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-  fetchPlayerGames,
-  selectPlayerGames,
-  selectPlayerStatus,
-  selectPlayerError
-} from '../../store/slices/playerSlice';
-
-export function PlayerGames() {
-  const dispatch = useAppDispatch();
-  const games = useAppSelector(selectPlayerGames);
-  const status = useAppSelector(selectPlayerStatus);
-  const error = useAppSelector(selectPlayerError);
-
-  useEffect(() => {
-    if (status === 'idle') {
-      dispatch(fetchPlayerGames());
-    }
-  }, [dispatch, status]);
-
-  if (status === 'loading') return <div>Loading games...</div>;
-  if (status === 'failed') return <div className="error">{error}</div>;
-
-  return (
-    <div>
-      {games.map(game => (
-        <div key={game.id || game.game_id}>{game.title || game.name}</div>
-      ))}
-    </div>
-  );
-}
-```
-
----
-
-## 5. Non-Interference & Integration Rules
-
-1. **Independent Slices**: Teammates work only in their assigned domain slice file in `src/store/slices/*.js`.
-2. **Never Edit Core Config**: Do **NOT** edit `store.js`, `main.jsx`, `package.json`, routes, or layouts to add or change slice logic.
-3. **Real Backend Integration**:
-   - Never inject mock/fake arrays or silently stub API responses.
-   - Use `services/api.js` or domain service functions.
-4. **Security & Data Hygiene**:
-   - Never store passwords, tokens, API keys, or raw secrets in Redux state or actions.
-   - Session tokens remain managed by `services/authService.js` and HTTP headers in `services/api.js`.
-5. **Preserve Existing UI**:
-   - Do not alter page CSS, DOM layout, or routing parameters while hooking up Redux selectors and dispatches.
-
+- `npm run build` passes.
+- No `DB` / `getDatabase` reads left in the migrated pages.
+- Each page shows loading and error states from the slice status.
+- Login, logout and a role-specific page were exercised in a browser for the affected portals.

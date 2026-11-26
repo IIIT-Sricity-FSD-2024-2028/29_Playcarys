@@ -15,9 +15,10 @@ import {
 import {
   games, player_profiles, team_tournament, teams, users, roles, groups, notifications,
   tournament_matches, tournament_results,
-  DEFAULT_RAKE_PCT, formatPaise, Transaction, TournamentPrizeShare,
+  DEFAULT_RAKE_PCT, formatPaise, Transaction, TournamentPrizeShare, publisher_profiles, fiat_ledger,
 } from '../data/store';
 import { EconomyService } from '../economy/economy.service';
+import { creditCarys } from '../economy/carys.ledger';
 import { GroupsService } from '../groups/groups.service';
 
 // ── Domain Rules ────────────────────────────────────────────
@@ -190,6 +191,29 @@ export class TournamentService {
       }
     }
     const finalPrize = poolPaise > 0 ? formatPaise(poolPaise) : ((dto as any).prize || formatPaise(0));
+
+    // Pre-funding guarantee & escrow reservation (Milestone 7)
+    if (poolPaise > 0 && dto.organizer) {
+      const requiredCarys = Math.round(poolPaise / 10);
+      const organizerProfile = player_profiles.find((p) => p.user_id === dto.organizer);
+      const organizerUser = users.find((u) => u.user_id === dto.organizer);
+      const isSystemAdmin = organizerUser && (organizerUser.role_id === 1 || organizerUser.role_id === 2);
+
+      if (!isSystemAdmin) {
+        const balance = organizerProfile?.carys_points || 0;
+        if (balance < requiredCarys) {
+          throw new BadRequestException(
+            `Insufficient funds to guarantee tournament prize pool. Required: ${requiredCarys} Carys, available: ${balance} Carys.`,
+          );
+        }
+        creditCarys(
+          dto.organizer,
+          -requiredCarys,
+          `Escrow reservation for tournament: "${dto.tournament_name}"`,
+          { type: 'tournament', id: newId },
+        );
+      }
+    }
 
     const tournament = this.repo.create({
       tournament_id: newId,

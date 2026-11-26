@@ -4,14 +4,13 @@ import { useAppDispatch, useAppSelector } from '../app/hooks';
 import {
   initSession,
   logoutUser,
-  setUser
+  establishSession
 } from '../features/auth/authSlice';
 import {
   selectAuthUser,
   selectAuthStatus,
   selectDevIdentityError
 } from '../features/auth/selectors';
-import authService from '../services/authService';
 
 export const AuthContext = createContext({
   user: null,
@@ -35,9 +34,10 @@ export function AuthProvider(props) {
     dispatch(initSession());
   }, [dispatch, location?.pathname]);
 
+  // Sync-looking for callers (LoginPanel / Landing don't await it): the session is
+  // written to storage by the slice, and Redux is updated in the same step.
   function handleLogin(sessionData, token) {
-    authService.setSession(sessionData, token);
-    dispatch(setUser(sessionData));
+    return dispatch(establishSession({ session: sessionData, token }));
   }
 
   async function handleLogout() {
