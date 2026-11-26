@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '../../app/hooks';
+import { recordGameView } from '../../features/games/gameSlice';
 import AuthContext from '../../context/AuthContext';
 import playerService, { sameId, hydrateFromServer, getDatabase } from '../../services/playerService';
 import FeaturedGame from '../../components/player/dashboard/FeaturedGame';
@@ -14,6 +16,7 @@ import GameDetailsModal from '../../components/player/dashboard/GameDetailsModal
 import '../../styles/player/dashboard.css';
 
 export function Dashboard() {
+  const dispatch = useAppDispatch();
   const { user, loading: authLoading } = useContext(AuthContext);
 
   const [loading, setLoading] = useState(true);
@@ -132,6 +135,7 @@ export function Dashboard() {
       return;
     }
 
+    dispatch(recordGameView(gameId));
     const currentUserId = user?.userId ?? user?.id ?? 7;
     const result = playerService.playFast(gameId, currentUserId);
     if (result && result.success === false) {

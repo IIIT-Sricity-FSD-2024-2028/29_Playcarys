@@ -10,6 +10,7 @@ export const selectGamesTotal = gamesSelectors.selectTotal;
 export const selectGamesStatus = (state) => state.games?.status;
 export const selectGamesError = (state) => state.games?.error;
 export const selectSelectedGameId = (state) => state.games?.selectedGameId;
+export const selectFavoriteGameIds = (state) => state.games?.favoriteGameIds || [];
 
 export const selectApprovedGames = (state) => {
   const all = gamesSelectors.selectAll(state);
