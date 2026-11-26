@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { submitGameReview } from '../../../features/games/gameSlice';
 import playerService, { getDatabase, formatDate, sameId } from '../../../services/playerService';
 
 export function GameReviews({ game, userId, onReviewSubmitted, onShowToast }) {
+  const dispatch = useDispatch();
   const [selectedRating, setSelectedRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -20,7 +23,7 @@ export function GameReviews({ game, userId, onReviewSubmitted, onShowToast }) {
     ? (reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length).toFixed(1)
     : null;
 
-  function handleSubmitReview(e) {
+  async function handleSubmitReview(e) {
     e.preventDefault();
     if (selectedRating === 0) {
       if (onShowToast) onShowToast('Please select a star rating.', 'error');
@@ -33,14 +36,16 @@ export function GameReviews({ game, userId, onReviewSubmitted, onShowToast }) {
     }
 
     setSubmitting(true);
-    const result = playerService.submitReview(gameId, userId, selectedRating, trimmed);
-    setSubmitting(false);
-
-    if (result.success) {
+    try {
+      await dispatch(submitGameReview({ gameId, userId, rating: selectedRating, comment: trimmed })).unwrap();
       setSelectedRating(0);
       setComment('');
       if (onShowToast) onShowToast('Review submitted successfully!', 'success');
       if (onReviewSubmitted) onReviewSubmitted();
+    } catch (err) {
+      if (onShowToast) onShowToast(typeof err === 'string' ? err : 'Failed to submit review', 'error');
+    } finally {
+      setSubmitting(false);
     }
   }
 

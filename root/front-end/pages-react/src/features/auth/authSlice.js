@@ -128,6 +128,18 @@ export const logoutUser = createAsyncThunk(
   }
 );
 
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async ({ user_id, current_password, new_password }, { rejectWithValue }) => {
+    try {
+      const res = await authApi.changePassword({ user_id, current_password, new_password });
+      return res;
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to change password'));
+    }
+  }
+);
+
 const initialState = {
   user: null,
   isAuthenticated: false,

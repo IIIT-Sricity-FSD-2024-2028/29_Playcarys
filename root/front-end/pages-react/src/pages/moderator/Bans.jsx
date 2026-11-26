@@ -16,7 +16,8 @@ import {
 } from '../../features/moderation/selectors';
 import { fetchUsers } from '../../features/users/userSlice';
 import { selectAllUsers, selectUsersStatus } from '../../features/users/selectors';
-import profilesApi from '../../services/endpoints/profilesApi';
+import { fetchPlayerProfiles } from '../../features/profiles/playerProfileSlice';
+import { selectAllPlayerProfiles } from '../../features/profiles/selectors';
 import BanKpiCards from '../../components/moderator/bans/BanKpiCards';
 import BannedPlayerItem from '../../components/moderator/bans/BannedPlayerItem';
 import ActivePlayerItem from '../../components/moderator/bans/ActivePlayerItem';
@@ -42,8 +43,8 @@ export function Bans() {
   const moderationError = useSelector(selectModerationError);
   const usersStatus = useSelector(selectUsersStatus);
 
-  // Player profiles for display (level, carys points)
-  const [profiles, setProfiles] = useState([]);
+  // Player profiles from Redux store for display (level, carys points)
+  const profiles = useSelector(selectAllPlayerProfiles);
 
   // Search filter (kept local)
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
@@ -79,7 +80,7 @@ export function Bans() {
       await Promise.all([
         dispatch(fetchBans()).unwrap(),
         dispatch(fetchUsers()).unwrap(),
-        profilesApi.getPlayerProfiles().then((res) => setProfiles(res || [])).catch(() => [])
+        dispatch(fetchPlayerProfiles()).unwrap()
       ]);
     } catch (err) {
       console.error('Failed to load ban management data:', err);

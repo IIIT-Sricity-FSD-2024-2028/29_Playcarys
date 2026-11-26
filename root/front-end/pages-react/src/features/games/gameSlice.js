@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, createEntityAdapter } from '@reduxjs/toolkit';
 import gamesApi from '../../services/endpoints/gamesApi';
+import playerService from '../../services/playerService';
 import publisherService from '../../services/publisherService';
 import {
   AsyncStatus,
@@ -106,6 +107,21 @@ export const recordGameView = createAsyncThunk(
   }
 );
 
+export const submitGameReview = createAsyncThunk(
+  'games/submitGameReview',
+  async ({ gameId, userId, rating, comment }, { rejectWithValue }) => {
+    try {
+      const res = playerService.submitReview(gameId, userId, rating, comment);
+      if (!res.success) {
+        return rejectWithValue(res.reason || 'Failed to submit review');
+      }
+      return { gameId: String(gameId), userId, rating, comment, result: res };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to submit review'));
+    }
+  }
+);
+
 // Publisher workflows retain their compatibility/cache behavior in
 // publisherService, but components must enter them through Redux.
 export const fetchPublisherGameWorkspace = createAsyncThunk(
@@ -178,6 +194,7 @@ export const publishPublisherGame = createAsyncThunk(
 
 const initialState = gamesAdapter.getInitialState({
   selectedGameId: null,
+  favoriteGameIds: [],
   publisherGameIdsByPublisherId: {},
   publisherGenres: [],
   publisherWorkspaceStatus: AsyncStatus.IDLE,
@@ -197,6 +214,17 @@ export const gameSlice = createSlice({
   reducers: {
     setSelectedGameId(state, action) {
       state.selectedGameId = action.payload ? String(action.payload) : null;
+    },
+    toggleFavoriteGame(state, action) {
+      const gid = String(action.payload);
+      if (state.favoriteGameIds.includes(gid)) {
+        state.favoriteGameIds = state.favoriteGameIds.filter((x) => x !== gid);
+      } else {
+        state.favoriteGameIds.push(gid);
+      }
+    },
+    setFavoriteGames(state, action) {
+      state.favoriteGameIds = Array.isArray(action.payload) ? action.payload.map(String) : [];
     },
     clearGamesError(state) {
       state.error = null;
@@ -305,6 +333,12 @@ export const gameSlice = createSlice({
   }
 });
 
-export const { setSelectedGameId, clearGamesError, resetGamesStatus } = gameSlice.actions;
+export const {
+  setSelectedGameId,
+  toggleFavoriteGame,
+  setFavoriteGames,
+  clearGamesError,
+  resetGamesStatus
+} = gameSlice.actions;
 
 export default gameSlice.reducer;

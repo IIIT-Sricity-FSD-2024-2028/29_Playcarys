@@ -777,9 +777,6 @@ export const playerService = {
       ? db.startMatch(gid, { created_by: uid })
       : 'M' + Date.now() + Math.floor(Math.random() * 1000);
 
-    // Track view count
-    api.post(`/games/${gid.replace(/^g/, '')}/view`, {}).catch(() => {});
-
     // Try global GameLaunch if present
     if (typeof window !== 'undefined' && window.GameLaunch && typeof window.GameLaunch.launch === 'function') {
       try {

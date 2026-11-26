@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import api from '../../../services/api';
+import { useDispatch } from 'react-redux';
+import { fetchCatalogue } from '../../../features/economy/catalogueSlice';
 
 /**
  * Ensures the legacy avatar-3d.js script is loaded into the browser environment.
@@ -47,6 +48,7 @@ export function Avatar3DViewer({
   autoRotate = true,
   onStateChange
 }) {
+  const dispatch = useDispatch();
   const containerRef = useRef(null);
   const [renderMode, setRenderMode] = useState('loading'); // 'loading' | '3d' | 'fallback'
   const [statusMessage, setStatusMessage] = useState('Loading avatar…');
@@ -69,8 +71,9 @@ export function Avatar3DViewer({
       // Fetch cosmetics for current user from backend
       let equipped = [];
       try {
-        const cat = await api.get(`/economy/catalogue?viewerId=${encodeURIComponent(uid)}`);
-        equipped = (cat.items || []).filter((i) => i.is_equipped || i.equipped);
+        const cat = await dispatch(fetchCatalogue({ viewerId: uid })).unwrap();
+        const items = Array.isArray(cat) ? cat : (cat?.items || []);
+        equipped = items.filter((i) => i.is_equipped || i.equipped);
       } catch (err) {
         console.info('[Avatar3DViewer] cosmetics unavailable, falling back:', err);
         if (!isCancelled) {

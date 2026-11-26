@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
-import api from '../../services/api';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { changePassword } from '../../features/auth/authSlice';
+import { createReport } from '../../features/moderation/reportSlice';
 import { fetchPlayerProfile, updatePlayerProfile } from '../../features/profiles/playerProfileSlice';
 import { selectPlayerProfile } from '../../features/profiles/selectors';
 import { fetchPlayerAchievements, fetchPlayerTitles, setPlayerTitle } from '../../features/games/achievementSlice';
@@ -396,11 +397,11 @@ export function Profile() {
       // Verify and change password on backend FIRST if provided
       if (editNewPassword) {
         try {
-          await api.post('/auth/change-password', {
+          await dispatch(changePassword({
             user_id: uid,
             current_password: editCurrentPassword,
             new_password: editNewPassword,
-          });
+          })).unwrap();
         } catch (pwErr) {
           setEditErrors({
             currentPassword: pwErr.message || 'Current password is incorrect',
@@ -496,7 +497,7 @@ export function Profile() {
     };
 
     try {
-      await api.post('/reports', reportPayload);
+      await dispatch(createReport(reportPayload)).unwrap();
     } catch (reportErr) {
       console.warn('Backend report submission failed, falling back to local:', reportErr);
       // Fallback: persist to local DB so the moderator console can still read it
@@ -549,7 +550,7 @@ export function Profile() {
     };
 
     try {
-      await api.post('/reports', contactPayload);
+      await dispatch(createReport(contactPayload)).unwrap();
     } catch (contactErr) {
       console.warn('Backend contact submission failed, falling back to local:', contactErr);
       const db2 = getDatabase();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchGames, recordGameView } from '../../features/games/gameSlice';
+import { fetchGames, recordGameView, toggleFavoriteGame } from '../../features/games/gameSlice';
 import {
   selectAllGames,
   selectGamesStatus,
@@ -94,6 +94,7 @@ export function Games() {
   function handleToggleFav(gameId, e) {
     if (e && e.stopPropagation) e.stopPropagation();
     playerService.toggleFavorite(gameId, userId);
+    dispatch(toggleFavoriteGame(gameId));
     setLocalUpdateTick((v) => v + 1);
   }
 
