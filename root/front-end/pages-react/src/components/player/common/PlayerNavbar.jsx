@@ -90,7 +90,10 @@ export function PlayerNavbar(props) {
   // most recent conversation, then A–Z.
   const shownFriends = useMemo(() => {
     const term = filter.trim().toLowerCase();
-    const rows = term ? friends.filter((f) => f.name.toLowerCase().includes(term)) : friends;
+    const friendName = (friend) => String(
+      friend?.name || friend?.username || friend?.user_name || 'Unknown player'
+    );
+    const rows = term ? friends.filter((f) => friendName(f).toLowerCase().includes(term)) : friends;
     return rows.slice().sort((a, b) => {
       if ((b.unread || 0) !== (a.unread || 0)) return (b.unread || 0) - (a.unread || 0);
       const pa = a.presence?.state === 'playing' ? 1 : 0;
@@ -99,7 +102,9 @@ export function PlayerNavbar(props) {
       const ta = a.lastMessage ? Date.parse(a.lastMessage.sent_at) : 0;
       const tb = b.lastMessage ? Date.parse(b.lastMessage.sent_at) : 0;
       if (tb !== ta) return tb - ta;
-      return a.name.localeCompare(b.name);
+      // Legacy friendship rows can refer to a deleted/imported user and have
+      // no resolved display name. They must not crash the entire player shell.
+      return friendName(a).localeCompare(friendName(b));
     });
   }, [friends, filter]);
 
