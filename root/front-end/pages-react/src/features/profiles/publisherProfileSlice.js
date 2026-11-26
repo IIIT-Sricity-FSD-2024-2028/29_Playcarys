@@ -21,8 +21,23 @@ export const fetchPublisherProfile = createAsyncThunk(
   }
 );
 
+export const fetchPublisherProfiles = createAsyncThunk(
+  'publisherProfile/fetchProfiles',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await profilesApi.getPublisherProfiles();
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher profiles'));
+    }
+  }
+);
+
 const initialState = {
   profilesByUserId: {},
+  listStatus: AsyncStatus.IDLE,
+  listError: null,
+  detailStatus: AsyncStatus.IDLE,
+  detailError: null,
   ...initialAsyncState
 };
 
@@ -38,13 +53,33 @@ export const publisherProfileSlice = createSlice({
     builder
       .addCase(fetchPublisherProfile.pending, (state) => {
         handlePending(state);
+        state.detailStatus = AsyncStatus.LOADING;
+        state.detailError = null;
       })
       .addCase(fetchPublisherProfile.fulfilled, (state, action) => {
         handleFulfilled(state);
         state.profilesByUserId[action.payload.userId] = action.payload.profile;
+        state.detailStatus = AsyncStatus.SUCCEEDED;
       })
       .addCase(fetchPublisherProfile.rejected, (state, action) => {
         handleRejected(state, action);
+        state.detailStatus = AsyncStatus.FAILED;
+        state.detailError = state.error;
+      })
+      .addCase(fetchPublisherProfiles.pending, (state) => {
+        state.listStatus = AsyncStatus.LOADING;
+        state.listError = null;
+      })
+      .addCase(fetchPublisherProfiles.fulfilled, (state, action) => {
+        state.listStatus = AsyncStatus.SUCCEEDED;
+        action.payload.forEach((profile) => {
+          const id = profile.userId ?? profile.user_id ?? profile.id;
+          if (id != null) state.profilesByUserId[String(id)] = profile;
+        });
+      })
+      .addCase(fetchPublisherProfiles.rejected, (state, action) => {
+        state.listStatus = AsyncStatus.FAILED;
+        state.listError = action.payload || action.error?.message;
       });
   }
 });

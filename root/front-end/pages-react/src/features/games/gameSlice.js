@@ -37,6 +37,18 @@ export const fetchGameById = createAsyncThunk(
   }
 );
 
+export const fetchPublisherGames = createAsyncThunk(
+  'games/fetchPublisherGames',
+  async (publisherId, { rejectWithValue }) => {
+    try {
+      const games = await gamesApi.getGames({ publisherId });
+      return { publisherId: String(publisherId), games };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher games'));
+    }
+  }
+);
+
 export const createGame = createAsyncThunk(
   'games/createGame',
   async (dto, { rejectWithValue }) => {
@@ -95,6 +107,13 @@ export const recordGameView = createAsyncThunk(
 
 const initialState = gamesAdapter.getInitialState({
   selectedGameId: null,
+  publisherGameIdsByPublisherId: {},
+  listStatus: AsyncStatus.IDLE,
+  detailStatus: AsyncStatus.IDLE,
+  mutationStatus: AsyncStatus.IDLE,
+  listError: null,
+  detailError: null,
+  mutationError: null,
   ...initialAsyncState
 });
 
@@ -118,42 +137,66 @@ export const gameSlice = createSlice({
       // fetchGames
       .addCase(fetchGames.pending, (state) => {
         handlePending(state);
+        state.listStatus = AsyncStatus.LOADING;
+        state.listError = null;
       })
       .addCase(fetchGames.fulfilled, (state, action) => {
         handleFulfilled(state);
         gamesAdapter.setAll(state, action.payload);
+        state.listStatus = AsyncStatus.SUCCEEDED;
       })
       .addCase(fetchGames.rejected, (state, action) => {
         handleRejected(state, action);
+        state.listStatus = AsyncStatus.FAILED;
+        state.listError = state.error;
       })
       // fetchGameById
+      .addCase(fetchGameById.pending, (state) => { state.detailStatus = AsyncStatus.LOADING; state.detailError = null; })
       .addCase(fetchGameById.fulfilled, (state, action) => {
+        state.detailStatus = AsyncStatus.SUCCEEDED;
         if (action.payload) {
           gamesAdapter.upsertOne(state, action.payload);
         }
       })
+      .addCase(fetchGameById.rejected, (state, action) => { state.detailStatus = AsyncStatus.FAILED; state.detailError = action.payload || action.error?.message; })
+      .addCase(fetchPublisherGames.fulfilled, (state, action) => {
+        gamesAdapter.upsertMany(state, action.payload.games);
+        state.publisherGameIdsByPublisherId[action.payload.publisherId] = action.payload.games.map((game) => String(game.id));
+      })
       // createGame
+      .addCase(createGame.pending, (state) => { state.mutationStatus = AsyncStatus.LOADING; state.mutationError = null; })
       .addCase(createGame.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
         if (action.payload) {
           gamesAdapter.addOne(state, action.payload);
         }
       })
+      .addCase(createGame.rejected, (state, action) => { state.mutationStatus = AsyncStatus.FAILED; state.mutationError = action.payload || action.error?.message; })
       // updateGame
+      .addCase(updateGame.pending, (state) => { state.mutationStatus = AsyncStatus.LOADING; state.mutationError = null; })
       .addCase(updateGame.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
         if (action.payload) {
           gamesAdapter.upsertOne(state, action.payload);
         }
       })
+      .addCase(updateGame.rejected, (state, action) => { state.mutationStatus = AsyncStatus.FAILED; state.mutationError = action.payload || action.error?.message; })
       // setGameState
+      .addCase(setGameState.pending, (state) => { state.mutationStatus = AsyncStatus.LOADING; state.mutationError = null; })
       .addCase(setGameState.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
         if (action.payload) {
           gamesAdapter.upsertOne(state, action.payload);
         }
       })
+      .addCase(setGameState.rejected, (state, action) => { state.mutationStatus = AsyncStatus.FAILED; state.mutationError = action.payload || action.error?.message; })
       // deleteGame
+      .addCase(deleteGame.pending, (state) => { state.mutationStatus = AsyncStatus.LOADING; state.mutationError = null; })
       .addCase(deleteGame.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
         gamesAdapter.removeOne(state, action.payload);
       })
+      .addCase(deleteGame.rejected, (state, action) => { state.mutationStatus = AsyncStatus.FAILED; state.mutationError = action.payload || action.error?.message; })
       // recordGameView
       .addCase(recordGameView.fulfilled, (state, action) => {
         const game = state.entities[action.payload];
