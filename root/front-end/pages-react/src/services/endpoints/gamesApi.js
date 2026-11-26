@@ -58,8 +58,9 @@ export const gamesApi = {
     return normalizeEntity(res);
   },
 
-  async getGameSave(id) {
-    return api.get(`/games/${id}/save`);
+  async getGameSave(id, userId) {
+    const query = userId != null ? `?userId=${encodeURIComponent(userId)}` : '';
+    return api.get(`/games/${id}/save${query}`);
   },
 
   async putGameSave(id, saveData) {
