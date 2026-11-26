@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
@@ -24,6 +24,8 @@ import {
 import { GAME_ASSETS } from '../../services/playerService';
 import { fetchGames } from '../../features/games/gameSlice';
 import { selectApprovedGames, selectGamesStatus } from '../../features/games/selectors';
+import { fetchGroups } from '../../features/communities/groupSlice';
+import { selectAllGroups, selectGroupsStatus } from '../../features/communities/selectors';
 import AuthContext from '../../context/AuthContext';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/create-tournament.css';
@@ -43,8 +45,6 @@ const CreateTournament = () => {
   // Step 1: Type, Visibility, Team Mode
   const [kind, setKind] = useState('casual'); // 'casual' | 'community'
   const [groupId, setGroupId] = useState('');
-  const [groups, setGroups] = useState([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
   const [visibility, setVisibility] = useState('public'); // 'public' | 'private'
   const [teamMode, setTeamMode] = useState(false); // false = solo, true = team
   const [teamSize, setTeamSize] = useState(2);
@@ -53,6 +53,9 @@ const CreateTournament = () => {
   const games = useAppSelector(selectApprovedGames);
   const gamesStatus = useAppSelector(selectGamesStatus);
   const loadingGames = gamesStatus === 'loading' || gamesStatus === 'idle';
+  const allGroups = useAppSelector(selectAllGroups);
+  const groupsStatus = useAppSelector(selectGroupsStatus);
+  const loadingGroups = groupsStatus === 'loading' || groupsStatus === 'idle';
   const [isMulti, setIsMulti] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState('score');
@@ -73,7 +76,12 @@ const CreateTournament = () => {
   const [submitting, setSubmitting] = useState(false);
   const [createdInviteCode, setCreatedInviteCode] = useState(null);
 
-  const uid = user?.id || user?.user_id;
+  const uid = user?.userId ?? user?.id ?? user?.user_id;
+  const groups = useMemo(() => allGroups.filter((group) => {
+    const isOwner = Number(group.owner_id || group.ownerId) === Number(uid);
+    const isOfficer = Array.isArray(group.officer_ids) && group.officer_ids.map(Number).includes(Number(uid));
+    return isOwner || isOfficer;
+  }), [allGroups, uid]);
 
   // Helper to determine default format for a game
   const defaultFormatFor = (gId) => {
@@ -108,46 +116,28 @@ const CreateTournament = () => {
     }
   }, []);
 
-  // When kind changes to community, load user's groups
+  // The community selector reads the groups slice; the request itself belongs to its thunk.
   useEffect(() => {
     if (kind !== 'community') return;
-    let isMounted = true;
-    const fetchGroups = async () => {
-      try {
-        setLoadingGroups(true);
-        const res = await API.get('/groups?playerId=' + (uid || ''));
-        const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-        const filtered = list.filter((g) => {
-          const isOwner = Number(g.owner_id || g.ownerId) === Number(uid);
-          const isOfficer = Array.isArray(g.officer_ids) && g.officer_ids.map(Number).includes(Number(uid));
-          return isOwner || isOfficer;
-        });
-        if (isMounted) {
-          setGroups(filtered);
-          if (filtered.length > 0) {
-            const params = new URLSearchParams(window.location.search);
-            const gId = params.get('groupId') || params.get('group');
-            if (gId && filtered.some((g) => Number(g.id || g.group_id) === Number(gId))) {
-              setGroupId(Number(gId));
-            } else {
-              setGroupId(filtered[0].id || filtered[0].group_id);
-            }
-          } else {
-            setGroupId('');
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load groups:', err);
-        addToast('error', 'Failed to load your groups');
-      } finally {
-        if (isMounted) setLoadingGroups(false);
-      }
-    };
-    fetchGroups();
-    return () => {
-      isMounted = false;
-    };
-  }, [kind, uid]);
+    dispatch(fetchGroups({ playerId: uid }));
+  }, [dispatch, kind, uid]);
+
+  useEffect(() => {
+    if (kind !== 'community') return;
+    if (groups.length === 0) {
+      setGroupId('');
+      dispatch(setCreateTournamentGroup(''));
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const requestedGroupId = params.get('groupId') || params.get('group');
+    const selectedGroup = requestedGroupId && groups.find((group) =>
+      Number(group.id || group.group_id) === Number(requestedGroupId)
+    );
+    const nextGroupId = selectedGroup?.id || selectedGroup?.group_id || groups[0].id || groups[0].group_id;
+    setGroupId(nextGroupId);
+    dispatch(setCreateTournamentGroup(nextGroupId));
+  }, [dispatch, groups, kind]);
 
   // Adjust format when teamMode changes
   useEffect(() => {
