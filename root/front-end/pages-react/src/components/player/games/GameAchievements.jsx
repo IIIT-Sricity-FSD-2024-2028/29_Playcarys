@@ -1,40 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import playerService from '../../../services/playerService';
+import React, { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { fetchGameAchievements } from '../../../features/games/achievementSlice';
+import { selectGameAchievements } from '../../../features/games/selectors';
 
 export function GameAchievements({ gameId, userId }) {
-  const [achievements, setAchievements] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const achievements = useAppSelector((state) => selectGameAchievements(state, gameId));
+  const loading = useAppSelector((state) => state.achievements?.status === 'loading');
 
   useEffect(() => {
     if (!gameId || gameId === 'undefined') {
-      setAchievements([]);
-      setLoading(false);
       return;
     }
-    let isCurrent = true;
-    setLoading(true);
-
-    playerService
-      .fetchAchievements(gameId, userId)
-      .then((data) => {
-        if (!isCurrent) return;
-        if (Array.isArray(data) && data.length > 0) {
-          setAchievements(data);
-        } else {
-          setAchievements([]);
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!isCurrent) return;
-        setAchievements([]);
-        setLoading(false);
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [gameId, userId]);
+    dispatch(fetchGameAchievements(gameId));
+  }, [dispatch, gameId]);
 
   if (loading || !achievements.length) {
     return null;
