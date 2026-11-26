@@ -20,7 +20,7 @@ export function Admins() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const { users, load, create, setRole, setStatus } = useUsers();
+  const { users, status: usersStatus, error: usersError, load, create, setRole, setStatus } = useUsers();
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -44,7 +44,7 @@ export function Admins() {
     }, 4000);
   }
 
-  // Load all users from backend / local DB
+  // Load all users from the shared users slice
   async function loadData() {
     try {
       await load();
@@ -91,7 +91,7 @@ export function Admins() {
       showToast(`${capitalize(role)} account "${created.username || username}" created`, 'success');
       await loadData();
     } catch (err) {
-      showToast(err.message || 'Failed to create staff account', 'error');
+      showToast(String(err?.message || err || 'Failed to create staff account'), 'error');
       throw err;
     }
   }
@@ -115,7 +115,7 @@ export function Admins() {
             await loadData();
           } catch (err) {
             console.error('Demotion failed:', err);
-            showToast(err.message || 'Failed to demote user', 'error');
+            showToast(String(err?.message || err || 'Failed to demote user'), 'error');
           }
         }
       });
@@ -141,7 +141,7 @@ export function Admins() {
             await loadData();
           } catch (err) {
             console.error('Promotion failed:', err);
-            showToast(err.message || 'Failed to promote user', 'error');
+            showToast(String(err?.message || err || 'Failed to promote user'), 'error');
           }
         }
       });
@@ -173,7 +173,7 @@ export function Admins() {
             await loadData();
           } catch (err) {
             console.error('Suspension failed:', err);
-            showToast(err.message || 'Failed to suspend staff member', 'error');
+            showToast(String(err?.message || err || 'Failed to suspend staff member'), 'error');
           }
         }
       });
@@ -196,7 +196,7 @@ export function Admins() {
       await loadData();
     } catch (err) {
       console.error('Reinstatement failed:', err);
-      showToast(err.message || 'Failed to revoke suspension', 'error');
+      showToast(String(err?.message || err || 'Failed to revoke suspension'), 'error');
     }
   }
 
@@ -246,6 +246,8 @@ export function Admins() {
         </button>
       </div>
 
+      {usersStatus === 'loading' && <p className="text-muted">Loading users…</p>}
+      {usersError && <p role="alert">{usersError}</p>}
       {/* KPI Cards */}
       <AdminKPIs stats={stats} />
 

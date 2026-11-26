@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import api from '../../services/api';
+import { useAppDispatch } from '../../app/hooks';
+import { establishSession } from '../../features/auth/authSlice';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, hydrateFromServer } from '../../services/playerService';
 import authService from '../../services/authService';
@@ -8,7 +10,8 @@ import Avatar3DViewer from '../../components/player/profile/Avatar3DViewer';
 import '../../styles/player/profile.css';
 
 export function Profile() {
-  const { user, setUser } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
 
   const [dbVersion, setDbVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -445,8 +448,7 @@ export function Profile() {
       const session = authService.getSession() || {};
       session.username = uName;
       session.avatar = uName.slice(0, 2).toUpperCase();
-      authService.setSession(session);
-      if (setUser) setUser(session);
+      await dispatch(establishSession({ session, token: authService.getApiToken() })).unwrap();
 
       setShowEditModal(false);
       showToast('Profile updated successfully!', 'success');

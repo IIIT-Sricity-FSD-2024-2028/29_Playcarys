@@ -139,4 +139,9 @@ export class RegisterDto {
   @IsInt()
   @IsIn([4, 5])
   role_id?: number;
+
+  @ApiProperty({ description: 'Publisher contact phone', required: false })
+  @IsOptional()
+  @IsString()
+  phone_number?: string;
 }

@@ -19,7 +19,13 @@ export class AuthRepository {
   }
 
   findByUsername(username: string): User | undefined {
-    return users.find((u) => u.user_name === username);
+    const target = username.trim().toLowerCase();
+    return users.find((u) => u.user_name.toLowerCase() === target);
+  }
+
+  findPublisherByPhone(phone: string): User | undefined {
+    const clean = phone.replace(/[\s-]/g, '');
+    return users.find((u) => u.role_id === 5 && u.phone_number?.replace(/[\s-]/g, '') === clean);
   }
 
   findById(user_id: number): User | undefined {

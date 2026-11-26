@@ -8,6 +8,7 @@ function getApiBase() {
 // and from `Auth` in js/utils.js. Nothing here touches the page: the components call these
 // functions and show the answers.
 import { validateField } from './adminValidation';
+import authApi from './endpoints/authApi';
 
 // ── Demo account passwords ──────────────────────────────────────────
 // Only pre-fills the form (the "Use →" chips). The server still checks the password.
@@ -118,53 +119,12 @@ function newToken(prefix) {
 }
 
 // ── Demo chips ──────────────────────────────────────────────────────
-// The live row wins when it still carries a password (offline / not yet synced); after the
-// first sync the server strips passwords, so fall back to the DEMO_ACCOUNTS list.
+// Only the known demo credentials prefill the form; the server verifies them.
 export function demoPassword(username) {
-  const wanted = String(username).toLowerCase();
-  const row = (typeof DB !== 'undefined' && Array.isArray(DB.users))
-    ? DB.users.find((u) => String(u.user_name || u.username || '').toLowerCase() === wanted)
-    : null;
-  return (row && row.password) || DEMO_ACCOUNTS[username] || '';
+  return DEMO_ACCOUNTS[username] || '';
 }
 
 // ── Sign in ─────────────────────────────────────────────────────────
-// Looks the typed name (or, for publishers, phone number) up in the local copy of the users
-// and runs the checks that need no password. Returns { user, role, username } or { error }.
-export function findLoginUser(inputVal, expectedRole) {
-  const cleanInput = inputVal.replace(/[\s-]/g, '').toLowerCase();
-
-  const user = DB.users.find((u) => {
-    const name = u.username || u.user_name;
-    const nameMatch = name && name.toLowerCase() === inputVal.toLowerCase();
-    const dbPhone = u.phone || u.phone_number;
-    const phoneMatch = dbPhone && dbPhone.replace(/[\s-]/g, '').toLowerCase() === cleanInput;
-    return nameMatch || (expectedRole === 'publisher' && phoneMatch);
-  });
-
-  if (!user) {
-    return { error: 'Account not found.', badUsername: true };
-  }
-  if (user.status === 'banned') {
-    return { error: 'Your account has been banned. You cannot login.' };
-  }
-  if (user.status === 'suspended' && user.role !== 'player') {
-    return { error: 'Your staff account has been suspended. Contact a superuser.' };
-  }
-
-  const roleObj = DB.roles.find((r) => r.role_id === user.role_id);
-  const role = user.role || (roleObj ? roleObj.role_name : null);
-
-  // Each panel only accepts its own kind of account.
-  if (role !== expectedRole) {
-    const labels = { player: 'Player', publisher: 'Publisher', moderator: 'Moderator', admin: 'Admin', superuser: 'Superuser' };
-    return { error: `This login is for ${labels[expectedRole] || expectedRole} accounts only.` };
-  }
-
-  // (The user rows have a read-only `role`, so the answers are returned, not written back.)
-  return { user, role, username: user.username || user.user_name };
-}
-
 // The password is checked by the server (POST /auth/login), which also claims the
 // one-account-one-session slot. Returns { status: 'ok' | 'conflict' | 'banned' | 'bad' | 'maintenance' | 'offline', data? }.
 export async function serverLogin(body) {
@@ -183,7 +143,7 @@ export async function serverLogin(body) {
     return { status: 'ok', data };
   }
   if (res.status === 409) {
-    return { status: 'conflict' };
+    return { status: 'conflict', data: await res.json().catch(() => ({})) };
   }
   if (res.status === 503) {
     return { status: 'maintenance' };
@@ -195,6 +155,7 @@ export async function serverLogin(body) {
   } catch (e) {
     // no JSON body: treat as a plain wrong-password answer
   }
+  if (/suspended/i.test(message)) return { status: 'suspended' };
   if (/banned/i.test(message)) {
     return { status: 'banned' };
   }
@@ -257,6 +218,10 @@ function requestDeviceHandoff(userId, timeoutMs = 15000) {
 // askToSignInHere() is given by the page: it shows the "Sign In Here?" box and answers
 // true or false. Returns { ok: true } (retry the login with force) or { ok: false, reason }.
 export async function resolveSessionConflict(user, askToSignInHere) {
+  if (user?.user_id == null && user?.id == null) {
+    const proceed = await askToSignInHere();
+    return proceed ? { ok: true } : { ok: false, reason: 'cancelled' };
+  }
   const uid = String(user.user_id != null ? user.user_id : user.id);
   const now = Date.now();
 
@@ -287,6 +252,7 @@ export function buildSession(user, sessionToken) {
     userId: uid,
     user_id: uid,
     role: user.role,
+    email: user.email,
     username: user.user_name || user.username,
     avatar: user.avatar,
     sessionToken: sToken,
@@ -335,11 +301,7 @@ export async function runForgotPassword() {
 }
 
 // ── Sign up ─────────────────────────────────────────────────────────
-// Each function returns { errors } (a message per field) or { user, sessionToken }.
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
+// Each function returns { errors } (a message per field) or { user, sessionToken, token }.
 function firstError(checks) {
   const errors = {};
   checks.forEach(([field, value, rules]) => {
@@ -350,7 +312,7 @@ function firstError(checks) {
 }
 
 // Admin Settings switches (maintenance mode, registration open). If the server cannot be
-// reached the answer is "open": the real refusal still comes from the server on sync.
+// reached the answer is "open": the registration endpoint still enforces the settings.
 export async function fetchPlatformStatus() {
   try {
     const res = await fetch(getApiBase() + '/platform-status');
@@ -369,7 +331,7 @@ export async function signUpBlockedReason() {
   return '';
 }
 
-export function registerPlayer(values) {
+export async function registerPlayer(values) {
   const errors = firstError([
     ['username', values.username, [{ type: 'required' }, { type: 'minLen', n: 3, msg: 'Username must be at least 3 characters' }, { type: 'maxLen', n: 20, msg: 'Username max 20 characters' }]],
     ['email', values.email, [{ type: 'required' }, { type: 'email' }]],
@@ -381,46 +343,10 @@ export function registerPlayer(values) {
   const username = values.username.trim();
   const emailVal = values.email.trim();
 
-  if (DB.users.find((u) => u.username && u.username.toLowerCase() === username.toLowerCase())) {
-    return { errors: { username: 'Username already taken' } };
-  }
-  // An address may hold one player account and one studio account, so only players are checked.
-  if (DB.emailTakenForRole(emailVal, 'player')) {
-    return { errors: { email: 'A player account already uses this email' } };
-  }
-
-  const numId = Date.now();
-  const newUser = {
-    user_id: numId,
-    user_name: username,
-    role_id: 4,
-    id: String(numId),
-    username: username,
-    email: emailVal,
-    password: values.password,
-    role: 'player',
-    avatar: username.slice(0, 2).toUpperCase(),
-    status: 'active',
-    joinDate: today(),
-    lastSeen: today()
-  };
-
-  if (!DB.player_profiles) DB.player_profiles = [];
-  DB.player_profiles.push({
-    user_id: numId,
-    player_name: username,
-    carys_points: 100,
-    play_time: 0,
-    matches_won: 0,
-    player_status: true
-  });
-  DB.users.push(newUser);
-  const sessionToken = claimNewSession(newUser);
-  DB.save();
-  return { user: newUser, sessionToken };
+  return registerAccount({ user_name: username, email: emailVal, password: values.password, role_id: 4 });
 }
 
-export function registerPublisher(values) {
+export async function registerPublisher(values) {
   const errors = firstError([
     ['username', values.username, [{ type: 'required' }, { type: 'minLen', n: 3, msg: 'Studio name must be at least 3 characters' }, { type: 'maxLen', n: 30, msg: 'Studio name max 30 characters' }]],
     ['email', values.email, [{ type: 'required' }, { type: 'email' }]],
@@ -436,49 +362,16 @@ export function registerPublisher(values) {
   if (rawPhone.startsWith('0')) rawPhone = rawPhone.substring(1); // remove leading zero
   const phoneVal = values.countryCode + ' ' + rawPhone;
 
-  if (DB.users.find((u) => u.username && u.username.toLowerCase() === username.toLowerCase())) {
-    return { errors: { username: 'Studio name already taken' } };
-  }
-  if (DB.emailTakenForRole(emailVal, 'publisher')) {
-    return { errors: { email: 'A studio account already uses this email' } };
-  }
-
-  const numId = Date.now();
-  const newPublisher = {
-    user_id: numId,
-    user_name: username,
-    role_id: 5,
-    id: String(numId),
-    username: username,
-    email: emailVal,
-    phone_number: phoneVal,
-    password: values.password,
-    role: 'publisher',
-    avatar: username.slice(0, 2).toUpperCase(),
-    status: 'active',
-    joinDate: today(),
-    lastSeen: today()
-  };
-
-  if (!DB.publisher_profiles) DB.publisher_profiles = [];
-  DB.publisher_profiles.push({
-    user_id: numId,
-    total_games: 0,
-    approved_games: 0,
-    active_games: 0
-  });
-  DB.users.push(newPublisher);
-  const sessionToken = claimNewSession(newPublisher);
-  DB.save();
-  return { user: newPublisher, sessionToken };
+  return registerAccount({ user_name: username, email: emailVal, password: values.password, role_id: 5, phone_number: phoneVal });
 }
 
-// The old Auth.claimSession for a brand-new account: nobody holds it yet, so just stamp it.
-function claimNewSession(user) {
-  const token = newToken('sess_');
-  user.active_session_token = token;
-  user.active_session_at = new Date().toISOString();
-  return token;
+async function registerAccount(dto) {
+  try {
+    const result = await authApi.register(dto);
+    return { user: result, sessionToken: result.session_token, token: result.token };
+  } catch (err) {
+    return { errors: { username: String(err?.message || err || 'Registration failed') } };
+  }
 }
 
 // "Play as Guest": a throw-away player-like account that is never saved.

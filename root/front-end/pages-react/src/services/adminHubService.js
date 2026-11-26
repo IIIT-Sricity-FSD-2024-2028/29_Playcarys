@@ -2,7 +2,6 @@ import api from './api';
 // Control Hub data operations, copied from the old pages/admin/hub.html.
 // Each function changes DB the same way the old page did; the section then calls refresh().
 import { getDB, getSession, capitalize, dispatchRoleNotification } from './adminService';
-import { removeUserForGood } from './adminUserService';
 import { recordAudit } from './adminAuditService';
 
 // ── Audit log ────────────────────────────────────────────────────
@@ -19,110 +18,6 @@ export function addAuditEntry(type, msg, detail) {
     dispatchRoleNotification('superuser', session.role, session.username, `Audit Action: ${msg} (${detail})`);
   }
   return saved;
-}
-
-// ── Users ────────────────────────────────────────────────────────
-const ROLE_ID = { player: 4, publisher: 5, moderator: 3, admin: 2, superuser: 1 };
-
-// The hub only manages players, publishers and moderators.
-export function listHubUsers(query, role, status) {
-  const q = query.toLowerCase();
-  let users = [...getDB().users];
-  if (q) users = users.filter((u) => u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
-  users = users.filter((u) => ['player', 'publisher', 'moderator'].includes(u.role));
-  if (role) users = users.filter((u) => u.role === role);
-  if (status) users = users.filter((u) => u.status === status);
-  return users;
-}
-
-export function findUser(id) {
-  return getDB().users.find((u) => u.id === id);
-}
-
-export function isUsernameTaken(username, editId) {
-  return !!getDB().users.find((u) => u.username.toLowerCase() === username.toLowerCase() && u.id !== editId);
-}
-
-export function isEmailTaken(email, editId) {
-  return !!getDB().users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.id !== editId);
-}
-
-export async function saveHubUser(isEdit, id, username, email, role, status, password, addAudit) {
-  const db = getDB();
-  const numId = Number(id);
-  const roleId = ROLE_ID[role] || 4;
-
-  if (isEdit) {
-    if (!isNaN(numId)) {
-      try {
-        await api.patch(`/users/${numId}`, {
-          user_name: username,
-          email: email,
-          role_id: roleId
-        });
-        if (status) {
-          await api.patch(`/users/${numId}/status`, { status });
-        }
-      } catch (err) {
-        console.warn('[adminHubService] Backend user update fallback:', err.message);
-      }
-    }
-    const u = findUser(id);
-    if (u) {
-      u.user_name = username;
-      u.username = username;
-      u.email = email;
-      if (role) u.role_id = roleId;
-      u.status = status;
-      u.avatar = username.slice(0, 2).toUpperCase();
-    }
-    addAudit('user', `User ${username} edited`, `Role: ${role}, Status: ${status}`);
-  } else {
-    let created = null;
-    try {
-      created = await api.post('/users', {
-        user_name: username,
-        role_id: roleId,
-        email: email,
-        status: status || 'active',
-        password: password || 'Default123!'
-      });
-    } catch (err) {
-      console.warn('[adminHubService] Backend user create fallback:', err.message);
-    }
-    const newId = created && (created.id || created.user_id) ? (created.id || created.user_id) : Date.now();
-    db.users.push({
-      user_id: newId,
-      id: newId,
-      user_name: username,
-      username: username,
-      role_id: roleId,
-      role: role,
-      email: email,
-      status: status || 'active',
-      password: password,
-      avatar: username.slice(0, 2).toUpperCase(),
-      joinDate: new Date().toISOString().slice(0, 10),
-      lastSeen: new Date().toISOString().slice(0, 10)
-    });
-    addAudit('user', `New user added: ${username}`, `Role: ${role}`);
-  }
-  db.save();
-}
-
-export async function deleteHubUser(u, addAudit) {
-  const db = getDB();
-  const targetId = Number(u.id || u.user_id);
-  if (!isNaN(targetId)) {
-    try {
-      await api.delete(`/users/${targetId}`);
-    } catch (err) {
-      console.warn('[adminHubService] Backend user delete fallback:', err.message);
-    }
-  }
-  removeUserForGood(u); // also records the deletion, so the server really removes the account
-  addAudit('user', `User deleted: ${u.username}`, `By ${getSession().username}`);
-  db.save();
 }
 
 // ── Games ────────────────────────────────────────────────────────
@@ -301,16 +196,16 @@ export function setSystemSetting(key, value) {
 }
 
 // "Quick Export": download a CSV of users, games, reports or the audit log.
-export function exportData(type, auditLog, addAudit) {
+export function exportData(type, auditLog, addAudit, users) {
   const db = getDB();
   const exports = {
-    users: db.users.map((u) => `${u.username},${u.email},${u.role},${u.status}`).join('\n'),
+    users: users.map((u) => `${u.username},${u.email},${u.role},${u.status}`).join('\n'),
     games: db.games.map((g) => `${g.title},${g.publisher},${g.genre},${g.status}`).join('\n'),
     // Read the real fields, not the id / reporterName / reportedName helpers: rows that came back from the
     // server carry `_rGetters: true` without the helpers, so those read as undefined (old page has this too).
     reports: db.reports.map((r) => {
       const nameOf = (uid) => {
-        const u = db.users.find((x) => String(x.user_id) === String(uid));
+        const u = users.find((x) => String(x.id) === String(uid));
         return u ? (u.user_name || u.username) : 'Unknown';
       };
       return `${r.report_id},${nameOf(r.reported_by)},${nameOf(r.reported_user)},${r.type},${r.status}`;
@@ -351,9 +246,9 @@ export function getDangerAction(action) {
     'reset-bans': {
       title: 'Lift All Bans',
       msg: 'This will remove ALL active player bans and restore access to banned users.',
-      run: (ctx) => {
+      run: async (ctx) => {
+        for (const u of ctx.users.filter(u => u.status === 'banned')) await ctx.setStatus(u.id, 'active');
         db.bans.forEach((b) => { b.active = false; });
-        db.users.filter((u) => u.status === 'banned').forEach((u) => { u.status = 'active'; });
         ctx.addAudit('system', 'All bans lifted', by());
         db.save();
         ctx.toast.success('All bans lifted');

@@ -22,7 +22,7 @@ import TournamentsSection from '../../components/admin/hub/TournamentsSection';
 import AnalyticsSection from '../../components/admin/hub/AnalyticsSection';
 import AuditSection from '../../components/admin/hub/AuditSection';
 import SystemSection from '../../components/admin/hub/SystemSection';
-import { getDB } from '../../services/adminService';
+import { useUsers } from '../../features/users/useUsers';
 import { addAuditEntry } from '../../services/adminHubService';
 import { fetchAuditLog, clearAuditLogOnServer } from '../../services/adminAuditService';
 import '../../styles/admin/hub.css';
@@ -66,8 +66,9 @@ export function Hub() {
     });
   }
 
-  const me = getDB().users.find((u) => u.username === user.username);
-  const email = (me && me.email) || '';
+  const { users } = useUsers();
+  const me = users.find((u) => String(u.id) === String(user?.userId ?? user?.id));
+  const email = user?.email || me?.email || '';
 
   return (
     <div className="page-content admin-hub">

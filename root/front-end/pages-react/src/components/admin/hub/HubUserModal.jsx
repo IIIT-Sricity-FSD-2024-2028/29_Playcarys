@@ -78,6 +78,7 @@ export function HubUserModal(props) {
                 onChange={(e) => onFieldChange('status', e.target.value)}
               >
                 <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
                 <option value="banned">Banned</option>
               </select>
             </div>

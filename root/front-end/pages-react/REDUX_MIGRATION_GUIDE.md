@@ -79,12 +79,14 @@ Edit only your own feature folders and the pages you migrate. Changes to `app/st
 
 ## 5. Auth
 
-- `features/auth/authSlice.js` owns session state: `initSession`, `loginUser`, `logoutUser`, `setUser`.
+- `features/auth/authSlice.js` owns session state: `initSession`, `establishSession`, `logoutUser`, `setUser`.
 - `authService` stays the storage layer (session, API token, dev identity). The slice calls it; components do not write the session directly.
 - `AuthContext` is kept as a **compatibility layer**: it exposes `{ user, loading, login, logout, refreshIdentity }` backed by the slice, so the many existing consumers keep working. Move consumers to `useAppSelector(selectAuthUser)` over time; delete the context only when none are left.
 - One signed-in device per account: the server returns 409 when another device holds the account. `landingAuthService` runs the hand-off flow, then signs in again with `force: true`. This must keep working through the slice.
 - **Every portal needs a real sign-in.** The temporary dev identity (`ENABLE_TEMP_DEV_IDENTITY` in `authService`) is off, so `/player`, `/publisher`, `/moderator` and `/superuser` no longer fall back to a demo user. The moderator, publisher and superuser layouts send a visitor without the right role back to `/`.
 - Publisher writes need a signed token and a verified studio: `RolesGuard` refuses a header-only publisher, and refuses games / tournaments / API keys until `kyc_status` is `verified` (financial routes also need the payment review). The seeded demo studios (users 5 and 6) are treated as verified; new studios go through `/publisher/onboarding` and the admin's Publisher Applications review.
+
+- Landing registration uses `POST /auth/register`; the server creates the account/profile and issues both session and API tokens. Login uses the existing server endpoint and preserves the device hand-off.
 
 ## 6. Shared files (locked)
 
@@ -106,7 +108,6 @@ When your feature is fully migrated, that list must no longer contain your files
 - User notification on suspend/ban and the audit entry: these still go through the legacy `DB` helpers (`dispatchUserNotification`, `recordAudit`) after the server accepts the change. They move with the notifications and audit features (Members 3 and 5).
 - `GET /users` is staff-only and `GET /users/:id` is staff or the signed-in user's own record. `GET /roles`, `GET /db-export` and `POST /db-import` are still unauthenticated, and `db-export` returns the same user list; the fix is to authenticate `db-export` and move the pages off it.
 - Pages ported from the React-only branch call the backend through `services/*Service.js` / `api.js`, not through slices yet: admin Publisher Applications (`/publisher/applications`), publisher Onboarding, Finance and API keys (`/publisher/onboarding`, `/economy/publishers/:id/finance`, `/publisher/api-keys`), and the support tickets API (`/support/tickets`, no page yet). They are real API calls, so they work; move them into the matching slices (publisher profile: Member 2, economy/payouts and moderation: Member 5) when those features are migrated.
-- `services/superuserService.js` still has the old `fetchUsers` / `createUserRecord` / `updateUserRecord` / `updateUserStatus` / `updateUserRole` / `deleteUserRecord`, used by `superuser/Reports`, `superuser/Settings` and `adminHubService`. Delete them when those three move to the users slice.
 
 ## 9. Definition of done
 

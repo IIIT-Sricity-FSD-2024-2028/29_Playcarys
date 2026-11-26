@@ -22,7 +22,7 @@ export const initSession = createAsyncThunk(
     try {
       if (authService.hasAuthenticatedSession()) {
         const session = authService.getSession();
-        return normalizeEntity(session);
+        return sessionUser(session);
       }
       if (authService.ENABLE_TEMP_DEV_IDENTITY) {
         const isPlayerRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/player');
@@ -31,52 +31,28 @@ export const initSession = createAsyncThunk(
         if (existingSession && existingSession.role === 'player' && Number(existingSession.userId || existingSession.id) === 7) {
           try {
             const fresh = await authService.resolveDragonSlayerIdentity();
-            return normalizeEntity(fresh);
+            return sessionUser(fresh);
           } catch (e) {
-            return normalizeEntity(existingSession);
+            return sessionUser(existingSession);
           }
         }
 
         if (isPlayerRoute || (existingSession && existingSession.role === 'player')) {
           try {
             const resolved = await authService.resolveDragonSlayerIdentity();
-            return normalizeEntity(resolved);
+            return sessionUser(resolved);
           } catch (err) {
             throw err;
           }
         }
 
-        return existingSession ? normalizeEntity(existingSession) : null;
+        return existingSession ? sessionUser(existingSession) : null;
       }
 
       const sess = authService.getSession();
-      return sess ? normalizeEntity(sess) : null;
+      return sess?.role === 'guest' ? sessionUser(sess) : null;
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to initialize session'));
-    }
-  }
-);
-
-/**
- * Thunk: auth/login
- * Calls backend auth login endpoint. Stores session metadata in Redux.
- * Note: Token is handled via authService / storage, NOT stored in Redux state.
- */
-export const loginUser = createAsyncThunk(
-  'auth/login',
-  async ({ username, password }, { rejectWithValue }) => {
-    try {
-      const res = await authApi.login({ username, password });
-      const token = res?.token || res?.access_token;
-      let sessionData = res?.session || res?.user || res;
-      if (sessionData) {
-        sessionData = normalizeEntity(sessionData);
-        authService.setSession(sessionData, token);
-        return sessionData;
-      }
-      return null;
-    } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, 'Login failed'));
     }
   }
 );
@@ -95,7 +71,7 @@ export const establishSession = createAsyncThunk(
     try {
       if (!session) return null;
       authService.setSession(session, token);
-      return normalizeEntity(session);
+      return sessionUser(session);
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to start session'));
     }
@@ -114,7 +90,7 @@ export const logoutUser = createAsyncThunk(
       const currentUser = state.auth?.user;
       const sess = authService.getSession();
       const uid = Number(currentUser?.id || currentUser?.userId || currentUser?.user_id || sess?.userId || sess?.id);
-      const sToken = currentUser?.session_token || currentUser?.sessionToken || sess?.sessionToken || sess?.session_token;
+      const sToken = sess?.sessionToken || sess?.session_token;
 
       if (uid && sToken) {
         await authApi.release({ user_id: uid, session_token: sToken }).catch(() => {});
@@ -128,6 +104,13 @@ export const logoutUser = createAsyncThunk(
   }
 );
 
+// Keep session credentials in authService, not in the Redux user object.
+function sessionUser(session) {
+  if (!session) return null;
+  const { token, access_token, apiToken, sessionToken, session_token, active_session_token, password, ...user } = session;
+  return normalizeEntity(user);
+}
+
 const initialState = {
   user: null,
   isAuthenticated: false,
@@ -140,7 +123,7 @@ export const authSlice = createSlice({
   initialState,
   reducers: {
     setUser(state, action) {
-      const user = action.payload ? normalizeEntity(action.payload) : null;
+      const user = action.payload ? sessionUser(action.payload) : null;
       state.user = user;
       state.isAuthenticated = Boolean(user);
       state.error = null;
@@ -180,21 +163,6 @@ export const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
         state.devIdentityError = action.payload;
-      })
-      // loginUser
-      .addCase(loginUser.pending, (state) => {
-        handlePending(state);
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        handleFulfilled(state);
-        state.user = action.payload;
-        state.isAuthenticated = Boolean(action.payload);
-        state.devIdentityError = null;
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        handleRejected(state, action);
-        state.user = null;
-        state.isAuthenticated = false;
       })
       // establishSession
       .addCase(establishSession.fulfilled, (state, action) => {

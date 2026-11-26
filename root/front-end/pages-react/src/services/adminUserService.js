@@ -93,16 +93,3 @@ export function recordUnbanned(u) {
   recordAudit('ban', `${u.username} unbanned`, 'Ban lifted by an admin');
 }
 
-// Still used by adminHubService (legacy cache removal). Deleting an account means two things:
-// remove the row, and add the id to the `deleted_users` list, otherwise the server keeps the
-// account and the next sync brings it back. Goes away when the Hub moves to the users slice.
-export function removeUserForGood(u) {
-  const db = getDB();
-  if (!Array.isArray(db.deleted_users)) db.deleted_users = [];
-  const id = u.user_id != null ? u.user_id : u.id;
-  if (!db.deleted_users.some((d) => String(d && typeof d === 'object' ? (d.user_id != null ? d.user_id : d.id) : d) === String(id))) {
-    db.deleted_users.push({ user_id: id, deleted_at: new Date().toISOString() });
-  }
-  const idx = db.users.findIndex((user) => user.id === u.id);
-  if (idx !== -1) db.users.splice(idx, 1);
-}

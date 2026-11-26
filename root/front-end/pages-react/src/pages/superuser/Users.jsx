@@ -19,7 +19,7 @@ export function Users() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const { users, load, create, update, setStatus } = useUsers();
+  const { users, status: usersStatus, error: usersError, load, create, update, setStatus } = useUsers();
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -94,7 +94,8 @@ export function Users() {
       await loadData();
     } catch (err) {
       console.error('Failed creating user:', err);
-      showToast(err.message || 'Failed to create user', 'error');
+      showToast(String(err?.message || err || 'Failed to create user'), 'error');
+      throw new Error(String(err?.message || err));
     }
   }
 
@@ -106,7 +107,8 @@ export function Users() {
       await loadData();
     } catch (err) {
       console.error('Failed updating user:', err);
-      showToast(err.message || 'Failed to update user', 'error');
+      showToast(String(err?.message || err || 'Failed to update user'), 'error');
+      throw new Error(String(err?.message || err));
     }
   }
 
@@ -124,7 +126,8 @@ export function Users() {
       await loadData();
     } catch (err) {
       console.error('Failed suspending user:', err);
-      showToast(err.message || 'Failed to suspend user', 'error');
+      showToast(String(err?.message || err || 'Failed to suspend user'), 'error');
+      throw new Error(String(err?.message || err));
     }
   }
 
@@ -142,7 +145,8 @@ export function Users() {
       await loadData();
     } catch (err) {
       console.error('Failed reinstating user:', err);
-      showToast(err.message || 'Failed to reinstate user', 'error');
+      showToast(String(err?.message || err || 'Failed to reinstate user'), 'error');
+      throw new Error(String(err?.message || err));
     }
   }
 
@@ -160,7 +164,8 @@ export function Users() {
       await loadData();
     } catch (err) {
       console.error('Failed banning user:', err);
-      showToast(err.message || 'Failed to ban user', 'error');
+      showToast(String(err?.message || err || 'Failed to ban user'), 'error');
+      throw new Error(String(err?.message || err));
     }
   }
 
@@ -178,7 +183,8 @@ export function Users() {
       await loadData();
     } catch (err) {
       console.error('Failed unbanning user:', err);
-      showToast(err.message || 'Failed to unban user', 'error');
+      showToast(String(err?.message || err || 'Failed to unban user'), 'error');
+      throw new Error(String(err?.message || err));
     }
   }
 
@@ -226,6 +232,8 @@ export function Users() {
         </button>
       </div>
 
+      {usersStatus === 'loading' && <p className="text-muted">Loading users…</p>}
+      {usersError && <p role="alert">{usersError}</p>}
       {/* Role KPIs */}
       <SuperuserUsersKPIs stats={stats} />
 

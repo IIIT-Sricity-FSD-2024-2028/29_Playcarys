@@ -15,7 +15,6 @@ import {
   PANEL_CONFIGS,
   STAFF_TABS,
   demoPassword,
-  findLoginUser,
   serverLogin,
   resolveSessionConflict,
   buildSession,
@@ -106,42 +105,24 @@ export function LoginPanel(props) {
   }
 
   async function doLogin() {
+    if (busy) return;
     setError('');
     if (!username.trim()) {
       if (userRef.current) userRef.current.focus();
       return;
     }
 
-    const found = findLoginUser(username.trim(), col.role);
-    if (found.error) {
-      if (found.badUsername) setUserBad(true);
-      setError(found.error);
-      return;
-    }
     if (!password) {
       if (passRef.current) passRef.current.focus();
       setError('Please enter your password.');
       return;
     }
 
-    if (col.role !== 'admin' && col.role !== 'superuser') {
-      if (typeof DB !== 'undefined' && DB.settings && DB.settings.maintenanceMode) {
-        setError('PlayCarys is under maintenance. Please try again later.');
-        return;
-      }
-    }
-
-    const user = found.user;
-    const body = { password: password };
-    if (user.email) {
-      body.email = user.email;
-    } else {
-      body.username = found.username;
-    }
-    // Narrows the match when one email holds both a player and a studio account.
-    if (user.role_id != null) {
-      body.role_id = Number(user.role_id);
-    }
+    const body = {
+      username: username.trim(),
+      password,
+      role_id: { superuser: 1, admin: 2, moderator: 3, player: 4, publisher: 5 }[col.role]
+    };
 
     setBusy('signing');
     let result;
@@ -159,13 +140,17 @@ export function LoginPanel(props) {
       setError('PlayCarys is under maintenance. Please try again later.');
       return;
     }
+    if (result.status === 'suspended') {
+      setError('Your account has been suspended. Contact a superuser.');
+      return;
+    }
     if (result.status === 'banned') {
       setError('Your account has been banned. You cannot login.');
       return;
     }
     if (result.status === 'bad') {
       setPassBad(true);
-      setError('Incorrect password.');
+      setError('Incorrect username, password or account type.');
       return;
     }
 
@@ -174,7 +159,7 @@ export function LoginPanel(props) {
       setBusy('waiting');
       let handoff;
       try {
-        handoff = await resolveSessionConflict(user, askToSignInHere);
+        handoff = await resolveSessionConflict(result.data, askToSignInHere);
       } finally {
         setBusy('');
       }
@@ -201,8 +186,8 @@ export function LoginPanel(props) {
     // Signed in: keep the session and the signed API token, then let the page move on.
     const session = buildSession(result.data.user, result.data.session_token);
     login(session, result.data.token);
-    showToast('success', `Welcome back, ${found.username}!`);
-    onSignedIn(found.role);
+    showToast('success', `Welcome back, ${session.username}!`);
+    onSignedIn(session.role);
   }
 
   function handleOverlayClick(e) {

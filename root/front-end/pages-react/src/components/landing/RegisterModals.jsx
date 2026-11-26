@@ -74,12 +74,12 @@ export function PlayerRegisterModal(props) {
       setErrors({ username: blocked });
       return;
     }
-    const result = registerPlayer(values);
+    const result = await registerPlayer(values);
     if (result.errors) {
       setErrors(result.errors);
       return;
     }
-    onRegistered(result.user, result.sessionToken);
+    onRegistered(result.user, result.sessionToken, result.token);
   }
 
   return (
@@ -134,12 +134,12 @@ export function PublisherRegisterModal(props) {
       setErrors({ username: blocked });
       return;
     }
-    const result = registerPublisher(values);
+    const result = await registerPublisher(values);
     if (result.errors) {
       setErrors(result.errors);
       return;
     }
-    onRegistered(result.user, result.sessionToken);
+    onRegistered(result.user, result.sessionToken, result.token);
   }
 
   return (

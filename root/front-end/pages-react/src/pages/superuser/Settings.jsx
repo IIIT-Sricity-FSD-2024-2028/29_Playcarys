@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUsers } from '../../features/users/useUsers';
 import authService from '../../services/authService';
 import {
   getSettings,
   saveSettings,
-  fetchUsers,
   fetchGames,
   purgeSessions,
   liftAllBans,
@@ -35,6 +35,7 @@ function escapeCSV(val) {
 
 export function Settings() {
   const navigate = useNavigate();
+  const { users, load, status: usersStatus, error: usersError } = useUsers();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -86,7 +87,6 @@ export function Settings() {
   // System Stats
   const [dbStats, setDbStats] = useState({
     sizeKb: '0.0',
-    usersCount: 0,
     gamesCount: 0
   });
 
@@ -107,13 +107,12 @@ export function Settings() {
 
     // Calculate DB Size info from live backend data
     try {
-      const [users, games] = await Promise.all([fetchUsers(), fetchGames()]);
+      const [, games] = await Promise.all([load(), fetchGames()]);
       const db = getDatabase();
       const str = JSON.stringify(db);
       const size = (str.length / 1024).toFixed(1);
       setDbStats({
         sizeKb: size,
-        usersCount: users.length,
         gamesCount: games.length
       });
     } catch {
@@ -122,7 +121,6 @@ export function Settings() {
       const size = (str.length / 1024).toFixed(1);
       setDbStats({
         sizeKb: size,
-        usersCount: (db.users || []).length,
         gamesCount: (db.games || []).length
       });
     }
@@ -246,12 +244,7 @@ export function Settings() {
       const db = getDatabase();
 
       if (type === 'users') {
-        let users = [];
-        try {
-          users = await fetchUsers();
-        } catch (e) {
-          users = db.users || [];
-        }
+        if (usersStatus !== 'succeeded') throw new Error(usersError || 'Users are not loaded');
         const header = 'Username,Email,Role,Status,Join Date\n';
         const rows = users
           .map((u) =>
@@ -408,6 +401,7 @@ export function Settings() {
         showToast(`${count} match(es) ended`, 'warning');
       } else if (actionKey === 'lift-bans') {
         await liftAllBans();
+        await load();
         showToast('All bans lifted', 'success');
       } else if (actionKey === 'archive-reports') {
         await archiveAllReports();
@@ -762,7 +756,7 @@ export function Settings() {
               <input
                 className="form-input"
                 id="db-size"
-                value={`${dbStats.sizeKb} KB (${dbStats.usersCount} users, ${dbStats.gamesCount} games)`}
+                value={`${dbStats.sizeKb} KB (${usersStatus === 'failed' ? 'Unavailable' : usersStatus === 'loading' ? 'Loading' : users.length} users, ${dbStats.gamesCount} games)`}
                 readOnly
                 style={{ opacity: 0.6, cursor: 'default' }}
               />

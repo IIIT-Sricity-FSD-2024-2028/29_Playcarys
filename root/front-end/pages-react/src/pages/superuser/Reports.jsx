@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUsers } from '../../features/users/useUsers';
 import authService from '../../services/authService';
 import {
   fetchReports,
   fetchBans,
-  fetchUsers,
   resolveReportRecord,
   reopenReportRecord,
   issueBanRecord,
@@ -27,7 +27,7 @@ export function Reports() {
   // Data states
   const [reports, setReports] = useState([]);
   const [bans, setBans] = useState([]);
-  const [users, setUsers] = useState([]);
+  const { users, load } = useUsers();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -64,17 +64,16 @@ export function Reports() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [reportsData, bansData, usersData] = await Promise.all([
+      const [reportsData, bansData] = await Promise.all([
         fetchReports(),
         fetchBans(),
-        fetchUsers()
+        load()
       ]);
       setReports(reportsData);
       setBans(bansData);
-      setUsers(usersData);
     } catch (err) {
       console.error('Failed to load reports and bans data:', err);
-      setLoadError('Failed to load reports and bans data from server.');
+      setLoadError(String(err?.message || err || 'Failed to load reports and bans data from server.'));
       showToast('Failed to load data', 'error');
     } finally {
       setLoading(false);
@@ -181,6 +180,7 @@ export function Reports() {
     try {
       await issueBanRecord({
         targetUserId,
+        targetUser: user,
         duration,
         reason,
         moderatorId,

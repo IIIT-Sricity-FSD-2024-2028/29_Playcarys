@@ -11,6 +11,7 @@
  */
 import React, { useState, useEffect, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
+import { useUsers } from '../../../features/users/useUsers';
 import ToggleRow from '../common/ToggleRow';
 import { getSession, getDB } from '../../../services/adminService';
 import { setSystemSetting, exportData, getDangerAction } from '../../../services/adminHubService';
@@ -28,6 +29,8 @@ const DANGER_BUTTONS = [
 export function SystemSection(props) {
   const { active, auditLog, addAudit } = props;
   const { toast, confirmAction, refresh } = useContext(AdminContext);
+  const { users, load, setStatus, status } = useUsers();
+  useEffect(() => { if (active) load().catch(err => toast.error(String(err))); }, [active, load]);
   const [local, setLocal] = useState(LOCAL_DEFAULTS);
 
   // Opening the section again puts those four switches back to where they started.
@@ -53,16 +56,20 @@ export function SystemSection(props) {
   }
 
   function handleExport(type) {
-    const label = exportData(type, auditLog, addAudit);
+    if (status !== 'succeeded' && (type === 'users' || type === 'reports')) return toast.error('Users are not loaded');
+    const label = exportData(type, auditLog, addAudit, users);
     toast.success(`${label} data exported!`);
   }
 
   function handleDanger(action) {
     const a = getDangerAction(action);
     if (!a) return;
-    confirmAction(a.title, a.msg, () => {
-      a.run({ addAudit: addAudit, toast: toast });
-      refresh();
+    confirmAction(a.title, a.msg, async () => {
+      try {
+        if (action === 'reset-bans' && status !== 'succeeded') throw new Error('Users are not loaded');
+        await a.run({ addAudit, toast, users, setStatus });
+        refresh();
+      } catch (err) { toast.error(String(err?.message || err)); }
     });
   }
 

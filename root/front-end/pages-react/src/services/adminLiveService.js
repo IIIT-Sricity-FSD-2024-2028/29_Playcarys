@@ -4,6 +4,14 @@
 //  - sendHeartbeat(): the old Presence beat, so the server knows this admin is still here
 //  - releaseSession(): hands the account back to the server on logout
 import { getDB, sameId } from './adminService';
+import authService from './authService';
+
+// Redux exposes the user's identity, not credentials. Read the matching
+// session from storage for the heartbeat and release calls.
+function sessionFor(user) {
+  const session = authService.getSession();
+  return session && user && sameId(session.userId, user.userId ?? user.id) ? session : null;
+}
 
 const DB_KEY = 'playcarys_db_store_v5';
 let pulling = false;
@@ -35,7 +43,8 @@ export async function pullServerState() {
 }
 
 // Prove this session is still alive. If another device took the account, onEvicted runs.
-export function sendHeartbeat(session, onEvicted) {
+export function sendHeartbeat(user, onEvicted) {
+  const session = sessionFor(user);
   if (!session || !session.sessionToken || !window.PC_API) return;
 
   const db = getDB();
@@ -65,7 +74,8 @@ export function sendHeartbeat(session, onEvicted) {
 
 // Give the account back right away, so it can sign in somewhere else without waiting 15 seconds.
 // `keepalive` lets the request finish even though the page is about to change.
-export function releaseSession(session) {
+export function releaseSession(user) {
+  const session = sessionFor(user);
   if (!session || !session.sessionToken || !window.PC_API) return;
   try {
     fetch(window.PC_API + '/auth/release', {

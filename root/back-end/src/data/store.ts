@@ -18,6 +18,7 @@ export interface User {
   user_name: string;
   role_id: number;
   email: string;
+  phone_number?: string;
   password: string;
   avatar: string;
   status: 'active' | 'banned' | 'suspended';

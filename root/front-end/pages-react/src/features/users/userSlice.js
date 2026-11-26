@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, createEntityAdapter } from '@reduxjs/toolkit';
 import usersApi from '../../services/endpoints/usersApi';
+import { logoutUser } from '../auth/authSlice';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -111,6 +112,7 @@ export const fetchRoles = createAsyncThunk(
 
 const initialState = usersAdapter.getInitialState({
   roles: [],
+  loadRequestId: null,
   ...initialAsyncState
 });
 
@@ -129,14 +131,19 @@ export const userSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // fetchUsers
-      .addCase(fetchUsers.pending, (state) => {
+      .addCase(fetchUsers.pending, (state, action) => {
+        state.loadRequestId = action.meta.requestId;
         handlePending(state);
       })
       .addCase(fetchUsers.fulfilled, (state, action) => {
+        if (state.loadRequestId !== action.meta.requestId) return;
+        state.loadRequestId = null;
         handleFulfilled(state);
         usersAdapter.setAll(state, action.payload);
       })
       .addCase(fetchUsers.rejected, (state, action) => {
+        if (state.loadRequestId !== action.meta.requestId) return;
+        state.loadRequestId = null;
         handleRejected(state, action);
       })
       // fetchUserById
@@ -176,7 +183,9 @@ export const userSlice = createSlice({
       // fetchRoles
       .addCase(fetchRoles.fulfilled, (state, action) => {
         state.roles = action.payload;
-      });
+      })
+      .addCase(logoutUser.fulfilled, () => initialState)
+      .addCase(logoutUser.rejected, () => initialState);
   }
 });
 

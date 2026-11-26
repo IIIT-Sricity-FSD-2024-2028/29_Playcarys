@@ -80,6 +80,7 @@ export class AuthService {
     if (!isFree && !force) {
       throw new ConflictException({
         code: 'SESSION_ACTIVE',
+        user_id: user.user_id,
         message: 'This account is signed in on another device.',
       });
     }
@@ -101,11 +102,12 @@ export class AuthService {
       candidates = this.authRepository.findAllByEmail(dto.email);
       if (dto.role_id != null) {
         const scoped = candidates.filter((u) => u.role_id === dto.role_id);
-        if (scoped.length) candidates = scoped;
+        candidates = scoped;
       }
     } else if (dto.username) {
-      const byName = this.authRepository.findByUsername(dto.username);
-      if (byName) candidates = [byName];
+      const byName = this.authRepository.findByUsername(dto.username) ||
+        (dto.role_id === 5 ? this.authRepository.findPublisherByPhone(dto.username) : undefined);
+      if (byName && (dto.role_id == null || byName.role_id === dto.role_id)) candidates = [byName];
     }
 
     if (!candidates.length) {
@@ -126,6 +128,10 @@ export class AuthService {
     if (isBanned) {
       user.status = 'banned';
       throw new UnauthorizedException('Account is banned. Contact support.');
+    }
+
+    if (user.status === 'suspended' && user.role_id !== 4) {
+      throw new UnauthorizedException('Account is suspended. Contact support.');
     }
 
     // Maintenance mode (admin Settings): only staff (superuser role 1, admin role 2)
@@ -424,6 +430,10 @@ export class AuthService {
       );
     }
 
+    if (this.authRepository.findByUsername(dto.user_name)) {
+      throw new ConflictException('Username already taken');
+    }
+
     const newId = this.authRepository.nextId();
     const initials = dto.user_name
       .split(' ')
@@ -437,6 +447,7 @@ export class AuthService {
       user_name: dto.user_name,
       role_id: roleId,
       email: dto.email,
+      ...(roleId === 5 && dto.phone_number ? { phone_number: dto.phone_number } : {}),
       password: dto.password,
       avatar: initials,
       status: 'active',

@@ -89,7 +89,7 @@ export const authService = {
         }
 
         // If it's a dev session and we are in dev mode, provide the appropriate dev session for the route
-        if (typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+        if (ENABLE_TEMP_DEV_IDENTITY && typeof window !== 'undefined' && import.meta.env && import.meta.env.DEV) {
           const path = window.location.pathname;
           if (path.startsWith('/superuser')) {
             if (session && (session.role === 'superuser' || session.role === 'admin') && session.username === 'GodMode') {
@@ -164,6 +164,9 @@ export const authService = {
       if (token) {
         sessionStorage.setItem(API_TOKEN_KEY, token);
         localStorage.setItem(API_TOKEN_KEY, token);
+      } else {
+        sessionStorage.removeItem(API_TOKEN_KEY);
+        localStorage.removeItem(API_TOKEN_KEY);
       }
     } catch (e) {
       console.warn('Failed to save session to storage', e);
@@ -180,7 +183,7 @@ export const authService = {
 
   requireAuth(allowedRoles = []) {
     const session = this.getSession();
-    if (!session) {
+    if (!session || (session.role !== 'guest' && !this.hasAuthenticatedSession())) {
       return null;
     }
     if (allowedRoles.length > 0 && !allowedRoles.includes(session.role)) {

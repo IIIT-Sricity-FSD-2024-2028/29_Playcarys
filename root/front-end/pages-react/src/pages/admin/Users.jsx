@@ -36,7 +36,7 @@ const NO_ERRORS = { username: '', email: '', password: '' };
 
 export function Users() {
   const { toast, confirmAction, refresh } = useContext(AdminContext);
-  const { users, status: usersStatus, load, create, update, setStatus, remove } = useUsers();
+  const { users, status: usersStatus, error: usersError, load, create, update, setStatus, remove } = useUsers();
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -217,9 +217,9 @@ export function Users() {
       runAction(
         async () => {
           await setStatus(u.id, 'banned');
-          // Notify while the account still exists, then remove it on the server.
-          recordBannedAndDeleted(u, r);
+          // Record the deletion only after the server accepts it.
           await remove(u.id);
+          recordBannedAndDeleted(u, r);
         },
         () => {},
         `${u.username} banned and deleted`
@@ -258,6 +258,7 @@ export function Users() {
           onStatusChange={setStatusFilter}
         />
 
+        {usersError && <p role="alert">{usersError}</p>}
         {usersStatus === 'loading' && !users.length ? (
           <p className="text-muted mt-2">Loading users…</p>
         ) : (

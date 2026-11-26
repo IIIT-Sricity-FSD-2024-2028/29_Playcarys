@@ -1,4 +1,6 @@
 import api from './api.js';
+import usersApi from './endpoints/usersApi';
+import { toUiUser } from '../features/users/userView';
 
 const DB_KEY = 'playcarys_db_store_v5';
 
@@ -338,30 +340,7 @@ export function normalizeUser(u) {
   };
 }
 
-export async function fetchUsers() {
-  let data = null;
-  try {
-    data = await api.get('/users');
-  } catch (err) {
-    console.warn('[superuserService] Backend fetchUsers failed, using local DB:', err?.message || err);
-  }
-  const db = getDatabase();
-  if (Array.isArray(data)) {
-    const normalized = data.map(normalizeUser);
-    db.users = normalized;
-    saveDatabase(db);
-    return normalized;
-  }
-  if (Array.isArray(db.users) && db.users.length > 0) {
-    return db.users.map(normalizeUser);
-  }
-  return [];
-}
-
 export function isEmailTakenForRole(users, email, role, excludeUserId = null) {
-  if (typeof window !== 'undefined' && window.DB && typeof window.DB.emailTakenForRole === 'function') {
-    return window.DB.emailTakenForRole(email, role, excludeUserId);
-  }
   const target = String(email || '').trim().toLowerCase();
   if (!target) return false;
   const targetRole = String(role || '').trim().toLowerCase();
@@ -374,100 +353,6 @@ export function isEmailTakenForRole(users, email, role, excludeUserId = null) {
     const uRole = (u.role || roleMap[u.role_id] || '').trim().toLowerCase();
     return uRole === targetRole;
   });
-}
-
-export async function createUserRecord({ username, email, role, password }) {
-  const roleMap = { player: 4, publisher: 5, moderator: 3, admin: 2 };
-  const roleId = roleMap[role] || 4;
-  const avatar = username.slice(0, 2).toUpperCase();
-
-  let createdUser = null;
-  try {
-    createdUser = await api.post('/users', {
-      user_name: username,
-      role_id: roleId,
-      email,
-      password,
-      avatar
-    });
-  } catch (err) {
-    console.warn('[superuserService] Backend createUser notice:', err?.message || err);
-  }
-
-  const numId = createdUser?.user_id ?? createdUser?.id ?? (Date.now() % 100000);
-  const newUser = normalizeUser({
-    ...createdUser,
-    user_id: numId,
-    id: String(numId),
-    user_name: username,
-    username,
-    role_id: roleId,
-    role,
-    email,
-    password,
-    avatar,
-    status: createdUser?.status || 'active',
-    joinDate: createdUser?.joinDate || new Date().toISOString().slice(0, 10),
-    lastSeen: createdUser?.lastSeen || new Date().toISOString().slice(0, 10)
-  });
-
-  const db = getDatabase();
-  db.users = db.users || [];
-  db.users.push(newUser);
-  saveDatabase(db);
-
-  return newUser;
-}
-
-export async function updateUserRecord(userId, { username, email, role }) {
-  const avatar = username.slice(0, 2).toUpperCase();
-  const roleMap = { player: 4, publisher: 5, moderator: 3, admin: 2, superuser: 1 };
-  const roleId = role ? roleMap[role] : undefined;
-
-  await api.patch(`/users/${userId}`, {
-    user_name: username,
-    email,
-    ...(roleId ? { role_id: roleId } : {})
-  });
-
-  if (roleId) {
-    try {
-      await api.patch(`/users/${userId}/role`, { role_id: roleId });
-    } catch {
-      // Role patch may be restricted; update already submitted to main patch
-    }
-  }
-
-  const db = getDatabase();
-  db.users = db.users || [];
-  const target = db.users.find(x => String(x.user_id ?? x.id) === String(userId));
-  if (target) {
-    target.user_name = username;
-    target.username = username;
-    target.email = email;
-    target.avatar = avatar;
-    if (role) {
-      target.role = role;
-      target.role_id = roleId || target.role_id;
-    }
-    saveDatabase(db);
-  }
-}
-
-export async function updateUserStatus(userId, status) {
-  try {
-    await api.patch(`/users/${userId}/status`, { status });
-  } catch (err) {
-    console.warn('[superuserService] Backend updateUserStatus notice:', err?.message || err);
-  }
-
-  const db = getDatabase();
-  db.users = db.users || [];
-  const target = db.users.find(x => String(x.user_id ?? x.id) === String(userId));
-  if (target) {
-    target.status = status;
-    saveDatabase(db);
-  }
 }
 
 export function sendUserNotification(targetUsername, fromSessionRole, fromSessionName, msg) {
@@ -495,42 +380,6 @@ export function sendUserNotification(targetUsername, fromSessionRole, fromSessio
     read: false,
     replies: []
   });
-  saveDatabase(db);
-}
-
-export async function updateUserRole(userId, newRole) {
-  const roleMap = { player: 4, publisher: 5, moderator: 3, admin: 2, superuser: 1 };
-  const roleId = roleMap[newRole] || 4;
-
-  try {
-    await api.patch(`/users/${userId}/role`, { role_id: roleId });
-  } catch (err) {
-    console.warn('[superuserService] Backend updateUserRole notice:', err?.message || err);
-  }
-
-  const db = getDatabase();
-  db.users = db.users || [];
-  const target = db.users.find(x => String(x.user_id ?? x.id) === String(userId));
-  if (target) {
-    target.role = newRole;
-    target.role_id = roleId;
-    saveDatabase(db);
-  }
-}
-
-export async function deleteUserRecord(userId) {
-  await api.delete(`/users/${userId}`);
-
-  const db = getDatabase();
-  db.users = db.users || [];
-  db.deleted_users = db.deleted_users || [];
-  const idx = db.users.findIndex(x => String(x.user_id ?? x.id) === String(userId));
-  if (idx !== -1) {
-    db.users.splice(idx, 1);
-  }
-  if (!db.deleted_users.some(d => String(d) === String(userId))) {
-    db.deleted_users.push(Number(userId) || userId);
-  }
   saveDatabase(db);
 }
 
@@ -586,7 +435,7 @@ export function normalizeGame(g, users = []) {
 export async function fetchGames() {
   let users = [];
   try {
-    users = await fetchUsers();
+    users = (await usersApi.getUsers()).map(toUiUser);
   } catch (e) {
     console.warn('Failed to fetch users for publisher mapping:', e);
   }
@@ -706,19 +555,12 @@ export async function liftAllBans() {
   for (const b of activeBans) {
     const pid = b.playerId || b.player_id;
     if (pid) {
-      try {
-        await api.patch(`/moderator-actions/bans/${pid}/lift`, { moderator_id: 0 });
-      } catch (e) {
-        console.warn(`Failed lifting ban for player ${pid}:`, e);
-      }
+      await api.patch(`/moderator-actions/bans/${pid}/lift`, { moderator_id: 0 });
     }
   }
 
   const db = getDatabase();
   (db.bans || []).forEach((b) => (b.active = false));
-  (db.users || []).forEach((u) => {
-    if (u.status === 'banned') u.status = 'active';
-  });
   saveDatabase(db);
   return true;
 }
@@ -833,7 +675,7 @@ export function normalizeReport(r, users = []) {
 export async function fetchReports() {
   let users = [];
   try {
-    users = await fetchUsers();
+    users = (await usersApi.getUsers()).map(toUiUser);
   } catch (e) {
     console.warn('Failed to fetch users for report normalization:', e);
   }
@@ -934,7 +776,7 @@ export function normalizeBan(b, users = []) {
 export async function fetchBans() {
   let users = [];
   try {
-    users = await fetchUsers();
+    users = (await usersApi.getUsers()).map(toUiUser);
   } catch (e) {
     console.warn('Failed to fetch users for ban normalization:', e);
   }
@@ -950,7 +792,7 @@ export async function fetchBans() {
   throw new Error('Failed to load bans: response was not an array');
 }
 
-export async function issueBanRecord({ targetUserId, duration = '7 Days', reason, moderatorId = 0, moderatorName = 'Superuser' }) {
+export async function issueBanRecord({ targetUserId, targetUser, duration = '7 Days', reason, moderatorId = 0, moderatorName = 'Superuser' }) {
   const numTargetId = Number(targetUserId);
 
   await api.post('/moderator-actions/handle-violation', {
@@ -962,17 +804,10 @@ export async function issueBanRecord({ targetUserId, duration = '7 Days', reason
     ban_duration: duration
   });
 
-  try {
-    await api.patch(`/users/${numTargetId}/status`, { status: 'banned' });
-  } catch {
-    // User status update attempted
-  }
+  await usersApi.updateUserStatus(numTargetId, { status: 'banned' });
 
   const db = getDatabase();
-  db.users = db.users || [];
   db.bans = db.bans || [];
-  const targetUser = db.users.find(u => String(u.user_id ?? u.id) === String(targetUserId));
-  if (targetUser) targetUser.status = 'banned';
 
   let expiresDateStr = null;
   if (!duration.toLowerCase().includes('permanent')) {
@@ -1007,20 +842,13 @@ export async function liftBanRecord(banId, playerId, moderatorId = 0) {
     await api.patch(`/moderator-actions/bans/${numPlayerId}/lift`, {
       moderator_id: moderatorId ?? 0
     });
-    try {
-      await api.patch(`/users/${numPlayerId}/status`, { status: 'active' });
-    } catch {
-      // User status update attempted
-    }
+    await usersApi.updateUserStatus(numPlayerId, { status: 'active' });
   }
 
   const db = getDatabase();
   db.bans = db.bans || [];
-  db.users = db.users || [];
   const ban = db.bans.find(b => String(b.id) === sid || (numPlayerId && String(b.playerId) === String(numPlayerId)));
   if (ban) ban.active = false;
-  const user = db.users.find(u => String(u.user_id ?? u.id) === String(numPlayerId || ban?.playerId));
-  if (user) user.status = 'active';
   saveDatabase(db);
   return true;
 }
@@ -1036,14 +864,8 @@ export default {
   getPlatformEconomy,
   saveDatabase,
   normalizeUser,
-  fetchUsers,
   isEmailTakenForRole,
-  createUserRecord,
-  updateUserRecord,
-  updateUserStatus,
   sendUserNotification,
-  updateUserRole,
-  deleteUserRecord,
   normalizeGame,
   fetchGames,
   toggleGameStatus,
