@@ -1,5 +1,7 @@
 export const selectPlayerProfile = (state, userId) =>
   state.playerProfile?.profilesByUserId[String(userId)];
+export const selectAllPlayerProfiles = (state) =>
+  Object.values(state.playerProfile?.profilesByUserId || {});
 export const selectLeaderboard = (state) => state.playerProfile?.leaderboard || [];
 export const selectPlayerProfileStatus = (state) => state.playerProfile?.status;
 export const selectPlayerProfileError = (state) => state.playerProfile?.error;
