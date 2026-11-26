@@ -6,6 +6,8 @@ import {
   fetchPlatformSettings,
   updatePlatformSettings
 } from '../../features/platform/platformSlice';
+import { fetchReports } from '../../features/moderation/reportSlice';
+import { fetchTournaments } from '../../features/tournaments/tournamentSlice';
 import {
   getSettings,
   saveSettings,
@@ -17,7 +19,6 @@ import {
   clearActivityLog,
   getDatabase
 } from '../../services/superuserService';
-import api from '../../services/api';
 import ToggleSwitch from '../../components/superuser/settings/ToggleSwitch';
 import PlatformRenameModal from '../../components/superuser/settings/PlatformRenameModal';
 import DangerConfirmModal from '../../components/superuser/settings/DangerConfirmModal';
@@ -311,7 +312,8 @@ export function Settings() {
       } else if (type === 'reports') {
         let reports = [];
         try {
-          reports = await api.get('/reports');
+          const res = await dispatch(fetchReports()).unwrap();
+          reports = Array.isArray(res) ? res : (res?.data || []);
         } catch (e) {
           reports = db.reports || [];
         }
@@ -347,7 +349,8 @@ export function Settings() {
       } else if (type === 'tournaments') {
         let tournaments = [];
         try {
-          tournaments = await api.get('/tournaments');
+          const res = await dispatch(fetchTournaments()).unwrap();
+          tournaments = Array.isArray(res) ? res : (res?.data || []);
         } catch (e) {
           tournaments = db.tournaments || [];
         }

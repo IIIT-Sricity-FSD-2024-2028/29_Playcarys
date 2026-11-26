@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../../services/api';
+import { useDispatch } from 'react-redux';
+import { fetchPlatformStatus } from '../../../features/platform/platformSlice';
 
 export function SuperuserHubSystemStatus(props) {
   const { loadedRows = 0 } = props;
+  const dispatch = useDispatch();
 
   const [apiStatus, setApiStatus] = useState({
     detail: 'checking…',
@@ -11,25 +13,17 @@ export function SuperuserHubSystemStatus(props) {
 
   useEffect(() => {
     let isMounted = true;
-    const apiBase = api.getBaseUrl();
-    const endpoint = apiBase.replace(/\/api\/v1$/, '/api/v1');
     const t0 = performance.now();
 
-    fetch(endpoint, { method: 'GET' })
-      .then((res) => {
+    dispatch(fetchPlatformStatus())
+      .unwrap()
+      .then(() => {
         if (!isMounted) return;
         const ms = Math.round(performance.now() - t0);
-        if (res.ok) {
-          setApiStatus({
-            detail: `${ms} ms`,
-            colour: 'var(--accent-green)'
-          });
-        } else {
-          setApiStatus({
-            detail: `HTTP ${res.status}`,
-            colour: 'var(--accent-yellow)'
-          });
-        }
+        setApiStatus({
+          detail: `${ms} ms`,
+          colour: 'var(--accent-green)'
+        });
       })
       .catch(() => {
         if (!isMounted) return;
@@ -42,7 +36,7 @@ export function SuperuserHubSystemStatus(props) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [dispatch]);
 
   const renderDot = (c) => (
     <div
