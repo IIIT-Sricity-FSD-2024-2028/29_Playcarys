@@ -1295,9 +1295,16 @@ export const publisherService = {
 
   // ── Milestone 8: API Keys & Onboarding ─────────────────────────
 
+  // The publisher layout consults this before rendering restricted pages.
+  // Keep it on the user-scoped backend route introduced with publisher
+  // profiles; the old /publisher/onboarding route no longer exists.
+  async getOnboardingStatus(userId) {
+    return api.get(`/publisher-profiles/${encodeURIComponent(userId)}/onboarding`);
+  },
+
   async getOnboarding(userId) {
     try {
-      return await api.get('/publisher/onboarding');
+      return await this.getOnboardingStatus(userId);
     } catch (err) {
       return {
         user_id: userId,
@@ -1322,12 +1329,12 @@ export const publisherService = {
   },
 
   async updateOnboarding(userId, updateData) {
-    return await api.patch('/publisher/onboarding', updateData);
+    return await api.patch(`/publisher-profiles/${encodeURIComponent(userId)}/onboarding`, updateData);
   },
 
   async getApiKeys(userId) {
     try {
-      const keys = await api.get('/publisher/api-keys');
+      const keys = await api.get(`/publisher-profiles/${encodeURIComponent(userId)}/api-keys`);
       return Array.isArray(keys) ? keys : [];
     } catch (err) {
       console.warn('Failed to fetch publisher api keys:', err);
