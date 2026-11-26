@@ -37,6 +37,20 @@ export const profilesApi = {
     return normalizeEntity(res, ['user_id', 'publisher_id']);
   },
 
+  async getPublisherOnboarding(userId) {
+    const res = await api.get(`/publisher-profiles/${userId}/onboarding`);
+    return normalizeEntity(res, ['user_id', 'publisher_id']);
+  },
+
+  async updatePublisherOnboarding(userId, dto) {
+    const res = await api.patch(`/publisher-profiles/${userId}/onboarding`, dto);
+    return normalizeEntity(res, ['user_id', 'publisher_id']);
+  },
+
+  async completePublisherDemoVerification() {
+    return normalizeEntity(await api.post('/publisher/demo-verification'), ['user_id', 'publisher_id']);
+  },
+
   async getPlatforms() {
     return api.get('/linked-accounts/platforms');
   },
