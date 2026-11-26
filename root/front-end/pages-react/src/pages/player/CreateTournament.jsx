@@ -21,8 +21,9 @@ import {
   resetCreateTournamentForm,
   setTournamentActiveTab
 } from '../../features/tournaments/tournamentSlice';
-import API from '../../services/api';
 import { GAME_ASSETS } from '../../services/playerService';
+import { fetchGames } from '../../features/games/gameSlice';
+import { selectApprovedGames, selectGamesStatus } from '../../features/games/selectors';
 import AuthContext from '../../context/AuthContext';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/create-tournament.css';
@@ -49,8 +50,9 @@ const CreateTournament = () => {
   const [teamSize, setTeamSize] = useState(2);
 
   // Step 2: Game selection
-  const [games, setGames] = useState([]);
-  const [loadingGames, setLoadingGames] = useState(true);
+  const games = useAppSelector(selectApprovedGames);
+  const gamesStatus = useAppSelector(selectGamesStatus);
+  const loadingGames = gamesStatus === 'loading' || gamesStatus === 'idle';
   const [isMulti, setIsMulti] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [selectedFormat, setSelectedFormat] = useState('score');
@@ -81,42 +83,21 @@ const CreateTournament = () => {
     return 'score';
   };
 
-  // Load games on mount
+  // The catalogue belongs to the games slice; this page only selects from it.
   useEffect(() => {
-    let isMounted = true;
-    const fetchGames = async () => {
-      try {
-        setLoadingGames(true);
-        const res = await API.get('/games');
-        const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-        const approved = list.filter((g) => {
-          const appr = (g.game_approval_status || g.status || '').toLowerCase();
-          const enab = g.game_status !== undefined ? g.game_status === 'enabled' : g.enabled !== false;
-          return appr === 'approved' && enab;
-        });
-        if (isMounted) {
-          setGames(approved);
-          if (approved.length > 0) {
-            const firstId = approved[0].game_id || approved[0].id;
-            dispatch(setCreateTournamentGame(firstId));
-            setSelectedGameId(firstId);
-            const firstFormat = teamMode ? 'bracket' : ((approved[0].game_mode || approved[0].mode) === 'multi' ? 'bracket' : 'score');
-            dispatch(setCreateTournamentFormat(firstFormat));
-            setSelectedFormat(firstFormat);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load games:', err);
-        addToast('error', 'Failed to load approved games');
-      } finally {
-        if (isMounted) setLoadingGames(false);
-      }
-    };
-    fetchGames();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    dispatch(fetchGames({ active: true }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (selectedGameId || games.length === 0) return;
+    const first = games[0];
+    const firstId = first.game_id || first.id;
+    dispatch(setCreateTournamentGame(firstId));
+    setSelectedGameId(firstId);
+    const firstFormat = teamMode || (first.game_mode || first.mode) === 'multi' ? 'bracket' : 'score';
+    dispatch(setCreateTournamentFormat(firstFormat));
+    setSelectedFormat(firstFormat);
+  }, [dispatch, games, selectedGameId, teamMode]);
 
   // Preselect community kind if groupId query param is present
   useEffect(() => {
