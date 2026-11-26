@@ -3,6 +3,8 @@ import {
   ArrayMinSize,
   IsArray,
   IsInt,
+  IsOptional,
+  IsString,
   ValidateNested,
 } from 'class-validator';
 
@@ -32,4 +34,13 @@ export class EndSessionDto {
 export class EndSessionRequestDto extends EndSessionDto {
   @IsInt()
   host_id: number;
+}
+
+export class TerminateSessionRequestDto {
+  @IsInt()
+  staff_id: number;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }

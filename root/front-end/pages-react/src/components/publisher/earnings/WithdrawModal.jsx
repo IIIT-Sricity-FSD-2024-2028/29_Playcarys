@@ -4,7 +4,8 @@
  * conditional rendering.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import publisherService from '../../../services/publisherService';
+import { useDispatch } from 'react-redux';
+import { withdrawPublisher, fetchPayoutById } from '../../../features/economy/payoutSlice';
 import Money from '../../../utils/money';
 
 const UPI_RE = /^[a-zA-Z0-9._-]{2,64}@[a-zA-Z][a-zA-Z0-9]{1,31}$/;
@@ -19,6 +20,7 @@ const SLOW_AFTER_MS = 60000;
  * already in flight when the page loaded.
  */
 export function WithdrawModal({ userId, amountPaise, resumePayout, onClose }) {
+  const dispatch = useDispatch();
   const [phase, setPhase] = useState(resumePayout ? 'processing' : 'form');
   const [method, setMethod] = useState('upi');
   const [upi, setUpi] = useState('');
@@ -36,9 +38,12 @@ export function WithdrawModal({ userId, amountPaise, resumePayout, onClose }) {
     let cancelled = false;
     startedAt.current = Date.now();
 
+    const payoutId = payout.payout_id || payout.id;
+    if (!payoutId) return undefined;
+
     const timer = setInterval(async () => {
       try {
-        const latest = await publisherService.getPayout(payout.payout_id);
+        const latest = await dispatch(fetchPayoutById(payoutId)).unwrap();
         if (cancelled) return;
         if (latest.status === 'paid') {
           setPayout(latest);
@@ -58,7 +63,7 @@ export function WithdrawModal({ userId, amountPaise, resumePayout, onClose }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [phase, payout && payout.payout_id]);
+  }, [phase, payout && (payout.payout_id || payout.id), dispatch]);
 
   function validate() {
     if (method === 'upi') {
@@ -85,11 +90,12 @@ export function WithdrawModal({ userId, amountPaise, resumePayout, onClose }) {
         method === 'upi'
           ? { method, upi_id: upi.trim() }
           : { method, account_number: account.replace(/\s+/g, ''), ifsc: ifsc.trim().toUpperCase() };
-      const created = await publisherService.withdraw(userId, details);
+      const res = await dispatch(withdrawPublisher({ publisherId: userId, dto: details })).unwrap();
+      const created = res.payout || res;
       setPayout(created);
       setPhase('processing');
     } catch (err) {
-      setFormError(err.message || 'Could not start the withdrawal.');
+      setFormError(typeof err === 'string' ? err : (err?.message || 'Could not start the withdrawal.'));
     } finally {
       setSubmitting(false);
     }

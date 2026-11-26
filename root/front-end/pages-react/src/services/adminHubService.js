@@ -3,6 +3,7 @@
 import { getDB, getSession, capitalize, dispatchRoleNotification } from './adminService';
 import { removeUserForGood } from './adminUserService';
 import { recordAudit } from './adminAuditService';
+import platformApi from './endpoints/platformApi';
 
 // ── Audit log ────────────────────────────────────────────────────
 // Entries are kept by the server (see adminAuditService), so they survive a page reload and are
@@ -160,8 +161,11 @@ export function deleteTournament(t, addAudit) {
 // ── Platform controls (System Control section) ───────────────────
 export function setSystemSetting(key, value) {
   const db = getDB();
-  db.settings[key] = value;
-  db.save();
+  if (db && db.settings) {
+    db.settings[key] = value;
+    if (typeof db.save === 'function') db.save();
+    platformApi.savePlatformSettings(db.settings).catch(() => {});
+  }
 }
 
 // "Quick Export": download a CSV of users, games, reports or the audit log.

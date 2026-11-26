@@ -7,6 +7,7 @@
 // script. That puts DB in the shared global scope but NOT on `window`, so
 // `window.DB` is undefined. Reading the bare name `DB` works.
 import authService from './authService';
+import platformApi from './endpoints/platformApi';
 
 export function getDB() {
   return typeof DB !== 'undefined' ? DB : null;
@@ -77,29 +78,38 @@ export function getSettings() {
 // A toggle flips one setting and saves straight away.
 export function updateSetting(key, value) {
   const db = getDB();
-  db.settings[key] = value;
-  db.save();
+  if (db && db.settings) {
+    db.settings[key] = value;
+    if (typeof db.save === 'function') db.save();
+    platformApi.savePlatformSettings(db.settings).catch(() => {});
+  }
 }
 
 // Save button. Only a superuser may rename the platform; the disabled input is a
 // convenience, so the save path checks the role again.
 export function saveSettings(platformName, sessionTimeout, isSuperuser) {
   const db = getDB();
-  if (isSuperuser) {
-    db.settings.platformName = platformName.trim();
+  if (db && db.settings) {
+    if (isSuperuser) {
+      db.settings.platformName = platformName.trim();
+    }
+    db.settings.sessionTimeout = parseInt(sessionTimeout);
+    if (typeof db.save === 'function') db.save();
+    platformApi.savePlatformSettings(db.settings).catch(() => {});
   }
-  db.settings.sessionTimeout = parseInt(sessionTimeout);
-  db.save();
 }
 
 export function resetSettings(isSuperuser) {
   const db = getDB();
-  Object.assign(
-    db.settings,
-    isSuperuser ? { platformName: 'PlayCarys' } : {},
-    DEFAULT_SETTINGS
-  );
-  db.save();
+  if (db && db.settings) {
+    Object.assign(
+      db.settings,
+      isSuperuser ? { platformName: 'PlayCarys' } : {},
+      DEFAULT_SETTINGS
+    );
+    if (typeof db.save === 'function') db.save();
+    platformApi.savePlatformSettings(db.settings).catch(() => {});
+  }
 }
 
 // ── Shared helpers copied from js/utils.js and data/db.js ────────

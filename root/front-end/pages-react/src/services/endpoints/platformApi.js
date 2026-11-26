@@ -1,9 +1,19 @@
 import api from '../api';
-import { normalizeEntity, normalizeList } from './normalize';
+import { normalizeEntity, normalizeAuditLog } from './normalize';
 
 export const platformApi = {
   async getPlatformStatus() {
     return api.get('/platform-status');
+  },
+
+  async getPlatformSettings() {
+    const res = await api.get('/db-export?tables=settings');
+    return res?.settings || {};
+  },
+
+  async savePlatformSettings(settings) {
+    await api.post('/db-import', { settings });
+    return settings;
   },
 
   async getAnalytics() {
@@ -12,19 +22,25 @@ export const platformApi = {
 
   async getAuditLog(params = {}) {
     const query = new URLSearchParams();
-    if (params.limit) query.append('limit', params.limit);
+    if (params?.type) query.append('type', params.type);
+    if (params?.limit) query.append('limit', params.limit);
     const qs = query.toString();
     const res = await api.get(`/audit-log${qs ? `?${qs}` : ''}`);
-    return normalizeList(res, ['log_id']);
+    return Array.isArray(res) ? res.map(normalizeAuditLog) : [];
   },
 
   async postAuditLog(dto) {
     const res = await api.post('/audit-log', dto);
-    return normalizeEntity(res, ['log_id']);
+    return normalizeAuditLog(res);
   },
 
-  async exportDb() {
-    return api.get('/db-export');
+  async clearAuditLog() {
+    return api.delete('/audit-log');
+  },
+
+  async exportDb(tables) {
+    const query = tables ? `?tables=${encodeURIComponent(tables)}` : '';
+    return api.get(`/db-export${query}`);
   },
 
   async importDb(delta) {

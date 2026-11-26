@@ -2,18 +2,20 @@
  * Concepts used in this component:
  *  - Components, Props (data and callbacks passed to children), Events (card and button clicks),
  *    Hooks (useContext, useEffect), Context (AdminContext for toast / redraw),
- *    Router (useAdminNav), Callbacks (handlers passed down), prop drilling (go → cards)
+ *    Router (useAdminNav), Redux (fetchAuditLog, selectAuditLogs)
  *
  * Mirrors pages/admin/dashboard.html.
  */
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useEffect, useContext } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
 import DashboardStats from '../../components/admin/dashboard/DashboardStats';
 import DashboardOverview from '../../components/admin/dashboard/DashboardOverview';
 import RecentActivity from '../../components/admin/dashboard/RecentActivity';
 import QuickActions from '../../components/admin/dashboard/QuickActions';
-import { fetchAuditLog } from '../../services/adminAuditService';
+import { fetchAuditLog } from '../../features/platform/auditSlice';
+import { selectAuditLogs } from '../../features/platform/selectors';
 import {
   getDB,
   getSession,
@@ -25,21 +27,19 @@ import {
 } from '../../services/adminService';
 
 export function Dashboard() {
-  const { toast } = useContext(AdminContext); // also redraws this page when refresh() is called
+  const { toast } = useContext(AdminContext);
   const go = useAdminNav();
+  const dispatch = useDispatch();
 
-  // Recent activity is the latest of the server's audit log (null = could not be loaded).
-  const [activity, setActivity] = useState([]);
+  // Recent activity comes from the shared Redux audit log feature state.
+  const activity = useSelector(selectAuditLogs);
 
   useEffect(() => {
     document.title = 'PlayCarys — Admin Dashboard';
-    async function load() {
-      setActivity(await fetchAuditLog());
-    }
-    load();
-    const timer = setInterval(load, 15000);
+    dispatch(fetchAuditLog());
+    const timer = setInterval(() => dispatch(fetchAuditLog()), 15000);
     return () => clearInterval(timer);
-  }, []);
+  }, [dispatch]);
 
   const db = getDB();
   const stats = getPlatformStats();
@@ -84,7 +84,7 @@ export function Dashboard() {
 
       <DashboardStats stats={stats} onOpen={go} />
 
-      <DashboardOverview stats={stats} totalGames={db.games.length} />
+      <DashboardOverview stats={stats} totalGames={db && db.games ? db.games.length : 0} />
 
       <RecentActivity activity={activity} onViewApprovals={() => go('approvals')} />
 

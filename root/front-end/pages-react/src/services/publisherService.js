@@ -1,4 +1,5 @@
 import api from './api';
+import economyApi from './endpoints/economyApi';
 import { generateBracketLocally, advanceMatchLocally, advanceTournamentRound as advanceRoundShared } from './tournamentService';
 
 const DB_KEY = 'playcarys_db_store_v5';
@@ -216,7 +217,7 @@ export const publisherService = {
   },
 
   async getEarnings(userId) {
-    return api.get(`/economy/publishers/${userId}/earnings`);
+    return economyApi.getPublisherEarnings(userId);
   },
 
   /**
@@ -225,11 +226,11 @@ export const publisherService = {
    * Resolves at once with the payout in "processing"; follow it with getPayout().
    */
   async withdraw(userId, details) {
-    return api.post(`/economy/publishers/${userId}/withdraw`, details);
+    return economyApi.withdrawPublisher(userId, details);
   },
 
   async getPayout(payoutId) {
-    return api.get(`/economy/payouts/${payoutId}`);
+    return economyApi.getPayout(payoutId);
   },
 
   fireLiveEvent(gameId, eventCode) {

@@ -11,9 +11,9 @@ import {
 
 export const fetchModeratorActions = createAsyncThunk(
   'moderation/fetchActions',
-  async (_, { rejectWithValue }) => {
+  async (moderatorId, { rejectWithValue }) => {
     try {
-      const data = await moderationApi.getActions();
+      const data = await moderationApi.getActions(moderatorId);
       return data;
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to fetch moderator actions'));
@@ -21,8 +21,20 @@ export const fetchModeratorActions = createAsyncThunk(
   }
 );
 
-export const fetchActiveBans = createAsyncThunk(
+export const fetchBans = createAsyncThunk(
   'moderation/fetchBans',
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await moderationApi.getAllBans();
+      return data;
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch bans'));
+    }
+  }
+);
+
+export const fetchActiveBans = createAsyncThunk(
+  'moderation/fetchActiveBans',
   async (_, { rejectWithValue }) => {
     try {
       const data = await moderationApi.getActiveBans();
@@ -33,36 +45,36 @@ export const fetchActiveBans = createAsyncThunk(
   }
 );
 
-export const issueWarning = createAsyncThunk(
-  'moderation/issueWarning',
+export const actOnReport = createAsyncThunk(
+  'moderation/actOnReport',
   async (dto, { rejectWithValue }) => {
     try {
-      const data = await moderationApi.issueWarning(dto);
+      const data = await moderationApi.actOnReport(dto);
       return data;
     } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, 'Failed to issue warning'));
+      return rejectWithValue(extractErrorMessage(err, 'Failed to apply moderation action'));
     }
   }
 );
 
-export const banPlayer = createAsyncThunk(
-  'moderation/banPlayer',
+export const handleViolation = createAsyncThunk(
+  'moderation/handleViolation',
   async (dto, { rejectWithValue }) => {
     try {
-      const data = await moderationApi.banPlayer(dto);
+      const data = await moderationApi.handleViolation(dto);
       return data;
     } catch (err) {
-      return rejectWithValue(extractErrorMessage(err, 'Failed to ban player'));
+      return rejectWithValue(extractErrorMessage(err, 'Failed to handle violation'));
     }
   }
 );
 
 export const liftBan = createAsyncThunk(
   'moderation/liftBan',
-  async (id, { rejectWithValue }) => {
+  async ({ playerId, moderatorId }, { rejectWithValue }) => {
     try {
-      const data = await moderationApi.liftBan(id);
-      return { id: String(id), result: data };
+      const data = await moderationApi.liftBan(playerId, moderatorId);
+      return { playerId: String(playerId), result: data };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to lift ban'));
     }
@@ -73,6 +85,8 @@ const initialState = {
   actions: [],
   bans: [],
   selectedBanTarget: null,
+  mutationStatus: AsyncStatus.IDLE,
+  mutationError: null,
   ...initialAsyncState
 };
 
@@ -86,6 +100,12 @@ export const moderationSlice = createSlice({
     resetModerationStatus(state) {
       state.status = AsyncStatus.IDLE;
       state.error = null;
+      state.mutationStatus = AsyncStatus.IDLE;
+      state.mutationError = null;
+    },
+    clearModerationMutationStatus(state) {
+      state.mutationStatus = AsyncStatus.IDLE;
+      state.mutationError = null;
     },
     setSelectedBanTarget(state, action) {
       state.selectedBanTarget = action.payload;
@@ -104,19 +124,116 @@ export const moderationSlice = createSlice({
       .addCase(fetchModeratorActions.rejected, (state, action) => {
         handleRejected(state, action);
       })
-      // fetchActiveBans
-      .addCase(fetchActiveBans.fulfilled, (state, action) => {
+      // fetchBans
+      .addCase(fetchBans.pending, (state) => {
+        handlePending(state);
+      })
+      .addCase(fetchBans.fulfilled, (state, action) => {
+        handleFulfilled(state);
         state.bans = action.payload;
       })
-      // banPlayer
-      .addCase(banPlayer.fulfilled, (state, action) => {
+      .addCase(fetchBans.rejected, (state, action) => {
+        handleRejected(state, action);
+      })
+      // fetchActiveBans
+      .addCase(fetchActiveBans.pending, (state) => {
+        handlePending(state);
+      })
+      .addCase(fetchActiveBans.fulfilled, (state, action) => {
+        handleFulfilled(state);
+        state.bans = action.payload;
+      })
+      .addCase(fetchActiveBans.rejected, (state, action) => {
+        handleRejected(state, action);
+      })
+      // actOnReport
+      .addCase(actOnReport.pending, (state) => {
+        state.mutationStatus = AsyncStatus.LOADING;
+        state.mutationError = null;
+      })
+      .addCase(actOnReport.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
+        state.mutationError = null;
         if (action.payload) {
-          state.bans.push(action.payload);
+          state.actions.unshift(action.payload);
+        }
+        const arg = action.meta?.arg;
+        if (arg && arg.action_type === 'ban') {
+          const targetPlayerId = String(arg.target_user_id);
+          const existingIdx = state.bans.findIndex(
+            (b) => String(b.playerId) === targetPlayerId
+          );
+          const newBan = {
+            id: 'b_' + Date.now(),
+            playerId: Number(arg.target_user_id),
+            duration: arg.ban_duration || '7 Days',
+            reason: arg.action_reason,
+            active: true,
+            bannedDate: new Date().toISOString().slice(0, 10)
+          };
+          if (existingIdx !== -1) {
+            state.bans[existingIdx] = { ...state.bans[existingIdx], ...newBan };
+          } else {
+            state.bans.push(newBan);
+          }
         }
       })
+      .addCase(actOnReport.rejected, (state, action) => {
+        state.mutationStatus = AsyncStatus.FAILED;
+        state.mutationError = action.payload || 'Failed to apply moderation action';
+      })
+      // handleViolation
+      .addCase(handleViolation.pending, (state) => {
+        state.mutationStatus = AsyncStatus.LOADING;
+        state.mutationError = null;
+      })
+      .addCase(handleViolation.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
+        state.mutationError = null;
+        if (action.payload) {
+          state.actions.unshift(action.payload);
+        }
+        const arg = action.meta?.arg;
+        if (arg && arg.action_type === 'ban') {
+          const targetPlayerId = String(arg.target_user_id);
+          const existingIdx = state.bans.findIndex(
+            (b) => String(b.playerId) === targetPlayerId
+          );
+          const newBan = {
+            id: 'b_' + Date.now(),
+            playerId: Number(arg.target_user_id),
+            duration: arg.ban_duration || '7 Days',
+            reason: arg.action_reason,
+            active: true,
+            bannedDate: new Date().toISOString().slice(0, 10)
+          };
+          if (existingIdx !== -1) {
+            state.bans[existingIdx] = { ...state.bans[existingIdx], ...newBan };
+          } else {
+            state.bans.push(newBan);
+          }
+        }
+      })
+      .addCase(handleViolation.rejected, (state, action) => {
+        state.mutationStatus = AsyncStatus.FAILED;
+        state.mutationError = action.payload || 'Failed to handle violation';
+      })
       // liftBan
+      .addCase(liftBan.pending, (state) => {
+        state.mutationStatus = AsyncStatus.LOADING;
+        state.mutationError = null;
+      })
       .addCase(liftBan.fulfilled, (state, action) => {
-        state.bans = state.bans.filter((b) => String(b.id || b.ban_id) !== action.payload.id);
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
+        state.mutationError = null;
+        const targetPlayerId = String(action.payload?.playerId || action.meta?.arg?.playerId);
+        state.bans = state.bans.map((b) =>
+          String(b.playerId) === targetPlayerId ? { ...b, active: false } : b
+        );
+      })
+      .addCase(liftBan.rejected, (state, action) => {
+        state.mutationStatus = AsyncStatus.FAILED;
+        state.mutationError = action.payload || 'Failed to lift ban';
       });
   }
 });
@@ -124,6 +241,7 @@ export const moderationSlice = createSlice({
 export const {
   clearModerationError,
   resetModerationStatus,
+  clearModerationMutationStatus,
   setSelectedBanTarget
 } = moderationSlice.actions;
 

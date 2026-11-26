@@ -3,14 +3,14 @@
  *  - Components, Props (data and callbacks passed to each section), State (which section is showing),
  *    Events (menu and button clicks), Hooks (useState, useRef, useEffect, useContext), Context
  *    (AuthContext for the signed-in admin, AdminContext for confirm / toast / redraw), Router
- *    (useAdminNav), Callbacks (addAudit is handed to every section that changes something),
- *    prop drilling (go, addAudit and auditLog flow page → section)
+ *    (useAdminNav), Redux (fetchAuditLog, recordAuditLog, clearAuditLog)
  *
  * Mirrors pages/admin/hub.html (Admin Control Hub): a sidebar and seven sections — Overview, User
  * Management, Game Control, Tournaments, Platform Analytics, Audit Log and System Control.
- * All sections stay on the page and only the chosen one is visible, as in the old page.
+ * All sections stay on the page and only the chosen one is visible.
  */
 import React, { useState, useEffect, useContext } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import AuthContext from '../../context/AuthContext';
 import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
@@ -23,22 +23,26 @@ import AnalyticsSection from '../../components/admin/hub/AnalyticsSection';
 import AuditSection from '../../components/admin/hub/AuditSection';
 import SystemSection from '../../components/admin/hub/SystemSection';
 import { getDB } from '../../services/adminService';
-import { addAuditEntry } from '../../services/adminHubService';
-import { fetchAuditLog, clearAuditLogOnServer } from '../../services/adminAuditService';
+import {
+  fetchAuditLog,
+  recordAuditLog,
+  clearAuditLog
+} from '../../features/platform/auditSlice';
+import { selectAuditLogs } from '../../features/platform/selectors';
 import '../../styles/admin/hub.css';
 
 export function Hub() {
   const { user } = useContext(AuthContext);
   const { toast, confirmAction, refresh } = useContext(AdminContext);
   const go = useAdminNav();
+  const dispatch = useDispatch();
   const [section, setSection] = useState('overview');
 
-  // The audit log is kept by the server, so it is the same after a reload and for every admin.
-  // null = could not be loaded (the section says so instead of showing an empty list).
-  const [auditLog, setAuditLog] = useState(null);
+  // The audit log is kept by the server in shared Redux feature state.
+  const auditLog = useSelector(selectAuditLogs);
 
-  async function loadAudit() {
-    setAuditLog(await fetchAuditLog());
+  function loadAudit() {
+    dispatch(fetchAuditLog());
   }
 
   useEffect(() => {
@@ -47,26 +51,33 @@ export function Hub() {
     // Other admins act too, so look again now and then.
     const timer = setInterval(loadAudit, 15000);
     return () => clearInterval(timer);
-  }, []);
+  }, [dispatch]);
 
   function addAudit(type, msg, detail) {
-    addAuditEntry(type, msg, detail).then(loadAudit);
-  }
-
-  function clearAuditLog() {
-    confirmAction('Clear Audit Log', 'Clear the whole audit log? Only a note that it was cleared, and by whom, is kept.', async () => {
-      const ok = await clearAuditLogOnServer();
-      if (ok) {
-        toast.success('Audit log cleared');
-      } else {
-        toast.error('Could not clear the audit log');
-      }
+    dispatch(recordAuditLog({ type, msg, detail })).then(() => {
       loadAudit();
-      refresh();
     });
   }
 
-  const me = getDB().users.find((u) => u.username === user.username);
+  function handleClearAuditLog() {
+    confirmAction(
+      'Clear Audit Log',
+      'Clear the whole audit log? Only a note that it was cleared, and by whom, is kept.',
+      async () => {
+        try {
+          await dispatch(clearAuditLog()).unwrap();
+          toast.success('Audit log cleared');
+        } catch (err) {
+          toast.error('Could not clear the audit log');
+        }
+        loadAudit();
+        refresh();
+      }
+    );
+  }
+
+  const db = getDB();
+  const me = db && db.users ? db.users.find((u) => u.username === user.username) : null;
   const email = (me && me.email) || '';
 
   return (
@@ -103,7 +114,7 @@ export function Hub() {
           />
           <TournamentsSection active={section === 'tournaments'} addAudit={addAudit} />
           <AnalyticsSection active={section === 'analytics'} />
-          <AuditSection active={section === 'audit'} auditLog={auditLog} onClear={clearAuditLog} onReload={loadAudit} />
+          <AuditSection active={section === 'audit'} auditLog={auditLog} onClear={handleClearAuditLog} onReload={loadAudit} />
           <SystemSection active={section === 'system'} auditLog={auditLog || []} addAudit={addAudit} />
         </div>
       </div>

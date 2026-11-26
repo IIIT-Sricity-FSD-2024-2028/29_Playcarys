@@ -1,30 +1,13 @@
 // The audit log lives on the server (GET / POST / DELETE /audit-log, admin and superuser only).
 // The server stamps the time and the actor from the signed token, so this file only sends
 // what happened: a kind, a short message and a detail line.
-import authService from './authService';
-
-function apiBase() {
-  if (typeof window !== 'undefined' && window.PC_API) {
-    return window.PC_API;
-  }
-  const hostname = typeof window !== 'undefined' && window.location ? window.location.hostname : 'localhost';
-  return `http://${hostname || 'localhost'}:3000/api/v1`;
-}
-
-function headers() {
-  const h = { 'Content-Type': 'application/json' };
-  const token = authService.getApiToken();
-  if (token) h.Authorization = 'Bearer ' + token;
-  return h;
-}
+import platformApi from './endpoints/platformApi';
 
 // Newest first. Resolves to null when the server cannot be reached, so the page can say so
 // instead of showing an empty log.
-export async function fetchAuditLog() {
+export async function fetchAuditLog(params) {
   try {
-    const res = await fetch(apiBase() + '/audit-log?_=' + Date.now(), { headers: headers() });
-    if (!res.ok) return null;
-    return await res.json();
+    return await platformApi.getAuditLog(params);
   } catch (e) {
     return null;
   }
@@ -33,12 +16,7 @@ export async function fetchAuditLog() {
 // Fire and forget: an audit failure must never block the action it describes.
 export async function recordAudit(type, msg, detail) {
   try {
-    const res = await fetch(apiBase() + '/audit-log', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({ type: type, msg: msg, detail: detail || '' })
-    });
-    return res.ok ? await res.json() : null;
+    return await platformApi.postAuditLog({ type, msg, detail: detail || '' });
   } catch (e) {
     return null;
   }
@@ -46,8 +24,8 @@ export async function recordAudit(type, msg, detail) {
 
 export async function clearAuditLogOnServer() {
   try {
-    const res = await fetch(apiBase() + '/audit-log', { method: 'DELETE', headers: headers() });
-    return res.ok;
+    await platformApi.clearAuditLog();
+    return true;
   } catch (e) {
     return false;
   }
@@ -64,3 +42,10 @@ export function timeAgo(iso) {
   if (secs < 7 * 86400) return Math.round(secs / 86400) + 'd ago';
   return new Date(t).toLocaleDateString();
 }
+
+export default {
+  fetchAuditLog,
+  recordAudit,
+  clearAuditLogOnServer,
+  timeAgo
+};

@@ -1,16 +1,22 @@
 /*
  * Concepts used in this component:
  *  - Components, Props (active), State (the analytics from the server), Hooks (useState, useEffect),
- *    Lists (bars, legend, leaderboard rows), API calls (GET /analytics, repeated every 30 seconds)
+ *    Lists (bars, legend, leaderboard rows), Redux (fetchAnalytics, selectors)
  *
  * "Platform Analytics" section of the Control Hub: sessions per game, the user-distribution donut
  * (drawn with SVG circles), a views leaderboard, the tournament prize pool, and the player win-rate
- * table. Every number comes from the server's own records (see adminAnalyticsService), not from a
- * counter kept in the browser.
+ * table. Every number comes from the server's own records (GET /analytics).
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import StatusBadge from '../common/StatusBadge';
-import { fetchAnalytics, formatRupees } from '../../../services/adminAnalyticsService';
+import { fetchAnalytics } from '../../../features/platform/analyticsSlice';
+import {
+  selectAnalyticsMetrics,
+  selectAnalyticsStatus
+} from '../../../features/platform/selectors';
+import { AsyncStatus } from '../../../app/asyncUtils';
+import { formatRupees } from '../../../services/adminAnalyticsService';
 
 const MEDAL_COLORS = ['var(--accent-yellow)', 'var(--text-secondary)', '#cd7f32'];
 
@@ -26,23 +32,24 @@ const emptyNote = { textAlign: 'center', padding: '1.5rem', color: 'var(--text-s
 
 export function AnalyticsSection(props) {
   const { active } = props;
-  // undefined = loading, null = the server could not be reached
-  const [data, setData] = useState(undefined);
+  const dispatch = useDispatch();
+  const data = useSelector(selectAnalyticsMetrics);
+  const status = useSelector(selectAnalyticsStatus);
 
-  async function load() {
-    setData(await fetchAnalytics());
+  function load() {
+    dispatch(fetchAnalytics());
   }
 
   useEffect(() => {
     load();
     const timer = setInterval(load, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [dispatch]);
 
   // Open the tab and it shows the newest numbers straight away.
   useEffect(() => {
     if (active) load();
-  }, [active]);
+  }, [active, dispatch]);
 
   const wrap = (children) => (
     <div className={'hub-section' + (active ? ' active' : '')} id="sec-analytics">
@@ -54,8 +61,10 @@ export function AnalyticsSection(props) {
     </div>
   );
 
-  if (data === undefined) return wrap(<div className="card" style={emptyNote}>Loading analytics…</div>);
-  if (data === null) {
+  if (status === AsyncStatus.LOADING && !data) {
+    return wrap(<div className="card" style={emptyNote}>Loading analytics…</div>);
+  }
+  if (!data) {
     return wrap(
       <div className="card" style={emptyNote}>
         Could not load analytics from the server. Check that the backend is running, then press Refresh.
@@ -64,15 +73,15 @@ export function AnalyticsSection(props) {
   }
 
   // Sessions per game: the games that have any, busiest first.
-  const chartGames = data.games.filter((g) => g.sessions > 0).sort((a, b) => b.sessions - a.sessions).slice(0, 8);
+  const chartGames = (data.games || []).filter((g) => g.sessions > 0).sort((a, b) => b.sessions - a.sessions).slice(0, 8);
   const maxSess = Math.max(...chartGames.map((g) => g.sessions), 1);
 
   // User distribution donut
-  const totalUsers = data.totals.users;
+  const totalUsers = data.totals?.users || 0;
   const segments = ROLE_SEGMENTS.map((seg) => ({
     ...seg,
-    count: data.roles[seg.key] || 0,
-    pct: totalUsers ? (data.roles[seg.key] || 0) / totalUsers : 0
+    count: data.roles?.[seg.key] || 0,
+    pct: totalUsers ? (data.roles?.[seg.key] || 0) / totalUsers : 0
   }));
   const r = 60;
   const cx = 80;
@@ -102,10 +111,10 @@ export function AnalyticsSection(props) {
   });
 
   // Views leaderboard: approved games, most viewed first.
-  const byViews = data.games.filter((g) => g.approval === 'approved').sort((a, b) => b.views - a.views);
+  const byViews = (data.games || []).filter((g) => g.approval === 'approved').sort((a, b) => b.views - a.views);
   const maxViews = Math.max(...byViews.map((g) => g.views), 1);
 
-  const updated = new Date(data.generated_at).toLocaleTimeString();
+  const updated = data.generated_at ? new Date(data.generated_at).toLocaleTimeString() : 'recently';
 
   return wrap(
     <>
@@ -170,10 +179,10 @@ export function AnalyticsSection(props) {
           <h3 className="mb-2">💰 Tournament Prize Pool</h3>
           <div id="prize-summary">
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-              <div style={{ fontFamily: "'Orbitron',monospace", fontSize: '2.5rem', fontWeight: 800, background: 'var(--gradient-brand)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{formatRupees(data.totals.prize_pool_paise)}</div>
+              <div style={{ fontFamily: "'Orbitron',monospace", fontSize: '2.5rem', fontWeight: 800, background: 'var(--gradient-brand)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{formatRupees(data.totals?.prize_pool_paise || 0)}</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: '0.5rem 0' }}>Total Prize Pool Across All Tournaments</div>
             </div>
-            {data.tournaments.length ? data.tournaments.map((t) => (
+            {data.tournaments && data.tournaments.length ? data.tournaments.map((t) => (
               <div className="analytics-bar-row" key={t.tournament_id}>
                 <div className="analytics-bar-label" style={{ width: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.name}>{t.name.split(' ').slice(0, 2).join(' ')}</div>
                 <div style={{ flex: 1 }}></div>
@@ -189,7 +198,7 @@ export function AnalyticsSection(props) {
 
       <div className="card">
         <h3 className="mb-2">🏅 Player Win Rate Leaderboard</h3>
-        {data.players.length ? (
+        {data.players && data.players.length ? (
           <div className="table-wrap">
             <table>
               <thead>
@@ -229,8 +238,8 @@ export function AnalyticsSection(props) {
       </div>
 
       <p className="text-muted" style={{ fontSize: '0.78rem', marginTop: '0.75rem' }}>
-        Live from the server: {data.totals.sessions} sessions, {data.totals.matches_played} matches played,
-        {' '}{data.totals.views.toLocaleString('en-IN')} game views. Updated {updated}.
+        Live from the server: {data.totals?.sessions || 0} sessions, {data.totals?.matches_played || 0} matches played,
+        {' '}{(data.totals?.views || 0).toLocaleString('en-IN')} game views. Updated {updated}.
       </p>
     </>
   );
