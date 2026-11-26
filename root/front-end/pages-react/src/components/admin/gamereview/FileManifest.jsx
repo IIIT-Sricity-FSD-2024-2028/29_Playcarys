@@ -7,12 +7,15 @@
  * (GET /games/:id/scan-manifest) because it is large and only this page shows it.
  */
 import React, { useState, useEffect } from 'react';
-import { fetchManifest, kb } from '../../../services/adminReviewService';
+import { useAppDispatch } from '../../../app/hooks';
+import { fetchScanManifest } from '../../../features/games/gameReviewSlice';
+import { kb } from '../../../services/adminReviewService';
 
 const NOTE_STYLE = { fontSize: '.85rem', padding: '.75rem' };
 
 export function FileManifest(props) {
   const { gameId, scan, role } = props;
+  const dispatch = useAppDispatch();
   const [files, setFiles] = useState(null); // null = loading
   const [failed, setFailed] = useState(false);
 
@@ -20,10 +23,11 @@ export function FileManifest(props) {
 
   useEffect(() => {
     if (!expected) return;
-    fetchManifest(gameId, role)
-      .then(setFiles)
+    dispatch(fetchScanManifest({ gameId, role }))
+      .unwrap()
+      .then((res) => setFiles(res?.manifest || res))
       .catch(() => setFailed(true));
-  }, [gameId, role, expected]);
+  }, [dispatch, gameId, role, expected]);
 
   let body;
   if (!expected) {

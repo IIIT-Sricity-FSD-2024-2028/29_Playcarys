@@ -16,6 +16,12 @@ import { useSearchParams } from 'react-router-dom';
 import AuthContext from '../../context/AuthContext';
 import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
+import { useAppDispatch } from '../../app/hooks';
+import {
+  fetchGameReview as fetchGameReviewThunk,
+  rescanGame as rescanGameThunk,
+  approveGame as approveGameThunk
+} from '../../features/games/gameReviewSlice';
 import StatusBadge from '../../components/admin/common/StatusBadge';
 import { VerdictBanner, RevokedBanner } from '../../components/admin/gamereview/ReviewBanners';
 import ScanFindings from '../../components/admin/gamereview/ScanFindings';
@@ -26,13 +32,14 @@ import SubmissionCard from '../../components/admin/gamereview/SubmissionCard';
 import DeliveryCard from '../../components/admin/gamereview/DeliveryCard';
 import ReviewHistory from '../../components/admin/gamereview/ReviewHistory';
 import DecisionCard from '../../components/admin/gamereview/DecisionCard';
-import { fetchReview, rescanGame, submitDecision, syncLocal } from '../../services/adminReviewService';
+import { syncLocal } from '../../services/adminReviewService';
 import '../../styles/admin/game-review.css';
 
 export function GameReview() {
   const { user } = useContext(AuthContext);
   const { toast, confirmAction } = useContext(AdminContext);
   const go = useAdminNav();
+  const dispatch = useAppDispatch();
   const [params] = useSearchParams();
   const gameId = params.get('gameId');
 
@@ -49,11 +56,12 @@ export function GameReview() {
   async function load() {
     setStatus('loading');
     try {
-      const review = await fetchReview(gameId, user.role);
+      const res = await dispatch(fetchGameReviewThunk({ gameId, role: user.role })).unwrap();
+      const review = res?.review || res;
       setData(review);
       setStatus('ready');
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || String(err));
       setStatus('error');
     }
   }
@@ -68,11 +76,11 @@ export function GameReview() {
     busy.current = true;
     toast.info('Re-scanning the installed build…');
     try {
-      await rescanGame(gameId, user.role);
+      await dispatch(rescanGameThunk({ gameId, role: user.role })).unwrap();
       toast.success('Scan complete.');
       await load();
     } catch (err) {
-      toast.error('Re-scan failed: ' + err.message);
+      toast.error('Re-scan failed: ' + (err.message || String(err)));
     } finally {
       busy.current = false;
     }
@@ -108,12 +116,13 @@ export function GameReview() {
       else if (noteText) body.note = noteText;
 
       try {
-        const updated = await submitDecision(gameId, user.role, body);
+        const res = await dispatch(approveGameThunk({ gameId, role: user.role, body })).unwrap();
+        const updated = res?.game || res;
         syncLocal(data, gameId, user, updated, decision, noteText);
         toast.success(decision === 'approved' ? 'Build approved and published.' : 'Build rejected.');
         setTimeout(() => go('approvals'), 1100);
       } catch (err) {
-        toast.error('Decision not saved: ' + err.message);
+        toast.error('Decision not saved: ' + (err.message || String(err)));
         busy.current = false;
       }
     }, decision === 'approved' ? 'primary' : 'danger');

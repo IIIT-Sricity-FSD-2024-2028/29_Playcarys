@@ -9,6 +9,12 @@
  */
 import React, { useState, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
+import { useAppDispatch } from '../../../app/hooks';
+import {
+  createTournament as createTournamentThunk,
+  updateTournament as updateTournamentThunk,
+  deleteTournament as deleteTournamentThunk
+} from '../../../features/tournaments/tournamentSlice';
 import KpiCard from './KpiCard';
 import CreateTournamentModal from './CreateTournamentModal';
 import StatusBadge from '../common/StatusBadge';
@@ -32,6 +38,7 @@ function isoDate(daysFromNow) {
 export function TournamentsSection(props) {
   const { active, addAudit } = props;
   const { toast, confirmAction, refresh } = useContext(AdminContext);
+  const dispatch = useAppDispatch();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: '', desc: '', gameId: '', max: '32', start: '', prize: '' });
@@ -69,6 +76,15 @@ export function TournamentsSection(props) {
     if (nameMsg || descMsg || maxMsg || startMsg) return;
 
     try {
+      await dispatch(createTournamentThunk({
+        tournament_name: form.name,
+        name: form.name,
+        description: form.desc,
+        game_id: form.gameId,
+        max_participants: parseInt(form.max, 10),
+        start_date: form.start,
+        prize_pool: form.prize ? parseInt(form.prize, 10) : 0
+      })).unwrap();
       await createTournament(form.name, form.desc, form.gameId, form.max, form.start, form.prize, addAudit);
       toast.success('Tournament created!');
       setModalOpen(false);
@@ -81,6 +97,7 @@ export function TournamentsSection(props) {
   async function handleStart(id) {
     const t = findTournament(id);
     try {
+      await dispatch(updateTournamentThunk({ id, data: { status: 'in-progress' } })).unwrap();
       await setTournamentStatus(t, 'in-progress', 'started', addAudit);
       toast.success(`${t.name} started!`);
       refresh();
@@ -93,6 +110,7 @@ export function TournamentsSection(props) {
     const t = findTournament(id);
     confirmAction('End Tournament', `Mark "${t.name}" as completed?`, async () => {
       try {
+        await dispatch(updateTournamentThunk({ id, data: { status: 'completed' } })).unwrap();
         await setTournamentStatus(t, 'completed', 'completed', addAudit);
         toast.info(`${t.name} completed`);
         refresh();
@@ -106,6 +124,7 @@ export function TournamentsSection(props) {
     const t = findTournament(id);
     confirmAction('Delete Tournament', `Delete "${t.name}"?`, async () => {
       try {
+        await dispatch(deleteTournamentThunk(id)).unwrap();
         await deleteTournament(t, addAudit);
         toast.success('Tournament deleted');
         refresh();

@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useAppDispatch } from '../app/hooks';
+import { fetchPublisherGames } from '../features/games/gameSlice';
+import { fetchPublisherEarnings } from '../features/economy/walletSlice';
 import publisherService from '../services/publisherService';
 
 export function usePublisherDashboardData(
   publisherId,
   isPublisher
 ) {
+  const dispatch = useAppDispatch();
   const [dashData, setDashData] = useState(null);
   const [earningsData, setEarningsData] = useState(null);
   const [earningsLoading, setEarningsLoading] = useState(true);
@@ -22,7 +26,8 @@ export function usePublisherDashboardData(
 
     async function refreshDashboardWithBackend() {
       try {
-        const freshGames = await publisherService.getPublisherGames(publisherId);
+        const res = await dispatch(fetchPublisherGames(publisherId)).unwrap();
+        const freshGames = res?.games || res || (await publisherService.getPublisherGames(publisherId));
         if (active && freshGames) {
           const freshData = publisherService.getDashboardData(publisherId);
           const mergedGames = [...(freshData.myGames || [])];
@@ -52,7 +57,8 @@ export function usePublisherDashboardData(
 
     async function loadEarnings() {
       try {
-        const response = await publisherService.getEarnings(publisherId);
+        const res = await dispatch(fetchPublisherEarnings(publisherId)).unwrap();
+        const response = res?.earnings || res;
         if (active) {
           setEarningsData(response);
         }
@@ -74,7 +80,7 @@ export function usePublisherDashboardData(
     return () => {
       active = false;
     };
-  }, [publisherId, isPublisher]);
+  }, [dispatch, publisherId, isPublisher]);
 
   return {
     dashData,

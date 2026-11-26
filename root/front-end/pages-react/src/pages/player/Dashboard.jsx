@@ -2,8 +2,9 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../app/hooks';
 import { recordGameView } from '../../features/games/gameSlice';
+import { hydratePlayerDatabase } from '../../features/profiles/playerProfileSlice';
 import AuthContext from '../../context/AuthContext';
-import playerService, { sameId, hydrateFromServer, getDatabase } from '../../services/playerService';
+import playerService, { sameId, getDatabase } from '../../services/playerService';
 import FeaturedGame from '../../components/player/dashboard/FeaturedGame';
 import TournamentList from '../../components/player/dashboard/TournamentList';
 import GameLibrary from '../../components/player/dashboard/GameLibrary';
@@ -58,11 +59,13 @@ export function Dashboard() {
 
         // Hydrate all key tables from backend so stats, friends, and tournaments
         // reflect authoritative server state rather than stale localStorage.
-        await hydrateFromServer(
-          ['users', 'player_profiles', 'games', 'tournaments', 'player_tournament',
-           'matches', 'match_results', 'sessions', 'friendships', 'notifications'],
-          currentUid
-        );
+        await dispatch(
+          hydratePlayerDatabase({
+            tables: ['users', 'player_profiles', 'games', 'tournaments', 'player_tournament',
+                     'matches', 'match_results', 'sessions', 'friendships', 'notifications'],
+            userId: currentUid
+          })
+        ).unwrap();
 
         const dashData = playerService.getDashboardData(currentUid, currentRole);
         setData(dashData);

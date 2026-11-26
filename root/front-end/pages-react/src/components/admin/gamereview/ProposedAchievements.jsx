@@ -9,11 +9,16 @@
  */
 import React, { useState, useEffect, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
-import { fetchAchievements, reviewAchievement } from '../../../services/adminReviewService';
+import { useAppDispatch } from '../../../app/hooks';
+import {
+  fetchProposedAchievements,
+  reviewProposedAchievement
+} from '../../../features/games/gameReviewSlice';
 
 export function ProposedAchievements(props) {
   const { game: g, reviewerId } = props;
   const { toast } = useContext(AdminContext);
+  const dispatch = useAppDispatch();
   const [rows, setRows] = useState(null); // null = still loading
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -21,23 +26,25 @@ export function ProposedAchievements(props) {
   const gid = g.game_id || g.id;
 
   useEffect(() => {
-    fetchAchievements(gid)
+    dispatch(fetchProposedAchievements(gid))
+      .unwrap()
       .then((list) => {
         setRows(list);
         setFailed(false);
       })
       .catch(() => setFailed(true));
-  }, [gid, reloadKey]);
+  }, [dispatch, gid, reloadKey]);
 
   function handleReview(achievementId, decision) {
-    reviewAchievement(achievementId, decision, reviewerId)
+    dispatch(reviewProposedAchievement({ achievementId, decision, reviewerId }))
+      .unwrap()
       .then((body) => {
-        toast.success(body.message || 'Done.');
+        toast.success(body?.message || 'Done.');
         setReloadKey(reloadKey + 1);
       })
       .catch((e) => {
         // The budget refusal arrives here and names the real numbers, so show it as it is.
-        toast.error(e.message);
+        toast.error(e?.message || String(e));
       });
   }
 

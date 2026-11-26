@@ -17,7 +17,6 @@ import DirectoryPanel from '../../components/staff/inbox/DirectoryPanel';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from '../../features/notifications/notificationSlice';
 import { selectAllNotifications } from '../../features/notifications/selectors';
-import { pullServerState } from '../../services/adminLiveService';
 
 export function Inbox() {
   const { user } = useContext(AuthContext);
@@ -34,12 +33,12 @@ export function Inbox() {
   // and redraw if anything changed. The navbar does this too for admin / moderator / superuser;
   // this keeps it working for a publisher as well.
   useEffect(() => {
-    const timer = setInterval(async () => {
+    const timer = setInterval(() => {
       if (document.hidden) return;
-      if (await pullServerState()) refresh();
+      dispatch(fetchNotifications({ userId: user.userId, roleName: user.role }));
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [dispatch, user.userId, user.role]);
 
   const isRead = (note) => Boolean(note.read || note.is_read);
   const unread = rows.filter((note) => !isRead(note)).length;

@@ -1,5 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import gamesApi from '../../services/endpoints/gamesApi';
+import api from '../../services/api';
+import {
+  fetchReview,
+  rescanGame as rescanGameService,
+  submitDecision as submitDecisionService,
+  fetchManifest as fetchManifestService,
+  fetchAchievements as fetchAchievementsService,
+  reviewAchievement as reviewAchievementService
+} from '../../services/adminReviewService';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -9,11 +18,57 @@ import {
   handleRejected
 } from '../../app/asyncUtils';
 
+export const fetchPublisherApplications = createAsyncThunk(
+  'gameReview/fetchPublisherApplications',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await api.request('/publisher/applications');
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch applications'));
+    }
+  }
+);
+
+export const reviewPublisherApplication = createAsyncThunk(
+  'gameReview/reviewPublisherApplication',
+  async ({ userId, data }, { rejectWithValue }) => {
+    try {
+      return await api.request(`/publisher/applications/${userId}/review`, 'POST', data);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to review application'));
+    }
+  }
+);
+
+export const fetchProposedAchievements = createAsyncThunk(
+  'gameReview/fetchProposedAchievements',
+  async (gameId, { rejectWithValue }) => {
+    try {
+      return await fetchAchievementsService(gameId);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch achievements'));
+    }
+  }
+);
+
+export const reviewProposedAchievement = createAsyncThunk(
+  'gameReview/reviewProposedAchievement',
+  async ({ achievementId, decision, reviewerId }, { rejectWithValue }) => {
+    try {
+      return await reviewAchievementService(achievementId, decision, reviewerId);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to review achievement'));
+    }
+  }
+);
+
 export const fetchGameReview = createAsyncThunk(
   'gameReview/fetchReview',
-  async (id, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const data = await gamesApi.getGameReview(id);
+      const id = typeof arg === 'object' ? arg.gameId : arg;
+      const role = typeof arg === 'object' ? arg.role : undefined;
+      const data = role ? await fetchReview(id, role) : await gamesApi.getGameReview(id);
       return { id: String(id), review: data };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to fetch game review'));
@@ -23,9 +78,11 @@ export const fetchGameReview = createAsyncThunk(
 
 export const fetchScanManifest = createAsyncThunk(
   'gameReview/fetchScanManifest',
-  async (id, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const data = await gamesApi.getScanManifest(id);
+      const id = typeof arg === 'object' ? arg.gameId : arg;
+      const role = typeof arg === 'object' ? arg.role : undefined;
+      const data = role ? await fetchManifestService(id, role) : await gamesApi.getScanManifest(id);
       return { id: String(id), manifest: data };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to fetch scan manifest'));
@@ -35,9 +92,11 @@ export const fetchScanManifest = createAsyncThunk(
 
 export const rescanGame = createAsyncThunk(
   'gameReview/rescanGame',
-  async (id, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const data = await gamesApi.rescanGame(id);
+      const id = typeof arg === 'object' ? arg.gameId : arg;
+      const role = typeof arg === 'object' ? arg.role : undefined;
+      const data = role ? await rescanGameService(id, role) : await gamesApi.rescanGame(id);
       return { id: String(id), result: data };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to rescan game'));
@@ -47,9 +106,11 @@ export const rescanGame = createAsyncThunk(
 
 export const approveGame = createAsyncThunk(
   'gameReview/approveGame',
-  async ({ id, status, review_notes }, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const data = await gamesApi.approveGame(id, { status, review_notes });
+      const id = arg.id || arg.gameId;
+      const role = arg.role;
+      const data = role ? await submitDecisionService(id, role, arg.body || arg) : await gamesApi.approveGame(id, { status: arg.status, review_notes: arg.review_notes });
       return { id: String(id), game: data };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to update review status'));

@@ -6,8 +6,9 @@
  * Players and publishers are not signed out: they sit in games without touching the page.
  */
 import { useContext, useEffect, useRef } from 'react';
+import { useDispatch } from 'react-redux';
+import { fetchPlatformStatus } from '../features/platform/platformSlice';
 import AuthContext from '../context/AuthContext';
-import api from '../services/api';
 
 export const IDLE_ROLES = ['admin', 'superuser', 'moderator'];
 
@@ -15,6 +16,7 @@ const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchst
 
 export function useIdleLogout() {
   const { user, logout } = useContext(AuthContext);
+  const dispatch = useDispatch();
   const enabled = !!user && IDLE_ROLES.includes(user.role);
 
   // The newest logout function, so the timer never calls an old one.
@@ -33,10 +35,8 @@ export function useIdleLogout() {
 
     async function loadLimit() {
       try {
-        const res = await fetch(api.getBaseUrl() + '/platform-status');
-        if (!res.ok) return;
-        const status = await res.json();
-        const minutes = Number(status.sessionTimeoutMinutes);
+        const status = await dispatch(fetchPlatformStatus()).unwrap();
+        const minutes = Number(status?.sessionTimeoutMinutes);
         if (Number.isFinite(minutes) && minutes > 0) limitMinutes = minutes;
       } catch (e) {
         // backend down: keep the last known limit

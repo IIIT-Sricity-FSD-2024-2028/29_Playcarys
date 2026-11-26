@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import profilesApi from '../../services/endpoints/profilesApi';
+import playerService from '../../services/playerService';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -53,6 +54,18 @@ export const updatePlayerProfile = createAsyncThunk(
       return { userId: String(userId), profile: res };
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to update player profile'));
+    }
+  }
+);
+
+export const hydratePlayerDatabase = createAsyncThunk(
+  'playerProfile/hydrateDatabase',
+  async ({ tables, userId } = {}, { rejectWithValue }) => {
+    try {
+      const res = await playerService.hydrateFromServer(tables, userId);
+      return res;
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to hydrate database'));
     }
   }
 );

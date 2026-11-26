@@ -2,14 +2,14 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { changePassword } from '../../features/auth/authSlice';
 import { createReport } from '../../features/moderation/reportSlice';
-import { fetchPlayerProfile, updatePlayerProfile } from '../../features/profiles/playerProfileSlice';
+import { fetchPlayerProfile, updatePlayerProfile, hydratePlayerDatabase } from '../../features/profiles/playerProfileSlice';
 import { selectPlayerProfile } from '../../features/profiles/selectors';
 import { fetchPlayerAchievements, fetchPlayerTitles, setPlayerTitle } from '../../features/games/achievementSlice';
 import { selectPlayerAchievements, selectPlayerTitles } from '../../features/games/selectors';
 import { fetchLinkedAccounts, fetchPlatforms, linkAccount, unlinkAccount } from '../../features/profiles/linkedAccountSlice';
 import { selectLinkedAccounts, selectPlatforms } from '../../features/profiles/selectors';
 import AuthContext from '../../context/AuthContext';
-import { getDatabase, saveDatabase, hydrateFromServer } from '../../services/playerService';
+import { getDatabase, saveDatabase } from '../../services/playerService';
 import authService from '../../services/authService';
 import Toast from '../../components/common/Toast';
 import Avatar3DViewer from '../../components/player/profile/Avatar3DViewer';
@@ -235,7 +235,11 @@ export function Profile() {
     let mounted = true;
     (async () => {
       try {
-        await hydrateFromServer(['player_profiles', 'users', 'match_results', 'sessions', 'matches', 'games']);
+        await dispatch(
+          hydratePlayerDatabase({
+            tables: ['player_profiles', 'users', 'match_results', 'sessions', 'matches', 'games']
+          })
+        ).unwrap();
         if (mounted) {
           setDbVersion((v) => v + 1);
         }

@@ -10,6 +10,12 @@
  */
 import React, { useState, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
+import { useAppDispatch } from '../../../app/hooks';
+import {
+  createUser,
+  updateUser,
+  deleteUser as deleteUserThunk
+} from '../../../features/users/userSlice';
 import KpiCard from './KpiCard';
 import HubUserModal from './HubUserModal';
 import StatusBadge from '../common/StatusBadge';
@@ -30,6 +36,7 @@ const NO_ERRORS = { username: '', email: '', password: '' };
 export function UsersSection(props) {
   const { active, addAudit, onNavigate } = props;
   const { toast, confirmAction, refresh } = useContext(AdminContext);
+  const dispatch = useAppDispatch();
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -97,6 +104,20 @@ export function UsersSection(props) {
     if (nextErrors.username || nextErrors.email || nextErrors.password) return;
 
     try {
+      if (isEdit) {
+        await dispatch(updateUser({
+          id: editId,
+          data: { username, email, role: form.role, status: form.status }
+        })).unwrap();
+      } else {
+        await dispatch(createUser({
+          username,
+          email,
+          role: form.role,
+          status: form.status,
+          password: form.password
+        })).unwrap();
+      }
       await saveHubUser(isEdit, editId, username, email, form.role, form.status, form.password, addAudit);
       toast.success(isEdit ? 'User updated' : 'User added');
       setModalOpen(false);
@@ -111,6 +132,7 @@ export function UsersSection(props) {
     if (!u) return;
     confirmAction('Delete User', `Permanently delete ${u.username}? Cannot be undone.`, async () => {
       try {
+        await dispatch(deleteUserThunk(u.id)).unwrap();
         await deleteHubUser(u, addAudit);
         toast.success('User deleted');
         refresh();

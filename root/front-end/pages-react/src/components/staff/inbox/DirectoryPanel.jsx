@@ -10,13 +10,15 @@
  * disagree. Pick a person, write, Send (POST /notifications).
  */
 import React, { useState, useEffect, useRef, useContext } from 'react';
+import { useDispatch } from 'react-redux';
+import { fetchDirectory, sendNotification } from '../../../features/notifications/notificationSlice';
 import AdminContext from '../../../context/AdminContext';
-import { fetchDirectory, sendDirectMessage } from '../../../services/adminNotifService';
 import { directoryNote } from '../../../services/staffInboxService';
 
 export function DirectoryPanel(props) {
   const { user } = props;
   const { toast } = useContext(AdminContext);
+  const dispatch = useDispatch();
   const [directory, setDirectory] = useState(null); // null = loading
   const [loadError, setLoadError] = useState('');
   const [selected, setSelected] = useState(null);   // { id, name }
@@ -25,10 +27,11 @@ export function DirectoryPanel(props) {
   const boxRef = useRef(null);
 
   useEffect(() => {
-    fetchDirectory(user.userId)
+    dispatch(fetchDirectory(user.userId))
+      .unwrap()
       .then(setDirectory)
-      .catch((e) => setLoadError('Could not load the directory. ' + e.message));
-  }, [user.userId]);
+      .catch((e) => setLoadError('Could not load the directory. ' + (e?.message || e)));
+  }, [dispatch, user.userId]);
 
   // Picking someone opens the message box and puts the cursor in it (like the old page).
   useEffect(() => {
@@ -51,12 +54,21 @@ export function DirectoryPanel(props) {
       return;
     }
     try {
-      await sendDirectMessage(user, selected.id, msg);
+      await dispatch(
+        sendNotification({
+          toUser: Number(selected.id),
+          fromUserId: Number(user.userId),
+          fromRole: user.role,
+          from: user.username,
+          avatar: user.avatar || (user.username ? user.username.slice(0, 2).toUpperCase() : 'ST'),
+          msg
+        })
+      ).unwrap();
       setText('');
       toast.success('Sent to ' + selected.name);
     } catch (e) {
       // The server enforces the same rules, so a refusal means the two disagreed: show it as it is.
-      toast.error(e.message);
+      toast.error(e?.message || String(e));
     }
   }
 

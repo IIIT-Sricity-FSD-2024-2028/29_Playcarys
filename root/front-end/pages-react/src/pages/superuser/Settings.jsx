@@ -4,19 +4,16 @@ import { useDispatch } from 'react-redux';
 import authService from '../../services/authService';
 import {
   fetchPlatformSettings,
-  updatePlatformSettings
+  updatePlatformSettings,
+  executeDangerZone
 } from '../../features/platform/platformSlice';
 import { fetchReports } from '../../features/moderation/reportSlice';
+import { fetchBans } from '../../features/moderation/moderationSlice';
 import { fetchTournaments } from '../../features/tournaments/tournamentSlice';
+import { fetchUsers } from '../../features/users/userSlice';
+import { fetchGames } from '../../features/games/gameSlice';
 import {
   getSettings,
-  saveSettings,
-  fetchUsers,
-  fetchGames,
-  purgeSessions,
-  liftAllBans,
-  archiveAllReports,
-  clearActivityLog,
   getDatabase
 } from '../../services/superuserService';
 import ToggleSwitch from '../../components/superuser/settings/ToggleSwitch';
@@ -240,7 +237,6 @@ export function Settings() {
     try {
       const next = { ...persistedSettings, ...data };
       await dispatch(updatePlatformSettings(next)).unwrap();
-      saveSettings(data);
       setPersistedSettings((prev) => ({ ...prev, ...data }));
       showToast('Platform info saved', 'success');
     } catch (err) {
@@ -271,7 +267,8 @@ export function Settings() {
       if (type === 'users') {
         let users = [];
         try {
-          users = await fetchUsers();
+          const res = await dispatch(fetchUsers()).unwrap();
+          users = Array.isArray(res) ? res : (res?.data || []);
         } catch (e) {
           users = db.users || [];
         }
@@ -291,7 +288,8 @@ export function Settings() {
       } else if (type === 'games') {
         let games = [];
         try {
-          games = await fetchGames();
+          const res = await dispatch(fetchGames()).unwrap();
+          games = Array.isArray(res) ? res : (res?.data || []);
         } catch (e) {
           games = db.games || [];
         }
@@ -331,7 +329,13 @@ export function Settings() {
           .join('\n');
         csvContent = header + rows;
       } else if (type === 'bans') {
-        const bans = db.bans || [];
+        let bans = [];
+        try {
+          const res = await dispatch(fetchBans()).unwrap();
+          bans = Array.isArray(res) ? res : (res?.data || []);
+        } catch (e) {
+          bans = db.bans || [];
+        }
         const header = 'Player,Duration,Reason,Banned By,Banned Date,Active\n';
         const rows = bans
           .map((b) =>
@@ -428,17 +432,15 @@ export function Settings() {
     setDangerModal((prev) => ({ ...prev, isOpen: false }));
 
     try {
+      const actionRes = await dispatch(executeDangerZone(actionKey)).unwrap();
+      const count = actionRes?.result;
       if (actionKey === 'purge-sessions') {
-        const count = await purgeSessions();
-        showToast(`${count} match(es) ended`, 'warning');
+        showToast(`${count || 0} match(es) ended`, 'warning');
       } else if (actionKey === 'lift-bans') {
-        await liftAllBans();
         showToast('All bans lifted', 'success');
       } else if (actionKey === 'archive-reports') {
-        await archiveAllReports();
         showToast('All reports archived', 'info');
       } else if (actionKey === 'reset-data') {
-        await clearActivityLog();
         showToast('Activity log cleared', 'warning');
       }
       loadInitialSettings();

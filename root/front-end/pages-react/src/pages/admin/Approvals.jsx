@@ -8,7 +8,8 @@
  * Mirrors pages/admin/approvals.html.
  */
 import React, { useEffect, useContext, useState, useCallback } from 'react';
-import api from '../../services/api';
+import { useAppDispatch } from '../../app/hooks';
+import { fetchGames as fetchGamesThunk } from '../../features/games/gameSlice';
 import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
 import ApprovalStats from '../../components/admin/approvals/ApprovalStats';
@@ -25,18 +26,19 @@ export function Approvals() {
     document.title = 'PlayCarys — Game Approvals';
   }, []);
 
+  const dispatch = useAppDispatch();
   const [backendGames, setBackendGames] = useState(null);
 
   const fetchGames = useCallback(async () => {
     try {
-      const res = await api.get('/games');
+      const res = await dispatch(fetchGamesThunk()).unwrap();
       if (Array.isArray(res)) {
         setBackendGames(res);
       }
     } catch (err) {
       console.warn('Failed to fetch /games for Approvals:', err);
     }
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     fetchGames();

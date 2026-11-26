@@ -9,7 +9,12 @@
  * registerPublisher), copied from the old doRegister / doPublisherRegister.
  */
 import React, { useState, useEffect } from 'react';
-import { registerPlayer, registerPublisher, signUpBlockedReason } from '../../services/landingAuthService';
+import { useDispatch } from 'react-redux';
+import {
+  checkSignUpBlockedReason,
+  registerPlayerThunk,
+  registerPublisherThunk
+} from '../../features/auth/authSlice';
 
 const COUNTRY_CODES = [
   ['+1', '🇺🇸 US (+1)'], ['+44', '🇬🇧 UK (+44)'], ['+61', '🇦🇺 AU (+61)'], ['+7', '🇷🇺 RU (+7)'],
@@ -59,6 +64,7 @@ function Field(props) {
 
 export function PlayerRegisterModal(props) {
   const { open, onClose, onRegistered } = props;
+  const dispatch = useDispatch();
   const [values, setValues] = useState({ username: '', email: '', password: '', confirm: '' });
   const [errors, setErrors] = useState({});
   useLockScroll(open);
@@ -69,12 +75,12 @@ export function PlayerRegisterModal(props) {
   }
 
   async function submit() {
-    const blocked = await signUpBlockedReason();
+    const blocked = await dispatch(checkSignUpBlockedReason()).unwrap();
     if (blocked) {
       setErrors({ username: blocked });
       return;
     }
-    const result = await registerPlayer(values);
+    const result = await dispatch(registerPlayerThunk(values)).unwrap();
     if (result.errors) {
       setErrors(result.errors);
       return;
@@ -117,6 +123,7 @@ export function PlayerRegisterModal(props) {
 
 export function PublisherRegisterModal(props) {
   const { open, onClose, onRegistered } = props;
+  const dispatch = useDispatch();
   const [values, setValues] = useState({
     username: '', email: '', countryCode: '+91', phone: '', password: '', confirm: ''
   });
@@ -129,12 +136,12 @@ export function PublisherRegisterModal(props) {
   }
 
   async function submit() {
-    const blocked = await signUpBlockedReason();
+    const blocked = await dispatch(checkSignUpBlockedReason()).unwrap();
     if (blocked) {
       setErrors({ username: blocked });
       return;
     }
-    const result = await registerPublisher(values);
+    const result = await dispatch(registerPublisherThunk(values)).unwrap();
     if (result.errors) {
       setErrors(result.errors);
       return;

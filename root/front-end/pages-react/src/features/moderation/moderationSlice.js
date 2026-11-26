@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import moderationApi from '../../services/endpoints/moderationApi';
+import * as moderatorService from '../../services/moderatorService';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -8,6 +9,30 @@ import {
   handleFulfilled,
   handleRejected
 } from '../../app/asyncUtils';
+
+export const fetchModeratorDashboard = createAsyncThunk(
+  'moderation/fetchDashboard',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const data = await moderatorService.fetchModeratorDashboardData(userId);
+      return data;
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch moderator dashboard data'));
+    }
+  }
+);
+
+export const sendContactAdminNotification = createAsyncThunk(
+  'moderation/sendContactAdmin',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await moderatorService.sendContactAdminNotification(payload);
+      return data;
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to send admin notification'));
+    }
+  }
+);
 
 export const fetchModeratorActions = createAsyncThunk(
   'moderation/fetchActions',
@@ -84,6 +109,8 @@ export const liftBan = createAsyncThunk(
 const initialState = {
   actions: [],
   bans: [],
+  dashboardData: null,
+  dashboardStatus: AsyncStatus.IDLE,
   selectedBanTarget: null,
   mutationStatus: AsyncStatus.IDLE,
   mutationError: null,
@@ -234,6 +261,27 @@ export const moderationSlice = createSlice({
       .addCase(liftBan.rejected, (state, action) => {
         state.mutationStatus = AsyncStatus.FAILED;
         state.mutationError = action.payload || 'Failed to lift ban';
+      })
+      .addCase(fetchModeratorDashboard.pending, (state) => {
+        state.dashboardStatus = AsyncStatus.LOADING;
+      })
+      .addCase(fetchModeratorDashboard.fulfilled, (state, action) => {
+        state.dashboardStatus = AsyncStatus.SUCCEEDED;
+        state.dashboardData = action.payload;
+      })
+      .addCase(fetchModeratorDashboard.rejected, (state, action) => {
+        state.dashboardStatus = AsyncStatus.FAILED;
+        state.error = action.payload || action.error?.message;
+      })
+      .addCase(sendContactAdminNotification.pending, (state) => {
+        state.mutationStatus = AsyncStatus.LOADING;
+      })
+      .addCase(sendContactAdminNotification.fulfilled, (state) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
+      })
+      .addCase(sendContactAdminNotification.rejected, (state, action) => {
+        state.mutationStatus = AsyncStatus.FAILED;
+        state.mutationError = action.payload || action.error?.message;
       });
   }
 });

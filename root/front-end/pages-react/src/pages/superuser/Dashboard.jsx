@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import {
-  fetchPlatformStats,
-  fetchRecentActivity,
-  getPlatformEconomy
-} from '../../services/superuserService';
+import { useAppDispatch } from '../../app/hooks';
+import { fetchPlatformOverview } from '../../features/platform/platformSlice';
 import SuperuserDashboardHeader from '../../components/superuser/dashboard/SuperuserDashboardHeader';
 import SuperuserDashboardStats from '../../components/superuser/dashboard/SuperuserDashboardStats';
 import SuperuserUserDistribution from '../../components/superuser/dashboard/SuperuserUserDistribution';
@@ -19,6 +16,7 @@ import '../../styles/superuser/dashboard.css';
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,40 +38,25 @@ export function Dashboard() {
     setUnauthorized(false);
     setSession(currentSession);
 
-    // Fetch real live backend platform statistics and recent activity
-    Promise.allSettled([
-      fetchPlatformStats(),
-      fetchRecentActivity(8)
-    ]).then(([statsRes, actRes]) => {
-      if (statsRes.status === 'fulfilled') {
-        setStats(statsRes.value);
-        setTotalGames(statsRes.value.totalGames || 0);
-      }
-      if (actRes.status === 'fulfilled') {
-        setActivity(actRes.value);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
-
-    // Platform financial and staffing data is Superuser-only
-    if (currentSession.role === 'superuser') {
-      getPlatformEconomy()
-        .then((data) => {
-          setPlatformData(data);
-          setPlatformLoading(false);
-          setPlatformError(false);
-        })
-        .catch((err) => {
-          console.error('Failed to load platform data:', err);
-          setPlatformLoading(false);
-          setPlatformError(true);
-        });
-    } else {
-      setPlatformLoading(false);
-    }
-  }, []);
+    dispatch(fetchPlatformOverview({ limit: 8, role: currentSession.role }))
+      .unwrap()
+      .then(({ stats: s, activity: a, economy: eco }) => {
+        if (s) {
+          setStats(s);
+          setTotalGames(s.totalGames || 0);
+        }
+        if (a) setActivity(a);
+        if (eco) setPlatformData(eco);
+        setPlatformLoading(false);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load platform data via Redux:', err);
+        setLoading(false);
+        setPlatformLoading(false);
+        setPlatformError(true);
+      });
+  }, [dispatch]);
 
   if (unauthorized) {
     return (

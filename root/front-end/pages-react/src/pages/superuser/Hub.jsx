@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import {
-  fetchPlatformStats,
-  fetchRecentActivity
-} from '../../services/superuserService';
+import { useAppDispatch } from '../../app/hooks';
+import { fetchPlatformOverview } from '../../features/platform/platformSlice';
 import SuperuserHubHero from '../../components/superuser/hub/SuperuserHubHero';
 import SuperuserHubKPIs from '../../components/superuser/hub/SuperuserHubKPIs';
 import SuperuserHubQuickNavigation from '../../components/superuser/hub/SuperuserHubQuickNavigation';
@@ -16,6 +14,7 @@ import '../../styles/superuser/hub.css';
 
 export function Hub() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -38,46 +37,46 @@ export function Hub() {
     setUnauthorized(false);
     setSession(currentSession);
 
-    // Fetch live data directly from NestJS backend
-    Promise.allSettled([
-      fetchPlatformStats(),
-      fetchRecentActivity(7)
-    ]).then(([statsRes, actRes]) => {
-      if (statsRes.status === 'fulfilled') {
-        const s = statsRes.value;
-        setStats(s);
-        setActiveSessions(s.activeSessions || 0);
+    // Fetch live data directly through Redux
+    dispatch(fetchPlatformOverview({ limit: 7, role: currentSession.role }))
+      .unwrap()
+      .then(({ stats: s, activity: act }) => {
+        if (s) {
+          setStats(s);
+          setActiveSessions(s.activeSessions || 0);
 
-        const raw = s._raw || {};
-        const sessions = raw.sessions || [];
-        const liveSessions = sessions.filter(
-          (m) => m.status === 'in-progress' || m.status === 'active' || m.status === 'waiting'
-        );
-        setTotalOnline(
-          liveSessions.reduce(
-            (a, m) => a + (Array.isArray(m.player_ids) ? m.player_ids.length : (m.current_players || 1)),
-            0
-          )
-        );
+          const raw = s._raw || {};
+          const sessions = raw.sessions || [];
+          const liveSessions = sessions.filter(
+            (m) => m.status === 'in-progress' || m.status === 'active' || m.status === 'waiting'
+          );
+          setTotalOnline(
+            liveSessions.reduce(
+              (a, m) => a + (Array.isArray(m.player_ids) ? m.player_ids.length : (m.current_players || 1)),
+              0
+            )
+          );
 
-        setReportsCount((raw.reports || []).length);
-        setTournaments(raw.tournaments || []);
+          setReportsCount((raw.reports || []).length);
+          setTournaments(raw.tournaments || []);
 
-        const rows =
-          (raw.users || []).length +
-          (raw.games || []).length +
-          sessions.length +
-          (raw.bans || []).length;
-        setLoadedRows(rows);
-      }
-      if (actRes.status === 'fulfilled') {
-        setFeed(actRes.value);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
-  }, []);
+          const rows =
+            (raw.users || []).length +
+            (raw.games || []).length +
+            sessions.length +
+            (raw.bans || []).length;
+          setLoadedRows(rows);
+        }
+        if (act) {
+          setFeed(act);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load superuser hub data via Redux:', err);
+        setLoading(false);
+      });
+  }, [dispatch]);
 
   if (unauthorized) {
     return (

@@ -10,6 +10,8 @@
  */
 import React, { useState, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
+import { useAppDispatch } from '../../../app/hooks';
+import { setGameState, deleteGame as deleteGameThunk } from '../../../features/games/gameSlice';
 import KpiCard from './KpiCard';
 import GameIcon from '../common/GameIcon';
 import StatusBadge from '../common/StatusBadge';
@@ -19,6 +21,7 @@ import { listHubGames, toggleGameEnabled, deleteGame } from '../../../services/a
 export function GamesSection(props) {
   const { active, addAudit, onReview } = props;
   const { toast, confirmAction, refresh } = useContext(AdminContext);
+  const dispatch = useAppDispatch();
   const [filter, setFilter] = useState('');
 
   const db = getDB();
@@ -30,6 +33,7 @@ export function GamesSection(props) {
   async function handleToggle(row) {
     const g = db.games.find((x) => x.id === row.id) || row; // always the live row, never an old copy
     try {
+      await dispatch(setGameState({ id: g.id, enabled: !g.enabled })).unwrap();
       await toggleGameEnabled(g, addAudit);
       toast.info(`${g.title} ${g.enabled ? 'enabled' : 'blacklisted'}`);
       refresh();
@@ -42,6 +46,7 @@ export function GamesSection(props) {
     const g = db.games.find((x) => x.id === row.id) || row;
     confirmAction('Delete Game', `Delete "${g.title}"?`, async () => {
       try {
+        await dispatch(deleteGameThunk(g.id)).unwrap();
         await deleteGame(g, addAudit);
         toast.success('Game deleted');
         refresh();

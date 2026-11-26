@@ -192,6 +192,18 @@ export const publishPublisherGame = createAsyncThunk(
   }
 );
 
+export const probeGameHost = createAsyncThunk(
+  'games/probeHost',
+  async (gameId, { rejectWithValue }) => {
+    try {
+      const isAlive = await playerService.probeSelfHosted(gameId);
+      return { gameId: String(gameId), isAlive };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to probe game'));
+    }
+  }
+);
+
 const initialState = gamesAdapter.getInitialState({
   selectedGameId: null,
   favoriteGameIds: [],
