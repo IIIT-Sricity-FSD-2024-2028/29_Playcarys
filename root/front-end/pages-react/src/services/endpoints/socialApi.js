@@ -3,8 +3,9 @@ import { normalizeEntity, normalizeList } from './normalize';
 
 export const socialApi = {
   // Teams
-  async getTeams() {
-    const res = await api.get('/teams');
+  async getTeams({ playerId } = {}) {
+    const query = playerId != null ? `?playerId=${encodeURIComponent(playerId)}` : '';
+    const res = await api.get(`/teams${query}`);
     return normalizeList(res, ['team_id']);
   },
 
@@ -18,21 +19,28 @@ export const socialApi = {
     return normalizeEntity(res, ['team_id']);
   },
 
-  async updateTeam(id, dto) {
-    const res = await api.patch(`/teams/${id}`, dto);
+  async updateTeam(id, dto, requesterId) {
+    const res = await api.patch(`/teams/${id}?requesterId=${encodeURIComponent(requesterId)}`, dto);
     return normalizeEntity(res, ['team_id']);
   },
 
-  async addTeamMember(teamId, dto) {
-    return api.post(`/teams/${teamId}/members`, dto);
+  async addTeamMember(teamId, dto, requesterId) {
+    const res = await api.post(
+      `/teams/${teamId}/members?requesterId=${encodeURIComponent(requesterId)}`,
+      dto
+    );
+    return normalizeEntity(res, ['team_id']);
   },
 
-  async removeTeamMember(teamId, userId) {
-    return api.delete(`/teams/${teamId}/members/${userId}`);
+  async removeTeamMember(teamId, userId, requesterId) {
+    const res = await api.delete(
+      `/teams/${teamId}/members/${userId}?requesterId=${encodeURIComponent(requesterId)}`
+    );
+    return normalizeEntity(res, ['team_id']);
   },
 
-  async deleteTeam(id) {
-    await api.delete(`/teams/${id}`);
+  async deleteTeam(id, requesterId) {
+    await api.delete(`/teams/${id}?requesterId=${encodeURIComponent(requesterId)}`);
     return { id: String(id) };
   },
 
@@ -47,8 +55,12 @@ export const socialApi = {
   },
 
   // Groups
-  async getGroups() {
-    const res = await api.get('/groups');
+  async getGroups({ playerId, viewerId } = {}) {
+    const query = new URLSearchParams();
+    if (playerId != null) query.set('playerId', String(playerId));
+    if (viewerId != null) query.set('viewerId', String(viewerId));
+    const suffix = query.toString() ? `?${query}` : '';
+    const res = await api.get(`/groups${suffix}`);
     return normalizeList(res, ['group_id']);
   },
 
@@ -62,22 +74,50 @@ export const socialApi = {
     return normalizeEntity(res, ['group_id']);
   },
 
-  async updateGroup(id, dto) {
-    const res = await api.patch(`/groups/${id}`, dto);
+  async updateGroup(id, dto, requesterId) {
+    const res = await api.patch(`/groups/${id}?requesterId=${encodeURIComponent(requesterId)}`, dto);
     return normalizeEntity(res, ['group_id']);
   },
 
-  async deleteGroup(id) {
-    await api.delete(`/groups/${id}`);
+  async deleteGroup(id, requesterId) {
+    await api.delete(`/groups/${id}?requesterId=${encodeURIComponent(requesterId)}`);
     return { id: String(id) };
   },
 
-  async joinGroup(groupId, dto) {
-    return api.post(`/groups/${groupId}/join`, dto);
+  async joinGroup(groupId, userId) {
+    return api.post(`/groups/${groupId}/join?userId=${encodeURIComponent(userId)}`);
   },
 
-  async leaveGroup(groupId, dto) {
-    return api.post(`/groups/${groupId}/leave`, dto);
+  async leaveGroup(groupId, userId) {
+    return api.post(`/groups/${groupId}/leave?userId=${encodeURIComponent(userId)}`);
+  },
+
+  async promoteGroupOfficer(groupId, userId, requesterId) {
+    const res = await api.post(`/groups/${groupId}/officers/${userId}?requesterId=${encodeURIComponent(requesterId)}`);
+    return normalizeEntity(res, ['group_id']);
+  },
+
+  async demoteGroupOfficer(groupId, userId, requesterId) {
+    const res = await api.delete(`/groups/${groupId}/officers/${userId}?requesterId=${encodeURIComponent(requesterId)}`);
+    return normalizeEntity(res, ['group_id']);
+  },
+
+  async removeGroupMember(groupId, userId, requesterId) {
+    return api.delete(`/groups/${groupId}/members/${userId}?requesterId=${encodeURIComponent(requesterId)}`);
+  },
+
+  async getGroupRequests(groupId, requesterId) {
+    const res = await api.get(`/groups/${groupId}/requests?requesterId=${encodeURIComponent(requesterId)}`);
+    return normalizeList(res);
+  },
+
+  async respondToGroupRequest(groupId, requestId, accept, requesterId) {
+    const action = accept ? 'accept' : 'reject';
+    return api.post(`/groups/${groupId}/requests/${requestId}/${action}?requesterId=${encodeURIComponent(requesterId)}`);
+  },
+
+  async getGroupTournaments(groupId) {
+    return api.get(`/groups/${groupId}/tournaments`);
   },
 
   async getGroupChat(groupId) {
@@ -91,8 +131,9 @@ export const socialApi = {
   },
 
   // Friends & Messages
-  async searchPlayers(query) {
-    const res = await api.get(`/players/search?q=${encodeURIComponent(query)}`);
+  async searchPlayers(query, viewerId) {
+    const viewer = viewerId != null ? `&viewerId=${encodeURIComponent(viewerId)}` : '';
+    const res = await api.get(`/players/search?q=${encodeURIComponent(query)}${viewer}`);
     return normalizeList(res, ['user_id', 'player_id']);
   },
 
@@ -102,8 +143,7 @@ export const socialApi = {
   },
 
   async getFriendRequests(userId) {
-    const res = await api.get(`/friends/${userId}/requests`);
-    return normalizeList(res, ['request_id']);
+    return api.get(`/friends/${userId}/requests`);
   },
 
   async sendFriendRequest(dto) {
@@ -127,6 +167,14 @@ export const socialApi = {
   async sendMessage(dto) {
     const res = await api.post('/messages', dto);
     return normalizeEntity(res, ['message_id']);
+  },
+
+  async markMessagesDelivered(userId, fromUserId) {
+    return api.post('/messages/delivered', { user_id: userId, from_user: fromUserId });
+  },
+
+  async clearConversation(userId, withUserId) {
+    return api.delete(`/messages/${userId}/${withUserId}`);
   }
 };
 

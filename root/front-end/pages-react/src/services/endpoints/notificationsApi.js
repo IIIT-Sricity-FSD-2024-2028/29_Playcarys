@@ -4,34 +4,29 @@ import { normalizeEntity, normalizeList } from './normalize';
 export const notificationsApi = {
   async getNotifications(params = {}) {
     const query = new URLSearchParams();
-    if (params.recipient_id) query.append('recipient_id', params.recipient_id);
-    if (params.type) query.append('type', params.type);
-    if (params.limit) query.append('limit', params.limit);
+    if (params.userId != null) query.append('userId', params.userId);
+    if (params.roleName) query.append('roleName', params.roleName);
     const qs = query.toString();
     const res = await api.get(`/notifications${qs ? `?${qs}` : ''}`);
     return normalizeList(res);
   },
 
-  async getUserNotifications(userId) {
-    const res = await api.get(`/notifications/user/${userId}`);
-    return normalizeList(res);
+  async getUserNotifications(userId, roleName) {
+    return this.getNotifications({ userId, roleName });
   },
 
-  async getUnreadCount(userId) {
-    if (userId) {
-      return api.get(`/notifications/unread-count/${userId}`);
-    }
-    return api.get('/notifications/unread-count');
+  async getUnreadCount(userId, roleName) {
+    return api.get(`/notifications/unread-count?userId=${encodeURIComponent(userId)}&roleName=${encodeURIComponent(roleName)}`);
   },
 
-  async getDirectory() {
-    const res = await api.get('/notifications/directory');
+  async getDirectory(viewerId) {
+    const res = await api.get(`/notifications/directory?viewerId=${encodeURIComponent(viewerId)}`);
     return normalizeList(res, ['user_id']);
   },
 
   async getThread(parentId) {
-    const res = await api.get(`/notifications/thread/${parentId}`);
-    return normalizeList(res);
+    const notification = normalizeEntity(await api.get(`/notifications/${parentId}`));
+    return [notification, ...(notification?.replies || [])];
   },
 
   async sendNotification(dto) {
@@ -40,23 +35,21 @@ export const notificationsApi = {
   },
 
   async replyToNotification(dto) {
-    const res = await api.post('/notifications/reply', dto);
+    const { notificationId, ...body } = dto;
+    const res = await api.post(`/notifications/${notificationId}/reply`, body);
     return normalizeEntity(res);
   },
 
-  async markAsRead(id) {
-    await api.patch(`/notifications/${id}/read`);
-    return { id: String(id) };
+  async markAsRead(id, audience, read = true) {
+    return api.patch(`/notifications/${id}/read`, { ...audience, read });
   },
 
-  async markAllAsRead(userId) {
-    await api.post('/notifications/mark-all-read', { user_id: userId });
-    return { userId: String(userId) };
+  async markAllAsRead(audience) {
+    return api.patch('/notifications/mark-all-read', audience);
   },
 
-  async deleteNotification(id) {
-    await api.delete(`/notifications/${id}`);
-    return { id: String(id) };
+  async deleteNotification(id, audience) {
+    return api.request(`/notifications/${id}`, 'DELETE', audience);
   }
 };
 

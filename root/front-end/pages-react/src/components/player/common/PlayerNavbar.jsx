@@ -10,7 +10,8 @@ import NotificationDropdown from '../notifications/NotificationDropdown';
 import ConfirmModal from '../../common/ConfirmModal';
 import FindPlayersModal from './FindPlayersModal';
 import { useChat } from '../../../context/ChatContext';
-import socialService from '../../../services/socialService';
+import { useAppDispatch } from '../../../app/hooks';
+import { removeFriend } from '../../../features/communities/socialSlice';
 import '../../../styles/player/drawer.css';
 
 // Every player page, in the order a player thinks of them. The top bar only has
@@ -39,6 +40,7 @@ function initials(name) {
 }
 
 export function PlayerNavbar(props) {
+  const dispatch = useAppDispatch();
   const { activePage = 'dashboard' } = props;
   const { user, logout } = useContext(AuthContext);
   const {
@@ -125,7 +127,7 @@ export function PlayerNavbar(props) {
     setFriendToRemove(null);
     setNotice('');
     try {
-      await socialService.removeFriend(currentUid, target.id);
+      await dispatch(removeFriend({ userId: currentUid, friendId: target.id })).unwrap();
       window.dispatchEvent(new CustomEvent('friends-updated'));
       await refreshSocial();
     } catch (err) {

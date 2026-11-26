@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import api from '../../services/api';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, sameId } from '../../services/playerService';
 import { tournamentService, entrantCount, entrantName, isRegistered } from '../../services/tournamentService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchGroups as loadGroups, fetchGroupById as loadGroupById, createGroup, updateGroup, joinGroup, leaveGroup, promoteGroupOfficer, demoteGroupOfficer, removeGroupMember, postGroupChatMessage, respondToGroupRequest, fetchGroupChat as loadGroupChat, fetchGroupRequests as loadGroupRequests, fetchGroupTournaments as loadGroupTournaments } from '../../features/communities/groupSlice';
+import { fetchTeams as loadTeams, createTeam, updateTeam, addTeamMember, removeTeamMember, deleteTeam, postTeamChatMessage, fetchTeamChat as loadTeamChat } from '../../features/communities/teamSlice';
+import { selectAllGroups, selectAllTeams, selectGroupById, selectGroupsStatus, selectTeamsStatus } from '../../features/communities/selectors';
+import { updateTournament, deleteTournament } from '../../features/tournaments/tournamentSlice';
+import { fetchTournamentBracket, startTournament as startTournamentPlay, resolveMatchDispute } from '../../features/tournaments/tournamentPlaySlice';
+import { fetchLinkedAccounts as loadLinkedAccounts } from '../../features/profiles/linkedAccountSlice';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/community.css';
 
 export function Community() {
   const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { groupId: paramGroupId, id: paramId, groupTab: paramGroupTab, tab: paramTab } = useParams();
@@ -23,8 +30,9 @@ export function Community() {
   const rawGroupId = paramGroupId || paramId || searchParams.get('groupId') || searchParams.get('id');
   const initialGroupId = rawGroupId ? Number(rawGroupId) : null;
   const [selectedGroupId, setSelectedGroupId] = useState(initialGroupId);
-  const [activeGroup, setActiveGroup] = useState(null);
-  const [loadingGroupDetail, setLoadingGroupDetail] = useState(false);
+  const activeGroup = useAppSelector((state) =>
+    selectedGroupId ? selectGroupById(state, selectedGroupId) : null
+  );
 
   const rawTab = paramGroupTab || paramTab || searchParams.get('groupTab') || 'roster';
   const normalizedInitialTab = rawTab.toLowerCase().startsWith('tourn') ? 'tournaments' : rawTab;
@@ -48,10 +56,12 @@ export function Community() {
   }, [paramGroupId, paramId, paramGroupTab, paramTab]);
 
   // Groups & Teams Data
-  const [groups, setGroups] = useState([]);
-  const [teams, setTeams] = useState([]);
+  const groups = useAppSelector(selectAllGroups);
+  const teams = useAppSelector(selectAllTeams);
+  const groupsStatus = useAppSelector(selectGroupsStatus);
+  const teamsStatus = useAppSelector(selectTeamsStatus);
   const [linkedMap, setLinkedMap] = useState({});
-  const [loading, setLoading] = useState(true);
+  const loading = groupsStatus === 'loading' || teamsStatus === 'loading';
 
   // Group Detail - Chat state
   const [chatMessages, setChatMessages] = useState([]);
@@ -139,9 +149,7 @@ export function Community() {
   // Load Groups
   const fetchGroups = async () => {
     try {
-      const res = await api.get(`/groups?viewerId=${uid}`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setGroups(list);
+      await dispatch(loadGroups({ viewerId: uid })).unwrap();
     } catch (err) {
       console.error('Failed to load groups:', err);
       showToast('Could not load groups from the backend.', 'error');
@@ -154,8 +162,8 @@ export function Community() {
     const pairs = await Promise.all(
       memberIds.map(async (id) => {
         try {
-          const res = await api.get(`/linked-accounts/player/${id}`);
-          return [id, Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])];
+          const { accounts } = await dispatch(loadLinkedAccounts(id)).unwrap();
+          return [id, accounts];
         } catch (e) {
           return [id, []];
         }
@@ -167,9 +175,7 @@ export function Community() {
   // Load Teams
   const fetchTeams = async () => {
     try {
-      const res = await api.get(`/teams?playerId=${uid}`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setTeams(list);
+      const list = await dispatch(loadTeams({ playerId: uid })).unwrap();
       await fetchLinkedAccounts(list);
     } catch (err) {
       console.error('Failed to load teams:', err);
@@ -180,23 +186,11 @@ export function Community() {
   // Load Specific Group Detail
   const fetchGroupDetail = async (gid) => {
     try {
-      setLoadingGroupDetail(true);
-      const res = await api.get(`/groups/${gid}`);
-      const data = res?.data || res;
-      setActiveGroup(data);
+      await dispatch(loadGroupById(gid)).unwrap();
     } catch (err) {
       console.error('Failed to load group detail:', err);
-      const dbInstance = getDatabase();
-      const local = groups.find((g) => sameId(g.group_id || g.id, gid)) ||
-        (dbInstance?.groups || []).find((g) => sameId(g.group_id || g.id, gid));
-      if (local) {
-        setActiveGroup(local);
-      } else {
-        showToast('Group not found.', 'error');
-        setSelectedGroupId(null);
-      }
-    } finally {
-      setLoadingGroupDetail(false);
+      showToast('Group not found.', 'error');
+      setSelectedGroupId(null);
     }
   };
 
@@ -204,9 +198,8 @@ export function Community() {
   const fetchChat = async (gid) => {
     try {
       setLoadingChat(true);
-      const res = await api.get(`/groups/${gid}/chat`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setChatMessages(list);
+      const { chat } = await dispatch(loadGroupChat(gid)).unwrap();
+      setChatMessages(chat);
     } catch (e) {
       setChatMessages([]);
     } finally {
@@ -218,9 +211,8 @@ export function Community() {
   const fetchRequests = async (gid) => {
     try {
       setLoadingRequests(true);
-      const res = await api.get(`/groups/${gid}/requests?requesterId=${uid}`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
-      setJoinRequests(list);
+      const { requests } = await dispatch(loadGroupRequests({ groupId: gid, requesterId: uid })).unwrap();
+      setJoinRequests(requests);
     } catch (e) {
       setJoinRequests([]);
     } finally {
@@ -232,8 +224,7 @@ export function Community() {
   const fetchGroupTournaments = async (gid) => {
     try {
       setLoadingTournaments(true);
-      const res = await api.get(`/groups/${gid}/tournaments`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const { tournaments: list } = await dispatch(loadGroupTournaments(gid)).unwrap();
       const dbInstance = getDatabase();
       const local = (dbInstance.tournaments || []).filter((t) => sameId(t.group_id, gid));
       const mergedMap = new Map();
@@ -275,9 +266,7 @@ export function Community() {
   useEffect(() => {
     let isMounted = true;
     const loadAll = async () => {
-      setLoading(true);
       await Promise.all([fetchGroups(), fetchTeams()]);
-      if (isMounted) setLoading(false);
     };
     loadAll();
     return () => {
@@ -289,8 +278,6 @@ export function Community() {
   useEffect(() => {
     if (selectedGroupId) {
       fetchGroupDetail(selectedGroupId);
-    } else {
-      setActiveGroup(null);
     }
   }, [selectedGroupId]);
 
@@ -382,13 +369,13 @@ export function Community() {
     }
     try {
       setSubmittingGroup(true);
-      const res = await api.post('/groups', {
+      const res = await dispatch(createGroup({
         name: trimmed,
         desc: groupDesc.trim(),
         owner_id: uid,
         visibility: groupVisibility,
         join_mode: groupJoinMode,
-      });
+      })).unwrap();
       setShowCreateGroup(false);
       showToast(`${res.name || trimmed} created! 🛡️`, 'success');
       const newId = res.group_id || res.id;
@@ -422,18 +409,15 @@ export function Community() {
     }
     try {
       setSubmittingEditGroup(true);
-      const updated = await api.patch(`/groups/${editingGroupId}?requesterId=${uid}`, {
+      await dispatch(updateGroup({ id: editingGroupId, requesterId: uid, data: {
         name: trimmed,
         desc: editGroupDesc.trim(),
         visibility: editGroupVisibility,
         join_mode: editGroupJoinMode,
-      });
+      } })).unwrap();
       setShowEditGroup(false);
       showToast('Group details updated! 🛡️', 'success');
       await fetchGroups();
-      if (selectedGroupId && Number(selectedGroupId) === Number(editingGroupId)) {
-        setActiveGroup(updated || { ...activeGroup, name: trimmed, desc: editGroupDesc.trim(), visibility: editGroupVisibility, join_mode: editGroupJoinMode });
-      }
     } catch (err) {
       console.error('Failed to update group:', err);
       showToast(err.message || 'Could not update the group.', 'error');
@@ -445,7 +429,7 @@ export function Community() {
   // --- Handlers: Group Actions (Membership & Officers) ---
   const handleJoinGroup = async (gid) => {
     try {
-      const res = await api.post(`/groups/${gid}/join?userId=${uid}`);
+      const res = await dispatch(joinGroup({ groupId: gid, userId: uid })).unwrap();
       showToast(res.message || 'Joined group! 🛡️', 'success');
       await fetchGroupDetail(gid);
       await fetchGroups();
@@ -457,7 +441,7 @@ export function Community() {
   const handleLeaveGroup = async (gid) => {
     if (!window.confirm(`Leave ${activeGroup?.name || 'this group'}?`)) return;
     try {
-      await api.post(`/groups/${gid}/leave?userId=${uid}`);
+      await dispatch(leaveGroup({ groupId: gid, userId: uid })).unwrap();
       showToast('Left the group.', 'info');
       await fetchGroupDetail(gid);
       await fetchGroups();
@@ -468,7 +452,7 @@ export function Community() {
 
   const handlePromoteOfficer = async (userId) => {
     try {
-      await api.post(`/groups/${selectedGroupId}/officers/${userId}?requesterId=${uid}`);
+      await dispatch(promoteGroupOfficer({ groupId: selectedGroupId, userId, requesterId: uid })).unwrap();
       showToast('Promoted to officer.', 'success');
       await fetchGroupDetail(selectedGroupId);
     } catch (e) {
@@ -478,7 +462,7 @@ export function Community() {
 
   const handleDemoteOfficer = async (userId) => {
     try {
-      await api.del(`/groups/${selectedGroupId}/officers/${userId}?requesterId=${uid}`);
+      await dispatch(demoteGroupOfficer({ groupId: selectedGroupId, userId, requesterId: uid })).unwrap();
       showToast('Officer removed.', 'info');
       await fetchGroupDetail(selectedGroupId);
     } catch (e) {
@@ -489,7 +473,7 @@ export function Community() {
   const handleKickMember = async (userId) => {
     if (!window.confirm('Remove this member from the group?')) return;
     try {
-      await api.del(`/groups/${selectedGroupId}/members/${userId}?requesterId=${uid}`);
+      await dispatch(removeGroupMember({ groupId: selectedGroupId, userId, requesterId: uid })).unwrap();
       showToast('Member removed.', 'info');
       await fetchGroupDetail(selectedGroupId);
     } catch (e) {
@@ -503,7 +487,7 @@ export function Community() {
     if (!text || !selectedGroupId) return;
     setChatInput('');
     try {
-      await api.post(`/groups/${selectedGroupId}/chat`, { from_user: uid, body: text });
+      await dispatch(postGroupChatMessage({ groupId: selectedGroupId, fromUser: uid, body: text })).unwrap();
       await fetchChat(selectedGroupId);
     } catch (err) {
       showToast(err.message || 'Could not send message.', 'error');
@@ -512,7 +496,7 @@ export function Community() {
 
   const handleRespondRequest = async (requestId, accept) => {
     try {
-      await api.post(`/groups/${selectedGroupId}/requests/${requestId}/${accept ? 'accept' : 'reject'}?requesterId=${uid}`);
+      await dispatch(respondToGroupRequest({ groupId: selectedGroupId, requestId, accept, requesterId: uid })).unwrap();
       showToast(accept ? 'Accepted.' : 'Declined.', 'success');
       await fetchGroupDetail(selectedGroupId);
       await fetchRequests(selectedGroupId);
@@ -577,7 +561,7 @@ export function Community() {
 
     try {
       setSubmittingEditTourn(true);
-      await api.patch(`/tournaments/${editTournId}`, payload);
+      await dispatch(updateTournament({ id: editTournId, data: payload })).unwrap();
       setShowEditTourn(false);
       showToast('Tournament updated! 🏆', 'success');
       await fetchGroupTournaments(selectedGroupId);
@@ -592,8 +576,8 @@ export function Community() {
   const fetchBracket = async (tid) => {
     try {
       setLoadingBracket(true);
-      const res = await api.get(`/tournaments/${tid}/bracket`);
-      let list = res?.matches || (Array.isArray(res) ? res : []);
+      const { bracket } = await dispatch(fetchTournamentBracket(tid)).unwrap();
+      let list = bracket?.matches || (Array.isArray(bracket) ? bracket : []);
       if (!list || list.length === 0) {
         const dbInstance = getDatabase();
         list = (dbInstance.tournament_matches || []).filter((m) => sameId(m.tournamentId, tid));
@@ -642,7 +626,7 @@ export function Community() {
         dbInstance.tournaments.push({ ...manageTourn, tournament_id: parseInt(tid, 10) || tid });
         saveDatabase(dbInstance);
       }
-      await tournamentService.startTournament(tid, uid);
+      await dispatch(startTournamentPlay({ tournamentId: tid, organizerId: uid })).unwrap();
       showToast('Tournament Started! Bracket generated. 🚀', 'success');
       const updatedDb = getDatabase();
       const freshT = (updatedDb.tournaments || []).find((x) => sameId(x.tournament_id || x.id, tid));
@@ -724,10 +708,7 @@ export function Community() {
 
       // 2. Also notify backend
       try {
-        await api.post(`/tournaments/matches/${matchId}/resolve`, {
-          organizer_id: uid,
-          winner_id: winnerId,
-        });
+        await dispatch(resolveMatchDispute({ matchId, tournamentId: manageTourn?.tournament_id || manageTourn?.id, organizer_id: uid, winner_id: winnerId })).unwrap();
       } catch (errBackend) {
         console.warn('Backend match resolve notice:', errBackend?.message || errBackend);
       }
@@ -807,7 +788,7 @@ export function Community() {
   const handleDeleteTournament = async (tid) => {
     if (!window.confirm('Are you sure you want to delete this tournament? This cannot be undone.')) return;
     try {
-      await api.del(`/tournaments/${tid}`);
+      await dispatch(deleteTournament(tid)).unwrap();
       showToast('Tournament deleted.', 'info');
       await fetchGroupTournaments(selectedGroupId);
     } catch (err) {
@@ -830,7 +811,7 @@ export function Community() {
     }
     try {
       setSubmittingTeam(true);
-      await api.post('/teams', { name: trimmed, captain_id: uid });
+      await dispatch(createTeam({ name: trimmed, captain_id: uid })).unwrap();
       setShowCreateTeam(false);
       setTeamName('');
       showToast(`${trimmed} created! ⚔️`, 'success');
@@ -940,9 +921,7 @@ export function Community() {
   const handleAcceptTeamInvite = async (inv) => {
     try {
       try {
-        await api.post(`/teams/${inv.team_id}/members?requesterId=${inv.fromUserId}`, {
-          user_id: uid,
-        });
+        await dispatch(addTeamMember({ teamId: inv.team_id, userId: uid, requesterId: inv.fromUserId })).unwrap();
       } catch (apiErr) {
         console.warn('Backend add member warning:', apiErr);
       }
@@ -989,7 +968,7 @@ export function Community() {
       saveDatabase(freshDb);
       window.dispatchEvent(new Event('storage'));
       showToast('Team invitation declined.', 'info');
-      setTeams((prev) => [...prev]);
+      void fetchTeams();
     } catch (err) {
       console.error('Failed to decline team invite:', err);
     }
@@ -997,7 +976,7 @@ export function Community() {
 
   const handleRemoveMember = async (teamId, memberUserId) => {
     try {
-      await api.del(`/teams/${teamId}/members/${memberUserId}?requesterId=${uid}`);
+      await dispatch(removeTeamMember({ teamId, userId: memberUserId, requesterId: uid })).unwrap();
       showToast('Removed.', 'info');
       await fetchTeams();
     } catch (err) {
@@ -1010,7 +989,7 @@ export function Community() {
     const teamId = confirmDeleteModal.teamId;
     if (!teamId) return;
     try {
-      await api.del(`/teams/${teamId}?requesterId=${uid}`);
+      await dispatch(deleteTeam({ id: teamId, requesterId: uid })).unwrap();
       showToast('Team deleted.', 'info');
       setConfirmDeleteModal({ isOpen: false, teamId: null });
       if (teamToManage && sameId(teamToManage.team_id || teamToManage.id, teamId)) {
@@ -1027,8 +1006,7 @@ export function Community() {
   const fetchTeamChat = async (teamId) => {
     try {
       setLoadingTeamChat(true);
-      const res = await api.get(`/teams/${teamId}/chat`);
-      const list = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+      const { chat: list } = await dispatch(loadTeamChat(teamId)).unwrap();
       const dbInstance = getDatabase();
       const localMsgs = (dbInstance?.messages || [])
         .filter((m) => sameId(m.team_id, teamId))
@@ -1082,7 +1060,7 @@ export function Community() {
     setSendingTeamChat(true);
     try {
       try {
-        await api.post(`/teams/${tid}/chat`, { from_user: uid, body: text });
+        await dispatch(postTeamChatMessage({ teamId: tid, fromUser: uid, body: text })).unwrap();
       } catch (errBackend) {
         console.warn('Backend team chat fallback:', errBackend);
       }
@@ -1127,7 +1105,7 @@ export function Community() {
     setSubmittingEditTeam(true);
     try {
       try {
-        await api.patch(`/teams/${editTeamId}?requesterId=${uid}`, { name: trimmed });
+        await dispatch(updateTeam({ id: editTeamId, requesterId: uid, data: { name: trimmed } })).unwrap();
       } catch (backendErr) {
         console.warn('Backend patch team fallback:', backendErr);
       }
@@ -1156,7 +1134,7 @@ export function Community() {
     if (!window.confirm('Are you sure you want to leave this team?')) return;
     try {
       try {
-        await api.del(`/teams/${teamId}/members/${uid}?requesterId=${uid}`);
+        await dispatch(removeTeamMember({ teamId, userId: uid, requesterId: uid })).unwrap();
       } catch (backendErr) {
         console.warn('Backend leave team fallback:', backendErr);
       }

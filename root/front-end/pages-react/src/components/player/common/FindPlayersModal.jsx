@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import socialService from '../../../services/socialService';
+import { useAppDispatch } from '../../../app/hooks';
+import { searchPlayers, sendFriendRequest, removeFriend } from '../../../features/communities/socialSlice';
 import ConfirmModal from '../../common/ConfirmModal';
 
 export function FindPlayersModal({
@@ -11,6 +12,7 @@ export function FindPlayersModal({
   onMessage,
   onViewProfile
 }) {
+  const dispatch = useAppDispatch();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -51,7 +53,7 @@ export function FindPlayersModal({
 
     timerRef.current = setTimeout(async () => {
       try {
-        const rows = await socialService.searchPlayers(term, currentUserId);
+        const rows = await dispatch(searchPlayers({ query: term, viewerId: currentUserId })).unwrap();
         setResults(rows || []);
       } catch (err) {
         console.error('Search players error:', err);
@@ -71,7 +73,7 @@ export function FindPlayersModal({
     setNotice('');
     setSentRequests((prev) => ({ ...prev, [player.user_id]: true }));
     try {
-      await socialService.sendFriendRequest(currentUserId, player.user_id);
+      await dispatch(sendFriendRequest({ from_user: currentUserId, to_user: player.user_id })).unwrap();
       if (typeof window !== 'undefined' && window.dispatchEvent) {
         window.dispatchEvent(new CustomEvent('friends-updated'));
       }
@@ -86,7 +88,7 @@ export function FindPlayersModal({
   async function handleConfirmRemove() {
     if (!playerToRemove) return;
     try {
-      await socialService.removeFriend(currentUserId, playerToRemove.user_id);
+      await dispatch(removeFriend({ userId: currentUserId, friendId: playerToRemove.user_id })).unwrap();
       setResults((prev) =>
         prev.map((p) =>
           String(p.user_id) === String(playerToRemove.user_id)

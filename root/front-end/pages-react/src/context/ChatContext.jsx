@@ -13,6 +13,8 @@ import React, {
 } from 'react';
 import AuthContext from './AuthContext';
 import socialService from '../services/socialService';
+import { useAppDispatch } from '../app/hooks';
+import { fetchFriends, fetchFriendRequests, respondToFriendRequest } from '../features/communities/socialSlice';
 import UserProfileModal from '../components/player/common/UserProfileModal';
 import ChatWindow from '../components/player/common/ChatWindow';
 
@@ -44,6 +46,7 @@ export const ChatContext = createContext({
  * device never showed up, an unfriended player stayed in the list).
  */
 export function ChatProvider({ children }) {
+  const dispatch = useAppDispatch();
   const { user } = useContext(AuthContext);
   // No fallback id. The old `?? 7` meant that whenever the session had not
   // loaded yet, messages were sent as user 7 (Dragon Slayer).
@@ -62,8 +65,8 @@ export function ChatProvider({ children }) {
     if (!isPlayer) return;
     try {
       const [friendRows, reqs] = await Promise.all([
-        socialService.listFriends(currentUserId),
-        socialService.listRequests(currentUserId)
+        dispatch(fetchFriends(currentUserId)).unwrap(),
+        dispatch(fetchFriendRequests(currentUserId)).unwrap()
       ]);
       setFriends(friendRows);
       setIncomingRequests(reqs.incoming);
@@ -147,7 +150,7 @@ export function ChatProvider({ children }) {
 
   /** Accept or decline a friend request, then bring every list up to date. */
   async function respondToRequest(requestId, action) {
-    const result = await socialService.respondToRequest(requestId, currentUserId, action);
+    const result = await dispatch(respondToFriendRequest({ requestId, userId: currentUserId, action })).unwrap();
     await refreshSocial();
     window.dispatchEvent(new CustomEvent('friends-updated'));
     return result;

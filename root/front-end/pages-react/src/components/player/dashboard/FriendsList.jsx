@@ -1,10 +1,12 @@
 import React, { useState, useContext } from 'react';
 import { useChat } from '../../../context/ChatContext';
 import AuthContext from '../../../context/AuthContext';
-import socialService from '../../../services/socialService';
+import { useAppDispatch } from '../../../app/hooks';
+import { removeFriend } from '../../../features/communities/socialSlice';
 import ConfirmModal from '../../common/ConfirmModal';
 
 export function FriendsList(props) {
+  const dispatch = useAppDispatch();
   const { friends = [], isGuest = false, onSpectate } = props;
   const { openProfile, openChat, friends: serverFriends } = useChat();
   // Unread counts come from the server (this list itself still carries the
@@ -27,7 +29,7 @@ export function FriendsList(props) {
   async function executeRemoveFriend() {
     if (!friendToRemove) return;
     try {
-      await socialService.removeFriend(currentUid, friendToRemove.id);
+      await dispatch(removeFriend({ userId: currentUid, friendId: friendToRemove.id })).unwrap();
       if (typeof window !== 'undefined' && window.dispatchEvent) {
         window.dispatchEvent(new CustomEvent('friends-updated'));
       }
