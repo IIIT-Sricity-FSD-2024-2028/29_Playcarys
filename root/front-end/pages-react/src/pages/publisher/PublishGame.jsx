@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
-import publisherService from '../../services/publisherService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchPublisherGameWorkspace, publishPublisherGame } from '../../features/games/gameSlice';
 import StepRail from '../../components/publisher/publish/StepRail';
 import HostingModeStep from '../../components/publisher/publish/HostingModeStep';
 import BasicInfoStep from '../../components/publisher/publish/BasicInfoStep';
@@ -12,6 +13,7 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/publish.css';
 
 export function PublishGame() {
+  const dispatch = useAppDispatch();
   const {
     user,
     publisherId,
@@ -19,6 +21,7 @@ export function PublishGame() {
     authLoading
   } = usePublisherAuth();
   const navigate = useNavigate();
+  const publisherGenres = useAppSelector((state) => state.games?.publisherGenres || []);
 
   // Wizard step: 0 to 3
   const [currentStep, setCurrentStep] = useState(0);
@@ -33,7 +36,6 @@ export function PublishGame() {
   const [descriptionError, setDescriptionError] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('');
   const [genreError, setGenreError] = useState('');
-  const [genres, setGenres] = useState([]);
 
   // Step 2: Game Details
   const [minPlayers, setMinPlayers] = useState('');
@@ -67,12 +69,11 @@ export function PublishGame() {
 
   // Initialize genres and API key
   useEffect(() => {
-    const list = publisherService.getGenres();
-    setGenres(list);
+    dispatch(fetchPublisherGameWorkspace(user?.userId || user?.id || publisherId || 6));
 
     const randomKey = 'pk_live_' + Math.random().toString(36).substring(2, 22).toUpperCase();
     setApiKey(randomKey);
-  }, []);
+  }, [dispatch, publisherId, user]);
 
   function showToast(message, type = 'info') {
     setToast({ message, type });
@@ -267,22 +268,14 @@ export function PublishGame() {
     if (isSubmitting) return;
 
     const trimmedTitle = title.trim();
-    if (publisherService.checkTitleExists(trimmedTitle)) {
-      showToast('A game with this title already exists.', 'error');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
       let pubUserId = parseInt(user?.userId || user?.user_id || user?.id || publisherId || 6, 10);
       if (!pubUserId || isNaN(pubUserId) || pubUserId < 5) pubUserId = 6;
-      const newGameId = publisherService.getNextGameId();
       const maxCarysNum = Math.max(0, Math.min(1000, parseInt(maxCarys, 10) || 0));
 
       const newGame = {
-        game_id: newGameId,
-        id: newGameId,
         title: trimmedTitle,
         genre: selectedGenre,
         publisherId: pubUserId,
@@ -311,31 +304,6 @@ export function PublishGame() {
         submittedDate: new Date().toISOString().slice(0, 10)
       };
 
-      // 1. Save listing record
-      const savedGame = await publisherService.saveGameRecord(newGame, user);
-      const targetGameId = savedGame?.game_id || savedGame?.id || newGameId;
-
-      // 2. Upload bundle if hosted
-      if (hostingMode === 'hosted' && zipFile) {
-        showToast('Uploading game build… this can take a moment.', 'info');
-        try {
-          const uploaded = await publisherService.uploadBundle(targetGameId, pubUserId, zipFile);
-          if (uploaded && uploaded.play_path) {
-            await publisherService.updateGamePlayPath(targetGameId, uploaded.play_path);
-          }
-        } catch (uploadErr) {
-          showToast(
-            'Game listed, but the build upload failed. You can re-upload it from My Games.',
-            'warning'
-          );
-          setTimeout(() => {
-            navigate('/publisher/my-games');
-          }, 2200);
-          return;
-        }
-      }
-
-      // 3. Submit achievements if defined
       const validAchievements = achievements
         .filter((a) => a.code && a.name)
         .map((a) => ({
@@ -348,12 +316,15 @@ export function PublishGame() {
           secret: !!a.secret
         }));
 
+      const { achievementResult: achRes } = await dispatch(publishPublisherGame({
+        game: newGame,
+        session: user,
+        publisherId: pubUserId,
+        bundleFile: hostingMode === 'hosted' ? zipFile : null,
+        achievements: validAchievements
+      })).unwrap();
+
       if (validAchievements.length > 0) {
-        const achRes = await publisherService.submitAchievements(
-          targetGameId,
-          pubUserId,
-          validAchievements
-        );
         if (achRes.failed.length > 0) {
           showToast(
             `Game submitted, but ${achRes.failed.length} achievement(s) were rejected: ${achRes.failed[0]}`,
@@ -438,7 +409,7 @@ export function PublishGame() {
               if (descriptionError) setDescriptionError('');
             }}
             descriptionError={descriptionError}
-            genres={genres}
+            genres={publisherGenres}
             selectedGenre={selectedGenre}
             onSelectGenre={(g) => {
               setSelectedGenre(g);

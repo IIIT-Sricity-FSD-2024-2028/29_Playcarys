@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
-import publisherService from '../../services/publisherService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { depositPublisherFunds, fetchPublisherFinance } from '../../features/economy/walletSlice';
 import Money from '../../utils/money';
 import LoadingState from '../../components/common/LoadingState';
 import WithdrawModal from '../../components/publisher/earnings/WithdrawModal';
@@ -9,18 +10,20 @@ import '../../styles/publisher/earnings.css';
 
 export function PublisherFinance() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { user, isPublisher, authLoading } = usePublisherAuth();
+  const publisherId = user?.userId || user?.id;
+  const financeData = useAppSelector((state) => state.wallet?.publisherFinanceById?.[String(publisherId)] || null);
+  const financeStatus = useAppSelector((state) => state.wallet?.publisherFinanceStatus);
+  const financeError = useAppSelector((state) => state.wallet?.publisherFinanceError);
+  const depositStatus = useAppSelector((state) => state.wallet?.publisherDepositStatus);
 
-  const [financeData, setFinanceData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
 
   // Deposit Form State
   const [depositRupees, setDepositRupees] = useState(500);
   const [paymentMethod, setPaymentMethod] = useState('UPI Sandbox (GPay / PhonePe)');
-  const [depositLoading, setDepositLoading] = useState(false);
   const [depositSuccess, setDepositSuccess] = useState(null);
   const [depositError, setDepositError] = useState(null);
 
@@ -28,21 +31,9 @@ export function PublisherFinance() {
   const [ledgerFilter, setLedgerFilter] = useState('all');
 
   const loadFinance = useCallback(async (quiet = false) => {
-    if (!isPublisher) return;
-    if (!quiet) setLoading(true);
-    setError(null);
-
-    try {
-      const uid = user.userId || user.id;
-      const data = await publisherService.getFinanceOverview(uid);
-      setFinanceData(data);
-    } catch (err) {
-      console.error('Failed to load publisher finance overview:', err);
-      setError(err.message || 'Could not load finance data');
-    } finally {
-      setLoading(false);
-    }
-  }, [isPublisher, user]);
+    if (!isPublisher || !publisherId) return;
+    await dispatch(fetchPublisherFinance(publisherId));
+  }, [dispatch, isPublisher, publisherId]);
 
   useEffect(() => {
     if (!authLoading && isPublisher) {
@@ -61,13 +52,11 @@ export function PublisherFinance() {
       return;
     }
 
-    setDepositLoading(true);
     try {
-      const uid = user.userId || user.id;
-      const res = await publisherService.depositFunds(uid, {
+      const { result: res } = await dispatch(depositPublisherFunds({ publisherId, data: {
         amount_paise: Math.round(amountRupees * 100),
         payment_method: paymentMethod,
-      });
+      } })).unwrap();
       setDepositSuccess(`Successfully deposited ${Money.formatINR(res.amount_paise)} (Ref: ${res.reference_id})`);
       await loadFinance(true);
       setTimeout(() => {
@@ -76,8 +65,6 @@ export function PublisherFinance() {
       }, 1500);
     } catch (err) {
       setDepositError(err.message || 'Deposit simulation failed.');
-    } finally {
-      setDepositLoading(false);
     }
   };
 
@@ -170,11 +157,11 @@ export function PublisherFinance() {
         </div>
       </div>
 
-      {loading ? (
+      {financeStatus === 'loading' || (!financeData && financeStatus !== 'failed') ? (
         <LoadingState message="Loading studio balances and transaction records…" minHeight="40vh" />
-      ) : error ? (
+      ) : financeError ? (
         <div className="card text-center p-4">
-          <p style={{ color: 'var(--accent-danger)' }}>{error}</p>
+          <p style={{ color: 'var(--accent-danger)' }}>{financeError}</p>
           <button type="button" className="btn btn-primary btn-sm mt-2" onClick={() => loadFinance()}>
             Retry
           </button>
@@ -446,7 +433,7 @@ export function PublisherFinance() {
                 type="button"
                 className="btn btn-ghost btn-sm"
                 onClick={() => setShowDepositModal(false)}
-                disabled={depositLoading}
+                disabled={depositStatus === 'loading'}
               >
                 ✕
               </button>
@@ -513,16 +500,16 @@ export function PublisherFinance() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowDepositModal(false)}
-                  disabled={depositLoading}
+                  disabled={depositStatus === 'loading'}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={depositLoading}
+                  disabled={depositStatus === 'loading'}
                 >
-                  {depositLoading ? 'Processing Deposit…' : `Simulate Deposit of ₹${Number(depositRupees || 0).toLocaleString()}`}
+                  {depositStatus === 'loading' ? 'Processing Deposit…' : `Simulate Deposit of ₹${Number(depositRupees || 0).toLocaleString()}`}
                 </button>
               </div>
             </form>

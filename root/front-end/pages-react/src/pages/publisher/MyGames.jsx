@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
-import publisherService from '../../services/publisherService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {
+  deletePublisherGame,
+  fetchPublisherGameAnalytics,
+  fetchPublisherGameWorkspace,
+  savePublisherGameEdit
+} from '../../features/games/gameSlice';
 import PublisherGameRow from '../../components/publisher/mygames/PublisherGameRow';
 import PublisherGameEdit from '../../components/publisher/mygames/PublisherGameEdit';
 import PublisherGameAnalytics from '../../components/publisher/mygames/PublisherGameAnalytics';
@@ -11,6 +17,7 @@ import LoadingState from '../../components/common/LoadingState';
 import '../../styles/publisher/mygames.css';
 
 export function MyGames() {
+  const dispatch = useAppDispatch();
   const {
     user,
     publisherId,
@@ -18,20 +25,24 @@ export function MyGames() {
     authLoading
   } = usePublisherAuth();
   const navigate = useNavigate();
+  const userId = user?.userId || user?.id;
+  const games = useAppSelector((state) => {
+    const ids = state.games?.publisherGameIdsByPublisherId?.[String(userId)] || [];
+    return ids.map((id) => state.games.entities[id]).filter(Boolean);
+  });
+  const genres = useAppSelector((state) => state.games?.publisherGenres || []);
+  const workspaceStatus = useAppSelector((state) => state.games?.publisherWorkspaceStatus);
 
   // Active view: 'main' | 'edit' | 'analytics'
   const [view, setView] = useState('main');
-  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   // Filter tab: '' | 'approved' | 'pending' | 'rejected'
   const [statusFilter, setStatusFilter] = useState('');
 
   // Data
-  const [games, setGames] = useState([]);
-  const [genres, setGenres] = useState([]);
   const [selectedGame, setSelectedGame] = useState(null);
-  const [analyticsData, setAnalyticsData] = useState(null);
+  const analyticsData = useAppSelector((state) => state.games?.analyticsByGameId?.[String(selectedGame?.game_id || selectedGame?.id)] || null);
 
   // Toast & Modal
   const [toast, setToast] = useState({ message: '', type: 'info' });
@@ -65,23 +76,14 @@ export function MyGames() {
   // Load publisher games
   const loadGames = async () => {
     if (!isPublisher) return;
-    setLoading(true);
-
-    const uid = user.userId || user.id;
-    const list = await publisherService.getPublisherGames(uid);
-    setGames(list || []);
-
-    const genreList = publisherService.getGenres();
-    setGenres(genreList || []);
-
-    setLoading(false);
+    await dispatch(fetchPublisherGameWorkspace(userId));
   };
 
   useEffect(() => {
     if (!authLoading && isPublisher) {
       loadGames();
     }
-  }, [authLoading, isPublisher]);
+  }, [authLoading, isPublisher, userId]);
 
   // Filtered games list
   const filteredGames = games.filter((g) => {
@@ -109,10 +111,9 @@ export function MyGames() {
 
     try {
       const gid = selectedGame.game_id || selectedGame.id;
-      const uid = user.userId || user.id;
       const statusKey = (selectedGame.game_approval_status || selectedGame.status || 'pending').toLowerCase();
 
-      await publisherService.saveGameEdit(gid, editData, uid);
+      await dispatch(savePublisherGameEdit({ gameId: gid, publisherId: userId, data: editData })).unwrap();
 
       if (statusKey === 'rejected') {
         showToast('Game resubmitted for review 📋', 'info');
@@ -141,8 +142,7 @@ export function MyGames() {
       `Permanently delete "${title}"? This cannot be undone.`,
       async () => {
         try {
-          const uid = user.userId || user.id;
-          await publisherService.deleteGame(gid, uid);
+          await dispatch(deletePublisherGame({ gameId: gid, publisherId: userId })).unwrap();
           showToast('Game deleted', 'success');
           await loadGames();
           setSelectedGame(null);
@@ -159,15 +159,13 @@ export function MyGames() {
 
   const handleOpenAnalytics = (game) => {
     setSelectedGame(game);
-    const data = publisherService.getGameAnalytics(game.game_id || game.id);
-    setAnalyticsData(data);
+    dispatch(fetchPublisherGameAnalytics(game.game_id || game.id));
     setView('analytics');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBackFromAnalytics = () => {
     setSelectedGame(null);
-    setAnalyticsData(null);
     setView('main');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -272,7 +270,7 @@ export function MyGames() {
           </div>
 
           {/* Games List Content */}
-          {loading ? (
+          {workspaceStatus === 'loading' ? (
             <LoadingState message="Loading your game catalogue…" minHeight="40vh" />
           ) : filteredGames.length === 0 ? (
             <div className="empty-state">

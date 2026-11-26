@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import economyApi from '../../services/endpoints/economyApi';
+import publisherService from '../../services/publisherService';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -57,10 +58,41 @@ export const claimStipend = createAsyncThunk(
   }
 );
 
+// Publisher finance has its own aggregate endpoint.  Keeping these requests
+// here makes the dashboard read its backend data from the shared Redux store.
+export const fetchPublisherFinance = createAsyncThunk(
+  'wallet/fetchPublisherFinance',
+  async (publisherId, { rejectWithValue }) => {
+    try {
+      const data = await publisherService.getFinanceOverview(publisherId);
+      return { publisherId: String(publisherId), data };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher finance'));
+    }
+  }
+);
+
+export const depositPublisherFunds = createAsyncThunk(
+  'wallet/depositPublisherFunds',
+  async ({ publisherId, data }, { rejectWithValue }) => {
+    try {
+      const result = await publisherService.depositFunds(publisherId, data);
+      return { publisherId: String(publisherId), result };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Deposit simulation failed'));
+    }
+  }
+);
+
 const initialState = {
   balance: null,
   balanceCarys: 0,
   transactions: [],
+  publisherFinanceById: {},
+  publisherFinanceStatus: AsyncStatus.IDLE,
+  publisherFinanceError: null,
+  publisherDepositStatus: AsyncStatus.IDLE,
+  publisherDepositError: null,
   mutationStatus: AsyncStatus.IDLE,
   mutationError: null,
   ...initialAsyncState
@@ -150,6 +182,29 @@ export const walletSlice = createSlice({
       .addCase(claimStipend.rejected, (state, action) => {
         state.mutationStatus = AsyncStatus.FAILED;
         state.mutationError = action.payload || 'Stipend claim failed';
+      })
+      .addCase(fetchPublisherFinance.pending, (state) => {
+        state.publisherFinanceStatus = AsyncStatus.LOADING;
+        state.publisherFinanceError = null;
+      })
+      .addCase(fetchPublisherFinance.fulfilled, (state, action) => {
+        state.publisherFinanceStatus = AsyncStatus.SUCCEEDED;
+        state.publisherFinanceById[action.payload.publisherId] = action.payload.data;
+      })
+      .addCase(fetchPublisherFinance.rejected, (state, action) => {
+        state.publisherFinanceStatus = AsyncStatus.FAILED;
+        state.publisherFinanceError = action.payload || 'Failed to fetch publisher finance';
+      })
+      .addCase(depositPublisherFunds.pending, (state) => {
+        state.publisherDepositStatus = AsyncStatus.LOADING;
+        state.publisherDepositError = null;
+      })
+      .addCase(depositPublisherFunds.fulfilled, (state) => {
+        state.publisherDepositStatus = AsyncStatus.SUCCEEDED;
+      })
+      .addCase(depositPublisherFunds.rejected, (state, action) => {
+        state.publisherDepositStatus = AsyncStatus.FAILED;
+        state.publisherDepositError = action.payload || 'Deposit simulation failed';
       })
       // Cross-slice: updates from purchases
       .addMatcher(

@@ -12,9 +12,13 @@ import React, {
   useMemo
 } from 'react';
 import AuthContext from './AuthContext';
-import socialService from '../services/socialService';
 import { useAppDispatch } from '../app/hooks';
-import { fetchFriends, fetchFriendRequests, respondToFriendRequest } from '../features/communities/socialSlice';
+import {
+  fetchFriends,
+  fetchFriendRequests,
+  respondToFriendRequest,
+  fetchPlayerProfile
+} from '../features/communities/socialSlice';
 import UserProfileModal from '../components/player/common/UserProfileModal';
 import ChatWindow from '../components/player/common/ChatWindow';
 
@@ -123,19 +127,24 @@ export function ChatProvider({ children }) {
     setActiveChatFriend(null);
   }
 
-  function openProfile(userOrName) {
+  async function openProfile(userOrName) {
     if (!userOrName) return;
 
-    let target = userOrName;
-    if (typeof userOrName === 'string' || typeof userOrName === 'number') {
-      target = socialService.getUserFullProfile(userOrName);
-    } else if (!userOrName.tierInfo || userOrName.pcp === undefined) {
-      const full = socialService.getUserFullProfile(userOrName.id || userOrName.user_id || userOrName.name || userOrName.username);
-      target = full || userOrName;
+    if (typeof userOrName === 'object' && userOrName.tierInfo && userOrName.pcp !== undefined) {
+      setActiveProfileUser(userOrName);
+      return;
     }
 
-    if (target) {
-      setActiveProfileUser(target);
+    const idOrName =
+      typeof userOrName === 'object'
+        ? userOrName.id || userOrName.user_id || userOrName.name || userOrName.username
+        : userOrName;
+
+    try {
+      const full = await dispatch(fetchPlayerProfile(idOrName)).unwrap();
+      setActiveProfileUser(full || userOrName);
+    } catch {
+      setActiveProfileUser(userOrName);
     }
   }
 
