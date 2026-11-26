@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import {
-  fetchGames,
-  toggleGameStatus,
-  deleteGameRecord
-} from '../../services/superuserService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { deleteGame, fetchGames, setGameState } from '../../features/games/gameSlice';
+import { selectAllGames } from '../../features/games/selectors';
 import GameKPIs from '../../components/superuser/games/GameKPIs';
 import GamesTable from '../../components/superuser/games/GamesTable';
 import GameDetailsModal from '../../components/superuser/games/GameDetailsModal';
@@ -14,11 +12,11 @@ import Toast from '../../components/common/Toast';
 import '../../styles/superuser/games.css';
 
 export function Games() {
+  const dispatch = useAppDispatch();
+  const games = useAppSelector(selectAllGames);
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const [games, setGames] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('');
@@ -40,13 +38,10 @@ export function Games() {
   // Load games from backend / local DB
   async function loadData() {
     try {
-      const list = await fetchGames();
-      setGames(list);
+      await dispatch(fetchGames()).unwrap();
     } catch (err) {
       console.error('Failed to load games:', err);
       showToast('Failed to load games', 'error');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -105,8 +100,8 @@ export function Games() {
   async function handleToggleGame(game) {
     try {
       const id = game.id ?? game.game_id;
-      const updated = await toggleGameStatus(id);
-      const isNowEnabled = updated.enabled;
+      const isNowEnabled = !(game.enabled || game.game_status === 'enabled');
+      await dispatch(setGameState({ id, enabled: isNowEnabled })).unwrap();
       showToast(`"${game.title}" ${isNowEnabled ? 'enabled' : 'blacklisted'}`, 'info');
       await loadData();
       if (selectedGame && String(selectedGame.id ?? selectedGame.game_id) === String(id)) {
@@ -129,7 +124,7 @@ export function Games() {
     setGameToDelete(null);
     try {
       const id = target.id ?? target.game_id;
-      await deleteGameRecord(id);
+      await dispatch(deleteGame(id)).unwrap();
       showToast('Game deleted', 'success');
       await loadData();
     } catch (err) {
