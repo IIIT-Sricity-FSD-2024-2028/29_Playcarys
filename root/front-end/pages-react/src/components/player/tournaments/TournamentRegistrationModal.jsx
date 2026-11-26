@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useAppDispatch } from '../../../app/hooks';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { fetchTeams } from '../../../features/communities/teamSlice';
+import { selectAllTeams, selectTeamsStatus } from '../../../features/communities/selectors';
 import {
   registerForTournament,
   setSelectedTeamId as setReduxSelectedTeamId,
   setInviteCodeDraft as setReduxInviteCodeDraft
 } from '../../../features/tournaments/registrationSlice';
 import { fetchTournamentById } from '../../../features/tournaments/tournamentSlice';
-import api from '../../../services/api';
 import {
   seedOf,
   isCommunityMember,
@@ -32,10 +32,11 @@ export function TournamentRegistrationModal({
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [inviteCode, setInviteCode] = useState('');
-  const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [loadingTeams, setLoadingTeams] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const teams = useAppSelector(selectAllTeams);
+  const teamsStatus = useAppSelector(selectTeamsStatus);
+  const loadingTeams = teamsStatus === 'loading' || teamsStatus === 'idle';
 
   const t = tournament;
   const isTeam = !!(t && t.team_size);
@@ -44,46 +45,16 @@ export function TournamentRegistrationModal({
   useEffect(() => {
     if (!isOpen || !t || !isTeam) return;
 
-    let isMounted = true;
-    setLoadingTeams(true);
+    dispatch(fetchTeams({ playerId: userId }));
+  }, [dispatch, isOpen, t, isTeam, userId]);
 
-    api
-      .get(`/teams?playerId=${parseInt(userId, 10)}`)
-      .then((data) => {
-        if (!isMounted) return;
-        const myTeamsList = Array.isArray(data) ? data : db?.teams || [];
-        setTeams(myTeamsList);
-        const eligible = myTeamsList.filter(
-          (team) =>
-            team.member_ids?.length === t.team_size &&
-            Number(team.captain_id) === parseInt(userId, 10)
-        );
-        if (eligible.length > 0) {
-          setSelectedTeamId(String(eligible[0].team_id));
-        }
-        setLoadingTeams(false);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        const fallback = (db?.teams || []).filter((tm) =>
-          (tm.member_ids || []).some((m) => sameId(m, userId))
-        );
-        setTeams(fallback);
-        const eligible = fallback.filter(
-          (team) =>
-            team.member_ids?.length === t.team_size &&
-            Number(team.captain_id) === parseInt(userId, 10)
-        );
-        if (eligible.length > 0) {
-          setSelectedTeamId(String(eligible[0].team_id));
-        }
-        setLoadingTeams(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, t, isTeam, userId, db]);
+  useEffect(() => {
+    if (!isOpen || !t || !isTeam || selectedTeamId) return;
+    const eligible = teams.filter(
+      (team) => team.member_ids?.length === t.team_size && Number(team.captain_id) === Number(userId)
+    );
+    if (eligible.length > 0) setSelectedTeamId(String(eligible[0].team_id || eligible[0].id));
+  }, [isOpen, t, isTeam, teams, selectedTeamId, userId]);
 
   if (!isOpen || !t) return null;
 

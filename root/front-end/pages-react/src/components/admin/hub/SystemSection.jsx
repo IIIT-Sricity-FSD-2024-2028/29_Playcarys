@@ -14,7 +14,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import AdminContext from '../../../context/AdminContext';
 import ToggleRow from '../common/ToggleRow';
 import { getSession, getDB } from '../../../services/adminService';
-import { setSystemSetting, exportData, getDangerAction } from '../../../services/adminHubService';
+import { exportData, getDangerAction } from '../../../services/adminHubService';
 import { updatePlatformSettings } from '../../../features/platform/platformSlice';
 import { selectPlatformSettings } from '../../../features/platform/selectors';
 
@@ -48,7 +48,6 @@ export function SystemSection(props) {
   function handleSetting(key, value, audit, message) {
     const next = { ...settings, [key]: value };
     dispatch(updatePlatformSettings(next));
-    setSystemSetting(key, value);
     if (audit) addAudit('system', audit.msg, `By ${who()}`);
     toast.info(message);
     refresh();

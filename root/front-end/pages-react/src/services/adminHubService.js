@@ -1,10 +1,7 @@
-import api from './api';
 // Control Hub data operations, copied from the old pages/admin/hub.html.
 // Each function changes DB the same way the old page did; the section then calls refresh().
 import { getDB, getSession, capitalize, dispatchRoleNotification } from './adminService';
-import { removeUserForGood } from './adminUserService';
 import { recordAudit } from './adminAuditService';
-import platformApi from './endpoints/platformApi';
 
 // ── Audit log ────────────────────────────────────────────────────
 // Entries are kept by the server (see adminAuditService), so they survive a page reload and are
@@ -23,8 +20,6 @@ export function addAuditEntry(type, msg, detail) {
 }
 
 // ── Users ────────────────────────────────────────────────────────
-const ROLE_ID = { player: 4, publisher: 5, moderator: 3, admin: 2, superuser: 1 };
-
 // The hub only manages players, publishers and moderators.
 export function listHubUsers(query, role, status) {
   const q = query.toLowerCase();
@@ -48,130 +43,11 @@ export function isEmailTaken(email, editId) {
   return !!getDB().users.find((u) => u.email.toLowerCase() === email.toLowerCase() && u.id !== editId);
 }
 
-export async function saveHubUser(isEdit, id, username, email, role, status, password, addAudit) {
-  const db = getDB();
-  const numId = Number(id);
-  const roleId = ROLE_ID[role] || 4;
-
-  if (isEdit) {
-    if (!isNaN(numId)) {
-      try {
-        await api.patch(`/users/${numId}`, {
-          user_name: username,
-          email: email,
-          role_id: roleId
-        });
-        if (status) {
-          await api.patch(`/users/${numId}/status`, { status });
-        }
-      } catch (err) {
-        console.warn('[adminHubService] Backend user update fallback:', err.message);
-      }
-    }
-    const u = findUser(id);
-    if (u) {
-      u.user_name = username;
-      u.username = username;
-      u.email = email;
-      if (role) u.role_id = roleId;
-      u.status = status;
-      u.avatar = username.slice(0, 2).toUpperCase();
-    }
-    addAudit('user', `User ${username} edited`, `Role: ${role}, Status: ${status}`);
-  } else {
-    let created = null;
-    try {
-      created = await api.post('/users', {
-        user_name: username,
-        role_id: roleId,
-        email: email,
-        status: status || 'active',
-        password: password || 'Default123!'
-      });
-    } catch (err) {
-      console.warn('[adminHubService] Backend user create fallback:', err.message);
-    }
-    const newId = created && (created.id || created.user_id) ? (created.id || created.user_id) : Date.now();
-    db.users.push({
-      user_id: newId,
-      id: newId,
-      user_name: username,
-      username: username,
-      role_id: roleId,
-      role: role,
-      email: email,
-      status: status || 'active',
-      password: password,
-      avatar: username.slice(0, 2).toUpperCase(),
-      joinDate: new Date().toISOString().slice(0, 10),
-      lastSeen: new Date().toISOString().slice(0, 10)
-    });
-    addAudit('user', `New user added: ${username}`, `Role: ${role}`);
-  }
-  db.save();
-}
-
-export async function deleteHubUser(u, addAudit) {
-  const db = getDB();
-  const targetId = Number(u.id || u.user_id);
-  if (!isNaN(targetId)) {
-    try {
-      await api.delete(`/users/${targetId}`);
-    } catch (err) {
-      console.warn('[adminHubService] Backend user delete fallback:', err.message);
-    }
-  }
-  removeUserForGood(u); // also records the deletion, so the server really removes the account
-  addAudit('user', `User deleted: ${u.username}`, `By ${getSession().username}`);
-  db.save();
-}
-
 // ── Games ────────────────────────────────────────────────────────
 export function listHubGames(statusFilter) {
   let games = [...getDB().games];
   if (statusFilter) games = games.filter((g) => g.status === statusFilter);
   return games;
-}
-
-export async function toggleGameEnabled(g, addAudit) {
-  const nextEnabled = !g.enabled;
-  const nextStatus = nextEnabled ? 'enabled' : 'disabled';
-  const gameId = Number(g.id || g.game_id);
-  const session = getSession() || {};
-
-  if (!isNaN(gameId)) {
-    try {
-      await api.patch(`/games/${gameId}/state`, {
-        game_status: nextStatus,
-        publisher_id: Number(g.game_publisher || g.publisher_id || session.userId || 1)
-      });
-    } catch (err) {
-      console.warn('[adminHubService] Backend game state toggle fallback:', err.message);
-    }
-  }
-
-  g.enabled = nextEnabled;
-  g.game_status = nextStatus;
-  addAudit('game', `${g.title} ${g.enabled ? 'enabled' : 'blacklisted'}`, `By ${session.username || 'Admin'}`);
-  getDB().save();
-}
-
-export async function deleteGame(g, addAudit) {
-  const db = getDB();
-  const gameId = Number(g.id || g.game_id);
-  const session = getSession() || {};
-
-  if (!isNaN(gameId)) {
-    try {
-      await api.delete(`/games/${gameId}`);
-    } catch (err) {
-      console.warn('[adminHubService] Backend game delete fallback:', err.message);
-    }
-  }
-
-  db.deleteGame(g.id); // removes the game and records it, so the sync cannot bring it back
-  addAudit('game', `Game deleted: ${g.title}`, `By ${session.username || 'Admin'}`);
-  db.save();
 }
 
 // ── Tournaments ──────────────────────────────────────────────────
@@ -185,125 +61,11 @@ export function tournamentCounts() {
   };
 }
 
-export async function createTournament(name, desc, gameId, maxParticipants, startDate, prize, addAudit) {
-  const db = getDB();
-  const session = getSession() || {};
-  const game = db.games.find((g) => g.id === gameId);
-  const regClose = new Date(startDate);
-  regClose.setDate(regClose.getDate() - 2);
-
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 7);
-
-  const numGameId = Number(gameId) || 1;
-  const numMax = parseInt(maxParticipants, 10) || 32;
-  const orgId = Number(session.userId) || 1;
-
-  let created = null;
-  try {
-    created = await api.post('/tournaments', {
-      tournament_name: name.trim(),
-      desc: desc.trim(),
-      game_id: numGameId,
-      maxParticipants: numMax,
-      start_date: new Date(startDate).toISOString(),
-      end_date: endDate.toISOString(),
-      regClose: regClose.toISOString(),
-      prize: prize || '₹0',
-      organizer: orgId,
-      organizer_role: session.role || 'admin',
-      type: 'single',
-      visibility: 'public'
-    });
-  } catch (err) {
-    console.warn('[adminHubService] Backend tournament create fallback:', err.message);
-  }
-
-  const newId = created && (created.id || created.tournament_id)
-    ? (created.id || created.tournament_id)
-    : (db.tournaments.length
-      ? Math.max(...db.tournaments.map((t) => parseInt(t.tournament_id || t.id, 10) || 0)) + 1
-      : 1);
-
-  db.tournaments.push({
-    id: newId,
-    tournament_id: newId,
-    name: name.trim(),
-    tournament_name: name.trim(),
-    desc: desc.trim(),
-    game: game ? game.title : 'Unknown',
-    gameId: numGameId,
-    game_id: numGameId,
-    participants: 0,
-    maxParticipants: numMax,
-    status: 'upcoming',
-    startDate: startDate,
-    start_date: new Date(startDate).toISOString(),
-    regClose: regClose.toISOString().slice(0, 10),
-    prize: prize || 'N/A',
-    organizer: orgId,
-    registeredPlayers: []
-  });
-  addAudit('tournament', `Tournament created: ${name}`, `By ${session.username || 'Admin'}`);
-  db.save();
-}
-
 export function findTournament(id) {
   return getDB().tournaments.find((t) => t.id === id);
 }
 
-export async function setTournamentStatus(t, status, label, addAudit) {
-  const tourId = Number(t.id || t.tournament_id);
-  const session = getSession() || {};
-
-  if (!isNaN(tourId)) {
-    try {
-      if (status === 'in-progress') {
-        await api.post(`/tournaments/${tourId}/start`);
-      } else {
-        await api.patch(`/tournaments/${tourId}`, { status });
-      }
-    } catch (err) {
-      console.warn('[adminHubService] Backend set tournament status fallback:', err.message);
-    }
-  }
-
-  t.status = status;
-  addAudit('tournament', `${t.name || t.tournament_name} ${label}`, `By ${session.username || 'Admin'}`);
-  getDB().save();
-}
-
-export async function deleteTournament(t, addAudit) {
-  const db = getDB();
-  const tourId = Number(t.id || t.tournament_id);
-  const session = getSession() || {};
-
-  if (!isNaN(tourId)) {
-    try {
-      await api.delete(`/tournaments/${tourId}`);
-    } catch (err) {
-      console.warn('[adminHubService] Backend delete tournament fallback:', err.message);
-    }
-  }
-
-  const idx = db.tournaments.findIndex((x) => String(x.id || x.tournament_id) === String(t.id || t.tournament_id));
-  if (idx !== -1) {
-    db.tournaments.splice(idx, 1);
-  }
-  addAudit('tournament', `Tournament deleted: ${t.name || t.tournament_name}`, `By ${session.username || 'Admin'}`);
-  db.save();
-}
-
 // ── Platform controls (System Control section) ───────────────────
-export function setSystemSetting(key, value) {
-  const db = getDB();
-  if (db && db.settings) {
-    db.settings[key] = value;
-    if (typeof db.save === 'function') db.save();
-    platformApi.savePlatformSettings(db.settings).catch(() => {});
-  }
-}
-
 // "Quick Export": download a CSV of users, games, reports or the audit log.
 export function exportData(type, auditLog, addAudit) {
   const db = getDB();

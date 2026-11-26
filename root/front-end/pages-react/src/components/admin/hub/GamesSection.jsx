@@ -16,7 +16,7 @@ import KpiCard from './KpiCard';
 import GameIcon from '../common/GameIcon';
 import StatusBadge from '../common/StatusBadge';
 import { getDB, getPlatformStats } from '../../../services/adminService';
-import { listHubGames, toggleGameEnabled, deleteGame } from '../../../services/adminHubService';
+import { listHubGames } from '../../../services/adminHubService';
 
 export function GamesSection(props) {
   const { active, addAudit, onReview } = props;
@@ -34,8 +34,8 @@ export function GamesSection(props) {
     const g = db.games.find((x) => x.id === row.id) || row; // always the live row, never an old copy
     try {
       await dispatch(setGameState({ id: g.id, enabled: !g.enabled })).unwrap();
-      await toggleGameEnabled(g, addAudit);
-      toast.info(`${g.title} ${g.enabled ? 'enabled' : 'blacklisted'}`);
+      addAudit('game', `${g.title} ${g.enabled ? 'blacklisted' : 'enabled'}`, 'Updated through Redux');
+      toast.info(`${g.title} ${g.enabled ? 'blacklisted' : 'enabled'}`);
       refresh();
     } catch (err) {
       toast.error(err.message || 'Failed to toggle game state');
@@ -47,7 +47,7 @@ export function GamesSection(props) {
     confirmAction('Delete Game', `Delete "${g.title}"?`, async () => {
       try {
         await dispatch(deleteGameThunk(g.id)).unwrap();
-        await deleteGame(g, addAudit);
+        addAudit('game', `${g.title} deleted`, 'Deleted through Redux');
         toast.success('Game deleted');
         refresh();
       } catch (err) {

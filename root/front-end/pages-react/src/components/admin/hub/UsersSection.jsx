@@ -25,9 +25,7 @@ import {
   listHubUsers,
   findUser,
   isUsernameTaken,
-  isEmailTaken,
-  saveHubUser,
-  deleteHubUser
+  isEmailTaken
 } from '../../../services/adminHubService';
 
 const EMPTY_FORM = { username: '', email: '', role: 'player', status: 'active', password: '' };
@@ -118,7 +116,7 @@ export function UsersSection(props) {
           password: form.password
         })).unwrap();
       }
-      await saveHubUser(isEdit, editId, username, email, form.role, form.status, form.password, addAudit);
+      addAudit('user', `User ${isEdit ? 'updated' : 'created'}: ${username}`, 'Updated through Redux');
       toast.success(isEdit ? 'User updated' : 'User added');
       setModalOpen(false);
       refresh();
@@ -133,7 +131,7 @@ export function UsersSection(props) {
     confirmAction('Delete User', `Permanently delete ${u.username}? Cannot be undone.`, async () => {
       try {
         await dispatch(deleteUserThunk(u.id)).unwrap();
-        await deleteHubUser(u, addAudit);
+        addAudit('user', `User deleted: ${u.username}`, 'Deleted through Redux');
         toast.success('User deleted');
         refresh();
       } catch (err) {

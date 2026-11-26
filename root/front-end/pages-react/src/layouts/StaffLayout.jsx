@@ -20,7 +20,8 @@ import StaffNavbar from '../components/staff/common/StaffNavbar';
 import AdminToastContainer from '../components/admin/common/AdminToastContainer';
 import LoadingState from '../components/common/LoadingState';
 import { waitForDb, installAuthShim } from '../services/adminService';
-import { sendHeartbeat } from '../services/adminLiveService';
+import { useAppDispatch } from '../app/hooks';
+import { heartbeatAuthSession } from '../features/auth/authSlice';
 import useIdleLogout from '../hooks/useIdleLogout';
 // The shared stylesheet is imported first so it comes BEFORE the staff CSS below, as in the old
 // pages (<link> first, page <style> after). Page rules then win ties, like before.
@@ -31,6 +32,7 @@ const ALLOWED_ROLES = ['admin', 'superuser', 'moderator', 'publisher'];
 
 export function StaffLayout() {
   const { user, loading, logout } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [dbState, setDbState] = useState('loading');
   useIdleLogout();
@@ -54,19 +56,20 @@ export function StaffLayout() {
   useEffect(() => {
     if (!allowed || dbState !== 'ready') return undefined;
     function beat() {
-      sendHeartbeat(user, () => {
+      dispatch(heartbeatAuthSession(user)).unwrap().then((result) => {
+        if (!result?.evicted) return;
         try {
           sessionStorage.setItem('pc_logout_reason', 'Your account was signed in on another device.');
         } catch (e) {
           // storage blocked: the landing page just will not show the reason
         }
         logout();
-      });
+      }).catch(() => {});
     }
     beat();
     const timer = setInterval(beat, 5000);
     return () => clearInterval(timer);
-  }, [allowed, dbState, user]);
+  }, [allowed, dbState, user, dispatch, logout]);
 
   if (loading || !allowed) {
     return <LoadingState message="Checking your account..." minHeight="60vh" />;

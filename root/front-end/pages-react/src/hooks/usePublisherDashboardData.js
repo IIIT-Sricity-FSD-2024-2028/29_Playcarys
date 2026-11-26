@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useAppDispatch } from '../app/hooks';
 import { fetchPublisherGames } from '../features/games/gameSlice';
 import { fetchPublisherEarnings } from '../features/economy/walletSlice';
-import publisherService from '../services/publisherService';
 
 export function usePublisherDashboardData(
   publisherId,
@@ -19,35 +18,26 @@ export function usePublisherDashboardData(
 
     let active = true;
 
-    const initial = publisherService.getDashboardData(publisherId);
-    setDashData(initial);
+    setDashData({ myGames: [], approved: [], pending: [], liveCount: 0 });
     setEarningsLoading(true);
     setEarningsError(null);
 
     async function refreshDashboardWithBackend() {
       try {
         const res = await dispatch(fetchPublisherGames(publisherId)).unwrap();
-        const freshGames = res?.games || res || (await publisherService.getPublisherGames(publisherId));
+        const freshGames = res?.games || res || [];
         if (active && freshGames) {
-          const freshData = publisherService.getDashboardData(publisherId);
-          const mergedGames = [...(freshData.myGames || [])];
-          freshGames.forEach((bg) => {
-            if (!mergedGames.some((g) => String(g.game_id || g.id) === String(bg.game_id || bg.id))) {
-              mergedGames.push(bg);
-            }
-          });
-          const approved = mergedGames.filter(
+          const approved = freshGames.filter(
             (g) => g.game_approval_status === 'approved' || g.status === 'approved'
           );
-          const pending = mergedGames.filter(
+          const pending = freshGames.filter(
             (g) => g.game_approval_status === 'pending' || g.status === 'pending'
           );
           setDashData({
-            ...freshData,
-            myGames: mergedGames,
+            myGames: freshGames,
             approved,
             pending,
-            liveCount: mergedGames.filter((g) => (g.game_status || (g.enabled ? 'enabled' : 'disabled')) === 'enabled').length
+            liveCount: freshGames.filter((g) => (g.game_status || (g.enabled ? 'enabled' : 'disabled')) === 'enabled').length
           });
         }
       } catch (err) {

@@ -22,10 +22,7 @@ import { validateField } from '../../../services/adminValidation';
 import { getDB, formatDate } from '../../../services/adminService';
 import {
   tournamentCounts,
-  createTournament,
   findTournament,
-  setTournamentStatus,
-  deleteTournament
 } from '../../../services/adminHubService';
 
 const NO_ERRORS = { name: '', desc: '', max: '', start: '' };
@@ -85,7 +82,7 @@ export function TournamentsSection(props) {
         start_date: form.start,
         prize_pool: form.prize ? parseInt(form.prize, 10) : 0
       })).unwrap();
-      await createTournament(form.name, form.desc, form.gameId, form.max, form.start, form.prize, addAudit);
+      addAudit('tournament', `Tournament created: ${form.name}`, 'Created through Redux');
       toast.success('Tournament created!');
       setModalOpen(false);
       refresh();
@@ -98,7 +95,7 @@ export function TournamentsSection(props) {
     const t = findTournament(id);
     try {
       await dispatch(updateTournamentThunk({ id, data: { status: 'in-progress' } })).unwrap();
-      await setTournamentStatus(t, 'in-progress', 'started', addAudit);
+      addAudit('tournament', `${t.name} started`, 'Updated through Redux');
       toast.success(`${t.name} started!`);
       refresh();
     } catch (err) {
@@ -111,7 +108,7 @@ export function TournamentsSection(props) {
     confirmAction('End Tournament', `Mark "${t.name}" as completed?`, async () => {
       try {
         await dispatch(updateTournamentThunk({ id, data: { status: 'completed' } })).unwrap();
-        await setTournamentStatus(t, 'completed', 'completed', addAudit);
+        addAudit('tournament', `${t.name} completed`, 'Updated through Redux');
         toast.info(`${t.name} completed`);
         refresh();
       } catch (err) {
@@ -125,7 +122,7 @@ export function TournamentsSection(props) {
     confirmAction('Delete Tournament', `Delete "${t.name}"?`, async () => {
       try {
         await dispatch(deleteTournamentThunk(id)).unwrap();
-        await deleteTournament(t, addAudit);
+        addAudit('tournament', `${t.name} deleted`, 'Deleted through Redux');
         toast.success('Tournament deleted');
         refresh();
       } catch (err) {

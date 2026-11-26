@@ -10,13 +10,12 @@
  * Admin and publisher use their own navbars (AdminNavbar, PublisherNavbar). The ☰ drawer is the
  * one built for the admin pages: notifications, replies and messages work for any staff role.
  */
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../../context/AuthContext';
 import AdminContext from '../../../context/AdminContext';
 import AdminDrawer from '../../admin/common/AdminDrawer';
 import { unreadNotifications } from '../../../services/adminNotifService';
-import { pullServerState } from '../../../services/adminLiveService';
 import { releaseAuthSession } from '../../../features/auth/authSlice';
 import { useDispatch } from 'react-redux';
 
@@ -55,15 +54,6 @@ export function StaffNavbar(props) {
     setCountUpdated(true);
     refresh();
   }
-
-  // Ask the server for news every 5 seconds while this tab is visible (the old PlayCarysLive poll).
-  useEffect(() => {
-    const timer = setInterval(async () => {
-      if (document.hidden) return;
-      if (await pullServerState()) handleChanged();
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Hand the account back to the server, then sign out.
   function handleLogout() {

@@ -8,7 +8,6 @@ import {
   registerPublisher,
   signUpBlockedReason
 } from '../../services/landingAuthService';
-import { releaseSession } from '../../services/adminLiveService';
 import { normalizeEntity } from '../../services/endpoints/normalize';
 import {
   AsyncStatus,
@@ -207,9 +206,26 @@ export const releaseAuthSession = createAsyncThunk(
   'auth/releaseSession',
   async (user, { rejectWithValue }) => {
     try {
-      return await releaseSession(user);
+      const uid = Number(user?.id || user?.userId || user?.user_id);
+      const sessionToken = user?.session_token || user?.sessionToken;
+      if (!uid || !sessionToken) return null;
+      return await authApi.release({ user_id: uid, session_token: sessionToken });
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to release session'));
+    }
+  }
+);
+
+export const heartbeatAuthSession = createAsyncThunk(
+  'auth/heartbeatSession',
+  async (user, { rejectWithValue }) => {
+    try {
+      const uid = Number(user?.id || user?.userId || user?.user_id);
+      const sessionToken = user?.session_token || user?.sessionToken;
+      if (!uid || !sessionToken) return null;
+      return await authApi.heartbeat({ user_id: uid, session_token: sessionToken });
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to refresh session'));
     }
   }
 );

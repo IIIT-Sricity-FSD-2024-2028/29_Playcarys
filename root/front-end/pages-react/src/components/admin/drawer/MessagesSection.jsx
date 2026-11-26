@@ -20,7 +20,6 @@ import {
   safeHtml
 } from '../../../services/adminNotifService';
 import { sameId } from '../../../services/adminService';
-import { pullServerState } from '../../../services/adminLiveService';
 
 const NOTE = { color: 'var(--text-secondary)', fontSize: '0.78rem', padding: '0.6rem 0' };
 
@@ -71,8 +70,7 @@ export function MessagesSection(props) {
       })).unwrap();
       setText('');
       toast.success('Sent');
-      // Bring the new message back from the server so it shows in the conversation.
-      if (await pullServerState()) onChanged();
+      onChanged();
     } catch (e) {
       toast.error(e.message);
     }

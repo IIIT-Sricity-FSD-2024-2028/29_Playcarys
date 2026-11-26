@@ -18,7 +18,8 @@ import AdminToastContainer from '../components/admin/common/AdminToastContainer'
 import AdminConfirmModal from '../components/admin/common/AdminConfirmModal';
 import LoadingState from '../components/common/LoadingState';
 import { waitForDb, installAuthShim } from '../services/adminService';
-import { sendHeartbeat } from '../services/adminLiveService';
+import { useAppDispatch } from '../app/hooks';
+import { heartbeatAuthSession } from '../features/auth/authSlice';
 import useIdleLogout from '../hooks/useIdleLogout';
 // The shared stylesheet is imported here first so it comes BEFORE the admin CSS below, as in
 // the old pages (<link> first, page <style> after). Page rules then win ties, like before.
@@ -27,6 +28,7 @@ import '../styles/admin/admin-overlay.css';
 
 export function AdminLayout() {
   const { user, loading, logout } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
   const location = useLocation();
   const navigate = useNavigate();
   const [dbState, setDbState] = useState('loading');
@@ -51,19 +53,20 @@ export function AdminLayout() {
   useEffect(() => {
     if (!allowed || dbState !== 'ready') return undefined;
     function beat() {
-      sendHeartbeat(user, () => {
+      dispatch(heartbeatAuthSession(user)).unwrap().then((result) => {
+        if (!result?.evicted) return;
         try {
           sessionStorage.setItem('pc_logout_reason', 'Your account was signed in on another device.');
         } catch (e) {
           // storage blocked: the login page just will not show the reason
         }
         logout();
-      });
+      }).catch(() => {});
     }
     beat();
     const timer = setInterval(beat, 5000);
     return () => clearInterval(timer);
-  }, [allowed, dbState, user]);
+  }, [allowed, dbState, user, dispatch, logout]);
 
   // Which navbar link is lit. Game Review belongs to Approvals.
   let activePage = 'dashboard';
