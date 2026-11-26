@@ -600,22 +600,9 @@ export function Community() {
 
   const handleOpenManageTourn = async (t) => {
     const tid = t.tournament_id || t.id;
-    // Always guarantee tournament is in local DB and sanitized
-    const dbInstance = getDatabase();
-    if (!Array.isArray(dbInstance.tournaments)) dbInstance.tournaments = [];
-    const idx = dbInstance.tournaments.findIndex((x) => sameId(x.tournament_id || x.id, tid));
-    if (idx >= 0) {
-      dbInstance.tournaments[idx] = { ...dbInstance.tournaments[idx], ...t };
-    } else {
-      dbInstance.tournaments.push({ ...t, tournament_id: parseInt(tid, 10) || tid });
-    }
-    saveDatabase(dbInstance);
-
-    tournamentService.sanitizeTournamentMatches(tid);
-    const updatedDb = getDatabase();
-    const freshT = (updatedDb.tournaments || []).find((x) => sameId(x.tournament_id || x.id, tid)) || t;
-
-    setManageTourn(freshT);
+    // Bracket data is loaded by the Redux thunk below. The local database remains
+    // only as a compatibility fallback while the legacy data layer is retired.
+    setManageTourn(t);
     setManageStageFilter('all');
     setShowManageTourn(true);
     await fetchBracket(tid);
