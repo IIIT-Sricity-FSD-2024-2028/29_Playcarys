@@ -10,16 +10,16 @@
  * the server; this component only collects the form and shows what came back.
  */
 import React, { useState, useRef, useContext } from 'react';
+import { useDispatch } from 'react-redux';
+import { serverLoginThunk, forgotPasswordThunk } from '../../features/auth/authSlice';
 import AuthContext from '../../context/AuthContext';
 import {
   PANEL_CONFIGS,
   STAFF_TABS,
   demoPassword,
   findLoginUser,
-  serverLogin,
   resolveSessionConflict,
-  buildSession,
-  runForgotPassword
+  buildSession
 } from '../../services/landingAuthService';
 
 const STAFF_COLUMN = {
@@ -33,6 +33,7 @@ const STAFF_COLUMN = {
 export function LoginPanel(props) {
   const { type, onClose, onSignedIn, onOpenRegister, onOpenPublisherRegister, showToast } = props;
   const { login } = useContext(AuthContext);
+  const dispatch = useDispatch();
 
   const isStaff = type === 'admin';
   const [staffTab, setStaffTab] = useState('admin');
@@ -144,7 +145,7 @@ export function LoginPanel(props) {
     setBusy('signing');
     let result;
     try {
-      result = await serverLogin(body);
+      result = await dispatch(serverLoginThunk(body)).unwrap();
     } finally {
       setBusy('');
     }
@@ -193,7 +194,7 @@ export function LoginPanel(props) {
         return;
       }
 
-      result = await serverLogin({ ...body, force: true });
+      result = await dispatch(serverLoginThunk({ ...body, force: true })).unwrap();
       if (result.status !== 'ok') {
         setError('Could not sign in. Please try again.');
         return;
@@ -375,7 +376,7 @@ export function LoginPanel(props) {
                 <div style={{ textAlign: 'center', marginTop: '0.9rem', fontSize: '0.82rem' }}>
                   <span
                     style={{ color: 'var(--accent-cyan)', cursor: 'pointer', fontWeight: 600 }}
-                    onClick={runForgotPassword}
+                    onClick={() => dispatch(forgotPasswordThunk())}
                   >
                     Forgot your password?
                   </span>
@@ -397,7 +398,7 @@ export function LoginPanel(props) {
                 <div style={{ textAlign: 'center', marginTop: '0.9rem', fontSize: '0.82rem' }}>
                   <span
                     style={{ color: 'var(--accent-cyan)', cursor: 'pointer', fontWeight: 600 }}
-                    onClick={runForgotPassword}
+                    onClick={() => dispatch(forgotPasswordThunk())}
                   >
                     Forgot your password?
                   </span>

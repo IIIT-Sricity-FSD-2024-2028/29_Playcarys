@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import { useAppDispatch } from '../../app/hooks';
 import {
-  fetchModeratorDashboardData,
+  fetchModeratorDashboard,
   sendContactAdminNotification
-} from '../../services/moderatorService';
+} from '../../features/moderation/moderationSlice';
 import ModeratorHero from '../../components/moderator/dashboard/ModeratorHero';
 import ModeratorStatsRow from '../../components/moderator/dashboard/ModeratorStatsRow';
 import ReportActivityChart from '../../components/moderator/dashboard/ReportActivityChart';
@@ -45,6 +46,7 @@ const DEFAULT_DASHBOARD_STATE = {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
 
@@ -68,7 +70,7 @@ export function Dashboard() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetchModeratorDashboardData(userId);
+      const res = await dispatch(fetchModeratorDashboard(userId)).unwrap();
       setData({
         ...DEFAULT_DASHBOARD_STATE,
         ...res,
@@ -86,7 +88,7 @@ export function Dashboard() {
         users: res?.users || []
       });
     } catch (err) {
-      console.error('Failed to load moderator dashboard data:', err);
+      console.error('Failed to load moderator dashboard data via Redux:', err);
       setLoadError('Failed to load dashboard data.');
       showToast('Failed to load dashboard data', 'error');
     } finally {
@@ -111,16 +113,16 @@ export function Dashboard() {
 
   async function handleSendContactAdmin({ subject, msg, priority }) {
     try {
-      const result = await sendContactAdminNotification({
+      const result = await dispatch(sendContactAdminNotification({
         subject,
         msg,
         priority,
         session,
         users: data.users
-      });
-      showToast(`📨 Message sent to Admin ${result.targetAdminName || 'team'}`, 'success');
+      })).unwrap();
+      showToast(`📨 Message sent to Admin ${result?.targetAdminName || 'team'}`, 'success');
     } catch (err) {
-      console.error('Failed to send message to admin:', err);
+      console.error('Failed to send message to admin via Redux:', err);
       showToast(err.message || 'Failed to send message to admin', 'error');
       throw err;
     }

@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import publisherService from '../services/publisherService';
+import { useDispatch } from 'react-redux';
+import { fetchPublisherOnboarding } from '../features/profiles/publisherProfileSlice';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import PublisherNavbar from '../components/publisher/common/PublisherNavbar';
 import AuthContext from '../context/AuthContext';
@@ -13,6 +14,7 @@ export function PublisherLayout() {
   const { user, loading } = useContext(AuthContext);
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   useIdleLogout();
 
   const allowed = !!user && ALLOWED_ROLES.includes(user.role);
@@ -23,12 +25,18 @@ export function PublisherLayout() {
     setAccess(null);
     setAccessError(false);
     if (user?.role === 'publisher') {
-      publisherService.getOnboardingStatus(user.userId || user.id || user.user_id)
-        .then(data => { if (!cancelled) setAccess(data); })
-        .catch(() => { if (!cancelled) setAccessError(true); });
+      const pid = user.userId || user.id || user.user_id;
+      dispatch(fetchPublisherOnboarding(pid))
+        .unwrap()
+        .then((res) => {
+          if (!cancelled) setAccess(res?.profile || res);
+        })
+        .catch(() => {
+          if (!cancelled) setAccessError(true);
+        });
     }
     return () => { cancelled = true; };
-  }, [user, location.pathname]);
+  }, [dispatch, user, location.pathname]);
   const publishingPage = ['/publisher/publish', '/publisher/publish-tournament'].includes(location.pathname);
   const financePage = ['/publisher/finance', '/publisher/earnings'].includes(location.pathname);
   const restricted = user?.role === 'publisher' && (publishingPage || financePage);

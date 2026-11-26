@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import platformApi from '../../services/endpoints/platformApi';
+import * as superuserService from '../../services/superuserService';
 import {
   AsyncStatus,
   initialAsyncState,
@@ -8,6 +9,43 @@ import {
   handleFulfilled,
   handleRejected
 } from '../../app/asyncUtils';
+
+export const fetchPlatformOverview = createAsyncThunk(
+  'platform/fetchOverview',
+  async ({ limit = 8, role } = {}, { rejectWithValue }) => {
+    try {
+      const [stats, activity, economy] = await Promise.all([
+        superuserService.fetchPlatformStats(),
+        superuserService.fetchRecentActivity(limit),
+        role === 'superuser' ? superuserService.getPlatformEconomy() : Promise.resolve(null)
+      ]);
+      return { stats, activity, economy };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch platform overview'));
+    }
+  }
+);
+
+export const executeDangerZone = createAsyncThunk(
+  'platform/executeDangerZone',
+  async (actionKey, { rejectWithValue }) => {
+    try {
+      let result;
+      if (actionKey === 'purge-sessions') {
+        result = await superuserService.purgeSessions();
+      } else if (actionKey === 'lift-bans') {
+        result = await superuserService.liftAllBans();
+      } else if (actionKey === 'archive-reports') {
+        result = await superuserService.archiveAllReports();
+      } else if (actionKey === 'reset-data') {
+        result = await superuserService.clearActivityLog();
+      }
+      return { actionKey, result };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Danger zone action failed'));
+    }
+  }
+);
 
 export const fetchPlatformStatus = createAsyncThunk(
   'platform/fetchStatus',
@@ -48,6 +86,11 @@ export const updatePlatformSettings = createAsyncThunk(
 const initialState = {
   statusData: null,
   systemSettings: {},
+  overviewStats: null,
+  overviewActivity: [],
+  overviewEconomy: null,
+  overviewStatus: AsyncStatus.IDLE,
+  dangerZoneStatus: AsyncStatus.IDLE,
   mutationStatus: AsyncStatus.IDLE,
   mutationError: null,
   ...initialAsyncState
@@ -110,6 +153,31 @@ export const platformSlice = createSlice({
       .addCase(updatePlatformSettings.rejected, (state, action) => {
         state.mutationStatus = AsyncStatus.FAILED;
         state.mutationError = action.payload || action.error?.message || 'Failed to update settings';
+      })
+      // ── fetchPlatformOverview ─────────────────────────────
+      .addCase(fetchPlatformOverview.pending, (state) => {
+        state.overviewStatus = AsyncStatus.LOADING;
+      })
+      .addCase(fetchPlatformOverview.fulfilled, (state, action) => {
+        state.overviewStatus = AsyncStatus.SUCCEEDED;
+        state.overviewStats = action.payload.stats;
+        state.overviewActivity = action.payload.activity;
+        state.overviewEconomy = action.payload.economy;
+      })
+      .addCase(fetchPlatformOverview.rejected, (state, action) => {
+        state.overviewStatus = AsyncStatus.FAILED;
+        state.error = action.payload || action.error?.message;
+      })
+      // ── executeDangerZone ─────────────────────────────────
+      .addCase(executeDangerZone.pending, (state) => {
+        state.dangerZoneStatus = AsyncStatus.LOADING;
+      })
+      .addCase(executeDangerZone.fulfilled, (state) => {
+        state.dangerZoneStatus = AsyncStatus.SUCCEEDED;
+      })
+      .addCase(executeDangerZone.rejected, (state, action) => {
+        state.dangerZoneStatus = AsyncStatus.FAILED;
+        state.error = action.payload || action.error?.message;
       });
   }
 });

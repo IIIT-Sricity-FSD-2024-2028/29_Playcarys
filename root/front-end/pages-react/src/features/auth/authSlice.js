@@ -1,6 +1,14 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import authApi from '../../services/endpoints/authApi';
 import authService from '../../services/authService';
+import {
+  serverLogin,
+  runForgotPassword,
+  registerPlayer,
+  registerPublisher,
+  signUpBlockedReason
+} from '../../services/landingAuthService';
+import { releaseSession } from '../../services/adminLiveService';
 import { normalizeEntity } from '../../services/endpoints/normalize';
 import {
   AsyncStatus,
@@ -136,6 +144,72 @@ export const changePassword = createAsyncThunk(
       return res;
     } catch (err) {
       return rejectWithValue(extractErrorMessage(err, 'Failed to change password'));
+    }
+  }
+);
+
+export const serverLoginThunk = createAsyncThunk(
+  'auth/serverLogin',
+  async (credentials, { rejectWithValue }) => {
+    try {
+      return await serverLogin(credentials);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Server login failed'));
+    }
+  }
+);
+
+export const forgotPasswordThunk = createAsyncThunk(
+  'auth/forgotPassword',
+  async (email, { rejectWithValue }) => {
+    try {
+      return await runForgotPassword(email);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to process forgot password'));
+    }
+  }
+);
+
+export const registerPlayerThunk = createAsyncThunk(
+  'auth/registerPlayer',
+  async (values, { rejectWithValue }) => {
+    try {
+      return await registerPlayer(values);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to register player'));
+    }
+  }
+);
+
+export const registerPublisherThunk = createAsyncThunk(
+  'auth/registerPublisher',
+  async (values, { rejectWithValue }) => {
+    try {
+      return await registerPublisher(values);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to register publisher'));
+    }
+  }
+);
+
+export const checkSignUpBlockedReason = createAsyncThunk(
+  'auth/checkSignUpBlockedReason',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await signUpBlockedReason();
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to check sign up status'));
+    }
+  }
+);
+
+export const releaseAuthSession = createAsyncThunk(
+  'auth/releaseSession',
+  async (user, { rejectWithValue }) => {
+    try {
+      return await releaseSession(user);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to release session'));
     }
   }
 );

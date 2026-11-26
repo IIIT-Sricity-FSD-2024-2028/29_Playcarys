@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import api from '../../../services/api';
+import { useAppDispatch } from '../../../app/hooks';
+import {
+  fetchPublisherApplications,
+  reviewPublisherApplication
+} from '../../../features/games/gameReviewSlice';
 
 export default function PublisherApplications() {
+  const dispatch = useAppDispatch();
   const [applications, setApplications] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const load = async () => {
-    try { setApplications(await api.request('/publisher/applications')); }
-    catch (e) { setError(e.message); }
+    try {
+      const res = await dispatch(fetchPublisherApplications()).unwrap();
+      setApplications(Array.isArray(res) ? res : []);
+    } catch (e) {
+      setError(e.message || String(e));
+    }
   };
   useEffect(() => { load(); }, []);
   async function review(event, application) {
@@ -15,12 +24,17 @@ export default function PublisherApplications() {
     const fields = new FormData(event.currentTarget);
     setBusy(true); setError('');
     try {
-      await api.request(`/publisher/applications/${application.user_id}/review`, 'POST', {
-        kind: application.kyc_status === 'pending' ? 'identity' : 'payments',
-        decision: fields.get('decision'), reason: fields.get('reason'), evidence_reference: fields.get('evidence'),
-      });
+      await dispatch(reviewPublisherApplication({
+        userId: application.user_id,
+        data: {
+          kind: application.kyc_status === 'pending' ? 'identity' : 'payments',
+          decision: fields.get('decision'),
+          reason: fields.get('reason'),
+          evidence_reference: fields.get('evidence'),
+        }
+      })).unwrap();
       await load();
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(e.message || String(e)); }
     finally { setBusy(false); }
   }
   return <section className="card" style={{ padding: 24, marginBlock: 24 }}>

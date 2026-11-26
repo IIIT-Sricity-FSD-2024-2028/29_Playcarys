@@ -72,6 +72,8 @@ export const fetchPublisherFinance = createAsyncThunk(
   }
 );
 
+export const fetchPublisherEarnings = fetchPublisherFinance;
+
 export const depositPublisherFunds = createAsyncThunk(
   'wallet/depositPublisherFunds',
   async ({ publisherId, data }, { rejectWithValue }) => {

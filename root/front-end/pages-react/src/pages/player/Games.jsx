@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchGames, recordGameView, toggleFavoriteGame } from '../../features/games/gameSlice';
+import { fetchGames, recordGameView, toggleFavoriteGame, probeGameHost } from '../../features/games/gameSlice';
 import {
   selectAllGames,
   selectGamesStatus,
@@ -81,11 +81,17 @@ export function Games() {
       const gid = String(g.id || g.game_id);
       const mode = playerService.getMultiplayerMode(gid);
       if (mode === 'self') {
-        playerService.probeSelfHosted(gid).then((alive) => {
-          if (!alive) {
+        dispatch(probeGameHost(gid))
+          .unwrap()
+          .then((res) => {
+            const alive = typeof res === 'object' ? res.isAlive : Boolean(res);
+            if (!alive) {
+              setOfflineMap((prev) => ({ ...prev, [gid]: true }));
+            }
+          })
+          .catch(() => {
             setOfflineMap((prev) => ({ ...prev, [gid]: true }));
-          }
-        });
+          });
       }
     });
   }, [allGames]);
