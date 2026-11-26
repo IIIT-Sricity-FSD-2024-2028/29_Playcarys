@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
 import api from '../../services/api';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import { fetchPlayerProfile, updatePlayerProfile } from '../../features/profiles/playerProfileSlice';
+import { selectPlayerProfile } from '../../features/profiles/selectors';
+import { fetchPlayerAchievements, fetchPlayerTitles, setPlayerTitle } from '../../features/games/achievementSlice';
+import { selectPlayerAchievements, selectPlayerTitles } from '../../features/games/selectors';
+import { fetchLinkedAccounts, fetchPlatforms, linkAccount, unlinkAccount } from '../../features/profiles/linkedAccountSlice';
+import { selectLinkedAccounts, selectPlatforms } from '../../features/profiles/selectors';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, hydrateFromServer } from '../../services/playerService';
 import authService from '../../services/authService';
@@ -9,6 +16,8 @@ import '../../styles/player/profile.css';
 
 export function Profile() {
   const { user, setUser } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
+  const uid = Number(user?.id || user?.user_id || user?.userId || 7);
 
   const [dbVersion, setDbVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -24,15 +33,15 @@ export function Profile() {
   const [avatarMode, setAvatarMode] = useState('loading'); // 'loading' | '3d' | 'fallback'
 
   // Server-based Game Achievements & Titles
-  const [earnedAchievements, setEarnedAchievements] = useState([]);
+  const earnedAchievements = useAppSelector(selectPlayerAchievements);
   const [lockedAchievements, setLockedAchievements] = useState([]);
-  const [titles, setTitles] = useState([]);
+  const titles = useAppSelector((state) => selectPlayerTitles(state, uid));
   const [activeTitle, setActiveTitleState] = useState('');
   const [achievementsLoading, setAchievementsLoading] = useState(true);
 
   // Linked accounts
-  const [platforms, setPlatforms] = useState([]);
-  const [linkedAccounts, setLinkedAccounts] = useState([]);
+  const platforms = useAppSelector(selectPlatforms);
+  const linkedAccounts = useAppSelector((state) => selectLinkedAccounts(state, uid));
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [inGameName, setInGameName] = useState('');
   const [linkingAccount, setLinkingAccount] = useState(false);
@@ -63,20 +72,12 @@ export function Profile() {
   const [modButtonState, setModButtonState] = useState('idle'); // 'idle' | 'sent'
 
   // Determine current user ID canonical representation
-  const uid = Number(user?.id || user?.user_id || user?.userId || 7);
+  const storedPlayerProfile = useAppSelector((state) => selectPlayerProfile(state, uid));
 
   // 1. Calculate & load profile data from backend & DB
   const loadProfile = async () => {
-    let curUser = null;
-    let pp = null;
-    try {
-      const [uRes, pRes] = await Promise.all([
-        api.get(`/users/${uid}`).catch(() => null),
-        api.get(`/player-profiles/${uid}`).catch(() => null),
-      ]);
-      curUser = uRes;
-      pp = pRes;
-    } catch (e) {}
+    let curUser = user;
+    let pp = storedPlayerProfile;
 
     const db = getDatabase();
     if (!curUser) {
@@ -161,14 +162,8 @@ export function Profile() {
   const loadGameAchievements = async () => {
     try {
       setAchievementsLoading(true);
-      const [aRes, tRes] = await Promise.all([
-        api.get(`/players/${uid}/achievements`),
-        api.get(`/players/${uid}/titles`),
-      ]);
-      const earned = Array.isArray(aRes) ? aRes : Array.isArray(aRes?.data) ? aRes.data : [];
-      const titleList = Array.isArray(tRes?.titles) ? tRes.titles : [];
-      setEarnedAchievements(earned);
-      setTitles(titleList);
+      const earned = await dispatch(fetchPlayerAchievements(uid)).unwrap();
+      await dispatch(fetchPlayerTitles(uid)).unwrap();
 
       const db = getDatabase();
       const pp = (db.player_profiles || []).find((p) => Number(p.user_id) === uid);
@@ -219,20 +214,20 @@ export function Profile() {
   // 3. Load linked accounts & platforms
   const loadLinkedAccounts = async () => {
     try {
-      const pRes = await api.get('/linked-accounts/platforms');
-      const platformList = Array.isArray(pRes) ? pRes : Array.isArray(pRes?.data) ? pRes.data : [];
-      setPlatforms(platformList);
-      if (platformList.length > 0 && !selectedPlatform) {
-        setSelectedPlatform(platformList[0].key);
-      }
-
-      const aRes = await api.get(`/linked-accounts/player/${uid}`);
-      const accList = Array.isArray(aRes) ? aRes : Array.isArray(aRes?.data) ? aRes.data : [];
-      setLinkedAccounts(accList);
+      await Promise.all([
+        dispatch(fetchPlatforms()).unwrap(),
+        dispatch(fetchLinkedAccounts(uid)).unwrap(),
+      ]);
     } catch (err) {
       console.warn('Could not load linked accounts:', err);
     }
   };
+
+  useEffect(() => {
+    if (!selectedPlatform && platforms.length > 0) {
+      setSelectedPlatform(platforms[0].key);
+    }
+  }, [platforms, selectedPlatform]);
 
   // Hydrate DB tables from server on mount
   useEffect(() => {
@@ -252,23 +247,24 @@ export function Profile() {
     };
   }, [uid]);
 
+  useEffect(() => {
+    dispatch(fetchPlayerProfile(uid));
+  }, [dispatch, uid]);
+
   // On mount and when dbVersion changes
   useEffect(() => {
     loadProfile();
     loadGameAchievements();
     loadLinkedAccounts();
     setLoading(false);
-  }, [uid, dbVersion]);
+  }, [uid, dbVersion, storedPlayerProfile, user]);
 
   // Handle active title selection
   const handleTitleChange = async (e) => {
     const newTitle = e.target.value;
     try {
-      const res = await api.patch(`/players/${uid}/title`, {
-        user_id: uid,
-        title: newTitle || null,
-      });
-      const active = res.active_title || '';
+      const result = await dispatch(setPlayerTitle({ userId: uid, title: newTitle || null })).unwrap();
+      const active = result?.active_title || newTitle || '';
       setActiveTitleState(active);
       const db = getDatabase();
       const pp = (db.player_profiles || []).find((p) => Number(p.user_id) === uid);
@@ -290,11 +286,11 @@ export function Profile() {
     }
     try {
       setLinkingAccount(true);
-      await api.post('/linked-accounts', {
+      await dispatch(linkAccount({
         player_id: uid,
         platform: selectedPlatform,
         in_game_name: trimmed,
-      });
+      })).unwrap();
       setInGameName('');
       showToast('Linked! 🔗', 'success');
       await loadLinkedAccounts();
@@ -309,7 +305,7 @@ export function Profile() {
   // Handle unlink account
   const handleUnlinkAccount = async (linkId) => {
     try {
-      await api.del(`/linked-accounts/${linkId}?requesterId=${uid}`);
+      await dispatch(unlinkAccount(linkId)).unwrap();
       showToast('Unlinked.', 'info');
       await loadLinkedAccounts();
     } catch (err) {
@@ -414,14 +410,8 @@ export function Profile() {
         }
       }
 
-      // Persist username + email changes to NestJS backend
-      // PATCH /users/:id is admin-only, so we use PATCH /player-profiles/:id
-      // for player_name and fall back to a db-import for the user record.
-      try {
-        await api.patch(`/player-profiles/${uid}`, { player_name: uName });
-      } catch (patchErr) {
-        console.warn('Could not patch player-profile on backend:', patchErr);
-      }
+      // Profile mutations pass through the Redux thunk and update its cached entity.
+      await dispatch(updatePlayerProfile({ userId: uid, data: { player_name: uName } })).unwrap();
 
       // Update local DB cache so the UI reflects the change immediately
       const db = getDatabase();

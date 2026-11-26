@@ -32,6 +32,42 @@ export const fetchPublisherProfiles = createAsyncThunk(
   }
 );
 
+export const fetchPublisherOnboarding = createAsyncThunk(
+  'publisherProfile/fetchOnboarding',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const profile = await profilesApi.getPublisherOnboarding(userId);
+      return { userId: String(userId), profile };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch publisher onboarding'));
+    }
+  }
+);
+
+export const updatePublisherOnboarding = createAsyncThunk(
+  'publisherProfile/updateOnboarding',
+  async ({ userId, data }, { rejectWithValue }) => {
+    try {
+      const profile = await profilesApi.updatePublisherOnboarding(userId, data);
+      return { userId: String(userId), profile };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to update publisher onboarding'));
+    }
+  }
+);
+
+export const completePublisherDemoVerification = createAsyncThunk(
+  'publisherProfile/completeDemoVerification',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const profile = await profilesApi.completePublisherDemoVerification();
+      return { userId: String(userId), profile };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to complete demo verification'));
+    }
+  }
+);
+
 const initialState = {
   profilesByUserId: {},
   listStatus: AsyncStatus.IDLE,
@@ -80,6 +116,15 @@ export const publisherProfileSlice = createSlice({
       .addCase(fetchPublisherProfiles.rejected, (state, action) => {
         state.listStatus = AsyncStatus.FAILED;
         state.listError = action.payload || action.error?.message;
+      })
+      .addCase(fetchPublisherOnboarding.fulfilled, (state, action) => {
+        state.profilesByUserId[action.payload.userId] = action.payload.profile;
+      })
+      .addCase(updatePublisherOnboarding.fulfilled, (state, action) => {
+        state.profilesByUserId[action.payload.userId] = action.payload.profile;
+      })
+      .addCase(completePublisherDemoVerification.fulfilled, (state, action) => {
+        state.profilesByUserId[action.payload.userId] = action.payload.profile;
       });
   }
 });

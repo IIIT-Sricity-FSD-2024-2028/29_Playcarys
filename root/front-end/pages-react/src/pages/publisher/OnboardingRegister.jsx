@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
-import publisherService from '../../services/publisherService';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {
+  completePublisherDemoVerification,
+  fetchPublisherOnboarding,
+  updatePublisherOnboarding
+} from '../../features/profiles/publisherProfileSlice';
+import { selectPublisherProfile } from '../../features/profiles/selectors';
 import Toast from '../../components/common/Toast';
-import api from '../../services/api';
 
 export function OnboardingRegister() {
   const navigate = useNavigate();
   const { user, isPublisher, authLoading } = usePublisherAuth();
+  const dispatch = useAppDispatch();
+  const userId = user?.userId || user?.id || user?.user_id;
+  const onboardingData = useAppSelector((state) => selectPublisherProfile(state, userId));
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
-  const [onboardingData, setOnboardingData] = useState(null);
 
   // Form states
   const [publisherType, setPublisherType] = useState('individual'); // 'individual' | 'organization'
@@ -42,9 +49,7 @@ export function OnboardingRegister() {
       }
 
       try {
-        const uid = user.userId || user.id || user.user_id;
-        const data = await publisherService.getOnboardingStatus(uid);
-        setOnboardingData(data);
+        const data = await dispatch(fetchPublisherOnboarding(userId)).unwrap();
 
         // Populate initial values
         setStudioName(user.username || user.user_name || '');
@@ -60,7 +65,7 @@ export function OnboardingRegister() {
       }
     }
     loadData();
-  }, [authLoading, isPublisher, user, navigate]);
+  }, [authLoading, dispatch, isPublisher, navigate, user, userId]);
 
   const handleSubmitApplication = async (e) => {
     e.preventDefault();
@@ -80,8 +85,7 @@ export function OnboardingRegister() {
 
     setSaving(true);
     try {
-      const uid = user.userId || user.id || user.user_id;
-      const res = await publisherService.updateOnboardingStatus(uid, {
+      await dispatch(updatePublisherOnboarding({ userId, data: {
         publisher_type: publisherType,
         legal_name: legalName.trim(),
         country,
@@ -94,9 +98,7 @@ export function OnboardingRegister() {
         kyc_status: 'review_pending',
         payout_method: payoutMethod,
         payout_destination: payoutDestination.trim(),
-      });
-
-      setOnboardingData(res);
+      }})).unwrap();
       setSubmittedSuccess(true);
       showToast('Application submitted for review successfully!', 'success');
     } catch (err) {
@@ -139,8 +141,7 @@ export function OnboardingRegister() {
           <button type="button" className="btn btn-secondary" disabled={saving} onClick={async () => {
             setSaving(true);
             try {
-              const result = await api.request('/publisher/demo-verification', 'POST');
-              setOnboardingData(result);
+              await dispatch(completePublisherDemoVerification(userId)).unwrap();
               showToast('Demo checks completed. Publishing access is available; payments remain simulated.', 'success');
             } catch (error) { showToast(error.message, 'error'); }
             finally { setSaving(false); }

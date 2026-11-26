@@ -22,4 +22,5 @@ export const selectGameSave = (state, gameId) => state.gameSaves?.savesByGameId[
 
 export const selectGameAchievements = (state, gameId) => state.achievements?.achievementsByGameId[String(gameId)] || [];
 export const selectPlayerAchievements = (state) => state.achievements?.playerAchievements || [];
+export const selectPlayerTitles = (state, userId) => state.achievements?.titlesByUserId[String(userId)] || [];
 export const selectPendingAchievements = (state) => state.achievements?.pendingAchievements || [];
