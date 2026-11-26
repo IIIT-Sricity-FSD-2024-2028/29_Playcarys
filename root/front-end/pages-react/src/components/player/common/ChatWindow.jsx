@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppDispatch } from '../../../app/hooks';
-import { fetchMessages, sendMessage } from '../../../features/communities/socialSlice';
-import socialService from '../../../services/socialService';
+import { fetchMessages, sendMessage, markMessagesDelivered, clearConversationRemote } from '../../../features/communities/socialSlice';
 import ConfirmModal from '../../common/ConfirmModal';
 
 export function ChatWindow({
@@ -58,7 +57,7 @@ export function ChatWindow({
           (m) => String(m.to_user) === String(currentUserId) && !m.delivered_at
         );
         if (hasNew) {
-          socialService.markDelivered(currentUserId, friendId).then(() => {
+          dispatch(markMessagesDelivered({ userId: currentUserId, fromUserId: friendId })).unwrap().then(() => {
             if (!cancelled && onReadRef.current) onReadRef.current();
           });
         }
@@ -125,7 +124,7 @@ export function ChatWindow({
 
   async function confirmDeleteConversation() {
     try {
-      await socialService.deleteConversation(currentUserId, friendId);
+      await dispatch(clearConversationRemote({ userId: currentUserId, withUserId: friendId })).unwrap();
       setMessages([]);
       setIsDeleteModalOpen(false);
       if (onReadRef.current) onReadRef.current();

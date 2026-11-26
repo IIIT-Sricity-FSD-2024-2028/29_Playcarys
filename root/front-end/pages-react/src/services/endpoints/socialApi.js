@@ -167,6 +167,14 @@ export const socialApi = {
   async sendMessage(dto) {
     const res = await api.post('/messages', dto);
     return normalizeEntity(res, ['message_id']);
+  },
+
+  async markMessagesDelivered(userId, fromUserId) {
+    return api.post('/messages/delivered', { user_id: userId, from_user: fromUserId });
+  },
+
+  async clearConversation(userId, withUserId) {
+    return api.delete(`/messages/${userId}/${withUserId}`);
   }
 };
 

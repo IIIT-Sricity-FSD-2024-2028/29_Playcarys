@@ -20,6 +20,8 @@ export const removeFriend = createSocialThunk('social/removeFriend', async ({ us
 }, 'Failed to remove friend');
 export const fetchMessages = createSocialThunk('social/fetchMessages', async ({ userId, withUserId }) => ({ withUserId: String(withUserId), messages: await socialApi.getMessages(userId, withUserId) }), 'Failed to fetch messages');
 export const sendMessage = createSocialThunk('social/sendMessage', async (dto) => ({ message: await socialApi.sendMessage(dto), contactId: String(dto.to_user) }), 'Failed to send message');
+export const markMessagesDelivered = createSocialThunk('social/markMessagesDelivered', ({ userId, fromUserId }) => socialApi.markMessagesDelivered(userId, fromUserId), 'Failed to acknowledge messages');
+export const clearConversationRemote = createSocialThunk('social/clearConversation', async ({ userId, withUserId }) => { await socialApi.clearConversation(userId, withUserId); return String(withUserId); }, 'Failed to clear conversation');
 
 const initialState = {
   searchResults: [], friends: [], friendRequests: { incoming: [], outgoing: [] }, messagesByContact: {},
@@ -53,6 +55,7 @@ export const socialSlice = createSlice({
     .addCase(fetchMessages.fulfilled, (state, action) => { state.messagesStatusByContact[action.payload.withUserId] = AsyncStatus.SUCCEEDED; state.messagesByContact[action.payload.withUserId] = action.payload.messages; })
     .addCase(fetchMessages.rejected, (state, action) => { state.messagesStatusByContact[String(action.meta.arg.withUserId)] = AsyncStatus.FAILED; state.error = action.payload || action.error?.message; })
     .addCase(sendMessage.pending, setMutationPending).addCase(sendMessage.fulfilled, (state, action) => { const { contactId, message } = action.payload; state.mutationStatus = AsyncStatus.SUCCEEDED; (state.messagesByContact[contactId] ||= []).push(message); }).addCase(sendMessage.rejected, setMutationRejected)
+    .addCase(clearConversationRemote.fulfilled, (state, action) => { delete state.messagesByContact[action.payload]; })
 });
 
 export const { clearSearchResults, clearSocialError, clearConversation } = socialSlice.actions;
