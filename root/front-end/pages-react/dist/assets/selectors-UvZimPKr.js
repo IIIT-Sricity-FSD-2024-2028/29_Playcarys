@@ -1,1 +1,0 @@
-import{cL as l}from"./index-Cubu4JCI.js";const t=l.getSelectors(e=>e.games),c=t.selectAll;t.selectEntities;t.selectTotal;const o=e=>{var s;return(s=e.games)==null?void 0:s.status},m=e=>{var s;return(s=e.games)==null?void 0:s.error},p=e=>t.selectAll(e).filter(a=>(a.status==="approved"||a.game_approval_status==="approved")&&a.enabled!==!1);export{o as a,m as b,p as c,c as s};
