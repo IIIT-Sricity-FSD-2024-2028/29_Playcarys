@@ -646,7 +646,7 @@ export function Community() {
 
   const handlePauseTournament = async (tid) => {
     try {
-      await tournamentService.pauseTournament(tid);
+      await dispatch(updateTournament({ id: tid, data: { status: 'paused' } })).unwrap();
       showToast('Tournament paused ⏸️', 'info');
       setManageTourn((prev) => (prev ? { ...prev, status: 'paused' } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -657,7 +657,7 @@ export function Community() {
 
   const handleResumeTournament = async (tid) => {
     try {
-      await tournamentService.resumeTournament(tid);
+      await dispatch(updateTournament({ id: tid, data: { status: 'in-progress' } })).unwrap();
       showToast('Tournament resumed! ▶️', 'success');
       setManageTourn((prev) => (prev ? { ...prev, status: 'in-progress' } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -670,7 +670,7 @@ export function Community() {
     const reason = window.prompt('Enter cancellation reason (optional):', 'Cancelled by community organizer');
     if (reason === null) return;
     try {
-      await tournamentService.cancelTournament(tid, reason);
+      await dispatch(updateTournament({ id: tid, data: { status: 'cancelled' } })).unwrap();
       showToast('Tournament cancelled 🛑', 'info');
       setManageTourn((prev) => (prev ? { ...prev, status: 'cancelled' } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -683,7 +683,15 @@ export function Community() {
     const winnerName = window.prompt('Enter the winner name or ID:');
     if (!winnerName || !winnerName.trim()) return;
     try {
-      await tournamentService.declareWinner(tid, winnerName.trim(), winnerName.trim());
+      const numericWinnerId = Number(winnerName.trim());
+      await dispatch(updateTournament({
+        id: tid,
+        data: {
+          status: 'completed',
+          winner: winnerName.trim(),
+          ...(Number.isInteger(numericWinnerId) ? { winner_id: numericWinnerId } : {})
+        }
+      })).unwrap();
       showToast(`Tournament completed! Winner: ${winnerName.trim()} 🏆`, 'success');
       setManageTourn((prev) => (prev ? { ...prev, status: 'completed', winner: winnerName.trim() } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -697,7 +705,7 @@ export function Community() {
     const newDeadline = window.prompt('Enter new registration deadline (YYYY-MM-DDTHH:MM):', currentClose);
     if (!newDeadline || !newDeadline.trim()) return;
     try {
-      await tournamentService.extendDeadline(tid, newDeadline.trim());
+      await dispatch(updateTournament({ id: tid, data: { regClose: newDeadline.trim() } })).unwrap();
       showToast('Registration deadline extended! 📅', 'success');
       setManageTourn((prev) => (prev ? { ...prev, regClose: newDeadline.trim() } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -767,7 +775,14 @@ export function Community() {
       const finalWinnerName = finalMatch.winner_name || (db.users || []).find((u) => sameId(u.id || u.user_id, finalMatch.winnerId))?.user_name || String(finalMatch.winnerId);
       if (!window.confirm(`Final round complete! Confirm ${finalWinnerName} as Tournament Champion?`)) return;
       try {
-        await tournamentService.declareWinner(tid, finalMatch.winnerId, finalWinnerName);
+        await dispatch(updateTournament({
+          id: tid,
+          data: {
+            status: 'completed',
+            winner_id: Number(finalMatch.winnerId),
+            winner: finalWinnerName
+          }
+        })).unwrap();
         showToast(`Final round complete — tournament finished! Winner: ${finalWinnerName} 🏆`, 'success');
         setManageTourn((prev) => (prev ? { ...prev, status: 'completed', winner: finalWinnerName, winner_id: finalMatch.winnerId } : prev));
         await fetchBracket(tid);
