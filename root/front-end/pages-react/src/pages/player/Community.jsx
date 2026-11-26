@@ -9,6 +9,7 @@ import { fetchTeams as loadTeams, createTeam, updateTeam, addTeamMember, removeT
 import { selectAllGroups, selectAllTeams, selectGroupById, selectGroupsStatus, selectTeamsStatus } from '../../features/communities/selectors';
 import { updateTournament, deleteTournament } from '../../features/tournaments/tournamentSlice';
 import { fetchTournamentBracket, startTournament as startTournamentPlay, resolveMatchDispute } from '../../features/tournaments/tournamentPlaySlice';
+import { registerForTournament } from '../../features/tournaments/registrationSlice';
 import { fetchLinkedAccounts as loadLinkedAccounts } from '../../features/profiles/linkedAccountSlice';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/community.css';
@@ -254,7 +255,12 @@ export function Community() {
       return;
     }
     try {
-      await tournamentService.registerSolo(tid, uid);
+      await dispatch(registerForTournament({
+        tournamentId: tid,
+        playerId: uid,
+        player_name: user?.username || user?.user_name || 'Player',
+        soloConsent: true
+      })).unwrap();
       showToast(`Registered for ${t.tournament_name || t.name}! 🏆`, 'success');
       fetchGroupTournaments(selectedGroupId);
     } catch (err) {
