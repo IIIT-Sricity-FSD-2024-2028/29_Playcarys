@@ -57,10 +57,45 @@ export const unlockAchievement = createAsyncThunk(
   }
 );
 
+export const createGameAchievement = createAsyncThunk(
+  'achievements/createGameAchievement',
+  async ({ gameId, data }, { rejectWithValue }) => {
+    try { return { gameId: String(gameId), achievement: await gamesApi.createGameAchievement(gameId, data) }; }
+    catch (err) { return rejectWithValue(extractErrorMessage(err, 'Failed to create achievement')); }
+  }
+);
+
+export const reviewAchievement = createAsyncThunk(
+  'achievements/reviewAchievement',
+  async ({ id, data }, { rejectWithValue }) => {
+    try { return await gamesApi.reviewAchievement(id, data); }
+    catch (err) { return rejectWithValue(extractErrorMessage(err, 'Failed to review achievement')); }
+  }
+);
+
+export const evaluatePlayerAchievements = createAsyncThunk(
+  'achievements/evaluatePlayerAchievements',
+  async (userId, { rejectWithValue }) => {
+    try { return { userId: String(userId), result: await gamesApi.evaluatePlayerAchievements(userId) }; }
+    catch (err) { return rejectWithValue(extractErrorMessage(err, 'Failed to evaluate achievements')); }
+  }
+);
+
+export const setPlayerTitle = createAsyncThunk(
+  'achievements/setPlayerTitle',
+  async ({ userId, title }, { rejectWithValue }) => {
+    try { return { userId: String(userId), title, result: await gamesApi.setPlayerTitle(userId, title) }; }
+    catch (err) { return rejectWithValue(extractErrorMessage(err, 'Failed to set active title')); }
+  }
+);
+
 const initialState = {
   achievementsByGameId: {},
   playerAchievements: [],
   pendingAchievements: [],
+  titlesByUserId: {},
+  mutationStatus: AsyncStatus.IDLE,
+  mutationError: null,
   ...initialAsyncState
 };
 
@@ -89,6 +124,24 @@ export const achievementSlice = createSlice({
       })
       .addCase(fetchPendingAchievements.fulfilled, (state, action) => {
         state.pendingAchievements = action.payload;
+      })
+      .addCase(createGameAchievement.pending, (state) => { state.mutationStatus = AsyncStatus.LOADING; })
+      .addCase(createGameAchievement.fulfilled, (state, action) => {
+        state.mutationStatus = AsyncStatus.SUCCEEDED;
+        (state.achievementsByGameId[action.payload.gameId] ||= []).push(action.payload.achievement);
+      })
+      .addCase(createGameAchievement.rejected, (state, action) => { state.mutationStatus = AsyncStatus.FAILED; state.mutationError = action.payload || action.error?.message; })
+      .addCase(reviewAchievement.fulfilled, (state, action) => {
+        state.pendingAchievements = state.pendingAchievements.filter((achievement) => String(achievement.id) !== String(action.payload.id));
+      })
+      .addCase(unlockAchievement.fulfilled, (state, action) => {
+        if (action.payload) state.playerAchievements.push(action.payload);
+      })
+      .addCase(evaluatePlayerAchievements.fulfilled, (state, action) => {
+        if (action.payload.result?.achievements) state.playerAchievements = action.payload.result.achievements;
+      })
+      .addCase(setPlayerTitle.fulfilled, (state, action) => {
+        state.titlesByUserId[action.payload.userId] = action.payload.result?.titles || action.payload.title;
       });
   }
 });

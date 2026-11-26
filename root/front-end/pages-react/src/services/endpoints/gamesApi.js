@@ -77,13 +77,18 @@ export const gamesApi = {
     return normalizeEntity(res, ['achievement_id']);
   },
 
+  async deleteGameAchievement(id, publisherId) {
+    await api.delete(`/achievements/${id}?publisherId=${encodeURIComponent(publisherId)}`);
+    return { id: String(id) };
+  },
+
   async getPendingAchievements() {
     const res = await api.get('/achievements/pending');
     return normalizeList(res, ['achievement_id']);
   },
 
   async reviewAchievement(id, dto) {
-    return api.patch(`/achievements/${id}/review`, dto);
+    return normalizeEntity(await api.patch(`/achievements/${id}/review`, dto), ['achievement_id']);
   },
 
   async getPlayerAchievements(userId) {
@@ -92,7 +97,19 @@ export const gamesApi = {
   },
 
   async unlockAchievement(dto) {
-    return api.post('/achievements/unlock', dto);
+    return normalizeEntity(await api.post('/achievements/unlock', dto), ['achievement_id']);
+  },
+
+  async evaluatePlayerAchievements(userId) {
+    return api.post(`/players/${userId}/achievements/evaluate`);
+  },
+
+  async getPlayerTitles(userId) {
+    return api.get(`/players/${userId}/titles`);
+  },
+
+  async setPlayerTitle(userId, title) {
+    return api.patch(`/players/${userId}/title`, { title });
   }
 };
 
