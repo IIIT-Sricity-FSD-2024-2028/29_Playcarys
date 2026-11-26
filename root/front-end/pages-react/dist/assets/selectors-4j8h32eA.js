@@ -1,0 +1,1 @@
+import{cK as a}from"./index-B-Z4mPMe.js";const t=a.getSelectors(e=>e.games),l=t.selectAll;t.selectEntities;t.selectTotal;const o=e=>{var s;return(s=e.games)==null?void 0:s.status},r=e=>{var s;return(s=e.games)==null?void 0:s.error};export{o as a,r as b,l as s};
