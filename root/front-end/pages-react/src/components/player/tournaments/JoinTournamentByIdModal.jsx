@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import { fetchTournamentById } from '../../../features/tournaments/tournamentSlice';
 import { selectAllTournaments } from '../../../features/tournaments/selectors';
-import API from '../../../services/api';
 import { sameId } from '../../../services/playerService';
 import { kindOf, hasPrizeMoney, KIND_LABEL } from '../../../services/tournamentService';
 
@@ -65,18 +64,7 @@ export function JoinTournamentByIdModal({
         setError(`Tournament #${cleanId} was not found.`);
       }
     } catch (err) {
-      // Fallback direct API check
-      try {
-        const res = await API.get(`/tournaments/${cleanId}`);
-        const data = res?.data ?? res;
-        if (data && (data.tournament_id || data.id)) {
-          setFoundTournament(data);
-        } else {
-          setError(`Tournament #${cleanId} was not found.`);
-        }
-      } catch (fallbackErr) {
-        setError(`Tournament #${cleanId} could not be found or does not exist.`);
-      }
+      setError(err?.message || err || `Tournament #${cleanId} could not be found or does not exist.`);
     } finally {
       setSearching(false);
     }

@@ -383,6 +383,19 @@ export const tournamentPlaySlice = createSlice({
       state.statusByTournament = {};
       state.errorsByTournament = {};
     },
+    resetMatchDispute(state, action) {
+      const { tournamentId, matchId } = action.payload || {};
+      updateMatchInTournamentState(state, matchId, tournamentId, (match) => {
+        match.status = 'waiting';
+        delete match.dispute_reason;
+        delete match.reportedWinner;
+        delete match.reportedBy;
+      });
+      for (const organizerId of Object.keys(state.disputesByOrganizer)) {
+        state.disputesByOrganizer[organizerId] = (state.disputesByOrganizer[organizerId] || [])
+          .filter((match) => String(match.match_id || match.id) !== String(matchId));
+      }
+    },
     clearMutationStatus(state) {
       state.mutationStatus = AsyncStatus.IDLE;
       state.mutationError = null;
@@ -763,6 +776,7 @@ export const {
   clearTournamentPlayError,
   resetTournamentPlayStatus,
   clearMutationStatus,
+  resetMatchDispute,
 
   // UI actions
   setTournamentDetailsTab,

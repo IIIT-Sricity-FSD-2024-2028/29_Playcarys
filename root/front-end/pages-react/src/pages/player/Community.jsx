@@ -8,7 +8,8 @@ import { fetchGroups as loadGroups, fetchGroupById as loadGroupById, createGroup
 import { fetchTeams as loadTeams, createTeam, updateTeam, addTeamMember, removeTeamMember, deleteTeam, postTeamChatMessage, fetchTeamChat as loadTeamChat } from '../../features/communities/teamSlice';
 import { selectAllGroups, selectAllTeams, selectGroupById, selectGroupsStatus, selectTeamsStatus } from '../../features/communities/selectors';
 import { updateTournament, deleteTournament } from '../../features/tournaments/tournamentSlice';
-import { fetchTournamentBracket, startTournament as startTournamentPlay, resolveMatchDispute } from '../../features/tournaments/tournamentPlaySlice';
+import { fetchTournamentBracket, startTournament as startTournamentPlay, resolveMatchDispute, resetMatchDispute } from '../../features/tournaments/tournamentPlaySlice';
+import { registerForTournament } from '../../features/tournaments/registrationSlice';
 import { fetchLinkedAccounts as loadLinkedAccounts } from '../../features/profiles/linkedAccountSlice';
 import Toast from '../../components/common/Toast';
 import '../../styles/player/community.css';
@@ -254,7 +255,12 @@ export function Community() {
       return;
     }
     try {
-      await tournamentService.registerSolo(tid, uid);
+      await dispatch(registerForTournament({
+        tournamentId: tid,
+        playerId: uid,
+        player_name: user?.username || user?.user_name || 'Player',
+        soloConsent: true
+      })).unwrap();
       showToast(`Registered for ${t.tournament_name || t.name}! 🏆`, 'success');
       fetchGroupTournaments(selectedGroupId);
     } catch (err) {
@@ -594,22 +600,9 @@ export function Community() {
 
   const handleOpenManageTourn = async (t) => {
     const tid = t.tournament_id || t.id;
-    // Always guarantee tournament is in local DB and sanitized
-    const dbInstance = getDatabase();
-    if (!Array.isArray(dbInstance.tournaments)) dbInstance.tournaments = [];
-    const idx = dbInstance.tournaments.findIndex((x) => sameId(x.tournament_id || x.id, tid));
-    if (idx >= 0) {
-      dbInstance.tournaments[idx] = { ...dbInstance.tournaments[idx], ...t };
-    } else {
-      dbInstance.tournaments.push({ ...t, tournament_id: parseInt(tid, 10) || tid });
-    }
-    saveDatabase(dbInstance);
-
-    tournamentService.sanitizeTournamentMatches(tid);
-    const updatedDb = getDatabase();
-    const freshT = (updatedDb.tournaments || []).find((x) => sameId(x.tournament_id || x.id, tid)) || t;
-
-    setManageTourn(freshT);
+    // Bracket data is loaded by the Redux thunk below. The local database remains
+    // only as a compatibility fallback while the legacy data layer is retired.
+    setManageTourn(t);
     setManageStageFilter('all');
     setShowManageTourn(true);
     await fetchBracket(tid);
@@ -640,7 +633,7 @@ export function Community() {
 
   const handlePauseTournament = async (tid) => {
     try {
-      await tournamentService.pauseTournament(tid);
+      await dispatch(updateTournament({ id: tid, data: { status: 'paused' } })).unwrap();
       showToast('Tournament paused ⏸️', 'info');
       setManageTourn((prev) => (prev ? { ...prev, status: 'paused' } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -651,7 +644,7 @@ export function Community() {
 
   const handleResumeTournament = async (tid) => {
     try {
-      await tournamentService.resumeTournament(tid);
+      await dispatch(updateTournament({ id: tid, data: { status: 'in-progress' } })).unwrap();
       showToast('Tournament resumed! ▶️', 'success');
       setManageTourn((prev) => (prev ? { ...prev, status: 'in-progress' } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -664,7 +657,7 @@ export function Community() {
     const reason = window.prompt('Enter cancellation reason (optional):', 'Cancelled by community organizer');
     if (reason === null) return;
     try {
-      await tournamentService.cancelTournament(tid, reason);
+      await dispatch(updateTournament({ id: tid, data: { status: 'cancelled' } })).unwrap();
       showToast('Tournament cancelled 🛑', 'info');
       setManageTourn((prev) => (prev ? { ...prev, status: 'cancelled' } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -677,7 +670,15 @@ export function Community() {
     const winnerName = window.prompt('Enter the winner name or ID:');
     if (!winnerName || !winnerName.trim()) return;
     try {
-      await tournamentService.declareWinner(tid, winnerName.trim(), winnerName.trim());
+      const numericWinnerId = Number(winnerName.trim());
+      await dispatch(updateTournament({
+        id: tid,
+        data: {
+          status: 'completed',
+          winner: winnerName.trim(),
+          ...(Number.isInteger(numericWinnerId) ? { winner_id: numericWinnerId } : {})
+        }
+      })).unwrap();
       showToast(`Tournament completed! Winner: ${winnerName.trim()} 🏆`, 'success');
       setManageTourn((prev) => (prev ? { ...prev, status: 'completed', winner: winnerName.trim() } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -691,7 +692,7 @@ export function Community() {
     const newDeadline = window.prompt('Enter new registration deadline (YYYY-MM-DDTHH:MM):', currentClose);
     if (!newDeadline || !newDeadline.trim()) return;
     try {
-      await tournamentService.extendDeadline(tid, newDeadline.trim());
+      await dispatch(updateTournament({ id: tid, data: { regClose: newDeadline.trim() } })).unwrap();
       showToast('Registration deadline extended! 📅', 'success');
       setManageTourn((prev) => (prev ? { ...prev, regClose: newDeadline.trim() } : prev));
       await fetchGroupTournaments(selectedGroupId);
@@ -703,24 +704,9 @@ export function Community() {
   const handleForceWinner = async (matchId, winnerId, winnerName) => {
     if (!window.confirm(`Declare ${winnerName} as the winner of this match?`)) return;
     try {
-      // 1. Advance locally in DB immediately
-      tournamentService.resolveDisputeWinner(matchId, winnerId);
-
-      // 2. Also notify backend
-      try {
-        await dispatch(resolveMatchDispute({ matchId, tournamentId: manageTourn?.tournament_id || manageTourn?.id, organizer_id: uid, winner_id: winnerId })).unwrap();
-      } catch (errBackend) {
-        console.warn('Backend match resolve notice:', errBackend?.message || errBackend);
-      }
+      await dispatch(resolveMatchDispute({ matchId, tournamentId: manageTourn?.tournament_id || manageTourn?.id, organizer_id: uid, winner_id: winnerId })).unwrap();
 
       showToast(`Winner recorded for ${matchId}: ${winnerName}! 🏆`, 'success');
-
-      // Check if tournament was completed by this match
-      const dbInstance = getDatabase();
-      const updatedTourn = (dbInstance.tournaments || []).find((t) => sameId(t.tournament_id || t.id, manageTourn?.tournament_id || manageTourn?.id));
-      if (updatedTourn?.winner) {
-        setManageTourn((prev) => (prev ? { ...prev, winner: updatedTourn.winner, winner_id: updatedTourn.winner_id, status: updatedTourn.status } : prev));
-      }
 
       if (manageTourn) {
         await fetchBracket(manageTourn.tournament_id || manageTourn.id);
@@ -732,11 +718,14 @@ export function Community() {
   };
 
   const handleResetDispute = (matchId) => {
-    tournamentService.resetDispute(matchId);
+    const tournamentId = manageTourn?.tournament_id || manageTourn?.id;
+    dispatch(resetMatchDispute({ tournamentId, matchId }));
+    setManageMatches((matches) => matches.map((match) =>
+      sameId(match.match_id || match.id, matchId)
+        ? { ...match, status: 'waiting', dispute_reason: undefined }
+        : match
+    ));
     showToast(`Match ${matchId} dispute cleared — match is ready to be played!`, 'success');
-    if (manageTourn) {
-      fetchBracket(manageTourn.tournament_id || manageTourn.id);
-    }
   };
 
   const handleAdvanceRound = async (tid) => {
@@ -761,7 +750,14 @@ export function Community() {
       const finalWinnerName = finalMatch.winner_name || (db.users || []).find((u) => sameId(u.id || u.user_id, finalMatch.winnerId))?.user_name || String(finalMatch.winnerId);
       if (!window.confirm(`Final round complete! Confirm ${finalWinnerName} as Tournament Champion?`)) return;
       try {
-        await tournamentService.declareWinner(tid, finalMatch.winnerId, finalWinnerName);
+        await dispatch(updateTournament({
+          id: tid,
+          data: {
+            status: 'completed',
+            winner_id: Number(finalMatch.winnerId),
+            winner: finalWinnerName
+          }
+        })).unwrap();
         showToast(`Final round complete — tournament finished! Winner: ${finalWinnerName} 🏆`, 'success');
         setManageTourn((prev) => (prev ? { ...prev, status: 'completed', winner: finalWinnerName, winner_id: finalMatch.winnerId } : prev));
         await fetchBracket(tid);
