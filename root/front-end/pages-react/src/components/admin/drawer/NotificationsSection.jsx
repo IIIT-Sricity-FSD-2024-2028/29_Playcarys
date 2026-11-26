@@ -10,24 +10,33 @@
  */
 import React, { useState, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import {
+  fetchUserNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  replyToNotification
+} from '../../../features/notifications/notificationSlice';
 import NotificationItem from './NotificationItem';
 import {
-  unreadNotifications,
-  visibleNotifications,
-  findNotification,
-  markNotificationRead,
-  markAllRead,
-  sendReply
+  notifIsVisible,
+  notifIsRead
 } from '../../../services/adminNotifService';
 
 export function NotificationsSection(props) {
+  const dispatch = useAppDispatch();
   const { session, unreadLabel, onChanged } = props;
   const { toast } = useContext(AdminContext);
   const [leaving, setLeaving] = useState([]); // ids of rows that were just read and are fading out
+  const notifications = useAppSelector((state) => Object.values(state.notifications?.entities || {}).filter(Boolean));
 
-  const unread = unreadNotifications(session.userId, session.role);
+  React.useEffect(() => {
+    dispatch(fetchUserNotifications({ userId: session.userId, roleName: session.role }));
+  }, [dispatch, session.role, session.userId]);
+
+  const unread = notifications.filter((n) => notifIsVisible(n, session.userId, session.role) && !notifIsRead(n, session.userId));
   // A row that was just read stays on screen while it fades.
-  const rows = visibleNotifications(session.userId, session.role).filter(
+  const rows = notifications.filter((n) => notifIsVisible(n, session.userId, session.role)).filter(
     (n) => unread.includes(n) || leaving.includes(n.id)
   );
 
@@ -36,18 +45,24 @@ export function NotificationsSection(props) {
     setTimeout(() => setLeaving((list) => list.filter((x) => x !== id)), 600);
   }
 
-  function handleMarkRead(id) {
-    markNotificationRead(findNotification(id), session.userId);
+  async function handleMarkRead(id) {
+    try {
+      await dispatch(markNotificationRead({ id, audience: { userId: session.userId, roleName: session.role } })).unwrap();
+    } catch (err) {
+      toast.error(err || 'Unable to mark notification read');
+      return;
+    }
     onChanged();
     fadeOut(id);
   }
 
   // Returns true when the reply was sent, so the row can clear its box.
-  function handleReply(id, text) {
-    const error = sendReply(findNotification(id), text, session);
-    if (error === 'empty') return false;
-    if (error) {
-      toast.error(error);
+  async function handleReply(id, text) {
+    if (!text.trim()) return false;
+    try {
+      await dispatch(replyToNotification({ notificationId: id, text: text.trim(), userId: session.userId, roleName: session.role })).unwrap();
+    } catch (err) {
+      toast.error(err || 'Unable to send reply');
       return false;
     }
     onChanged();
@@ -56,8 +71,13 @@ export function NotificationsSection(props) {
     return true;
   }
 
-  function handleMarkAll() {
-    markAllRead(session.userId, session.role);
+  async function handleMarkAll() {
+    try {
+      await dispatch(markAllNotificationsRead({ userId: session.userId, roleName: session.role })).unwrap();
+    } catch (err) {
+      toast.error(err || 'Unable to mark notifications read');
+      return;
+    }
     onChanged();
     toast.info('All notifications marked as read');
   }

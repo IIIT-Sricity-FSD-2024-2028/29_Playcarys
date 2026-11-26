@@ -86,16 +86,16 @@ export function NotificationItem(props) {
               placeholder="Reply..."
               value={reply}
               onChange={(e) => setReply(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && onReply(n.id, reply)) setReply('');
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && await onReply(n.id, reply)) setReply('');
               }}
               style={{ flex: 1, fontSize: '0.75rem', padding: '0.2rem 0.45rem', height: '26px' }}
             />
             <button
               className="btn btn-primary btn-sm"
               style={{ fontSize: '0.68rem', padding: '0.15rem 0.45rem', height: '26px' }}
-              onClick={() => {
-                if (onReply(n.id, reply)) setReply('');
+              onClick={async () => {
+                if (await onReply(n.id, reply)) setReply('');
               }}
             >
               Send

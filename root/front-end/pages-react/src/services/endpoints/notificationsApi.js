@@ -20,8 +20,7 @@ export const notificationsApi = {
   },
 
   async getDirectory(viewerId) {
-    const res = await api.get(`/notifications/directory?viewerId=${encodeURIComponent(viewerId)}`);
-    return normalizeList(res, ['user_id']);
+    return api.get(`/notifications/directory?viewerId=${encodeURIComponent(viewerId)}`);
   },
 
   async getThread(parentId) {
