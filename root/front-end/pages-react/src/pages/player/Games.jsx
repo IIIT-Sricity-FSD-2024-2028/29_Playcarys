@@ -51,7 +51,8 @@ export function Games() {
   // Fetch games from Redux store on mount or when idle
   useEffect(() => {
     if (gamesStatus === 'idle') {
-      dispatch(fetchGames());
+      // The backend owns the playable-catalogue rule: approved and enabled.
+      dispatch(fetchGames({ active: true }));
     }
   }, [dispatch, gamesStatus]);
 
@@ -185,7 +186,7 @@ export function Games() {
             navigate('/player/games', { replace: true });
           }}
           onLaunch={handleLaunchGame}
-          onReviewSubmitted={() => dispatch(fetchGames())}
+          onReviewSubmitted={() => dispatch(fetchGames({ active: true }))}
           onShowToast={showToast}
         />
       ) : (
