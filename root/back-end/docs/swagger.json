@@ -3628,6 +3628,63 @@
         ]
       }
     },
+    "/api/v1/sessions/purge": {
+      "patch": {
+        "operationId": "GameSessionController_purgeSessions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminateSessionRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GameSession"
+        ]
+      }
+    },
+    "/api/v1/sessions/{id}/terminate": {
+      "patch": {
+        "operationId": "GameSessionController_terminateSession",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminateSessionRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "GameSession"
+        ]
+      }
+    },
     "/api/v1/sessions/{id}/end": {
       "patch": {
         "operationId": "GameSessionController_endSession",
@@ -6655,6 +6712,10 @@
         "properties": {}
       },
       "TeamChatDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TerminateSessionRequestDto": {
         "type": "object",
         "properties": {}
       },
