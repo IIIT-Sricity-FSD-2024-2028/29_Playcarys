@@ -3,6 +3,8 @@ import api from '../../services/api';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchPlayerProfile, updatePlayerProfile } from '../../features/profiles/playerProfileSlice';
 import { selectPlayerProfile } from '../../features/profiles/selectors';
+import { fetchPlayerAchievements, fetchPlayerTitles, setPlayerTitle } from '../../features/games/achievementSlice';
+import { selectPlayerAchievements, selectPlayerTitles } from '../../features/games/selectors';
 import AuthContext from '../../context/AuthContext';
 import { getDatabase, saveDatabase, hydrateFromServer } from '../../services/playerService';
 import authService from '../../services/authService';
@@ -13,6 +15,7 @@ import '../../styles/player/profile.css';
 export function Profile() {
   const { user, setUser } = useContext(AuthContext);
   const dispatch = useAppDispatch();
+  const uid = Number(user?.id || user?.user_id || user?.userId || 7);
 
   const [dbVersion, setDbVersion] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -28,9 +31,9 @@ export function Profile() {
   const [avatarMode, setAvatarMode] = useState('loading'); // 'loading' | '3d' | 'fallback'
 
   // Server-based Game Achievements & Titles
-  const [earnedAchievements, setEarnedAchievements] = useState([]);
+  const earnedAchievements = useAppSelector(selectPlayerAchievements);
   const [lockedAchievements, setLockedAchievements] = useState([]);
-  const [titles, setTitles] = useState([]);
+  const titles = useAppSelector((state) => selectPlayerTitles(state, uid));
   const [activeTitle, setActiveTitleState] = useState('');
   const [achievementsLoading, setAchievementsLoading] = useState(true);
 
@@ -67,7 +70,6 @@ export function Profile() {
   const [modButtonState, setModButtonState] = useState('idle'); // 'idle' | 'sent'
 
   // Determine current user ID canonical representation
-  const uid = Number(user?.id || user?.user_id || user?.userId || 7);
   const storedPlayerProfile = useAppSelector((state) => selectPlayerProfile(state, uid));
 
   // 1. Calculate & load profile data from backend & DB
@@ -158,14 +160,8 @@ export function Profile() {
   const loadGameAchievements = async () => {
     try {
       setAchievementsLoading(true);
-      const [aRes, tRes] = await Promise.all([
-        api.get(`/players/${uid}/achievements`),
-        api.get(`/players/${uid}/titles`),
-      ]);
-      const earned = Array.isArray(aRes) ? aRes : Array.isArray(aRes?.data) ? aRes.data : [];
-      const titleList = Array.isArray(tRes?.titles) ? tRes.titles : [];
-      setEarnedAchievements(earned);
-      setTitles(titleList);
+      const earned = await dispatch(fetchPlayerAchievements(uid)).unwrap();
+      await dispatch(fetchPlayerTitles(uid)).unwrap();
 
       const db = getDatabase();
       const pp = (db.player_profiles || []).find((p) => Number(p.user_id) === uid);
@@ -265,11 +261,8 @@ export function Profile() {
   const handleTitleChange = async (e) => {
     const newTitle = e.target.value;
     try {
-      const res = await api.patch(`/players/${uid}/title`, {
-        user_id: uid,
-        title: newTitle || null,
-      });
-      const active = res.active_title || '';
+      const result = await dispatch(setPlayerTitle({ userId: uid, title: newTitle || null })).unwrap();
+      const active = result?.active_title || newTitle || '';
       setActiveTitleState(active);
       const db = getDatabase();
       const pp = (db.player_profiles || []).find((p) => Number(p.user_id) === uid);

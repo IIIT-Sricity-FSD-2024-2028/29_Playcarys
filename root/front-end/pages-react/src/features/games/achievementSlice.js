@@ -33,6 +33,18 @@ export const fetchPlayerAchievements = createAsyncThunk(
   }
 );
 
+export const fetchPlayerTitles = createAsyncThunk(
+  'achievements/fetchPlayerTitles',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const data = await gamesApi.getPlayerTitles(userId);
+      return { userId: String(userId), titles: data?.titles || [] };
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to fetch player titles'));
+    }
+  }
+);
+
 export const fetchPendingAchievements = createAsyncThunk(
   'achievements/fetchPendingAchievements',
   async (_, { rejectWithValue }) => {
@@ -121,6 +133,9 @@ export const achievementSlice = createSlice({
       })
       .addCase(fetchPlayerAchievements.fulfilled, (state, action) => {
         state.playerAchievements = action.payload;
+      })
+      .addCase(fetchPlayerTitles.fulfilled, (state, action) => {
+        state.titlesByUserId[action.payload.userId] = action.payload.titles;
       })
       .addCase(fetchPendingAchievements.fulfilled, (state, action) => {
         state.pendingAchievements = action.payload;
