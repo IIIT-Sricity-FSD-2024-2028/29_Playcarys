@@ -14,13 +14,15 @@ import React, { useState, useEffect, useContext } from 'react';
 import AuthContext from '../../../context/AuthContext';
 import AdminContext from '../../../context/AdminContext';
 import AdminDrawer from './AdminDrawer';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import { logoutUser } from '../../../features/auth/authSlice';
+import { fetchUnreadCount, fetchUserNotifications } from '../../../features/notifications/notificationSlice';
 import { ADMIN_PAGES, NAV_IDS, useAdminNav } from './adminPages';
-import { unreadNotifications } from '../../../services/adminNotifService';
-import { pullServerState, releaseSession } from '../../../services/adminLiveService';
 
 const ROLE_BADGE = { superuser: 'SUPERUSER', admin: 'ADMIN' };
 
 export function AdminNavbar(props) {
+  const dispatch = useAppDispatch();
   const { activePage = 'dashboard' } = props;
   const { user, logout } = useContext(AuthContext);
   const { refresh } = useContext(AdminContext); // also redraws this component when refresh() is called
@@ -28,6 +30,7 @@ export function AdminNavbar(props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [, setTick] = useState(0); // bumping it redraws the navbar and the drawer from DB
   const [countUpdated, setCountUpdated] = useState(false);
+  const unread = useAppSelector((state) => state.notifications?.unreadCount || 0);
 
   // Something changed in DB (a message was read, or new data arrived): recount, and redraw the page
   // too. The server sync swaps in fresh rows, so a page that is not redrawn would keep acting on
@@ -40,20 +43,22 @@ export function AdminNavbar(props) {
 
   // Ask the server for news every 5 seconds while this tab is visible (the old PlayCarysLive poll).
   useEffect(() => {
-    const timer = setInterval(async () => {
+    dispatch(fetchUserNotifications({ userId: user.userId, roleName: user.role }));
+    dispatch(fetchUnreadCount({ userId: user.userId, roleName: user.role }));
+    const timer = setInterval(() => {
       if (document.hidden) return;
-      if (await pullServerState()) handleChanged();
+      dispatch(fetchUserNotifications({ userId: user.userId, roleName: user.role }));
+      dispatch(fetchUnreadCount({ userId: user.userId, roleName: user.role }));
+      handleChanged();
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [dispatch, user.role, user.userId]);
 
   // Hand the account back to the server, then sign out.
-  function handleLogout() {
-    releaseSession(user);
+  async function handleLogout() {
+    await dispatch(logoutUser());
     logout();
   }
-
-  const unread = unreadNotifications(user.userId, user.role).length;
 
   // One entry per navbar link: { id, label, icon }
   const links = NAV_IDS.map((id) => ({ id: id, label: ADMIN_PAGES[id].label, icon: ADMIN_PAGES[id].icon }));

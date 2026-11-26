@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import { sendUserNotification } from '../../services/superuserService';
+import { useAppDispatch } from '../../app/hooks';
+import { sendNotification } from '../../features/notifications/notificationSlice';
 import { useUsers } from '../../features/users/useUsers';
 import SuperuserUsersKPIs from '../../components/superuser/users/SuperuserUsersKPIs';
 import SuperuserUsersTable from '../../components/superuser/users/SuperuserUsersTable';
@@ -16,6 +17,7 @@ function capitalize(str) {
 }
 
 export function Users() {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
@@ -114,12 +116,7 @@ export function Users() {
     try {
       const uid = user.user_id ?? user.id;
       await setStatus(uid, 'suspended');
-      sendUserNotification(
-        user.username,
-        session?.role || 'superuser',
-        session?.username || 'GodMode',
-        `You have been suspended. Reason: ${reason}`
-      );
+      await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `You have been suspended. Reason: ${reason}` })).unwrap();
       showToast(`${user.username} suspended`, 'warning');
       await loadData();
     } catch (err) {
@@ -132,12 +129,7 @@ export function Users() {
     try {
       const uid = user.user_id ?? user.id;
       await setStatus(uid, 'active');
-      sendUserNotification(
-        user.username,
-        session?.role || 'superuser',
-        session?.username || 'GodMode',
-        `Your suspension has been revoked. Note: ${reason}`
-      );
+      await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `Your suspension has been revoked. Note: ${reason}` })).unwrap();
       showToast(`${user.username} reinstated`, 'success');
       await loadData();
     } catch (err) {
@@ -150,12 +142,7 @@ export function Users() {
     try {
       const uid = user.user_id ?? user.id;
       await setStatus(uid, 'banned');
-      sendUserNotification(
-        user.username,
-        session?.role || 'superuser',
-        session?.username || 'GodMode',
-        `You have been permanently banned. Reason: ${reason}`
-      );
+      await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `You have been permanently banned. Reason: ${reason}` })).unwrap();
       showToast(`${user.username} banned`, 'error');
       await loadData();
     } catch (err) {
@@ -168,12 +155,7 @@ export function Users() {
     try {
       const uid = user.user_id ?? user.id;
       await setStatus(uid, 'active');
-      sendUserNotification(
-        user.username,
-        session?.role || 'superuser',
-        session?.username || 'GodMode',
-        `Your ban has been lifted. Note: ${reason}`
-      );
+      await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `Your ban has been lifted. Note: ${reason}` })).unwrap();
       showToast(`${user.username} unbanned`, 'success');
       await loadData();
     } catch (err) {

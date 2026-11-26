@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import {
-  fetchReports,
-  fetchBans,
-  fetchUsers,
-  resolveReportRecord,
-  reopenReportRecord,
-  issueBanRecord,
-  liftBanRecord
-} from '../../services/superuserService';
+import { useAppDispatch } from '../../app/hooks';
+import { fetchReports, updateReportStatus } from '../../features/moderation/reportSlice';
+import { actOnReport, fetchBans, liftBan } from '../../features/moderation/moderationSlice';
+import { fetchUsers } from '../../features/users/userSlice';
 import ReportsKPIs from '../../components/superuser/reports/ReportsKPIs';
 import ReportList from '../../components/superuser/reports/ReportList';
 import ActiveBansList from '../../components/superuser/reports/ActiveBansList';
@@ -20,6 +15,7 @@ import Toast from '../../components/common/Toast';
 import '../../styles/superuser/reports.css';
 
 export function Reports() {
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
@@ -65,9 +61,9 @@ export function Reports() {
     setLoadError(null);
     try {
       const [reportsData, bansData, usersData] = await Promise.all([
-        fetchReports(),
-        fetchBans(),
-        fetchUsers()
+        dispatch(fetchReports()).unwrap(),
+        dispatch(fetchBans()).unwrap(),
+        dispatch(fetchUsers()).unwrap()
       ]);
       setReports(reportsData);
       setBans(bansData);
@@ -125,7 +121,7 @@ export function Reports() {
   async function handleSubmitResolve(report, action, notes) {
     try {
       const requesterUserId = session?.userId != null ? session.userId : 0;
-      await resolveReportRecord(report.id, action, notes, requesterUserId);
+      await dispatch(updateReportStatus({ id: report.id, requester_user_id: requesterUserId, status: action === 'resolve' ? 'resolved' : 'dismissed', actionNote: notes })).unwrap();
       showToast(action === 'resolve' ? 'Report resolved' : 'Report dismissed', 'success');
       handleCloseResolveModal();
       await loadData();
@@ -140,7 +136,7 @@ export function Reports() {
   async function handleReopenReport(report) {
     const requesterUserId = session?.userId != null ? session.userId : 0;
     try {
-      await reopenReportRecord(report.id, requesterUserId);
+      await dispatch(updateReportStatus({ id: report.id, requester_user_id: requesterUserId, status: 'pending', actionNote: '' })).unwrap();
       showToast('Report reopened', 'info');
       await loadData();
     } catch (err) {
@@ -179,13 +175,7 @@ export function Reports() {
     const targetUserId = user.user_id != null ? user.user_id : user.id;
 
     try {
-      await issueBanRecord({
-        targetUserId,
-        duration,
-        reason,
-        moderatorId,
-        moderatorName
-      });
+      await dispatch(actOnReport({ moderator_id: moderatorId, report_id: null, action_type: 'ban', action_reason: reason, target_user_id: targetUserId, ban_duration: duration, moderatorName })).unwrap();
       showToast(`${user.username || user.user_name} banned for ${duration}`, 'success');
       handleCloseBanModal();
       await loadData();
@@ -210,7 +200,7 @@ export function Reports() {
   async function handleConfirmLiftBan(ban) {
     const moderatorId = session?.userId != null ? session.userId : 0;
     try {
-      await liftBanRecord(ban.id, ban.playerId, moderatorId);
+      await dispatch(liftBan({ playerId: ban.playerId, moderatorId })).unwrap();
       showToast(`Ban lifted for ${ban.playerName}`, 'success');
       handleCloseLiftModal();
       await loadData();

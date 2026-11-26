@@ -10,12 +10,13 @@
  */
 import React, { useState, useEffect, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import {
   fetchDirectory,
-  threadWith,
-  unreadFrom,
-  openThread,
-  sendDirectMessage,
+  markNotificationRead,
+  sendNotification
+} from '../../../features/notifications/notificationSlice';
+import {
   safeHtml
 } from '../../../services/adminNotifService';
 import { sameId } from '../../../services/adminService';
@@ -24,21 +25,34 @@ import { pullServerState } from '../../../services/adminLiveService';
 const NOTE = { color: 'var(--text-secondary)', fontSize: '0.78rem', padding: '0.6rem 0' };
 
 export function MessagesSection(props) {
+  const dispatch = useAppDispatch();
   const { session, onChanged } = props;
   const { toast } = useContext(AdminContext);
-  const [directory, setDirectory] = useState(null); // null = loading, 'error' = failed
+  const directory = useAppSelector((state) => state.notifications?.directory || []);
+  const directoryStatus = useAppSelector((state) => state.notifications?.status);
+  const notifications = useAppSelector((state) => Object.values(state.notifications?.entities || {}).filter(Boolean));
   const [openWith, setOpenWith] = useState(null); // { id, name } of the open conversation
   const [text, setText] = useState('');
 
   // Fetched once, when the drawer first exists.
   useEffect(() => {
-    fetchDirectory(session.userId)
-      .then(setDirectory)
-      .catch(() => setDirectory('error'));
-  }, [session.userId]);
+    dispatch(fetchDirectory(session.userId));
+  }, [dispatch, session.userId]);
+
+  const threadWith = (otherId) => notifications
+    .filter((n) =>
+      (sameId(n.fromUserId, session.userId) && sameId(n.toUser, otherId)) ||
+      (sameId(n.fromUserId, otherId) && sameId(n.toUser, session.userId)))
+    .slice()
+    .sort((a, b) => Number(a.id) - Number(b.id));
+
+  const unreadFrom = (otherId) => threadWith(otherId)
+    .filter((n) => sameId(n.fromUserId, otherId) && !(n.is_read || n.read)).length;
 
   function handleOpen(person) {
-    openThread(session, person.user_id); // opening a conversation is reading it
+    threadWith(person.user_id)
+      .filter((n) => sameId(n.fromUserId, person.user_id) && !(n.is_read || n.read))
+      .forEach((n) => dispatch(markNotificationRead({ id: n.id, audience: { userId: session.userId, roleName: session.role } })));
     setOpenWith({ id: person.user_id, name: person.user_name });
     onChanged();
   }
@@ -47,7 +61,14 @@ export function MessagesSection(props) {
     const body = text.trim();
     if (!body || !openWith) return;
     try {
-      await sendDirectMessage(session, openWith.id, body);
+      await dispatch(sendNotification({
+        toUser: Number(openWith.id),
+        fromUserId: Number(session.userId),
+        fromRole: session.role,
+        from: session.username,
+        avatar: session.avatar || session.username.slice(0, 2).toUpperCase(),
+        msg: body
+      })).unwrap();
       setText('');
       toast.success('Sent');
       // Bring the new message back from the server so it shows in the conversation.
@@ -63,7 +84,7 @@ export function MessagesSection(props) {
   if (openWith) {
     // ── Level 2: one conversation ──
     title = '💬 ' + openWith.name;
-    const thread = threadWith(session, openWith.id);
+    const thread = threadWith(openWith.id);
     body = (
       <>
         <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.7rem', padding: '0.1rem 0.45rem', height: '26px', marginBottom: '0.6rem' }} onClick={() => setOpenWith(null)}>← All contacts</button>
@@ -111,9 +132,9 @@ export function MessagesSection(props) {
         </div>
       </>
     );
-  } else if (directory === 'error') {
+  } else if (directoryStatus === 'failed') {
     body = <div style={{ ...NOTE, fontSize: '0.76rem', padding: '0.6rem 0' }}>Could not load contacts.</div>;
-  } else if (!directory) {
+  } else if (directoryStatus === 'loading' && !directory.length) {
     // ── Level 1: still loading ──
     body = <div style={NOTE}>Loading…</div>;
   } else if (!directory.groups || !directory.groups.length) {
@@ -125,7 +146,7 @@ export function MessagesSection(props) {
       <div style={{ marginBottom: '0.7rem' }} key={g.role}>
         <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>{g.role}</div>
         {g.people.map((p) => {
-          const un = unreadFrom(session, p.user_id);
+          const un = unreadFrom(p.user_id);
           return (
             <button
               className="drawer-contact"
