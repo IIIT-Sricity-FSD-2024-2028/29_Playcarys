@@ -12,6 +12,10 @@ export const selectPublisherProfilesStatus = (state) => state.publisherProfile?.
 export const selectPublisherProfilesError = (state) => state.publisherProfile?.listError || null;
 export const selectPublisherProfileDetailStatus = (state) => state.publisherProfile?.detailStatus || 'idle';
 export const selectPublisherProfileDetailError = (state) => state.publisherProfile?.detailError || null;
+export const selectPublisherApplications = (state) => state.publisherProfile?.applications || [];
+export const selectPublisherApplicationsStatus = (state) => state.publisherProfile?.applicationsStatus || 'idle';
+export const selectPublisherApplicationsError = (state) => state.publisherProfile?.applicationsError || null;
+export const selectPublisherApplicationReviewStatus = (state) => state.publisherProfile?.reviewStatus || 'idle';
 
 export const selectPlatforms = (state) => state.linkedAccounts?.platforms || [];
 export const selectLinkedAccounts = (state, playerId) =>

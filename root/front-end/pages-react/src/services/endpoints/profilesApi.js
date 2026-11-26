@@ -51,6 +51,14 @@ export const profilesApi = {
     return normalizeEntity(await api.post('/publisher/demo-verification'), ['user_id', 'publisher_id']);
   },
 
+  async getPublisherApplications() {
+    return normalizeList(await api.get('/publisher/applications'), ['user_id', 'publisher_id']);
+  },
+
+  async reviewPublisherApplication(userId, dto) {
+    return normalizeEntity(await api.post(`/publisher/applications/${userId}/review`, dto), ['user_id', 'publisher_id']);
+  },
+
   async getPlatforms() {
     return api.get('/linked-accounts/platforms');
   },
