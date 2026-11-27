@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchGames, recordGameView, toggleFavoriteGame, probeGameHost } from '../../features/games/gameSlice';
+import {
+  fetchGames,
+  fetchFavoriteGames,
+  recordGameView,
+  togglePlayerFavorite,
+  probeGameHost
+} from '../../features/games/gameSlice';
 import {
   selectAllGames,
+  selectFavoriteGameIds,
   selectGamesStatus,
   selectGamesError
 } from '../../features/games/selectors';
@@ -19,6 +26,7 @@ export function Games() {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectAuthUser);
   const allGames = useAppSelector(selectAllGames);
+  const favs = useAppSelector(selectFavoriteGameIds);
   const gamesStatus = useAppSelector(selectGamesStatus);
   const gamesError = useAppSelector(selectGamesError);
 
@@ -35,7 +43,6 @@ export function Games() {
   const [selectedGameId, setSelectedGameId] = useState(null);
   const [offlineMap, setOfflineMap] = useState({});
   const [toast, setToast] = useState(null);
-  const [localUpdateTick, setLocalUpdateTick] = useState(0);
 
   // Sync selectedGameId from URL search param (?id=, ?gameId=, ?highlight=) or route param (:gameId)
   useEffect(() => {
@@ -64,8 +71,12 @@ export function Games() {
     }, 3500);
   }
 
-  // Favourites list for current player (local storage helper)
-  const favs = playerService.getFavorites(userId);
+  // Keep favourite data in Redux just like the rest of the games screen.
+  useEffect(() => {
+    if (gamesStatus === 'succeeded') {
+      dispatch(fetchFavoriteGames(userId));
+    }
+  }, [dispatch, userId, gamesStatus]);
 
   // Genres dynamically extracted from games
   const genres = Array.from(
@@ -99,9 +110,9 @@ export function Games() {
   // Handle favourites toggle
   function handleToggleFav(gameId, e) {
     if (e && e.stopPropagation) e.stopPropagation();
-    playerService.toggleFavorite(gameId, userId);
-    dispatch(toggleFavoriteGame(gameId));
-    setLocalUpdateTick((v) => v + 1);
+    dispatch(togglePlayerFavorite({ gameId, userId }))
+      .unwrap()
+      .catch((err) => showToast(err || 'Could not update favourites', 'error'));
   }
 
   // Handle game launch

@@ -107,6 +107,45 @@ export const recordGameView = createAsyncThunk(
   }
 );
 
+/** Load one player's persisted favourites into the shared game state. */
+export const fetchFavoriteGames = createAsyncThunk(
+  'games/fetchFavorites',
+  async (userId, { getState, rejectWithValue }) => {
+    try {
+      const storedIds = playerService.getFavorites(userId).map(String);
+      const loadedGames = Object.values(getState().games?.entities || {});
+
+      // A player may only retain favourites for games that have been approved.
+      // Wait for the catalogue before applying this rule, so a cold load never
+      // incorrectly clears valid persisted favourites.
+      if (!loadedGames.length) return storedIds;
+      const approvedIds = new Set(
+        loadedGames
+          .filter((game) => game.status === 'approved' || game.game_approval_status === 'approved')
+          .map((game) => String(game.id || game.game_id))
+      );
+      return storedIds.filter((gameId) => approvedIds.has(String(gameId)));
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to load favourites'));
+    }
+  }
+);
+
+/**
+ * The Game Card heart always enters persistence through Redux. The service is
+ * retained inside the thunk for the existing DB compatibility layer.
+ */
+export const togglePlayerFavorite = createAsyncThunk(
+  'games/toggleFavorite',
+  async ({ gameId, userId }, { rejectWithValue }) => {
+    try {
+      return playerService.toggleFavorite(gameId, userId).map(String);
+    } catch (err) {
+      return rejectWithValue(extractErrorMessage(err, 'Failed to update favourites'));
+    }
+  }
+);
+
 export const submitGameReview = createAsyncThunk(
   'games/submitGameReview',
   async ({ gameId, userId, rating, comment }, { rejectWithValue }) => {
@@ -317,6 +356,13 @@ export const gameSlice = createSlice({
         if (game) {
           game.views = (Number(game.views) || 0) + 1;
         }
+      })
+      // favourites
+      .addCase(fetchFavoriteGames.fulfilled, (state, action) => {
+        state.favoriteGameIds = action.payload;
+      })
+      .addCase(togglePlayerFavorite.fulfilled, (state, action) => {
+        state.favoriteGameIds = action.payload;
       })
       .addCase(fetchPublisherGameWorkspace.pending, (state) => {
         state.publisherWorkspaceStatus = AsyncStatus.LOADING;

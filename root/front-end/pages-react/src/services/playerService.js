@@ -607,20 +607,22 @@ export const playerService = {
     const db = getDatabase();
     const uid = String(userId || 7);
     let favList = [];
+    let hasPersistedList = false;
 
     // 1. Try persistent localStorage first
     try {
       const stored = localStorage.getItem(`playcarys_favs_${uid}`);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           favList = parsed;
+          hasPersistedList = true;
         }
       }
     } catch (e) {}
 
     // 2. Check db.favorites
-    if (!favList || !favList.length) {
+    if (!hasPersistedList && (!favList || !favList.length)) {
       if (db.favorites) {
         if (Array.isArray(db.favorites)) {
           // Relational format: [{ user_id: 7, game_id: 1 }]
@@ -635,7 +637,7 @@ export const playerService = {
     }
 
     // 3. Fallback to default seed favorites if empty for default player 7
-    if (!favList || !favList.length) {
+    if (!hasPersistedList && (!favList || !favList.length)) {
       if (uid === '7') {
         favList = ['1', '2'];
       }
