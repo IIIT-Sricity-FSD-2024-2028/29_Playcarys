@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { deleteGame, fetchGames, setGameState } from '../../features/games/gameSlice';
+import { fetchGameReview as fetchGameReviewThunk } from '../../features/games/gameReviewSlice';
 import { selectAllGames } from '../../features/games/selectors';
 import GameKPIs from '../../components/superuser/games/GameKPIs';
 import GamesTable from '../../components/superuser/games/GamesTable';
@@ -90,9 +91,14 @@ export function Games() {
   }
 
   // Review workflow: navigate to shared admin game-review console
-  function handleOpenReview(game) {
+  async function handleOpenReview(game) {
     setSelectedGame(null);
     const id = game.id ?? game.game_id;
+    try {
+      await dispatch(fetchGameReviewThunk({ id, role: session?.role || 'superuser' })).unwrap();
+    } catch (err) {
+      // The review page displays its own server error state after navigation.
+    }
     navigate(`/admin/game-review?gameId=${encodeURIComponent(id)}`);
   }
 

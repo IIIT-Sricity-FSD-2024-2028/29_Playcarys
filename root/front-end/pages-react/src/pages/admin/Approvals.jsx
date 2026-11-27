@@ -10,6 +10,7 @@
 import React, { useEffect, useContext, useState, useCallback } from 'react';
 import { useAppDispatch } from '../../app/hooks';
 import { fetchGames as fetchGamesThunk } from '../../features/games/gameSlice';
+import { fetchGameReview as fetchGameReviewThunk } from '../../features/games/gameReviewSlice';
 import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
 import ApprovalStats from '../../components/admin/approvals/ApprovalStats';
@@ -128,7 +129,13 @@ export function Approvals() {
   const games = allGames;
 
   // Approve / Reject live only in the review console, never on this list.
-  function handleReview(gameId) {
+  async function handleReview(gameId) {
+    // Keep the review build query visible beside its trigger: row button → this handler → thunk.
+    try {
+      await dispatch(fetchGameReviewThunk({ id: gameId, role: 'admin' })).unwrap();
+    } catch (err) {
+      // The review console keeps its existing error handling for unavailable builds.
+    }
     go('game-review', '?gameId=' + encodeURIComponent(gameId));
   }
 

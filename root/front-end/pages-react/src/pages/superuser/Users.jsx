@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import { useAppDispatch } from '../../app/hooks';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { sendNotification } from '../../features/notifications/notificationSlice';
-import { useUsers } from '../../features/users/useUsers';
+import { fetchUsers, createUser, updateUser, updateUserStatus } from '../../features/users/userSlice';
+import { selectUiUsers } from '../../features/users/selectors';
+import { toCreateUserDto, toUpdateUserDto } from '../../features/users/userView';
 import SuperuserUsersKPIs from '../../components/superuser/users/SuperuserUsersKPIs';
 import SuperuserUsersTable from '../../components/superuser/users/SuperuserUsersTable';
 import SuperuserAddUserModal from '../../components/superuser/users/SuperuserAddUserModal';
@@ -21,7 +23,7 @@ export function Users() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const { users, load, create, update, setStatus } = useUsers();
+  const users = useAppSelector(selectUiUsers);
 
   // Filter state
   const [search, setSearch] = useState('');
@@ -43,7 +45,7 @@ export function Users() {
   // Load data
   async function loadData() {
     try {
-      await load();
+      await dispatch(fetchUsers()).unwrap();
     } catch (err) {
       console.error('Failed to load users:', err);
     }
@@ -91,8 +93,8 @@ export function Users() {
   // Action handlers
   async function handleAddUser(newUserData) {
     try {
-      const created = await create(newUserData);
-      showToast(`User "${created.username}" created as ${capitalize(newUserData.role)}`, 'success');
+      const created = await dispatch(createUser(toCreateUserDto(newUserData))).unwrap();
+      showToast(`User "${created.username || newUserData.username}" created as ${capitalize(newUserData.role)}`, 'success');
       await loadData();
     } catch (err) {
       console.error('Failed creating user:', err);
@@ -103,7 +105,7 @@ export function Users() {
   async function handleSaveEdit(user, updateData) {
     try {
       const uid = user.user_id ?? user.id;
-      await update(uid, updateData);
+      await dispatch(updateUser({ id: uid, data: toUpdateUserDto(updateData) })).unwrap();
       showToast(`${updateData.username} updated`, 'success');
       await loadData();
     } catch (err) {
@@ -115,7 +117,7 @@ export function Users() {
   async function handleSuspend(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await setStatus(uid, 'suspended');
+      await dispatch(updateUserStatus({ id: uid, status: 'suspended' })).unwrap();
       await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `You have been suspended. Reason: ${reason}` })).unwrap();
       showToast(`${user.username} suspended`, 'warning');
       await loadData();
@@ -128,7 +130,7 @@ export function Users() {
   async function handleReinstate(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await setStatus(uid, 'active');
+      await dispatch(updateUserStatus({ id: uid, status: 'active' })).unwrap();
       await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `Your suspension has been revoked. Note: ${reason}` })).unwrap();
       showToast(`${user.username} reinstated`, 'success');
       await loadData();
@@ -141,7 +143,7 @@ export function Users() {
   async function handleBan(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await setStatus(uid, 'banned');
+      await dispatch(updateUserStatus({ id: uid, status: 'banned' })).unwrap();
       await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `You have been permanently banned. Reason: ${reason}` })).unwrap();
       showToast(`${user.username} banned`, 'error');
       await loadData();
@@ -154,7 +156,7 @@ export function Users() {
   async function handleUnban(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await setStatus(uid, 'active');
+      await dispatch(updateUserStatus({ id: uid, status: 'active' })).unwrap();
       await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'GodMode', msg: `Your ban has been lifted. Note: ${reason}` })).unwrap();
       showToast(`${user.username} unbanned`, 'success');
       await loadData();

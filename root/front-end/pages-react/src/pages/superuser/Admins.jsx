@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
-import { useAppDispatch } from '../../app/hooks';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { sendNotification } from '../../features/notifications/notificationSlice';
-import { useUsers } from '../../features/users/useUsers';
+import { fetchUsers, createUser, assignUserRole, updateUserStatus } from '../../features/users/userSlice';
+import { selectUiUsers } from '../../features/users/selectors';
+import { roleIdFromName, toCreateUserDto } from '../../features/users/userView';
 import AdminKPIs from '../../components/superuser/admins/AdminKPIs';
 import StaffSection from '../../components/superuser/admins/StaffSection';
 import CreateStaffModal from '../../components/superuser/admins/CreateStaffModal';
@@ -22,7 +24,7 @@ export function Admins() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [unauthorized, setUnauthorized] = useState(false);
-  const { users, load, create, setRole, setStatus } = useUsers();
+  const users = useAppSelector(selectUiUsers);
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -49,7 +51,7 @@ export function Admins() {
   // Load all users from backend / local DB
   async function loadData() {
     try {
-      await load();
+      await dispatch(fetchUsers()).unwrap();
     } catch (err) {
       console.error('Failed to load users:', err);
     }
@@ -89,7 +91,7 @@ export function Admins() {
   // Handle Account Creation
   async function handleCreateStaff({ username, email, role, password }) {
     try {
-      const created = await create({ username, email, role, password });
+      const created = await dispatch(createUser(toCreateUserDto({ username, email, role, password }))).unwrap();
       showToast(`${capitalize(role)} account "${created.username || username}" created`, 'success');
       await loadData();
     } catch (err) {
@@ -112,7 +114,7 @@ export function Admins() {
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             const uid = user.user_id ?? user.id;
-            await setRole(uid, 'moderator');
+            await dispatch(assignUserRole({ id: uid, role_id: roleIdFromName('moderator') })).unwrap();
             showToast(`${user.username} demoted to Moderator`, 'info');
             await loadData();
           } catch (err) {
@@ -138,7 +140,7 @@ export function Admins() {
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             const uid = user.user_id ?? user.id;
-            await setRole(uid, 'admin');
+            await dispatch(assignUserRole({ id: uid, role_id: roleIdFromName('admin') })).unwrap();
             showToast(`${user.username} promoted to Admin`, 'success');
             await loadData();
           } catch (err) {
@@ -164,7 +166,7 @@ export function Admins() {
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             const uid = user.user_id ?? user.id;
-            await setStatus(uid, 'suspended');
+            await dispatch(updateUserStatus({ id: uid, status: 'suspended' })).unwrap();
             await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'Superuser', msg: `Your staff account has been suspended. Reason: ${reason}` })).unwrap();
             showToast(`${user.username} suspended`, 'warning');
             await loadData();
@@ -181,7 +183,7 @@ export function Admins() {
   async function handleReinstateClick(user, reason) {
     try {
       const uid = user.user_id ?? user.id;
-      await setStatus(uid, 'active');
+      await dispatch(updateUserStatus({ id: uid, status: 'active' })).unwrap();
       await dispatch(sendNotification({ toUser: Number(uid), fromUserId: Number(session?.userId), fromRole: session?.role || 'superuser', from: session?.username || 'Superuser', msg: `Your staff account suspension has been revoked. Note: ${reason}` })).unwrap();
       showToast(`${user.username} suspension revoked`, 'success');
       setSelectedStaff(null); // Close actions modal

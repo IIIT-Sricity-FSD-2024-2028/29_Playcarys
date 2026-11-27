@@ -14,7 +14,6 @@ export function SuperuserNavbar(props) {
     { id: 'dashboard', label: 'Dashboard', icon: '🏠', isReactRoute: true, path: '/superuser/dashboard' },
     { id: 'hub', label: 'Control Hub', icon: '⚡', isReactRoute: true, path: '/superuser/hub' },
     { id: 'users', label: 'All Users', icon: '👥', isReactRoute: true, path: '/superuser/users' },
-    { id: 'admins', label: 'Admins', icon: '👑', isReactRoute: true, path: '/superuser/admins' },
     { id: 'games', label: 'Games', icon: '🎮', isReactRoute: true, path: '/superuser/games' },
     { id: 'reports', label: 'Reports', icon: '⚠️', isReactRoute: true, path: '/superuser/reports' },
     { id: 'settings', label: 'Settings', icon: '⚙️', isReactRoute: true, path: '/superuser/settings' }

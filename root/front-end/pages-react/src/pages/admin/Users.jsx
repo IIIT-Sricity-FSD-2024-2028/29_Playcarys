@@ -16,7 +16,16 @@ import UserList from '../../components/admin/users/UserList';
 import UserFormModal from '../../components/admin/users/UserFormModal';
 import { validateField } from '../../services/adminValidation';
 import { getSession } from '../../services/adminService';
-import { useUsers } from '../../features/users/useUsers';
+import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {
+  createUser,
+  deleteUser,
+  fetchUsers,
+  updateUser,
+  updateUserStatus
+} from '../../features/users/userSlice';
+import { selectUiUsers, selectUsersStatus } from '../../features/users/selectors';
+import { toCreateUserDto, toUpdateUserDto } from '../../features/users/userView';
 import {
   filterUsers,
   isUsernameTaken,
@@ -36,7 +45,9 @@ const NO_ERRORS = { username: '', email: '', password: '' };
 
 export function Users() {
   const { toast, confirmAction, refresh } = useContext(AdminContext);
-  const { users, status: usersStatus, load, create, update, setStatus, remove } = useUsers();
+  const dispatch = useAppDispatch();
+  const users = useAppSelector(selectUiUsers);
+  const usersStatus = useAppSelector(selectUsersStatus);
 
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -51,7 +62,7 @@ export function Users() {
 
   useEffect(() => {
     document.title = 'PlayCarys — Role Management';
-    load().catch((err) => toast.error(err || 'Could not load users'));
+    dispatch(fetchUsers()).unwrap().catch((err) => toast.error(err || 'Could not load users'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -119,17 +130,25 @@ export function Users() {
 
     try {
       if (isEdit) {
-        await update(editId, { username, email });
+        await dispatch(updateUser({
+          id: editId,
+          data: toUpdateUserDto({ username, email, role: form.role })
+        })).unwrap();
         if (editUser && form.status !== editUser.status) {
-          await setStatus(editId, form.status);
+          await dispatch(updateUserStatus({ id: editId, status: form.status })).unwrap();
         }
         recordUserEdited(username, form.role, form.status);
         toast.success('User updated successfully');
       } else {
-        const created = await create({ username, email, role: form.role, password: form.password });
+        const created = await dispatch(createUser(toCreateUserDto({
+          username,
+          email,
+          role: form.role,
+          password: form.password
+        }))).unwrap();
         // New accounts start active on the server; an admin can create one as suspended/banned.
         if (form.status && form.status !== 'active') {
-          await setStatus(created.id, form.status);
+          await dispatch(updateUserStatus({ id: created.id, status: form.status })).unwrap();
         }
         recordUserCreated(username, form.role, form.status);
         toast.success('User added successfully');
@@ -178,7 +197,7 @@ export function Users() {
     if (!r) return;
     confirmAction('Suspend User', `Suspend ${u.username} for ${days} days?`, () =>
       runAction(
-        () => setStatus(u.id, 'suspended'),
+        () => dispatch(updateUserStatus({ id: u.id, status: 'suspended' })).unwrap(),
         () => recordSuspended(u, days, r),
         `${u.username} suspended for ${days} days`
       )
@@ -190,7 +209,7 @@ export function Users() {
     const r = getReason();
     if (!r) return;
     runAction(
-      () => setStatus(u.id, 'active'),
+      () => dispatch(updateUserStatus({ id: u.id, status: 'active' })).unwrap(),
       () => recordSuspensionRevoked(u, r),
       `${u.username} suspension revoked`
     );
@@ -202,7 +221,7 @@ export function Users() {
     if (!r) return;
     confirmAction('Ban User', `Permanently ban ${u.username}? They will lose access to the platform.`, () =>
       runAction(
-        () => setStatus(u.id, 'banned'),
+        () => dispatch(updateUserStatus({ id: u.id, status: 'banned' })).unwrap(),
         () => recordBanned(u, r),
         `${u.username} has been permanently banned`
       )
@@ -216,10 +235,10 @@ export function Users() {
     confirmAction('Ban & Delete User', `Permanently ban AND delete ${u.username}? This action is irreversible.`, () =>
       runAction(
         async () => {
-          await setStatus(u.id, 'banned');
+          await dispatch(updateUserStatus({ id: u.id, status: 'banned' })).unwrap();
           // Notify while the account still exists, then remove it on the server.
           recordBannedAndDeleted(u, r);
-          await remove(u.id);
+          await dispatch(deleteUser(u.id)).unwrap();
         },
         () => {},
         `${u.username} banned and deleted`
@@ -230,7 +249,7 @@ export function Users() {
   function handleUnban() {
     const u = editUser;
     runAction(
-      () => setStatus(u.id, 'active'),
+      () => dispatch(updateUserStatus({ id: u.id, status: 'active' })).unwrap(),
       () => recordUnbanned(u),
       `${u.username} has been unbanned`
     );

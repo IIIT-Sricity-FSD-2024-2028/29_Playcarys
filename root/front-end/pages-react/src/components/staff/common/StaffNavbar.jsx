@@ -33,7 +33,6 @@ const NAV_LINKS = {
     { id: 'dashboard', label: 'Dashboard', icon: '🏠', page: 'dashboard' },
     { id: 'hub', label: 'Control Hub', icon: '⚡', page: 'hub' },
     { id: 'users', label: 'All Users', icon: '👥', page: 'users' },
-    { id: 'admins', label: 'Admins', icon: '👑', page: 'admins' },
     { id: 'games', label: 'Games', icon: '🎮', page: 'games' },
     { id: 'settings', label: 'Settings', icon: '⚙️', page: 'settings' }
   ]
