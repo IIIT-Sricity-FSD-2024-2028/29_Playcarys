@@ -52,7 +52,7 @@ export function OverviewSection(props) {
   const alerts = [];
   if (s.pendingGames > 0) alerts.push({ icon: '🟡', msg: `${s.pendingGames} game(s) awaiting approval`, go: () => onShowSection('games') });
   if (s.pendingReports > 0) alerts.push({ icon: '🔴', msg: `${s.pendingReports} report(s) pending review`, go: () => onNavigate('approvals') });
-  if (s.activeBans > 0) alerts.push({ icon: '🚫', msg: `${s.activeBans} player(s) currently banned`, go: () => onShowSection('users') });
+  if (s.activeBans > 0) alerts.push({ icon: '🚫', msg: `${s.activeBans} player(s) currently banned`, go: () => onNavigate('users') });
   if ((db.matches || []).filter((m) => m.status === 'in-progress').length === 0) alerts.push({ icon: '🟠', msg: 'No matches being played right now', go: null });
   if (!alerts.length) alerts.push({ icon: '✅', msg: 'All systems operating normally', go: null });
 

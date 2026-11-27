@@ -16,7 +16,6 @@ import AdminContext from '../../context/AdminContext';
 import { useAdminNav } from '../../components/admin/common/adminPages';
 import HubSidebar from '../../components/admin/hub/HubSidebar';
 import OverviewSection from '../../components/admin/hub/OverviewSection';
-import UsersSection from '../../components/admin/hub/UsersSection';
 import GamesSection from '../../components/admin/hub/GamesSection';
 import TournamentsSection from '../../components/admin/hub/TournamentsSection';
 import AnalyticsSection from '../../components/admin/hub/AnalyticsSection';
@@ -106,11 +105,10 @@ export function Hub() {
 
         <div className="hub-main">
           <OverviewSection active={section === 'overview'} onShowSection={setSection} onNavigate={go} auditLog={auditLog} />
-          <UsersSection active={section === 'users'} addAudit={addAudit} onNavigate={go} />
           <GamesSection
             active={section === 'games'}
             addAudit={addAudit}
-            onReview={(id) => go('game-review', '?gameId=' + encodeURIComponent(id))}
+            onNavigate={go}
           />
           <TournamentsSection active={section === 'tournaments'} addAudit={addAudit} />
           <AnalyticsSection active={section === 'analytics'} />

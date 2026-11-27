@@ -10,7 +10,6 @@ import React from 'react';
 const MENU = [
   { label: 'Control Panels', items: [
     { id: 'overview', icon: '🏠', text: 'Overview' },
-    { id: 'users', icon: '👥', text: 'User Management' },
     { id: 'games', icon: '🎮', text: 'Game Control' },
     { id: 'tournaments', icon: '🏆', text: 'Tournaments' }
   ] },

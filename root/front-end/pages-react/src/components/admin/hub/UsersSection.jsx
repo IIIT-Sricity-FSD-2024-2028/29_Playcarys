@@ -14,8 +14,10 @@ import { useAppDispatch } from '../../../app/hooks';
 import {
   createUser,
   updateUser,
+  updateUserStatus,
   deleteUser as deleteUserThunk
 } from '../../../features/users/userSlice';
+import { toCreateUserDto, toUpdateUserDto } from '../../../features/users/userView';
 import KpiCard from './KpiCard';
 import HubUserModal from './HubUserModal';
 import StatusBadge from '../common/StatusBadge';
@@ -105,16 +107,22 @@ export function UsersSection(props) {
       if (isEdit) {
         await dispatch(updateUser({
           id: editId,
-          data: { username, email, role: form.role, status: form.status }
+          data: toUpdateUserDto({ username, email, role: form.role })
         })).unwrap();
+        const existing = findUser(editId);
+        if (existing && form.status !== existing.status) {
+          await dispatch(updateUserStatus({ id: editId, status: form.status })).unwrap();
+        }
       } else {
-        await dispatch(createUser({
+        const created = await dispatch(createUser(toCreateUserDto({
           username,
           email,
           role: form.role,
-          status: form.status,
           password: form.password
-        })).unwrap();
+        }))).unwrap();
+        if (form.status && form.status !== 'active') {
+          await dispatch(updateUserStatus({ id: created.id, status: form.status })).unwrap();
+        }
       }
       addAudit('user', `User ${isEdit ? 'updated' : 'created'}: ${username}`, 'Updated through Redux');
       toast.success(isEdit ? 'User updated' : 'User added');

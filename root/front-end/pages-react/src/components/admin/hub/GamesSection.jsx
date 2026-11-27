@@ -8,30 +8,54 @@
  * is sent to the review console, an approved game can be blacklisted or re-enabled, and any
  * game can be deleted.
  */
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import AdminContext from '../../../context/AdminContext';
-import { useAppDispatch } from '../../../app/hooks';
-import { setGameState, deleteGame as deleteGameThunk } from '../../../features/games/gameSlice';
+import { useAppDispatch, useAppSelector } from '../../../app/hooks';
+import {
+  fetchGames,
+  setGameState,
+  deleteGame as deleteGameThunk
+} from '../../../features/games/gameSlice';
+import { fetchGameReview as fetchGameReviewThunk } from '../../../features/games/gameReviewSlice';
+import { selectAllGames } from '../../../features/games/selectors';
 import KpiCard from './KpiCard';
 import GameIcon from '../common/GameIcon';
 import StatusBadge from '../common/StatusBadge';
-import { getDB, getPlatformStats } from '../../../services/adminService';
-import { listHubGames } from '../../../services/adminHubService';
+
+function toHubGame(game) {
+  return {
+    ...game,
+    id: game.id || game.game_id,
+    title: game.title || game.game_name || 'Untitled game',
+    publisher: game.publisher || game.game_publisher || game.publisher_name || '—',
+    genre: game.genre || game.game_type || '—',
+    status: game.status || game.game_approval_status || 'pending',
+    enabled: game.enabled !== false,
+    players: Number(game.players || game.player_count || 0),
+    views: Number(game.views || game.view_count || 0)
+  };
+}
 
 export function GamesSection(props) {
-  const { active, addAudit, onReview } = props;
+  const { active, addAudit, onNavigate } = props;
   const { toast, confirmAction, refresh } = useContext(AdminContext);
   const dispatch = useAppDispatch();
+  const allGames = useAppSelector(selectAllGames);
   const [filter, setFilter] = useState('');
 
-  const db = getDB();
-  const s = getPlatformStats();
-  const blacklisted = db.games.filter((g) => g.status === 'approved' && !g.enabled).length;
-  const games = listHubGames(filter);
+  useEffect(() => {
+    dispatch(fetchGames()).unwrap().catch((err) => toast.error(err || 'Could not load games'));
+  }, [dispatch, toast]);
+
+  const hubGames = allGames.map(toHubGame);
+  const games = filter ? hubGames.filter((game) => game.status === filter) : hubGames;
+  const approvedGames = hubGames.filter((game) => game.status === 'approved');
+  const pendingGames = hubGames.filter((game) => game.status === 'pending');
+  const blacklisted = approvedGames.filter((game) => !game.enabled).length;
 
   // Pending games are decided in the review console, not here.
   async function handleToggle(row) {
-    const g = db.games.find((x) => x.id === row.id) || row; // always the live row, never an old copy
+    const g = row;
     try {
       await dispatch(setGameState({ id: g.id, enabled: !g.enabled })).unwrap();
       addAudit('game', `${g.title} ${g.enabled ? 'blacklisted' : 'enabled'}`, 'Updated through Redux');
@@ -43,7 +67,7 @@ export function GamesSection(props) {
   }
 
   function handleDelete(row) {
-    const g = db.games.find((x) => x.id === row.id) || row;
+    const g = row;
     confirmAction('Delete Game', `Delete "${g.title}"?`, async () => {
       try {
         await dispatch(deleteGameThunk(g.id)).unwrap();
@@ -54,6 +78,16 @@ export function GamesSection(props) {
         toast.error(err.message || 'Failed to delete game');
       }
     });
+  }
+
+  async function handleReview(gameId) {
+    // Review button → this handler → Redux thunk → review console.
+    try {
+      await dispatch(fetchGameReviewThunk({ id: gameId, role: 'admin' })).unwrap();
+    } catch (err) {
+      // The review console reports unavailable builds after navigation.
+    }
+    onNavigate('game-review', '?gameId=' + encodeURIComponent(gameId));
   }
 
   return (
@@ -71,9 +105,9 @@ export function GamesSection(props) {
       </div>
 
       <div className="kpi-row mb-2">
-        <KpiCard color="var(--accent-cyan)" label="Total" value={db.games.length} icon="🎮" />
-        <KpiCard color="var(--accent-green)" label="Approved" value={s.approvedGames} icon="✅" />
-        <KpiCard color="var(--accent-yellow)" label="Pending" value={s.pendingGames} icon="⏳" />
+        <KpiCard color="var(--accent-cyan)" label="Total" value={hubGames.length} icon="🎮" />
+        <KpiCard color="var(--accent-green)" label="Approved" value={approvedGames.length} icon="✅" />
+        <KpiCard color="var(--accent-yellow)" label="Pending" value={pendingGames.length} icon="⏳" />
         <KpiCard color="var(--accent-red)" label="Blacklisted" value={blacklisted} icon="⛔" />
       </div>
 
@@ -111,7 +145,7 @@ export function GamesSection(props) {
                   <td>
                     <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                       {g.status === 'pending' ? (
-                        <button className="btn btn-primary btn-sm" onClick={() => onReview(g.id)} title="Open the build review console">🔍 Review</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleReview(g.id)} title="Open the build review console">🔍 Review</button>
                       ) : null}
                       {g.status === 'approved' ? (
                         <button
