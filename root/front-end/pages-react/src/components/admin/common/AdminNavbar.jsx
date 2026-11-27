@@ -11,6 +11,7 @@
  * without refreshing. Which links open a React page is decided in adminPages.js.
  */
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AuthContext from '../../../context/AuthContext';
 import AdminContext from '../../../context/AdminContext';
 import AdminDrawer from './AdminDrawer';
@@ -24,9 +25,10 @@ const ROLE_BADGE = { superuser: 'SUPERUSER', admin: 'ADMIN' };
 export function AdminNavbar(props) {
   const dispatch = useAppDispatch();
   const { activePage = 'dashboard' } = props;
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const { refresh } = useContext(AdminContext); // also redraws this component when refresh() is called
   const go = useAdminNav();
+  const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [, setTick] = useState(0); // bumping it redraws the navbar and the drawer from DB
   const [countUpdated, setCountUpdated] = useState(false);
@@ -57,7 +59,7 @@ export function AdminNavbar(props) {
   // Hand the account back to the server, then sign out.
   async function handleLogout() {
     await dispatch(logoutUser());
-    logout();
+    navigate('/');
   }
 
   // One entry per navbar link: { id, label, icon }

@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePublisherAuth } from '../../../hooks/usePublisherAuth';
+import { useAppDispatch } from '../../../app/hooks';
+import { logoutUser } from '../../../features/auth/authSlice';
 
 export function PublisherNavbar(props) {
   const { activePage = 'dashboard' } = props;
-  const { user, logout } = usePublisherAuth();
+  const { user } = usePublisherAuth();
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const hamburgerBtnRef = useRef(null);
   const drawerRef = useRef(null);
+
+  async function handleLogout() {
+    await dispatch(logoutUser());
+    navigate('/');
+  }
 
   // Parent Navigation Sections for Top Navbar
   const primaryNavSections = [
@@ -177,7 +186,7 @@ export function PublisherNavbar(props) {
           </Link>
           <span
             className="nav-logout"
-            onClick={logout}
+            onClick={handleLogout}
             title="Logout"
             role="button"
             tabIndex={0}
@@ -291,7 +300,7 @@ export function PublisherNavbar(props) {
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                onClick={logout}
+                onClick={handleLogout}
                 title="Sign out"
                 style={{ fontSize: '0.8rem', color: '#ef4444' }}
               >

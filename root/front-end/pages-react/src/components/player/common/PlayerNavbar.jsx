@@ -11,6 +11,7 @@ import ConfirmModal from '../../common/ConfirmModal';
 import FindPlayersModal from './FindPlayersModal';
 import { useChat } from '../../../context/ChatContext';
 import { useAppDispatch } from '../../../app/hooks';
+import { logoutUser } from '../../../features/auth/authSlice';
 import { removeFriend } from '../../../features/communities/socialSlice';
 import '../../../styles/player/drawer.css';
 
@@ -24,7 +25,6 @@ const PLAYER_LINKS = [
   { id: 'leaderboard', label: 'Leaderboard', icon: '👑', path: '/player/leaderboard' },
   { id: 'match-history', label: 'Match History', icon: '📊', path: '/player/match-history' },
   { id: 'community', label: 'Community', icon: '🛡️', path: '/player/community', inTopBar: true },
-  { id: 'shop', label: 'Shop', icon: '🛍️', path: '/player/shop', inTopBar: true },
   { id: 'notifications', label: 'Notifications', icon: '🔔', path: '/player/notifications' },
   { id: 'profile', label: 'Profile', icon: '👤', path: '/player/profile', inTopBar: true }
 ];
@@ -42,7 +42,7 @@ function initials(name) {
 export function PlayerNavbar(props) {
   const dispatch = useAppDispatch();
   const { activePage = 'dashboard' } = props;
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const {
     openChat,
     openProfile,
@@ -54,6 +54,11 @@ export function PlayerNavbar(props) {
     refreshSocial
   } = useChat();
   const navigate = useNavigate();
+
+  async function handleLogout() {
+    await dispatch(logoutUser());
+    navigate('/');
+  }
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [friendToRemove, setFriendToRemove] = useState(null);
@@ -217,7 +222,7 @@ export function PlayerNavbar(props) {
           >
             {avatarText}
           </div>
-          <span className="nav-logout" onClick={logout} title="Logout" style={{ cursor: 'pointer' }}>
+          <span className="nav-logout" onClick={handleLogout} title="Logout" style={{ cursor: 'pointer' }}>
             ⬅️
           </span>
         </div>
@@ -412,7 +417,7 @@ export function PlayerNavbar(props) {
             </div>
 
             <div className="pdr-foot">
-              <button type="button" className="pdr-logout" onClick={logout}>
+              <button type="button" className="pdr-logout" onClick={handleLogout}>
                 ⬅️ Log out
               </button>
             </div>

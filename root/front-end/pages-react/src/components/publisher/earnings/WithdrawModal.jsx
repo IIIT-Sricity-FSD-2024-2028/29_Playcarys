@@ -19,7 +19,7 @@ const SLOW_AFTER_MS = 60000;
  * `resumePayout` opens it straight on "processing" for a transfer that was
  * already in flight when the page loaded.
  */
-export function WithdrawModal({ userId, amountPaise, resumePayout, onClose }) {
+export function WithdrawModal({ userId, amountPaise, resumePayout, onClose, onWithdraw }) {
   const dispatch = useDispatch();
   const [phase, setPhase] = useState(resumePayout ? 'processing' : 'form');
   const [method, setMethod] = useState('upi');
@@ -90,7 +90,9 @@ export function WithdrawModal({ userId, amountPaise, resumePayout, onClose }) {
         method === 'upi'
           ? { method, upi_id: upi.trim() }
           : { method, account_number: account.replace(/\s+/g, ''), ifsc: ifsc.trim().toUpperCase() };
-      const res = await dispatch(withdrawPublisher({ publisherId: userId, dto: details })).unwrap();
+      const res = await (onWithdraw
+        ? onWithdraw(details)
+        : dispatch(withdrawPublisher({ publisherId: userId, dto: details })).unwrap());
       const created = res.payout || res;
       setPayout(created);
       setPhase('processing');

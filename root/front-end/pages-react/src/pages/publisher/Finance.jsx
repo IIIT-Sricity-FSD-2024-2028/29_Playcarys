@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePublisherAuth } from '../../hooks/usePublisherAuth';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { depositPublisherFunds, fetchPublisherFinance } from '../../features/economy/walletSlice';
+import { withdrawPublisher } from '../../features/economy/payoutSlice';
 import Money from '../../utils/money';
 import LoadingState from '../../components/common/LoadingState';
 import WithdrawModal from '../../components/publisher/earnings/WithdrawModal';
@@ -67,6 +68,13 @@ export function PublisherFinance() {
       setDepositError(err.message || 'Deposit simulation failed.');
     }
   };
+
+  // WithdrawModal validates the destination, then calls this handler. The
+  // mutation itself is owned by payoutSlice, not by a direct page API call.
+  const handleWithdraw = useCallback(
+    (details) => dispatch(withdrawPublisher({ publisherId, dto: details })).unwrap(),
+    [dispatch, publisherId]
+  );
 
   const handleExportCSV = () => {
     if (!financeData?.recent_transactions?.length) return;
@@ -520,11 +528,13 @@ export function PublisherFinance() {
       {/* Withdraw Modal */}
       {showWithdraw && (
         <WithdrawModal
-          earnData={financeData}
-          onClose={() => setShowWithdraw(false)}
-          onWithdrawn={() => {
+          userId={publisherId}
+          amountPaise={financeData.available_paise}
+          resumePayout={financeData.active_payout}
+          onWithdraw={handleWithdraw}
+          onClose={(changed) => {
             setShowWithdraw(false);
-            loadFinance(true);
+            if (changed) loadFinance(true);
           }}
         />
       )}

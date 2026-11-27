@@ -16,7 +16,7 @@ import AuthContext from '../../../context/AuthContext';
 import AdminContext from '../../../context/AdminContext';
 import AdminDrawer from '../../admin/common/AdminDrawer';
 import { unreadNotifications } from '../../../services/adminNotifService';
-import { releaseAuthSession } from '../../../features/auth/authSlice';
+import { logoutUser, releaseAuthSession } from '../../../features/auth/authSlice';
 import { useDispatch } from 'react-redux';
 
 const ROLE_BADGE = { superuser: 'SUPERUSER', moderator: 'MODERATOR' };
@@ -40,7 +40,7 @@ const NAV_LINKS = {
 
 export function StaffNavbar(props) {
   const { activePage = 'inbox' } = props;
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const { refresh } = useContext(AdminContext); // also redraws this component when refresh() is called
   const dispatch = useDispatch();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -55,9 +55,10 @@ export function StaffNavbar(props) {
   }
 
   // Hand the account back to the server, then sign out.
-  function handleLogout() {
-    dispatch(releaseAuthSession(user));
-    logout();
+  async function handleLogout() {
+    await dispatch(releaseAuthSession(user));
+    await dispatch(logoutUser());
+    navigate('/');
   }
 
   const navigate = useNavigate();

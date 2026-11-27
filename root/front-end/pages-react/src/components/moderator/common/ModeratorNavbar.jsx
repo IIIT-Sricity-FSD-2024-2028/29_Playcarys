@@ -1,11 +1,20 @@
 import React, { useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthContext from '../../../context/AuthContext';
+import { useAppDispatch } from '../../../app/hooks';
+import { logoutUser } from '../../../features/auth/authSlice';
 
 export function ModeratorNavbar(props) {
   const { activePage = 'dashboard' } = props;
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  async function handleLogout() {
+    await dispatch(logoutUser());
+    navigate('/');
+  }
 
   const links = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠', isReactRoute: true, path: '/moderator/dashboard' },
@@ -91,7 +100,7 @@ export function ModeratorNavbar(props) {
           </div>
           <span
             className="nav-logout"
-            onClick={logout}
+            onClick={handleLogout}
             title="Logout"
             style={{ cursor: 'pointer' }}
           >
@@ -186,7 +195,7 @@ export function ModeratorNavbar(props) {
                 <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{username}</div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--accent-purple)' }}>MODERATOR</div>
               </div>
-              <span className="nav-logout" onClick={logout} title="Logout" style={{ cursor: 'pointer' }}>⬅️</span>
+              <span className="nav-logout" onClick={handleLogout} title="Logout" style={{ cursor: 'pointer' }}>⬅️</span>
             </div>
           </div>
         </div>
