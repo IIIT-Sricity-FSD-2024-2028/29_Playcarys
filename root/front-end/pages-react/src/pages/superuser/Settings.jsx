@@ -159,7 +159,6 @@ export function Settings() {
     try {
       const next = { ...persistedSettings, [key]: val };
       await dispatch(updatePlatformSettings(next)).unwrap();
-      saveSettings({ [key]: val });
       setPersistedSettings((prev) => ({ ...prev, [key]: val }));
       showToast(toastMsg, 'info');
     } catch (err) {
