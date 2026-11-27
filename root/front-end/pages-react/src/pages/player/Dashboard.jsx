@@ -19,6 +19,14 @@ import TodayActivity from '../../components/player/dashboard/TodayActivity';
 import GameDetailsModal from '../../components/player/dashboard/GameDetailsModal';
 import '../../styles/player/dashboard.css';
 
+function selectDashboardGames(games) {
+  return games.filter(
+    (game) =>
+      (game.status === 'approved' || game.game_approval_status === 'approved') &&
+      game.enabled !== false
+  );
+}
+
 export function Dashboard() {
   const dispatch = useAppDispatch();
   const { user, loading: authLoading } = useContext(AuthContext);
@@ -50,6 +58,10 @@ export function Dashboard() {
 
   const currentUid = user?.userId ?? user?.id ?? user?.user_id ?? 7;
   const currentRole = user?.role || 'player';
+
+  useEffect(() => {
+    document.title = 'PlayCarys — Player Dashboard';
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -115,15 +127,15 @@ export function Dashboard() {
 
   const navigate = useNavigate();
 
-  const effectiveFeaturedGames =
-    data?.featuredGames && data.featuredGames.length > 0
-      ? data.featuredGames
-      : reduxGames.filter((g) => (g.game_approval_status === 'approved' || g.status === 'approved') && g.img).slice(0, 4);
-
-  const effectiveLibraryGames =
-    data?.libraryGames && data.libraryGames.length > 0
-      ? data.libraryGames
-      : (reduxGames.length > 0 ? reduxGames.filter((g) => (g.game_approval_status === 'approved' || g.status === 'approved')).slice(0, 10) : []);
+  // The catalogue belongs to gameSlice. Prefer its current API result over
+  // the legacy dashboard cache, which can be stale or empty after a refresh.
+  const approvedReduxGames = selectDashboardGames(reduxGames);
+  const effectiveFeaturedGames = approvedReduxGames.length
+    ? approvedReduxGames.filter((game) => game.img).slice(0, 4)
+    : (data?.featuredGames || []);
+  const effectiveLibraryGames = approvedReduxGames.length
+    ? approvedReduxGames.slice(0, 10)
+    : (data?.libraryGames || []);
 
   const effectiveTournaments =
     data?.tournaments && data.tournaments.length > 0
@@ -218,7 +230,7 @@ export function Dashboard() {
   ).length;
 
   const isGuest = user?.role === 'guest';
-  const effectiveUser = data?.user || {
+  const effectiveUser = {
     id: String(currentUid),
     user_id: String(currentUid),
     username: user?.username || (isGuest ? 'Guest Player' : 'Player'),
@@ -227,7 +239,11 @@ export function Dashboard() {
     elo: 1200,
     xp: 0,
     matches: 0,
-    wins: 0
+    wins: 0,
+    ...(data?.user || {}),
+    ...(user?.username || user?.name || user?.displayName
+      ? { ...user, username: user.username || user.name || user.displayName }
+      : {})
   };
 
   return (
@@ -236,16 +252,27 @@ export function Dashboard() {
         {/* ≡≡≡ MAIN FEED ≡≡≡ */}
         <div className="dash-main">
           {/* Featured Spotlight Banner */}
-          <FeaturedGame
-            game={currentFeatGame}
-            currentIndex={featuredIndex}
-            totalGames={effectiveFeaturedGames?.length || 0}
-            liveTournaments={liveTournamentsCount}
-            onNext={handleSlideNext}
-            onSelectIndex={handleSelectFeatIndex}
-            onPlay={(id) => handlePlayGame(id, true)}
-            onViewDetails={handleViewDetails}
-          />
+          {currentFeatGame ? (
+            <FeaturedGame
+              game={currentFeatGame}
+              currentIndex={featuredIndex}
+              totalGames={effectiveFeaturedGames?.length || 0}
+              liveTournaments={liveTournamentsCount}
+              onNext={handleSlideNext}
+              onSelectIndex={handleSelectFeatIndex}
+              onPlay={(id) => handlePlayGame(id, true)}
+              onViewDetails={handleViewDetails}
+            />
+          ) : (
+            <section className="dash-empty-hero">
+              <div>
+                <p className="featured-eyebrow"><span className="eyebrow-dot" />GAME LIBRARY</p>
+                <h1>Find your next game</h1>
+                <p>The catalogue is loading, or no approved games are available yet.</p>
+                <button type="button" className="btn-play" onClick={() => navigate('/player/games')}>Browse Games</button>
+              </div>
+            </section>
+          )}
 
           {/* Scrollable Area */}
           <div className="dash-scroll">

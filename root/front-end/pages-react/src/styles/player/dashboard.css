@@ -31,6 +31,31 @@
   cursor: default;
 }
 
+/* Intentional composition when the catalogue is empty instead of a blank hero. */
+.dash-empty-hero {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  padding: 2.5rem;
+  background:
+    radial-gradient(circle at 78% 26%, rgba(0, 212, 255, 0.16), transparent 35%),
+    linear-gradient(135deg, #0d1b35 0%, #120a24 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dash-empty-hero h1 {
+  margin: 0 0 0.75rem;
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.dash-empty-hero p:not(.featured-eyebrow) {
+  max-width: 480px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+}
+
 .featured-bg {
   position: absolute;
   inset: 0;
